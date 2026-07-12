@@ -39,7 +39,7 @@ if (redis) {
 registerMessagingHandlers(io);
 registerCallHandlers(io);
 registerNotificationHandlers(io);
-registerPresenceHandlers(io, { cacheSet, cacheDel });
+registerPresenceHandlers(io, { cacheSet, cacheDel, redis });
 
 startRealtimeSubscriber().catch((error) => {
   logger.error('Failed to start realtime subscriber', { error: error.message });

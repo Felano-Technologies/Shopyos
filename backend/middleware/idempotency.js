@@ -8,6 +8,7 @@
 // caches its response in Redis, and any retry with the same key replays that
 // response instead of re-executing the handler.
 
+const crypto = require('node:crypto');
 const { cacheGet, cacheSet, acquireLock } = require('../config/redis');
 const { logger } = require('../config/logger');
 
@@ -20,8 +21,14 @@ const idempotency = async (req, res, next) => {
     return next();
   }
 
-  // Scope keys per caller so one user's key can never replay another's response
-  const scope = req.user?.id || req.ip || 'anon';
+  // Scope keys per caller so one user's key can never replay another's
+  // response. Scope must be STABLE across retries: mobile/VPN source IPs
+  // rotate between an attempt and its retry, so IP-scoping caused cache
+  // misses and duplicate execution. The auth header survives retries.
+  const auth = req.headers.authorization;
+  const scope = auth
+    ? crypto.createHash('sha256').update(auth).digest('hex').slice(0, 16)
+    : (req.ip || 'anon');
   const cacheKey = `idem:${scope}:${headerKey}`;
 
   try {

@@ -66,7 +66,7 @@ export default function ForceResetPasswordScreen() {
       <StatusBar style="light" />
       <LinearGradient colors={['#061f65', '#0C2E8A']} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <View style={styles.iconWrap}>
                 <Ionicons name="lock-closed" size={48} color="#A3E635" />

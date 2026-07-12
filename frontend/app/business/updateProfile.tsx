@@ -178,7 +178,7 @@ const BusinessUpdateScreen = () => {
       </View>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
             style={{ flex: 1 }}
         >
         <ScrollView

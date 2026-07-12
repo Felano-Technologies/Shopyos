@@ -48,6 +48,21 @@ function defaultStoreName(item: any) {
 
 const AD_EVERY = 8;
 
+// Interleave sponsored ads into a product list — shared by the inline grid and
+// the virtualized home feed.
+export type GridListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
+export function buildGridItems(products: any[], injectedAds: any[] = []): GridListItem[] {
+  const items: GridListItem[] = [];
+  products.forEach((p, i) => {
+    items.push({ type: 'product', data: p });
+    if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
+      const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
+      items.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
+    }
+  });
+  return items;
+}
+
 function ProductGridBase({
   title, products, loading, onPressProduct, onAddToCart,
   addingId, favoriteIds, onToggleFavorite, favoriteBusyId,
@@ -56,18 +71,7 @@ function ProductGridBase({
   const storeName = getStoreName ?? defaultStoreName;
 
   // Build display list with ad injection — memoized to avoid rebuilding every render
-  type ListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
-  const listItems = useMemo<ListItem[]>(() => {
-    const items: ListItem[] = [];
-    products.forEach((p, i) => {
-      items.push({ type: 'product', data: p });
-      if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
-        const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
-        items.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
-      }
-    });
-    return items;
-  }, [products, injectedAds]);
+  const listItems = useMemo(() => buildGridItems(products, injectedAds), [products, injectedAds]);
 
   if (loading) {
     return (
@@ -89,7 +93,60 @@ function ProductGridBase({
     );
   }
 
-  const renderProduct = (item: any, idx: number) => {
+  const renderProduct = (item: any, idx: number) => (
+    <ProductCard
+      key={`${item._id || item.id || 'p'}-${idx}`}
+      item={item}
+      onPressProduct={onPressProduct}
+      onAddToCart={onAddToCart}
+      addingId={addingId}
+      favoriteIds={favoriteIds}
+      onToggleFavorite={onToggleFavorite}
+      favoriteBusyId={favoriteBusyId}
+      storeName={storeName}
+    />
+  );
+
+  const renderAd = (ad: any, key: string) => <AdCard key={key} ad={ad} />;
+
+  return (
+    <View style={S.section}>
+      {title && <SectionHeader title={title} onSeeAll={onSeeAll} />}
+      <View style={S.grid}>
+        {listItems.length > 0 ? (
+          listItems.map((item, idx) =>
+            item.type === 'ad'
+              ? renderAd(item.data, item.key)
+              : renderProduct(item.data, idx)
+          )
+        ) : (
+          <View style={S.empty}>
+            <Ionicons name={(emptyIcon || 'grid-outline') as any} size={28} color={C.navyMid} />
+            <Text style={S.emptyTitle}>{emptyTitle || 'Nothing here yet'}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+type CardProps = Readonly<{
+  item: any;
+  onPressProduct: (item: any) => void;
+  onAddToCart: (item: any) => void;
+  addingId: string | null;
+  favoriteIds: Set<string>;
+  onToggleFavorite: (item: any) => void;
+  favoriteBusyId: string | null;
+  storeName: (item: any) => string;
+}>;
+
+// Standalone card — also used as the virtualized home feed's renderItem
+function ProductCardBase({
+  item, onPressProduct, onAddToCart, addingId,
+  favoriteIds, onToggleFavorite, favoriteBusyId, storeName,
+}: CardProps) {
+  {
     const productId = String(item._id || item.id || '');
     const isFav = favoriteIds.has(productId);
     const isBusy = favoriteBusyId === productId;
@@ -106,7 +163,6 @@ function ProductGridBase({
 
     return (
       <TouchableOpacity
-        key={`${item._id || item.id || 'p'}-${idx}`}
         style={S.card}
         activeOpacity={0.88}
         onPress={() => onPressProduct(item)}
@@ -174,64 +230,48 @@ function ProductGridBase({
         </View>
       </TouchableOpacity>
     );
-  };
+  }
+}
 
-  const renderAd = (ad: any, key: string) => {
-    if (ad.isPlaceholder) {
-      return (
-        <View key={key} style={[S.card, S.adCard, S.adPlaceholderCard]}>
-          <View style={S.adContent}>
-            <View style={[S.adTag, S.adPlaceholderTag]}>
-              <Text style={[S.adTagTxt, S.adPlaceholderTagTxt]}>AD</Text>
-            </View>
-            <Text style={[S.adTitle, S.adPlaceholderTitle]}>Your campaign here</Text>
-          </View>
-        </View>
-      );
-    }
+export const ProductCard = React.memo(ProductCardBase);
 
+function AdCardBase({ ad }: Readonly<{ ad: any }>) {
+  if (ad.isPlaceholder) {
     return (
-      <TouchableOpacity key={key} style={[S.card, S.adCard]} activeOpacity={0.9}>
-        {ad.banner_url ? (
-          <AppImage uri={ad.banner_url} style={S.adImg} />
-        ) : (
-          <LinearGradient colors={[C.navy, C.navyMid]} style={S.adImg} />
-        )}
-        <LinearGradient
-          colors={['transparent', 'rgba(12,21,89,0.82)']}
-          start={{ x: 0, y: 0.3 }} end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
+      <View style={[S.card, S.adCard, S.adPlaceholderCard]}>
         <View style={S.adContent}>
-          <View style={S.adTag}><Text style={S.adTagTxt}>AD</Text></View>
-          <Text style={S.adTitle} numberOfLines={2}>
-            {ad.title || ad.business?.businessName || 'Special Offer'}
-          </Text>
+          <View style={[S.adTag, S.adPlaceholderTag]}>
+            <Text style={[S.adTagTxt, S.adPlaceholderTagTxt]}>AD</Text>
+          </View>
+          <Text style={[S.adTitle, S.adPlaceholderTitle]}>Your campaign here</Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
-  };
+  }
 
   return (
-    <View style={S.section}>
-      {title && <SectionHeader title={title} onSeeAll={onSeeAll} />}
-      <View style={S.grid}>
-        {listItems.length > 0 ? (
-          listItems.map((item, idx) =>
-            item.type === 'ad'
-              ? renderAd(item.data, item.key)
-              : renderProduct(item.data, idx)
-          )
-        ) : (
-          <View style={S.empty}>
-            <Ionicons name={(emptyIcon || 'grid-outline') as any} size={28} color={C.navyMid} />
-            <Text style={S.emptyTitle}>{emptyTitle || 'Nothing here yet'}</Text>
-          </View>
-        )}
+    <TouchableOpacity style={[S.card, S.adCard]} activeOpacity={0.9}>
+      {ad.banner_url ? (
+        <AppImage uri={ad.banner_url} style={S.adImg} />
+      ) : (
+        <LinearGradient colors={[C.navy, C.navyMid]} style={S.adImg} />
+      )}
+      <LinearGradient
+        colors={['transparent', 'rgba(12,21,89,0.82)']}
+        start={{ x: 0, y: 0.3 }} end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={S.adContent}>
+        <View style={S.adTag}><Text style={S.adTagTxt}>AD</Text></View>
+        <Text style={S.adTitle} numberOfLines={2}>
+          {ad.title || ad.business?.businessName || 'Special Offer'}
+        </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
+
+export const AdCard = React.memo(AdCardBase);
 
 export const ProductGrid = React.memo(ProductGridBase);
 

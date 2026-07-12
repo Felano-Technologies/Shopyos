@@ -108,8 +108,15 @@ class NotificationService {
         }
       }
 
-      // Send push notification if enabled — queued through RabbitMQ for observability
+      // Send push notification if enabled — queued through RabbitMQ for observability.
+      // Skipped when the user has a live socket connection (the in-app emit above
+      // already reached them); pass push.force = true for critical events that
+      // should push regardless of presence.
       if (preferences.push_enabled && params.push) {
+        if (!params.push.force && !silent && await this._isUserConnected(userId)) {
+          logger.debug(`[NotificationService] Push skipped for user ${userId} (${type}) — active socket connection`);
+          return true;
+        }
         const queued = await this._publishPushJob({
           eventType: type,
           userId,
@@ -233,6 +240,23 @@ class NotificationService {
   async sendOTP(phoneNumber, otp) {
     const message = `Your Shopyos verification code is: ${otp}. Valid for 10 minutes.`;
     return this.sendSMS({ to: phoneNumber, message });
+  }
+
+  /**
+   * Check whether the user has a live socket connection. Presence keys are
+   * maintained by the socket presence handlers (multi-device aware, heartbeat
+   * refreshed). Fails open (false → push sent) if Redis is unavailable.
+   * @param {string} userId
+   */
+  async _isUserConnected(userId) {
+    try {
+      const { cacheGet } = require('../config/redis');
+      const presence = await cacheGet(`presence:${userId}`);
+      return presence === '1';
+    } catch (err) {
+      logger.warn('Presence check failed, sending push anyway:', err.message);
+      return false;
+    }
   }
 
   /**

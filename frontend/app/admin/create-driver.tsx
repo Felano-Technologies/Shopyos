@@ -91,7 +91,7 @@ export default function AdminCreateDriver() {
           <View style={{ width: 36 }} />
         </LinearGradient>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.formCard}>
               <UserSearchPicker

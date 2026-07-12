@@ -343,6 +343,11 @@ export default function ConversationScreen() {
         socketService.onNewMessage(({ message, conversationId: cid }: any) => {
           if (!alive || cid !== conversationId) return;
           appendMessage(message);
+          // The bot's reply IS the end of "typing" — don't wait for a
+          // separate stop event (the backend only emits one on errors)
+          if (message?.sender_id === '00000000-0000-0000-0000-000000000001') {
+            setIsBotTyping(false);
+          }
           markAsReadCombined().catch(() => {});
         });
         const sock = socketService.getSocket();
@@ -780,7 +785,7 @@ export default function ConversationScreen() {
       </LinearGradient>
 
       {/* Body */}
-      <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+      <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         {loading ? (
           <View style={styles.loadingWrap}><ActivityIndicator size="large" color={C.navyDeep} /></View>
         ) : messages.length === 0 ? (

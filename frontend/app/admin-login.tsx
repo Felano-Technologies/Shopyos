@@ -154,7 +154,7 @@ export default function AdminLoginScreen() {
   // ── Right form panel ───────────────────────────────────────────────────────
   const FormPanel = () => (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.formPanel, !isTwoPanel && styles.formPanelMobile]}
     >
       <Pressable style={styles.formInner}>

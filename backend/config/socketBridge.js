@@ -11,10 +11,12 @@ async function initializeSocketBridge(httpServer, logger) {
 
   // Attach Redis adapter for multi-instance/replica support
   // (socket service's socketServer.js does not include this)
+  let presenceRedis = null;
   try {
     const { getRedis } = require('./redis');
     const redis = getRedis();
     if (redis?.status === 'ready') {
+      presenceRedis = redis;
       const pubClient = redis.duplicate();
       const subClient = redis.duplicate();
       await Promise.all([pubClient.connect(), subClient.connect()]);
@@ -30,7 +32,7 @@ async function initializeSocketBridge(httpServer, logger) {
   registerMessagingHandlers(io);
   registerCallHandlers(io);
   registerNotificationHandlers(io);
-  registerPresenceHandlers(io, { cacheSet, cacheDel });
+  registerPresenceHandlers(io, { cacheSet, cacheDel, redis: presenceRedis });
 
   startRealtimeSubscriber().catch((err) => {
     logger.error('Socket bridge: Realtime subscriber failed to start:', err.message);

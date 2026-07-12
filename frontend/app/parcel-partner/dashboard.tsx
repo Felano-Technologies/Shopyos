@@ -20,6 +20,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useAllUnreadCount } from '@/hooks/useChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import WelcomeCard from '@/components/WelcomeCard';
 
 const { width: SW } = Dimensions.get('window');
 const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
@@ -321,6 +322,7 @@ export default function ParcelPartnerDashboard() {
         )}
       </TouchableOpacity>
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <WelcomeCard />
     </View>
   );
 }

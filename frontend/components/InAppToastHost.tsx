@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  cancelAnimation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
 import { Audio } from 'expo-av';
 
@@ -23,7 +36,13 @@ export const CustomInAppToast = {
 };
 
 const TOAST_VISIBLE_MS = 2800;
+const EXPAND_DELAY_MS = 140;
 const SWIPE_DISMISS_THRESHOLD = -32;
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const FULL_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 520);
+const PILL_WIDTH = Math.min(SCREEN_WIDTH * 0.56, 250);
+const PILL_HEIGHT = 42;
 
 function getOrderId(notification: InAppNotification): string | null {
   const orderId = (notification.data as { orderId?: number | string })?.orderId;
@@ -33,8 +52,22 @@ function getOrderId(notification: InAppNotification): string | null {
   return String(orderId);
 }
 
+function getToastVisuals(type?: InAppNotification['type']) {
+  switch (type) {
+    case 'error':
+      return { accentColor: '#EF4444', kickerText: 'ERROR', icon: 'alert-circle' as const };
+    case 'success':
+      return { accentColor: '#84cc16', kickerText: 'SUCCESS', icon: 'checkmark-circle' as const };
+    case 'info':
+      return { accentColor: '#3B82F6', kickerText: 'INFO', icon: 'information-circle' as const };
+    default:
+      return { accentColor: '#84cc16', kickerText: 'NOTIFICATION', icon: 'notifications' as const };
+  }
+}
+
 export function InAppToastHost() {
   const rootNavigationState = useRootNavigationState();
+  const insets = useSafeAreaInsets();
 
   const [currentToast, setCurrentToast] = useState<InAppNotification | null>(null);
 
@@ -42,10 +75,13 @@ export function InAppToastHost() {
   const isDismissing = useRef(false);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  const translateY = useRef(new Animated.Value(-140)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
-  const progress = useRef(new Animated.Value(1)).current;
+  // Drop-then-expand: translateY drops the pill in, `expand` morphs pill → card
+  const translateY = useSharedValue(-160);
+  const opacity = useSharedValue(0);
+  const expand = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const progress = useSharedValue(1);
+  const contentHeight = useSharedValue(PILL_HEIGHT);
 
   const canNavigate = useMemo(() => Boolean(rootNavigationState?.key), [rootNavigationState?.key]);
 
@@ -55,10 +91,10 @@ export function InAppToastHost() {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
-      // Volume 0.25 — soft and smooth, not jarring
+      // Volume 0.22 — light pop, not jarring
       const { sound } = await Audio.Sound.createAsync(
         require('../assets/sounds/notification.wav'),
-        { shouldPlay: true, volume: 0.25 }
+        { shouldPlay: true, volume: 0.22 }
       );
       soundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -85,6 +121,12 @@ export function InAppToastHost() {
     return () => { notifyHost = () => {}; };
   }, [currentToast]);
 
+  const finishDismiss = useCallback(() => {
+    setCurrentToast(null);
+    isDismissing.current = false;
+    notifyHost();
+  }, []);
+
   const dismissCurrentToast = useCallback(() => {
     if (isDismissing.current) {
       return;
@@ -95,18 +137,21 @@ export function InAppToastHost() {
       clearTimeout(hideTimer.current);
       hideTimer.current = null;
     }
-    progress.stopAnimation();
+    cancelAnimation(progress);
 
-    Animated.parallel([
-      Animated.timing(translateY, { toValue: -140, duration: 180, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 140, useNativeDriver: true }),
-      Animated.timing(dragY, { toValue: 0, duration: 120, useNativeDriver: true })
-    ]).start(() => {
-      setCurrentToast(null);
-      isDismissing.current = false;
-      notifyHost();
-    });
-  }, [dragY, opacity, progress, translateY]);
+    // Reverse the entrance: shrink back to a pill, then slide up and out
+    dragY.value = withTiming(0, { duration: 120 });
+    expand.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.cubic) });
+    opacity.value = withDelay(110, withTiming(0, { duration: 150 }));
+    translateY.value = withDelay(
+      100,
+      withTiming(-160, { duration: 190, easing: Easing.in(Easing.cubic) }, (finished) => {
+        if (finished) {
+          runOnJS(finishDismiss)();
+        }
+      })
+    );
+  }, [dragY, expand, finishDismiss, opacity, progress, translateY]);
 
   const panResponder = useMemo(
     () =>
@@ -114,19 +159,14 @@ export function InAppToastHost() {
         onMoveShouldSetPanResponder: (_, gesture) =>
           Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
         onPanResponderMove: (_, gesture) => {
-          dragY.setValue(Math.min(0, gesture.dy));
+          dragY.value = Math.min(0, gesture.dy);
         },
         onPanResponderRelease: (_, gesture) => {
           if (gesture.dy <= SWIPE_DISMISS_THRESHOLD) {
             dismissCurrentToast();
             return;
           }
-          Animated.spring(dragY, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 18,
-            stiffness: 180
-          }).start();
+          dragY.value = withSpring(0, { damping: 18, stiffness: 180 });
         }
       }),
     [dismissCurrentToast, dragY]
@@ -137,45 +177,41 @@ export function InAppToastHost() {
       return;
     }
 
-    translateY.setValue(-140);
-    dragY.setValue(0);
-    opacity.setValue(0);
-    progress.setValue(1);
+    translateY.value = -160;
+    dragY.value = 0;
+    opacity.value = 0;
+    expand.value = 0;
+    progress.value = 1;
     isDismissing.current = false;
 
-    // Play soft chime when a toast becomes visible
+    // Play a light pop when the pill drops in
     playSoftToastSound().catch(() => null);
 
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 16,
-        stiffness: 160
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true
-      }),
-      Animated.timing(progress, {
-        toValue: 0,
-        duration: TOAST_VISIBLE_MS,
-        useNativeDriver: true
-      })
-    ]).start();
+    // Stage 1: small pill drops down from off-screen
+    translateY.value = withSpring(0, { damping: 16, stiffness: 170 });
+    opacity.value = withTiming(1, { duration: 200 });
+
+    // Stage 2: shortly after landing, the pill opens into the full card
+    expand.value = withDelay(
+      EXPAND_DELAY_MS + 160,
+      withSpring(1, { damping: 19, stiffness: 170 })
+    );
+    progress.value = withDelay(
+      EXPAND_DELAY_MS + 160,
+      withTiming(0, { duration: TOAST_VISIBLE_MS, easing: Easing.linear })
+    );
 
     hideTimer.current = setTimeout(() => {
       dismissCurrentToast();
-    }, TOAST_VISIBLE_MS);
+    }, TOAST_VISIBLE_MS + EXPAND_DELAY_MS + 160);
 
     return () => {
       if (hideTimer.current) {
         clearTimeout(hideTimer.current);
       }
-      progress.stopAnimation();
+      cancelAnimation(progress);
     };
-  }, [currentToast, dismissCurrentToast, dragY, opacity, playSoftToastSound, progress, translateY]);
+  }, [currentToast, dismissCurrentToast, dragY, expand, opacity, playSoftToastSound, progress, translateY]);
 
   useEffect(() => {
     return () => {
@@ -185,55 +221,80 @@ export function InAppToastHost() {
     };
   }, []);
 
+  const wrapperStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value + dragY.value }]
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
+    width: interpolate(expand.value, [0, 1], [PILL_WIDTH, FULL_WIDTH]),
+    height: interpolate(
+      expand.value,
+      [0, 1],
+      [PILL_HEIGHT, Math.max(contentHeight.value, PILL_HEIGHT)]
+    ),
+    borderRadius: interpolate(expand.value, [0, 1], [PILL_HEIGHT / 2, 16])
+  }));
+
+  const detailsStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expand.value, [0.35, 1], [0, 1], 'clamp'),
+    transform: [{ translateY: interpolate(expand.value, [0, 1], [6, 0]) }]
+  }));
+
+  const progressStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: progress.value }]
+  }));
+
   if (!currentToast) {
     return null;
   }
 
   const orderId = getOrderId(currentToast);
-
-  let accentColor = '#84cc16'; // Default Lime Green
-  let kickerText = 'NOTIFICATION';
-
-  if (currentToast.type === 'error') {
-    accentColor = '#EF4444'; // Red
-    kickerText = 'ERROR';
-  } else if (currentToast.type === 'success') {
-    kickerText = 'SUCCESS';
-  } else if (currentToast.type === 'info') {
-    accentColor = '#3B82F6'; // Blue
-    kickerText = 'INFO';
-  }
+  const { accentColor, kickerText, icon } = getToastVisuals(currentToast.type);
 
   return (
-    <View pointerEvents="box-none" style={styles.host}>
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.toastWrapper, { opacity, transform: [{ translateY }, { translateY: dragY }] }]}>
-        <Pressable
-          style={styles.toastCard}
-          onPress={() => {
-            dismissCurrentToast();
-            if (currentToast.onPress) {
-              currentToast.onPress();
-              return;
-            }
-            if (!canNavigate) return;
-            if (orderId) {
-              router.push({ pathname: '/order/[id]', params: { id: orderId } });
-            } else {
-              router.push('/notification');
-            }
-          }}>
-          <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-          <View style={styles.content}>
-            <Text style={[styles.kicker, { color: accentColor }]}>{kickerText}</Text>
-            <Text style={styles.title}>{currentToast.title}</Text>
-            <Text style={styles.message}>{currentToast.message}</Text>
-            <View style={styles.progressTrack}>
-              <Animated.View style={[styles.progressFill, { backgroundColor: accentColor, transform: [{ scaleX: progress }], transformOrigin: 'left' as any }]} />
+    <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 8 }]}>
+      <Animated.View {...panResponder.panHandlers} style={wrapperStyle}>
+        <Animated.View style={[styles.toastCard, cardStyle]}>
+          <Pressable
+            style={styles.pressArea}
+            accessibilityRole="alert"
+            onPress={() => {
+              dismissCurrentToast();
+              if (currentToast.onPress) {
+                currentToast.onPress();
+                return;
+              }
+              if (!canNavigate) return;
+              if (orderId) {
+                router.push({ pathname: '/order/[id]', params: { id: orderId } });
+              } else {
+                router.push('/notification');
+              }
+            }}>
+            <View
+              style={styles.content}
+              onLayout={(e) => {
+                contentHeight.value = e.nativeEvent.layout.height;
+              }}>
+              <View style={styles.headerRow}>
+                <View style={[styles.iconCircle, { backgroundColor: `${accentColor}26` }]}>
+                  <Ionicons name={icon} size={16} color={accentColor} />
+                </View>
+                <Text style={styles.title} numberOfLines={1}>{currentToast.title}</Text>
+              </View>
+              <Animated.View style={detailsStyle}>
+                <Text style={[styles.kicker, { color: accentColor }]}>{kickerText}</Text>
+                <Text style={styles.message} numberOfLines={2}>{currentToast.message}</Text>
+                <View style={styles.progressTrack}>
+                  <Animated.View
+                    style={[styles.progressFill, { backgroundColor: accentColor }, progressStyle]}
+                  />
+                </View>
+              </Animated.View>
             </View>
-          </View>
-        </Pressable>
+          </Pressable>
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -242,61 +303,65 @@ export function InAppToastHost() {
 const styles = StyleSheet.create({
   host: {
     position: 'absolute',
-    top: 55, // Account for notch
     left: 0,
     right: 0,
     zIndex: 9999, // Super high z-index to overlay everything
     elevation: 20,
     alignItems: 'center'
   },
-  toastWrapper: {
-    width: '92%',
-    paddingHorizontal: 10,
-    paddingTop: 0
-  },
   toastCard: {
     backgroundColor: '#0C1559', // Project Primary Dark
-    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#1D2A78', // Subtle border
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 18,
-    flexDirection: 'row'
+    shadowRadius: 18
   },
-  accentBar: {
-    width: 6,
-    backgroundColor: '#84cc16' // Project Lime Green Accent
+  pressArea: {
+    flex: 1
   },
   content: {
+    paddingVertical: 6,
+    paddingHorizontal: 10
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: PILL_HEIGHT - 12 // Fills the collapsed pill so icon + title sit centered
+  },
+  iconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8
+  },
+  title: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold'
   },
   kicker: {
-    color: '#84cc16', // Match accent
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Montserrat-Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 2
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 2
+    marginBottom: 1
   },
   message: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 15,
     fontFamily: 'Montserrat-Medium'
   },
   progressTrack: {
     marginTop: 6,
-    height: 3,
+    marginBottom: 1,
+    height: 2,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.1)',
     overflow: 'hidden'
@@ -304,6 +369,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     width: '100%', // Scale from full width down
-    backgroundColor: '#84cc16' // Lime green
+    transformOrigin: 'left'
   }
 });

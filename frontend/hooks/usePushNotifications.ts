@@ -69,12 +69,29 @@ const ensureNotificationHandler = () => {
             const data = notification?.request?.content?.data;
             const activeId = (globalThis as any).activeConversationId;
 
-            // Suppress foreground notification alert/banner if user is already inside this specific chat!
-            if (data?.screen === 'messages' && data?.conversationId && data?.conversationId === activeId) {
+            // If the socket is live, the in-app pipeline (notification:new /
+            // message:new) already surfaced this event — an OS banner would be
+            // a duplicate. Keep it in the tray list so nothing is lost if the
+            // user backgrounds moments later.
+            let socketAlive = false;
+            try {
+                const { socketService } = require('../services/socket');
+                socketAlive = socketService.isConnected() === true;
+            } catch {
+                // socket service unavailable — fall through to showing the banner
+            }
+
+            // Extra guard: even with a flaky socket, never banner the chat the
+            // user is currently inside
+            const inThisChat = data?.screen === 'messages' && data?.conversationId && data?.conversationId === activeId;
+
+            if (socketAlive || inThisChat) {
                 return {
                     shouldShowAlert: false,
                     shouldPlaySound: false,
                     shouldSetBadge: false,
+                    shouldShowBanner: false,
+                    shouldShowList: true,
                 };
             }
 

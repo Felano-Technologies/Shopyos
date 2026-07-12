@@ -14,6 +14,7 @@ const {
   updatePreferences,
   getNotificationsByType,
   registerPushToken,
+  unregisterPushToken,
   markReadByConversation
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/authMiddleware');
@@ -420,5 +421,36 @@ router.delete('/', deleteAllNotifications);
  *         description: Unauthorized — missing or invalid token
  */
 router.post('/push-token', registerPushToken);
+
+// @route   DELETE /api/notifications/push-token
+// @desc    Unregister a device push token (logout)
+// @access  Private
+/**
+ * @swagger
+ * /api/v1/notifications/push-token:
+ *   delete:
+ *     summary: Unregister a device push token for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: The device push notification token to remove
+ *     responses:
+ *       200:
+ *         description: Push token unregistered successfully
+ *       401:
+ *         description: Unauthorized — missing or invalid token
+ */
+router.delete('/push-token', unregisterPushToken);
 
 module.exports = router;

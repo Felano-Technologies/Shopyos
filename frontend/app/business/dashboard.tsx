@@ -21,7 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import WelcomeCard from '@/components/WelcomeCard';
 import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
 import { useActiveBusiness, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
@@ -622,11 +622,8 @@ const BusinessDashboard = () => {
       </Modal>
 
       <BusinessBottomNav />
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'business_dashboard'} 
-        steps={onboardingSteps}
-        onComplete={handleOnboardingComplete}
-      />
+      {/* One-time role-aware welcome card (replaces the old spotlight tour) */}
+      <WelcomeCard />
     </View>
   );
 };

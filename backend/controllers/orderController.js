@@ -381,7 +381,7 @@ const getMyOrders = async (req, res, next) => {
     const userId = req.user.id;
     const { status, limit = 20, offset = 0 } = req.query;
 
-    const limitNum = Number.parseInt(limit);
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
     const offsetNum = Number.parseInt(offset);
 
     const { data: orders, count: totalCount } = await repositories.orders.getBuyerOrders(userId, {
@@ -431,7 +431,7 @@ const getStoreOrders = async (req, res, next) => {
       }
     }
 
-    const limitNum = Number.parseInt(limit);
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
     const offsetNum = Number.parseInt(offset);
 
     const { data: orders, count: totalCount } = await repositories.orders.getStoreOrders(storeId, {

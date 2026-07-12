@@ -332,7 +332,7 @@ export default function AdminHubsScreen() {
 
       {/* Hub Modal */}
       <Modal visible={hubModal} animationType="slide" transparent>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={S.overlay}>
           <View style={S.sheet}>
             <View style={S.handle} />
@@ -380,7 +380,7 @@ export default function AdminHubsScreen() {
 
       {/* Transit Route Modal */}
       <Modal visible={routeModal} animationType="slide" transparent>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={S.overlay}>
           <View style={S.sheet}>
             <View style={S.handle} />

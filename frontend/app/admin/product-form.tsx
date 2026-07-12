@@ -116,7 +116,7 @@ export default function AdminProductForm() {
             <ActivityIndicator size="large" color="#0C1559" />
           </View>
         ) : (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
               <View style={styles.formCard}>
                 <Text style={styles.fieldLabel}>Product Name</Text>

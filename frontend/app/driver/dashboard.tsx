@@ -21,6 +21,7 @@ import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignD
 import { useDriverGuard } from '@/hooks/useDriverGuard';
 import { useAllUnreadCount } from '@/hooks/useChat';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
+import WelcomeCard from '@/components/WelcomeCard';
 import {
   
   stopDriverLocationTracking,
@@ -450,6 +451,7 @@ export default function Dashboard() {
           </View>
         )}
       </TouchableOpacity>
+      <WelcomeCard />
     </View>
   );
 }
