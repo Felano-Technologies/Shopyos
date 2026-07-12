@@ -92,7 +92,9 @@ async function runUpdateCheck(
     }, 1800);
     return;
   }
-  if (!Updates.isEmbeddedLaunch) return;
+  // Check on EVERY launch — not just embedded ones. Gating on isEmbeddedLaunch
+  // meant devices already running an OTA never checked again here, so each new
+  // update needed an extra cold restart to apply.
   try {
     const update = await Updates.checkForUpdateAsync();
     if (update.isAvailable) {
