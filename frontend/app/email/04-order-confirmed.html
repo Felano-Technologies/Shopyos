@@ -5,60 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shopyos - Order Confirmed</title>
 <style>
-  body { margin:0; padding:0; background:#f1f3f4; color:#202124; font-family:Arial, Helvetica, sans-serif; -webkit-text-size-adjust:100%; }
+  body { margin:0; padding:0; background:#eef1f6; color:#1a1f2c; font-family:Arial, Helvetica, sans-serif; -webkit-text-size-adjust:100%; }
   table { border-collapse:collapse; }
   img { border:0; line-height:100%; outline:none; text-decoration:none; display:block; }
-  a { color:#1a73e8; text-decoration:none; }
-  .page { width:100%; background:#f1f3f4; padding:32px 12px; }
-  .container { width:100%; max-width:640px; margin:0 auto; }
+  a { color:#1e3a8a; text-decoration:none; }
+  .page { width:100%; background:#eef1f6; padding:32px 12px; }
+  .container { width:100%; max-width:600px; margin:0 auto; }
   .preheader { display:none!important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all; }
-  .brand { padding:0 0 18px; text-align:left; }
-  .brand img { width:164px; height:auto; }
-  .card { background:#ffffff; border:1px solid #dadce0; border-radius:8px; overflow:hidden; }
-  .mast { padding:32px 40px 22px; border-bottom:1px solid #e8eaed; }
-  .eyebrow { margin:0 0 12px; color:#5f6368; font-size:13px; line-height:20px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
-  h1 { margin:0; color:#202124; font-size:28px; line-height:36px; font-weight:400; letter-spacing:0; }
-  .summary { margin:14px 0 0; color:#5f6368; font-size:16px; line-height:24px; }
-  .content { padding:30px 40px 36px; }
-  p { margin:0 0 16px; color:#3c4043; font-size:15px; line-height:24px; }
-  .button-wrap { padding:10px 0 24px; }
-  .button { display:inline-block; background:#1a73e8; color:#ffffff!important; border-radius:4px; font-size:14px; line-height:20px; font-weight:700; padding:12px 24px; }
-  .button.green { background:#7ed348; color:#0b1f46!important; }
-  .note { background:#f8fafd; border:1px solid #e8eaed; border-radius:8px; padding:16px 18px; margin:8px 0 22px; }
-  .note p { margin:0; color:#5f6368; font-size:14px; line-height:22px; }
-  .code { background:#f8fafd; border:1px solid #dadce0; border-radius:8px; color:#0b1f46; font-size:36px; line-height:44px; font-weight:700; letter-spacing:8px; text-align:center; padding:22px 10px; margin:8px 0 20px; }
-  .details { width:100%; margin:6px 0 22px; border:1px solid #e8eaed; border-radius:8px; overflow:hidden; }
-  .details td { padding:12px 16px; border-bottom:1px solid #e8eaed; font-size:14px; line-height:20px; }
+  .card { background:#ffffff; border:1px solid #e2e6ee; border-radius:20px; overflow:hidden; box-shadow:0 1px 2px rgba(20,30,60,.05); }
+  .mast { background:#84cc16; padding:34px 40px 32px; }
+  .mast-icon { padding:0 0 18px; }
+  .eyebrow { display:inline-block; background:#1e3a8a; color:#ffffff!important; font-size:12px; line-height:16px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; padding:8px 16px; border-radius:999px; margin:0 0 22px; }
+  h1 { margin:0 0 14px; color:#132a63; font-size:29px; line-height:36px; font-weight:800; letter-spacing:-.3px; }
+  .summary { margin:0; color:#20407a; font-size:16px; line-height:24px; }
+  .content { padding:34px 40px 38px; }
+  p { margin:0 0 16px; color:#48505f; font-size:15px; line-height:24px; }
+  p strong { color:#161a24; }
+  .button-wrap { padding:6px 0 24px; }
+  .button { display:inline-block; background:#1e3a8a; color:#ffffff!important; border-radius:10px; font-size:14px; line-height:20px; font-weight:800; padding:14px 28px; }
+  .button.dark { background:#84cc16; color:#173a1e!important; }
+  .note { background:#eef2fb; border:1px solid #d7e0f5; border-radius:14px; padding:18px 20px; margin:8px 0 22px; }
+  .note p { margin:0; color:#4d5670; font-size:14px; line-height:22px; }
+  .note p strong { color:#1e3a8a; }
+  .note.warn { background:#fdeceb; border:1px solid #f5cbc7; }
+  .note.warn p { color:#7a4038; }
+  .note.warn p strong { color:#8a2a24; }
+  .code { background:#f4f6fb; border:2px dashed #cad6ef; border-radius:16px; text-align:center; padding:26px 10px 24px; margin:6px 0 22px; }
+  .code-label { margin:0 0 12px; color:#6b7690; font-size:12px; line-height:16px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; }
+  .code-digits { color:#1e3a8a; font-size:34px; line-height:40px; font-weight:800; letter-spacing:9px; font-family:'Courier New', Courier, monospace; }
+  .code-expiry { margin:14px 0 0; color:#8a94ab; font-size:13px; line-height:18px; }
+  .details { width:100%; margin:6px 0 22px; border:1px solid #e5e9f2; border-radius:14px; overflow:hidden; }
+  .details td { padding:13px 18px; border-bottom:1px solid #eef1f6; font-size:14px; line-height:20px; }
   .details tr:last-child td { border-bottom:0; }
-  .label { color:#5f6368; width:44%; }
-  .value { color:#202124; font-weight:700; text-align:right; }
-  .item { width:100%; border-bottom:1px solid #e8eaed; }
-  .item td { padding:14px 0; vertical-align:top; }
-  .thumb { width:44px; height:44px; border-radius:8px; background:#eef3ff; color:#24418f; font-size:20px; text-align:center; line-height:44px; }
-  .item-title { color:#202124; font-size:14px; line-height:20px; font-weight:700; }
-  .item-meta { color:#5f6368; font-size:13px; line-height:20px; }
-  .price { color:#202124; font-size:14px; line-height:20px; font-weight:700; text-align:right; white-space:nowrap; }
-  .total td { padding:8px 0; color:#3c4043; font-size:14px; line-height:20px; }
-  .total .final td { padding-top:14px; border-top:1px solid #dadce0; color:#202124; font-size:16px; font-weight:700; }
-  .steps { width:100%; margin:8px 0 24px; }
-  .steps td { color:#5f6368; font-size:12px; line-height:18px; text-align:center; }
-  .dot { width:22px; height:22px; border-radius:50%; background:#7ed348; color:#0b1f46; font-weight:700; line-height:22px; margin:0 auto 8px; }
-  .dot.muted { background:#e8eaed; color:#5f6368; }
-  .products { width:100%; margin:8px 0 22px; }
-  .products td { width:50%; padding:8px; vertical-align:top; }
-  .product { border:1px solid #e8eaed; border-radius:8px; padding:16px; text-align:center; }
-  .product-name { color:#202124; font-size:14px; line-height:20px; font-weight:700; }
-  .product-price { color:#0b1f46; font-size:16px; line-height:24px; font-weight:700; }
-  .pill { display:inline-block; margin-top:8px; background:#e6f4ea; color:#137333; border-radius:999px; padding:4px 10px; font-size:12px; line-height:16px; font-weight:700; }
-  .footer { padding:22px 8px 0; text-align:center; color:#5f6368; font-size:12px; line-height:20px; }
-  .footer a { color:#5f6368; text-decoration:underline; }
+  .label { color:#7d869c; width:44%; }
+  .value { color:#161a24; font-weight:700; text-align:right; }
+  .item { width:100%; }
+  .item td { padding:13px 0; border-bottom:1px solid #eef1f6; vertical-align:top; }
+  .item.last td { border-bottom:0; }
+  .thumb { width:44px; height:44px; border-radius:10px; background:#e7ecfa; color:#1e3a8a; font-size:18px; font-weight:800; text-align:center; line-height:44px; }
+  .item-title { color:#161a24; font-size:14px; line-height:20px; font-weight:700; }
+  .item-meta { color:#7d869c; font-size:13px; line-height:20px; }
+  .price { color:#161a24; font-size:14px; line-height:20px; font-weight:700; text-align:right; white-space:nowrap; }
+  .total td { padding:8px 0; color:#48505f; font-size:14px; line-height:20px; }
+  .total .final td { padding-top:14px; border-top:1px solid #e2e6ee; color:#161a24; font-size:16px; font-weight:800; }
+  .steps { width:100%; margin:10px 0 26px; }
+  .steps td { color:#7d869c; font-size:12px; line-height:18px; font-weight:700; text-align:center; }
+  .dot { width:24px; height:24px; border-radius:50%; background:#1e3a8a; color:#ffffff; font-weight:800; line-height:24px; margin:0 auto 8px; font-size:13px; }
+  .dot.muted { background:#eef1f6; color:#9aa3b8; }
+  .products { width:100%; margin:6px 0 22px; }
+  .products td { width:50%; padding:7px; vertical-align:top; }
+  .product { border:1px solid #e5e9f2; border-radius:14px; padding:18px; text-align:center; }
+  .product-name { color:#161a24; font-size:14px; line-height:20px; font-weight:700; }
+  .product-price { color:#1e3a8a; font-size:17px; line-height:24px; font-weight:800; margin-top:2px; }
+  .pill { display:inline-block; margin-top:10px; background:#eef8d9; color:#3f6b12; border-radius:999px; padding:5px 12px; font-size:11px; line-height:16px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; }
+  .pill.hot { background:#fdeceb; color:#c1462f; }
+  .footer { padding:24px 8px 0; text-align:center; color:#8a94ab; font-size:12px; line-height:20px; }
+  .footer a { color:#68738c; text-decoration:underline; }
   @media only screen and (max-width:520px) {
     .page { padding:20px 8px!important; }
-    .mast, .content { padding-left:22px!important; padding-right:22px!important; }
-    h1 { font-size:24px!important; line-height:31px!important; }
-    .products td { display:block!important; width:100%!important; padding:8px 0!important; }
-    .brand img { width:144px!important; }
-  }</style>
+    .mast { padding:30px 24px 26px!important; }
+    .content { padding:28px 24px 32px!important; }
+    h1 { font-size:25px!important; line-height:32px!important; }
+    .products td { display:block!important; width:100%!important; padding:7px 0!important; }
+    .code-digits { font-size:28px!important; letter-spacing:6px!important; }
+  }
+</style>
 </head>
 <body>
 <span class="preheader">Your Shopyos order #SHP-20847 has been confirmed.</span>
@@ -66,22 +77,38 @@
   <tr>
     <td align="center">
       <table role="presentation" class="container" width="100%">
-        <tr><td class="brand"><img src="assets/images/icondark.png" alt="Shopyos" width="164"></td></tr>
         <tr>
           <td class="card">
             <table role="presentation" width="100%">
               <tr><td class="mast">
-                <p class="eyebrow">Order confirmed</p>
+                <div class="mast-icon"><img src="data:image/png;base64,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" alt="Shopyos" width="44" height="44"></div>
+                <span class="eyebrow">Order confirmed</span>
                 <h1>We received your order</h1>
                 <p class="summary">Order #SHP-20847 is confirmed. The seller has been notified and will prepare it shortly.</p>
               </td></tr>
-              <tr><td class="content"><p>Hi <strong>Abena</strong>,</p><p>Thanks for shopping on Shopyos. Here is your order summary.</p><table role="presentation" class="item" width="100%"><tr><td width="58"><div class="thumb">F</div></td><td><div class="item-title">Fresh Tilapia (1kg)</div><div class="item-meta">Qty: 2 - Kumasi Fish Market</div></td><td class="price">GH₵ 48.00</td></tr></table><table role="presentation" class="item" width="100%"><tr><td width="58"><div class="thumb">J</div></td><td><div class="item-title">Jollof Rice + Chicken</div><div class="item-meta">Qty: 1 - Mama's Kitchen</div></td><td class="price">GH₵ 35.00</td></tr></table><table role="presentation" class="total" width="100%"><tr><td>Subtotal</td><td class="price">GH₵ 83.00</td></tr><tr><td>Delivery</td><td class="price">GH₵ 8.00</td></tr><tr><td>Discount</td><td class="price">-GH₵ 5.00</td></tr><tr class="final"><td>Total paid</td><td class="price">GH₵ 86.00</td></tr></table><table role="presentation" class="details" width="100%"><tr><td class="label">Delivery address</td><td class="value">Asokwa, Kumasi</td></tr><tr><td class="label">Estimated delivery</td><td class="value">Today, 2-4 PM</td></tr><tr><td class="label">Payment</td><td class="value">Mobile Money ****4821</td></tr><tr><td class="label">Order ID</td><td class="value">#SHP-20847</td></tr></table><div class="button-wrap"><a href="#" class="button green">Track order</a></div></td></tr>
+              <tr><td class="content"><p>Hi <strong>Abena</strong>,</p>
+<p>Thanks for shopping on Shopyos. Here is your order summary.</p>
+<table role="presentation" class="item" width="100%"><tr><td width="58"><div class="thumb">F</div></td><td><div class="item-title">Fresh Tilapia (1kg)</div><div class="item-meta">Qty: 2 &middot; Kumasi Fish Market</div></td><td class="price">GH&#8373; 48.00</td></tr></table>
+<table role="presentation" class="item last" width="100%"><tr><td width="58"><div class="thumb">J</div></td><td><div class="item-title">Jollof Rice + Chicken</div><div class="item-meta">Qty: 1 &middot; Mama's Kitchen</div></td><td class="price">GH&#8373; 35.00</td></tr></table>
+<table role="presentation" class="total" width="100%">
+  <tr><td>Subtotal</td><td class="price">GH&#8373; 83.00</td></tr>
+  <tr><td>Delivery</td><td class="price">GH&#8373; 8.00</td></tr>
+  <tr><td>Discount</td><td class="price">&minus;GH&#8373; 5.00</td></tr>
+  <tr class="final"><td>Total paid</td><td class="price">GH&#8373; 86.00</td></tr>
+</table>
+<table role="presentation" class="details" width="100%">
+  <tr><td class="label">Delivery address</td><td class="value">Asokwa, Kumasi</td></tr>
+  <tr><td class="label">Estimated delivery</td><td class="value">Today, 2&ndash;4 PM</td></tr>
+  <tr><td class="label">Payment</td><td class="value">Mobile Money &bull;&bull;&bull;&bull;4821</td></tr>
+  <tr><td class="label">Order ID</td><td class="value">#SHP-20847</td></tr>
+</table>
+<div class="button-wrap"><a href="#" class="button">Track order</a></div></td></tr>
             </table>
           </td>
         </tr>
         <tr><td class="footer">
           <p>Shopyos, Kumasi, Ghana<br>Need help? <a href="#">Visit Help Center</a> or reply to this email.</p>
-          <p><a href="#">Privacy Policy</a> &nbsp;|&nbsp; <a href="#">Terms</a> &nbsp;|&nbsp; <a href="#">Unsubscribe</a></p>
+          <p><a href="#">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#">Terms</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#">Unsubscribe</a></p>
           <p>&copy; 2026 Shopyos. The future of local commerce.</p>
         </td></tr>
       </table>
