@@ -100,6 +100,46 @@ const updateUserPresence = async (userId, isOnline) => {
   }
 };
 
+const getLastSeen = async (userId) => {
+  const db = getPool();
+  const { rows } = await db.query('SELECT last_seen FROM user_profiles WHERE user_id = $1 LIMIT 1', [userId]);
+  return rows[0]?.last_seen || null;
+};
+
+// Notifications created while the user had zero live sockets — their realtime
+// emit had no connection to land on, so replay them on reconnect. Unread only:
+// once read (via REST or another device), they're no longer "missed".
+const getMissedNotifications = async (userId, since) => {
+  const db = getPool();
+  const { rows } = await db.query(
+    `SELECT * FROM notifications
+     WHERE user_id = $1 AND created_at > $2 AND is_read = FALSE
+     ORDER BY created_at ASC
+     LIMIT 50`,
+    [userId, since]
+  );
+  return rows;
+};
+
+// Mirrors getMissedNotifications for chat: unread messages in the user's
+// conversations sent by the other participant while this user was offline.
+const getMissedMessages = async (userId, since) => {
+  const db = getPool();
+  const { rows } = await db.query(
+    `SELECT m.*
+     FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE (c.participant1_id = $1 OR c.participant2_id = $1)
+       AND m.sender_id != $1
+       AND m.created_at > $2
+       AND m.is_read = FALSE
+     ORDER BY m.created_at ASC
+     LIMIT 50`,
+    [userId, since]
+  );
+  return rows;
+};
+
 module.exports = {
   isParticipant,
   findConversation,
@@ -109,4 +149,7 @@ module.exports = {
   markConversationRead,
   getUserProfile,
   updateUserPresence,
+  getLastSeen,
+  getMissedNotifications,
+  getMissedMessages,
 };
