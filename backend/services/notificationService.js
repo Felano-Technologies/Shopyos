@@ -29,7 +29,15 @@ class NotificationService {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
-      }
+      },
+      // Nodemailer's default connection timeout is ~2 minutes. sendNotification()
+      // is awaited directly inside request handlers across ~20 controllers, so an
+      // unreachable SMTP host would hang every one of those POST responses for
+      // that long. Fail fast instead — the outer try/catch already treats email
+      // failure as non-fatal.
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
 
     // Arkesel SMS configuration

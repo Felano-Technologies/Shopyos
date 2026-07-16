@@ -6,6 +6,30 @@ import { secureStorage } from './storage';
 
 type SocketEventCallback = (data: any) => void;
 
+const ACK_TIMEOUT_MS = 10000;
+
+// Ack-based emits (join/send/mark-read) resolve only when the server invokes the
+// callback. If the socket drops between emit and ack — which happens routinely
+// (reconnects, background/foreground transitions) — the callback is orphaned and
+// the awaiting UI hangs on its loading state forever, even though the action may
+// have already succeeded server-side. Racing against a timeout turns that into a
+// catchable error instead.
+function withAckTimeout<T>(executor: (resolve: (value: T) => void, reject: (reason?: any) => void) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('Socket request timed out'));
+    }, ACK_TIMEOUT_MS);
+
+    executor(
+      (value) => { if (!settled) { settled = true; clearTimeout(timer); resolve(value); } },
+      (reason) => { if (!settled) { settled = true; clearTimeout(timer); reject(reason); } }
+    );
+  });
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private connectionPromise: Promise<Socket> | null = null;
@@ -185,7 +209,7 @@ class SocketService {
    */
   async joinConversation(conversationId: string): Promise<void> {
     const socket = await this.connect();
-    return new Promise((resolve, reject) => {
+    return withAckTimeout((resolve, reject) => {
       socket.emit('conversation:join', { conversationId }, (response: any) => {
         if (response?.success) {
           console.log(`✅ Joined conversation: ${conversationId}`);
@@ -206,7 +230,7 @@ class SocketService {
       return; // Already disconnected
     }
     const socket = this.socket;
-    return new Promise((resolve, reject) => {
+    return withAckTimeout((resolve, reject) => {
       socket.emit('conversation:leave', { conversationId }, (response: any) => {
         if (response?.success || !response) {
           console.log(`👋 Left conversation: ${conversationId}`);
@@ -229,7 +253,7 @@ class SocketService {
     attachmentMeta?: any
   ): Promise<any> {
     const socket = await this.connect();
-    return new Promise((resolve, reject) => {
+    return withAckTimeout((resolve, reject) => {
       socket.emit('message:send', {
         conversationId,
         content,
@@ -251,7 +275,7 @@ class SocketService {
    */
   async markConversationRead(conversationId: string): Promise<void> {
     const socket = await this.connect();
-    return new Promise((resolve, reject) => {
+    return withAckTimeout((resolve, reject) => {
       socket.emit('conversation:read', { conversationId }, (response: any) => {
         if (response?.success) {
           resolve();
