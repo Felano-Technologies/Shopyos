@@ -45,7 +45,7 @@ async function sweepFavoriteAlerts() {
       FROM favorites f
       JOIN products p ON p.id = f.product_id
       WHERE p.is_active = TRUE AND p.deleted_at IS NULL
-        AND p.price <= f.alert_price * (1 - $1)
+        AND p.price <= f.alert_price * (1 - $1::numeric)
         AND (f.price_notified_at IS NULL OR f.price_notified_at < NOW() - INTERVAL '${PRICE_NOTIFY_COOLDOWN_HOURS} hours')
       LIMIT 500
     `, [PRICE_DROP_THRESHOLD]);

@@ -45,6 +45,15 @@ startRealtimeSubscriber().catch((error) => {
   logger.error('Failed to start realtime subscriber', { error: error.message });
 });
 
+// Node's default keepAliveTimeout (5s) is shorter than Railway's edge-proxy
+// idle window, so the proxy reuses connections this server already closed —
+// the WebSocket/polling transport dies mid-session ("transport close") and any
+// event emitted at that instant is dropped, since Socket.IO never queues for
+// an offline socket. Keep sockets open longer than the proxy's idle timeout;
+// headersTimeout must exceed keepAliveTimeout. Mirrors backend/server.js.
+httpServer.keepAliveTimeout = 76000;
+httpServer.headersTimeout = 77000;
+
 httpServer.listen(PORT, () => {
   logger.info('Socket service started', { port: PORT, env: process.env.NODE_ENV || 'development' });
 });
