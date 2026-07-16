@@ -347,36 +347,6 @@ router.put('/read-by-conversation/:conversationId', markReadByConversation);
  *       401:
  *         description: Unauthorized — missing or invalid token
  */
-router.delete('/:notificationId', deleteNotification);
-
-// @route   DELETE /api/notifications
-// @desc    Delete all notifications
-// @access  Private
-/**
- * @swagger
- * /api/v1/notifications:
- *   delete:
- *     summary: Delete all notifications for the authenticated user
- *     tags: [Notifications]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: All notifications deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *       401:
- *         description: Unauthorized — missing or invalid token
- */
-router.delete('/', deleteAllNotifications);
-
 // @route   POST /api/notifications/push-token
 // @desc    Register a device push token
 // @access  Private
@@ -452,5 +422,35 @@ router.post('/push-token', registerPushToken);
  *         description: Unauthorized — missing or invalid token
  */
 router.delete('/push-token', unregisterPushToken);
+
+router.delete('/:notificationId', deleteNotification);
+
+// @route   DELETE /api/notifications
+// @desc    Delete all notifications
+// @access  Private
+/**
+ * @swagger
+ * /api/v1/notifications:
+ *   delete:
+ *     summary: Delete all notifications for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized — missing or invalid token
+ */
+router.delete('/', deleteAllNotifications);
 
 module.exports = router;
