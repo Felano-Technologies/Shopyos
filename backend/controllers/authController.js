@@ -33,7 +33,13 @@ const getTransporter = () => {
       auth: {
         user: process.env.EMAIL_USERNAME || process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
-      }
+      },
+      // Nodemailer's default connection timeout is ~2 minutes — if the SMTP host
+      // is unreachable, an awaited sendMail() in a request handler would hang the
+      // whole response for that long. Fail fast instead.
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
   }
   return _transporter;
@@ -260,7 +266,12 @@ const login = async (req, res, next) => {
         logger.warn('2FA SMS send failed, email only:', smsErr.message);
       }
 
-      await getTransporter().sendMail({
+      // Fire-and-forget: an awaited sendMail() here would hold the whole login
+      // response hostage to SMTP (nodemailer's default timeout is ~2 minutes)
+      // if the mail host is slow or unreachable. The code is already cached
+      // above and delivered via SMS when available; email is a bonus channel,
+      // not a blocker for the response.
+      getTransporter().sendMail({
         to: user.email,
         from: process.env.EMAIL_FROM,
         subject: 'Shopyos – Login Verification Code',
@@ -275,7 +286,7 @@ const login = async (req, res, next) => {
           </div>
         `,
         text: `Your Shopyos login verification code is: ${code}\n\nIt expires in 5 minutes.\n\nIf this wasn't you, change your password immediately.`
-      });
+      }).catch(err => logger.warn('2FA email send failed:', err.message));
 
       logger.info('2FA code sent for login', { userId: user.id, smsSent });
       return ApiResponse.success(res, {
