@@ -314,13 +314,12 @@ if (enableLocalSocket) {
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 5000;
 
-  // Node's default keepAliveTimeout (5s) is shorter than Railway's edge-proxy
-  // idle window, so the proxy reuses connections the app already closed —
-  // requests get delivered but their responses are lost ("Network Error" on
-  // the client while the action succeeded). Keep sockets open longer than the
-  // proxy's idle timeout; headersTimeout must exceed keepAliveTimeout.
-  server.keepAliveTimeout = 76000;
-  server.headersTimeout = 77000;
+  // EXPERIMENT: temporarily reverted to Node's defaults (keepAliveTimeout 5s)
+  // to test whether the 76s/77s override was itself causing the edge to reset
+  // reused idle connections at ~60s, rather than fixing it. See conversation
+  // for the reproduction. Restore the override below if this doesn't help.
+  // server.keepAliveTimeout = 76000;
+  // server.headersTimeout = 77000;
 
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
