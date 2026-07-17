@@ -62,8 +62,18 @@ const RegisterScreen = () => {
 
   // Clear the auth funnel off the stack before moving on, so Android back
   // from the next screen doesn't unwind into register/get-started.
+  //
+  // dismissAll() (not a manual canGoBack()/back() loop) — a guarded screen in
+  // the stack (e.g. index.tsx's auth-redirect) can re-push itself when popped
+  // back into, making canGoBack() stay true forever and freezing the JS
+  // thread in an infinite synchronous loop. Reproduced: after a successful
+  // registration, navigation silently hung right on this call.
   const resetToRoute = (destination: string) => {
-    while (router.canGoBack()) router.back();
+    try {
+      router.dismissAll();
+    } catch {
+      // No stack to dismiss (e.g. already at root) — fine, just replace below
+    }
     router.replace(destination as any);
   };
 
@@ -89,18 +99,24 @@ const RegisterScreen = () => {
       });
       return;
     }
+    const t0 = Date.now();
+    const log = (msg: string) => console.log(`[RegisterScreen] +${Date.now() - t0}ms ${msg}`);
     try {
+      log('handleRegister started');
       const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber, referralCode, termsAccepted, privacyAccepted);
+      log(`registerUser() resolved — message=${data.message}`);
       if (data.message === "User created successfully") {
         CustomInAppToast.show({
           type: 'success',
           title: 'Sign up Successful',
           message: 'Welcome!',
         });
+        log('Branch: success -> navigating to /login');
         resetToRoute('/login');
       } else {
+        log(`Branch: unexpected message "${data.message}" -> showing error toast, no navigation`);
         CustomInAppToast.show({
           type: 'error',
           title: 'Sign up Failed',
@@ -109,6 +125,7 @@ const RegisterScreen = () => {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Something went wrong.';
+      log(`handleRegister FAILED: ${message}`);
       if (/referral code/i.test(message)) {
         setErrors(prev => ({ ...prev, referralCode: message }));
       }
@@ -118,6 +135,7 @@ const RegisterScreen = () => {
         message,
       });
     } finally {
+      log('handleRegister finished — clearing loading state');
       setLoading(false);
     }
   };
