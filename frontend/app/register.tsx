@@ -69,10 +69,12 @@ const RegisterScreen = () => {
   // thread in an infinite synchronous loop. Reproduced: after a successful
   // registration, navigation silently hung right on this call.
   const resetToRoute = (destination: string) => {
+    // canDismiss() guards against the dev-only "POP_TO_TOP not handled"
+    // warning that fires when the stack is already shallow/at its root.
     try {
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
     } catch {
-      // No stack to dismiss (e.g. already at root) — fine, just replace below
+      // No stack to dismiss — fine, just replace below
     }
     router.replace(destination as any);
   };
