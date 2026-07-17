@@ -37,10 +37,13 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
 // in an infinite synchronous loop. Reproduced: logs stopped mid-navigation
 // with no error, no crash — just silence, right after this call.
 function resetToRoute(destination: string) {
+  // canDismiss() guards against the dev-only "POP_TO_TOP not handled" warning
+  // that fires when the stack is already shallow/at its root — harmless, but
+  // noisy. The try/catch stays as a defensive fallback for any other case.
   try {
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
   } catch {
-    // No stack to dismiss (e.g. already at root) — fine, just replace below
+    // No stack to dismiss — fine, just replace below
   }
   router.replace(destination as any);
 }
