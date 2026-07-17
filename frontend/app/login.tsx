@@ -30,13 +30,24 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
 // Clear the auth screens (get-started/login/register) off the navigation
 // stack before entering the app, so Android back from the destination exits
 // the app instead of unwinding into the login funnel with stale state.
+//
+// dismissAll() (not a manual canGoBack()/back() loop) — a guarded screen in
+// the stack (e.g. index.tsx's auth-redirect) can re-push itself when popped
+// back into, making canGoBack() stay true forever and freezing the JS thread
+// in an infinite synchronous loop. Reproduced: logs stopped mid-navigation
+// with no error, no crash — just silence, right after this call.
 function resetToRoute(destination: string) {
-  while (router.canGoBack()) router.back();
+  try {
+    router.dismissAll();
+  } catch {
+    // No stack to dismiss (e.g. already at root) — fine, just replace below
+  }
   router.replace(destination as any);
 }
 
 function navigateByRole(role: string | undefined) {
   const userRole = role?.toLowerCase();
+  console.log(`[LoginScreen] navigateByRole received role="${role}" (normalized="${userRole}")`);
   if (userRole === 'customer' || userRole === 'buyer') {
     resetToRoute('/home');
   } else if (userRole === 'seller') {
@@ -47,6 +58,8 @@ function navigateByRole(role: string | undefined) {
     resetToRoute('/parcel-partner/dashboard');
   } else if (userRole === 'admin') {
     resetToRoute('/admin/dashboard');
+  } else {
+    console.warn(`[LoginScreen] navigateByRole: unrecognized role "${role}" — no navigation will happen, user stays on login screen`);
   }
 }
 
@@ -92,30 +105,46 @@ const LoginScreen = () => {
     }
   }, [response]);
   const handleLogin = async () => {
+    const t0 = Date.now();
+    const log = (msg: string) => console.log(`[LoginScreen] +${Date.now() - t0}ms ${msg}`);
     try {
+      log('handleLogin started');
       setLoading(true);
+      log('Fetching device location...');
       const { latitude, longitude } = await getDeviceLocation();
+      log(`Location resolved: lat=${latitude} lng=${longitude}`);
       const response = await loginUser(email, password, latitude, longitude);
+      log(`loginUser() resolved — message=${response.message} role=${response.role} needsRole=${response.needsRole} requiresTwoFactor=${response.requiresTwoFactor}`);
       if (response.requiresTwoFactor) {
+        log('Branch: requiresTwoFactor -> navigating to /two-factor');
         router.push({ pathname: '/two-factor' as any, params: { token: response.twoFaToken, target: response.maskedTarget || '' } });
         return;
       }
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful', message: 'Welcome back!' });
+        log('Calling onboarding refresh()...');
         await refresh();
+        log('onboarding refresh() done');
         if (response.passwordResetRequired) {
+          log('Branch: passwordResetRequired -> navigating to /force-reset-password');
           router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
         } else if (response.needsRole) {
+          log('Branch: needsRole -> navigating to /role');
           resetToRoute('/role');
         } else {
+          log(`Branch: navigateByRole(${response.role})`);
           navigateByRole(response.role);
+          log('navigateByRole() call returned — if no navigation happened, the role string did not match any known case');
         }
       } else {
+        log(`Branch: unexpected message "${response.message}" -> showing error toast, no navigation`);
         CustomInAppToast.show({ type: 'error', title: 'Login Failed', message: response.message || 'Please try again.' });
       }
     } catch (error: unknown) {
+      log(`handleLogin FAILED: ${error instanceof Error ? error.message : error}`);
       CustomInAppToast.show({ type: 'error', title: 'Sign In Failed', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
+      log('handleLogin finished — clearing loading state');
       setLoading(false);
     }
   };

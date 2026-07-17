@@ -87,36 +87,55 @@ export const registerUser = async (
   termsAccepted?: boolean,
   privacyAccepted?: boolean
 ) => {
+  const t0 = Date.now();
+  const log = (msg: string) => console.log(`[RegisterFlow] +${Date.now() - t0}ms ${msg}`);
   try {
+    log('POST /auth/register...');
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode, termsAccepted, privacyAccepted });
+    log(`/auth/register responded: status=${response.status} message=${response.data?.message}`);
     const payload = response.data?.data || {};
     if (payload.token) {
+      log('Token received — persisting session and clearing stale profile cache');
       await clearUserProfileCache();
       await secureStorage.setItem('userToken', payload.token);
       if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       // Mirror loginUser: store userId, cache the profile, and key the cart so
       // the very next screens (role selection, home) aren't racing an empty store
       try {
+        log('GET /auth/me...');
         const meResponse = await api.get('/auth/me');
         const me = meResponse.data?.user || meResponse.data;
+        log(`/auth/me responded: role=${me?.role} id=${me?.id}`);
         if (me?.id) {
           await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
+          log('Initializing cart for user...');
           await initCartForUser(me.id);
+          log('Cart initialized');
         }
         await cacheUserProfile(me);
       } catch (meErr) {
+        log(`/auth/me FAILED: ${meErr instanceof Error ? meErr.message : meErr}`);
         console.warn('Could not fetch profile after registration:', meErr);
       }
       try {
         const pushToken = await storage.getItem('expoPushToken');
-        if (pushToken) await registerPushTokenInBackend(pushToken);
+        if (pushToken) {
+          log('Registering push token...');
+          await registerPushTokenInBackend(pushToken);
+          log('Push token registered');
+        } else {
+          log('No push token stored yet — skipping registration');
+        }
       } catch (err) {
+        log(`Push token registration FAILED: ${err instanceof Error ? err.message : err}`);
         console.warn('Failed syncing expo push token on register:', err);
       }
     }
+    log(`registerUser() resolving — requiresRoleSelection=${payload.requiresRoleSelection}`);
     return { ...response.data, ...payload };
   } catch (error: any) {
+    log(`registerUser() FAILED: ${error?.response ? `HTTP ${error.response.status}` : error.message}`);
     if (error.response) throw new Error(error.response.data?.error || `can't reach server : ${error.response.status}`);
     throw new Error(error.message || 'Network error during registration');
   }
@@ -214,30 +233,47 @@ export const loginUser = async (
   latitude: number,
   longitude: number
 ) => {
+  const t0 = Date.now();
+  const log = (msg: string) => console.log(`[LoginFlow] +${Date.now() - t0}ms ${msg}`);
   try {
+    log('POST /auth/login...');
     // Login is safe to retry on a lost response (no client-visible state change on the server)
     const response = await api.post('/auth/login', { email, password, latitude, longitude }, { retryOnNetworkError: true } as any);
+    log(`/auth/login responded: status=${response.status} message=${response.data?.message}`);
     const payload = response.data?.data || {};
     if (payload.token) {
+      log('Token received — persisting session and clearing stale profile cache');
       await clearUserProfileCache();
       await secureStorage.setItem('userToken', payload.token);
       if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
+        log('GET /auth/me...');
         const meResponse = await api.get('/auth/me');
         const me = meResponse.data?.user || meResponse.data;
+        log(`/auth/me responded: role=${me?.role} id=${me?.id}`);
         if (me?.id) {
           await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
+          log('Initializing cart for user...');
           await initCartForUser(me.id);
+          log('Cart initialized');
         }
         await cacheUserProfile(me);
       } catch (meErr) {
+        log(`/auth/me FAILED: ${meErr instanceof Error ? meErr.message : meErr}`);
         console.warn('Could not fetch userId after login:', meErr);
       }
       try {
         const pushToken = await storage.getItem('expoPushToken');
-        if (pushToken) await registerPushTokenInBackend(pushToken);
+        if (pushToken) {
+          log('Registering push token...');
+          await registerPushTokenInBackend(pushToken);
+          log('Push token registered');
+        } else {
+          log('No push token stored yet — skipping registration');
+        }
       } catch (err) {
+        log(`Push token registration FAILED: ${err instanceof Error ? err.message : err}`);
         console.warn('Failed syncing expo push token on login:', err);
       }
     }
@@ -246,8 +282,10 @@ export const loginUser = async (
       payload.role === 'none' ||
       !payload.role ||
       (payload.roles?.length === 0);
+    log(`loginUser() resolving — role=${payload.role} needsRole=${needsRole} requiresTwoFactor=${!!payload.requiresTwoFactor}`);
     return { ...response.data, ...payload, needsRole };
   } catch (error: any) {
+    log(`loginUser() FAILED: ${error?.response ? `HTTP ${error.response.status}` : error.message}`);
     if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
     throw new Error(error.message || 'Network error during login');
   }

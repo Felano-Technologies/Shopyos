@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { registerPushTokenInBackend, storage } from '../services/api';
@@ -114,6 +114,29 @@ export function usePushNotifications() {
     const notificationListener = useRef<any>(null);
     const responseListener = useRef<any>(null);
     const router = useRouter();
+    // Cold-boot network isn't always ready the instant JS starts running, and the
+    // shared axios retry interceptor only covers ~3s of backoff — not long enough
+    // for some devices. Rather than silently losing the sync forever, remember
+    // the failure and retry it the next time the app comes back to the foreground.
+    const pendingTokenSyncRef = useRef<string | null>(null);
+
+    const syncPushTokenWithBackend = async (token: string, trigger: string) => {
+        const t0 = Date.now();
+        try {
+            const userToken = await storage.getItem('userToken');
+            if (!userToken) {
+                console.log(`[PushToken][${trigger}] Skipped — no user session yet`);
+                return;
+            }
+            console.log(`[PushToken][${trigger}] Registering token with backend...`);
+            await registerPushTokenInBackend(token);
+            pendingTokenSyncRef.current = null;
+            console.log(`[PushToken][${trigger}] Registered successfully in ${Date.now() - t0}ms`);
+        } catch (e: any) {
+            pendingTokenSyncRef.current = token;
+            console.warn(`[PushToken][${trigger}] FAILED after ${Date.now() - t0}ms — code=${e?.code} message=${e?.message}. Will retry on next foreground.`);
+        }
+    };
 
     useEffect(() => {
         if (isExpoGo) {
@@ -131,16 +154,7 @@ export function usePushNotifications() {
                 setExpoPushToken(token);
                 // Store consistently using our SecureStore wrapper
                 await storage.setItem('expoPushToken', token).catch(() => { });
-
-                // Try to sync with backend right away if we are already logged in
-                try {
-                    const userToken = await storage.getItem('userToken');
-                    if (userToken) {
-                        await registerPushTokenInBackend(token);
-                    }
-                } catch (e) {
-                    console.warn('Silent failure syncing push token on boot:', e);
-                }
+                await syncPushTokenWithBackend(token, 'boot');
             }
         });
 
@@ -154,6 +168,13 @@ export function usePushNotifications() {
             handleNotificationResponse(response, router);
         });
 
+        const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active' && pendingTokenSyncRef.current) {
+                console.log('[PushToken][foreground] Retrying previously failed sync');
+                syncPushTokenWithBackend(pendingTokenSyncRef.current, 'foreground-retry');
+            }
+        });
+
         return () => {
             if (notificationListener.current) {
                 notificationListener.current.remove();
@@ -161,6 +182,7 @@ export function usePushNotifications() {
             if (responseListener.current) {
                 responseListener.current.remove();
             }
+            appStateSubscription.remove();
         };
     }, [router]);
 
