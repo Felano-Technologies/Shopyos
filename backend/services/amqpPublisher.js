@@ -15,7 +15,13 @@ class AmqpPublisher {
     const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
     if (!url) throw new Error('RABBITMQ_URL not configured');
 
-    this._conn = await amqp.connect(url, { heartbeat: 60 });
+    // No timeout meant an unreachable/slow broker hung this connect() call
+    // indefinitely (bounded only by the OS's own TCP timeout). publish() is
+    // awaited directly inside notificationService.sendNotification(), which
+    // ~15+ POST controllers await synchronously — so a slow RabbitMQ hung
+    // every one of those responses with no try/catch able to intervene,
+    // since a stuck promise isn't a thrown error. Fail fast instead.
+    this._conn = await amqp.connect(url, { heartbeat: 60, timeout: 8000 });
     this._conn.on('error', (err) => { logger.error('[AmqpPublisher] Error:', err.message); this._reset(); });
     this._conn.on('close', ()    => { logger.warn('[AmqpPublisher] Connection closed');    this._reset(); });
 
