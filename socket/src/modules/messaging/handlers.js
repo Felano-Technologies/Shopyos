@@ -2,6 +2,10 @@ const logger = require('../../config/logger');
 const repos = require('../../adapters/repositories');
 const { emitToConversation, emitToUser } = require('../../config/socketServer');
 
+// Bot conversations must never trigger a notification (push or in-app) — the
+// user is always actively in the conversation when the bot replies.
+const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+
 const registerMessagingHandlers = (io) => {
   io.on('connection', (socket) => {
     const userId = socket.userId;
@@ -58,16 +62,17 @@ const registerMessagingHandlers = (io) => {
           ? conversation.participant2_id
           : conversation.participant1_id;
 
-        if (recipientId) {
-          const senderProfile = await repos.getUserProfile(userId);
+        if (recipientId && recipientId !== SUPPORT_BOT_ID) {
+          const senderName = await repos.getUserDisplayName(userId);
           emitToUser(recipientId, 'notification:new', {
             type: 'new_message',
-            title: `New message from ${senderProfile?.full_name || 'User'}`,
+            title: `New message from ${senderName || 'User'}`,
             message: content.trim().slice(0, 100),
             data: {
               conversationId,
               messageId: message.id,
               senderId: userId,
+              senderName,
             },
           });
         }

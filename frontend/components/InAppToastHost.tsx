@@ -42,7 +42,7 @@ const SWIPE_DISMISS_THRESHOLD = -32;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const FULL_WIDTH = Math.min(SCREEN_WIDTH * 0.88, 520);
 const PILL_WIDTH = Math.min(SCREEN_WIDTH * 0.56, 250);
-const PILL_HEIGHT = 42;
+const PILL_HEIGHT = 36;
 
 function getOrderId(notification: InAppNotification): string | null {
   const orderId = (notification.data as { orderId?: number | string })?.orderId;
@@ -187,14 +187,16 @@ export function InAppToastHost() {
     // Play a light pop when the pill drops in
     playSoftToastSound().catch(() => null);
 
-    // Stage 1: small pill drops down from off-screen
-    translateY.value = withSpring(0, { damping: 16, stiffness: 170 });
+    // Slide + fade with just a touch of spring settle — fully rigid timing
+    // felt lifeless; damping 20 at stiffness 150 gives a slight, barely-there
+    // overshoot instead of the old under-damped (16) elastic bounce.
+    translateY.value = withSpring(0, { damping: 20, stiffness: 150 });
     opacity.value = withTiming(1, { duration: 200 });
 
     // Stage 2: shortly after landing, the pill opens into the full card
     expand.value = withDelay(
       EXPAND_DELAY_MS + 160,
-      withSpring(1, { damping: 19, stiffness: 170 })
+      withSpring(1, { damping: 20, stiffness: 150 })
     );
     progress.value = withDelay(
       EXPAND_DELAY_MS + 160,
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   content: {
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 10
   },
   headerRow: {

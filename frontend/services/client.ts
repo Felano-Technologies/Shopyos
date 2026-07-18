@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { router } from 'expo-router';
 import { clearUserProfileCache, storage, secureStorage } from './storage';
 export { storage, secureStorage };
 import { CustomInAppToast } from '@/components/InAppToastHost';
 export { CustomInAppToast };
+import { resetToRoute } from '@/utils/navigation';
 
 const getBaseURL = () => {
   const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
@@ -200,6 +200,10 @@ async function handleTokenExpired(error: any, originalRequest: any): Promise<any
   }
 }
 
+// Guards the "session expired" toast so a burst of background 401s (e.g.
+// several stale polls firing around the same time) only tells the user once.
+let sessionExpiredNoticeShown = false;
+
 async function handleUnauthorized(originalRequest: any): Promise<void> {
   try {
     const existingToken = await secureStorage.getItem('userToken');
@@ -207,7 +211,26 @@ async function handleUnauthorized(originalRequest: any): Promise<void> {
     await secureStorage.removeItem('refreshToken');
     await storage.removeItem('userId');
     await clearUserProfileCache();
-    if (existingToken) router.replace('/login');
+    if (!existingToken) return;
+
+    if (originalRequest?.isBackgroundRequest) {
+      // Don't yank the user out of whatever they're actively doing over a
+      // background request's 401 (a stale poll, a fire-and-forget profile
+      // refresh). The session is already cleared above, so the next real,
+      // user-initiated request naturally hits the no-token path below and
+      // redirects then — this just tells them why, without interrupting.
+      if (!sessionExpiredNoticeShown) {
+        sessionExpiredNoticeShown = true;
+        CustomInAppToast.show({
+          type: 'info',
+          title: 'Session expired',
+          message: 'Please log in again.',
+        });
+      }
+      return;
+    }
+
+    resetToRoute('/login');
   } catch (storageError) {
     console.error('Error clearing tokens:', storageError);
   }

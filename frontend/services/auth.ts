@@ -197,16 +197,9 @@ export const logoutUser = async () => {
   } finally {
     queryClient.clear();
     await storage.removeItem('SHOPYOS_QUERY_CACHE');
-    // Clear user-scoped cart before removing userId
-    try {
-      const userId = await storage.getItem('userId');
-      if (userId) {
-        const { clearCartForUser } = require('@/store/cartStore');
-        await clearCartForUser(userId);
-      }
-    } catch (e) {
-      console.error('Failed to clear cart for user on logout:', e);
-    }
+    // Cart storage is already namespaced per userId (cartStore.ts), so it
+    // doesn't need wiping on logout — leaving it lets the same user's cart
+    // survive a logout/login cycle.
     await Promise.all([
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
@@ -412,9 +405,12 @@ export const requestAccountDeletion = async () => {
   }
 };
 
-export const getUserData = async () => {
+export const getUserData = async (options?: { background?: boolean }) => {
   try {
-    const response = await api.get('/auth/me');
+    // Background callers (fire-and-forget refreshes, polling) opt in so a
+    // stale/expired token doesn't yank the user to /login mid-action — see
+    // isBackgroundRequest handling in client.ts's 401 interceptor.
+    const response = await api.get('/auth/me', { isBackgroundRequest: options?.background } as any);
     return response.data?.user ?? response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch user data');

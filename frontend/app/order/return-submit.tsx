@@ -176,7 +176,7 @@ export default function ReturnSubmitScreen() {
       });
 
       CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your return request has been submitted successfully.' });
-      router.replace('/returns');
+      router.push('/returns');
     } catch (err: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to submit return request. Please try again.' });
     } finally {

@@ -144,7 +144,8 @@ export const useBackgroundTasks = () => {
   // Fetch user data to determine role and auth status
   const { data: userData } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: getUserData,
+    // Background poll — a 401 here shouldn't yank the user to /login mid-action.
+    queryFn: () => getUserData({ background: true }),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });

@@ -61,7 +61,9 @@ async function authCheckPromise(): Promise<string> {
     if (!token) return Platform.OS === 'web' ? '/admin-login' : '/getstarted';
     const cached = await getCachedUserProfile();
     if (cached && routeForUser(cached) !== '/role') {
-      getUserData().then(cacheUserProfile).catch(() => {});
+      // Fire-and-forget background refresh — a 401 here shouldn't yank the
+      // user to /login; the cached data already decided this render's route.
+      getUserData({ background: true }).then(cacheUserProfile).catch(() => {});
       return routeForUser(cached);
     }
 

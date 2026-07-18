@@ -292,7 +292,7 @@ export default function DriverVerification() {
             <Text style={styles.pendingText}>
                 Thanks, {fullName || 'Driver'}! Our team is reviewing your documents. Please wait, it will be done soon.
             </Text>
-            <TouchableOpacity style={styles.refreshBtn} onPress={() => router.replace('/driver')}>
+            <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push('/driver')}>
                 <Text style={styles.refreshText}>Check Status</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.logoutLink} onPress={handleLogout}>
@@ -313,7 +313,7 @@ export default function DriverVerification() {
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.replace('/driver/dashboard')} style={styles.backBtn}>
+                <TouchableOpacity onPress={() => router.push('/driver/dashboard')} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#A3E635" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Driver Registration</Text>

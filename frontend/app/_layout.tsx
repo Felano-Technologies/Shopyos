@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, TouchableOpacity, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -98,6 +98,24 @@ function AppContent() {
       if (uid) initCartForUser(uid);
     }).catch(() => {});
   }, []);
+
+  // Android hardware back: navigate back within the app whenever there's
+  // real history to pop to; otherwise fall through to the platform default
+  // (exit to the phone's home screen). Without this, the flat root Stack had
+  // no back-button handling at all, so with the many router.replace() calls
+  // throughout the app keeping the native back-stack shallow, back exited
+  // the app almost immediately from most screens instead of navigating back.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) {
+        router.back();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [router]);
 
   // Apply Push Hook globally
   usePushNotifications();

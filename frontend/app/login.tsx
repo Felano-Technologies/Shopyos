@@ -9,6 +9,7 @@ import { loginUser } from '@/services/api';
 import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { resetToRoute } from '@/utils/navigation';
 
 async function getDeviceLocation(): Promise<{ latitude: number; longitude: number }> {
   try {
@@ -25,27 +26,6 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
     console.log('Location access denied or unavailable');
   }
   return { latitude: 0, longitude: 0 };
-}
-
-// Clear the auth screens (get-started/login/register) off the navigation
-// stack before entering the app, so Android back from the destination exits
-// the app instead of unwinding into the login funnel with stale state.
-//
-// dismissAll() (not a manual canGoBack()/back() loop) — a guarded screen in
-// the stack (e.g. index.tsx's auth-redirect) can re-push itself when popped
-// back into, making canGoBack() stay true forever and freezing the JS thread
-// in an infinite synchronous loop. Reproduced: logs stopped mid-navigation
-// with no error, no crash — just silence, right after this call.
-function resetToRoute(destination: string) {
-  // canDismiss() guards against the dev-only "POP_TO_TOP not handled" warning
-  // that fires when the stack is already shallow/at its root — harmless, but
-  // noisy. The try/catch stays as a defensive fallback for any other case.
-  try {
-    if (router.canDismiss()) router.dismissAll();
-  } catch {
-    // No stack to dismiss — fine, just replace below
-  }
-  router.replace(destination as any);
 }
 
 function navigateByRole(role: string | undefined) {

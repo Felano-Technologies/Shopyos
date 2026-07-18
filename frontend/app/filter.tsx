@@ -92,7 +92,7 @@ export default function FilterScreen() {
   // ── Apply / Reset ─────────────────────────────────────────────────────────
   const applyFilters = () => {
     const preset = PRICE_PRESETS.find(p => p.value === pricePreset);
-    router.replace({
+    router.push({
       pathname: '/search',
       params: {
         sortBy,

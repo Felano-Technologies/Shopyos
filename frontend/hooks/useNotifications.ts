@@ -77,7 +77,16 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
-      if (pathname !== '/notification' && data?.title && data?.message) {
+      // Skip the toast for whatever conversation the user is actively inside
+      // (tracked globally by conversation.tsx while mounted) — they already
+      // see the message live via the chat screen's own socket listener, so a
+      // toast on top is a redundant duplicate. Applies to every conversation,
+      // not just the bot.
+      const activeConversationId = (globalThis as any).activeConversationId;
+      const notificationConversationId = data?.data?.conversationId;
+      const isForActiveConversation =
+        activeConversationId && notificationConversationId && activeConversationId === notificationConversationId;
+      if (pathname !== '/notification' && !isForActiveConversation && data?.title && data?.message) {
         // Play haptic feedback and notification sound
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         Audio.Sound.createAsync(

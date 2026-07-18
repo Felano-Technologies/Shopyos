@@ -139,7 +139,7 @@ export default function MakeOfferScreen() {
       const res = await createBargainOffer(productId!, priceNum, buyerMessage.trim() || undefined);
       if (res.success) {
         CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your offer has been submitted to the seller!' });
-        router.replace('/bargain/my-offers');
+        router.push('/bargain/my-offers');
       }
     } catch (err: any) {
       CustomInAppToast.show({ type: 'error', title: 'Offer Declined', message: err.message || 'Failed to submit offer. Please check constraints.' });
