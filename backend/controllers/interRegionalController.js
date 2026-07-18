@@ -40,7 +40,19 @@ const getTransitInfo = async (req, res, next) => {
 
     const order = await repositories.orders.findById(orderId);
     if (!order) return ApiResponse.error(res, 'Order not found', 404);
-    if (order.buyer_id !== userId && order.store_id !== req.user.storeId && !req.user.roles?.includes('parcel_partner') && !req.user.roles?.includes('admin')) {
+
+    // Who may view transit info: the buyer, the store owner (seller), a parcel
+    // partner, or an admin. req.user.storeId isn't populated on the token, so
+    // resolve store ownership from the store record instead.
+    const roles = req.user.roles || [];
+    const isBuyer = order.buyer_id === userId;
+    const isPrivileged = roles.includes('parcel_partner') || roles.includes('admin');
+    let isStoreOwner = false;
+    if (!isBuyer && !isPrivileged && order.store_id) {
+      const ownerStore = await repositories.stores.findById(order.store_id);
+      isStoreOwner = ownerStore?.owner_id === userId;
+    }
+    if (!isBuyer && !isStoreOwner && !isPrivileged) {
       return ApiResponse.error(res, 'Unauthorized', 403);
     }
 

@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
 import { getTransitInfo, requestLastMile, getDisclaimerByType, acknowledgeDisclaimer } from '@/services/api';
 import { socketService } from '@/services/socket';
@@ -249,13 +250,18 @@ export default function TransitTrackerScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Shipment Tracking</Text>
-        <View style={{ width: 24 }} />
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor="#0C1559" />
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Shipment Tracking</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -476,7 +482,7 @@ export default function TransitTrackerScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
