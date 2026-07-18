@@ -38,7 +38,14 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
         <View style={styles.priceTag}>
           <Text style={styles.priceText}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
-        <Text style={styles.distanceText}>Request Nearby</Text>
+        {item.leg && item.leg !== 'local' ? (
+          <View style={styles.legBadge}>
+            <Feather name={item.leg === 'first_mile' ? 'log-in' : 'log-out'} size={12} color="#1D4ED8" />
+            <Text style={styles.legBadgeText}>{item.leg === 'first_mile' ? 'To Hub' : 'From Hub'}</Text>
+          </View>
+        ) : (
+          <Text style={styles.distanceText}>Request Nearby</Text>
+        )}
       </View>
       <View style={styles.routeContainer}>
         <View style={styles.timeline}>
@@ -48,11 +55,11 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
         </View>
         <View style={styles.addresses}>
           <View style={styles.addressBlock}>
-            <Text style={styles.addressLabel}>Pick Up</Text>
+            <Text style={styles.addressLabel}>{item.leg === 'last_mile' ? 'Pick Up (Hub)' : 'Pick Up'}</Text>
             <Text style={styles.addressTitle} numberOfLines={1}>{item.restaurant}</Text>
           </View>
           <View style={[styles.addressBlock, { marginTop: 15 }]}>
-            <Text style={styles.addressLabel}>Drop Off</Text>
+            <Text style={styles.addressLabel}>{item.leg === 'first_mile' ? 'Drop Off (Hub)' : 'Drop Off'}</Text>
             <Text style={styles.addressTitle} numberOfLines={1}>{item.destination}</Text>
           </View>
         </View>
@@ -148,6 +155,7 @@ export default function Dashboard() {
   } = useAvailableDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const requests = availableData?.deliveries?.map((d: any) => ({
     id: d.id || d._id,
+    leg: d.leg || 'local',
     restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
     destination: d.delivery_address || d.order?.delivery_address || 'Destination',
     price: Number(d.delivery_fee || 15),
@@ -551,6 +559,12 @@ const styles = StyleSheet.create({
   priceTag: { backgroundColor: '#ECFCCB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   priceText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 16 },
   distanceText: { color: '#64748B', fontFamily: 'Montserrat-SemiBold', fontSize: 12, marginTop: 5 },
+  legBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 20, marginTop: 2,
+  },
+  legBadgeText: { color: '#1D4ED8', fontFamily: 'Montserrat-Bold', fontSize: 11 },
   routeContainer: { flexDirection: 'row', marginBottom: 20 },
   timeline: { alignItems: 'center', marginRight: 12, marginTop: 5 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0C1559' },

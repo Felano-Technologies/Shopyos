@@ -209,6 +209,10 @@ function AppContent() {
                   gestureEnabled: true
                 }}
               />
+              <Stack.Screen
+                name="order/transit-tracker"
+                options={{ animation: 'slide_from_right', gestureEnabled: true }}
+              />
 
               {/* --- AUTH & ROLE --- */}
               <Stack.Screen name="admin-login" options={{ animation: 'fade' }} />

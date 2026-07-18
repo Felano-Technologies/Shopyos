@@ -56,10 +56,6 @@ pool.on('error', (error) => {
   console.error('Postgres pool error:', error.message);
 });
 
-pool.on('remove', (client) => {
-  console.error('Postgres client removed from pool');
-});
-
   return pool;
 };
 

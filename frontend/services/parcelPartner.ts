@@ -48,21 +48,31 @@ export interface ParcelOrder {
   created_at: string;
 }
 
+export interface TransitLegSummary {
+  deliveryId: string;
+  status: string;
+  driverId: string | null;
+}
+
 export interface TransitInfo {
   orderId: string;
   trackingNumber: string | null;
-  status: string;
-  originHub: Hub | null;
-  destHub: Hub | null;
-  estimatedArrival: string | null;
+  orderStatus: string;
+  originHub: (Hub & { latitude?: number; longitude?: number; region_name?: string }) | null;
+  destinationHub: (Hub & { latitude?: number; longitude?: number; region_name?: string }) | null;
+  estimatedHubArrival: string | null;
   lastMileRequested: boolean;
   lastMileFee: number;
-  timeline: {
+  store: { name: string; latitude?: number; longitude?: number } | null;
+  destination: { latitude?: number; longitude?: number; address?: string | null } | null;
+  firstMileLeg: TransitLegSummary | null;
+  lastMileLeg: TransitLegSummary | null;
+  history: {
     status: string;
     notes: string | null;
-    photoUrl: string | null;
-    createdAt: string;
-    hubName: string | null;
+    photo_url?: string | null;
+    created_at: string;
+    hub_name: string | null;
   }[];
 }
 

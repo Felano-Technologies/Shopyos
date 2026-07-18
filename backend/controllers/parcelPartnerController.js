@@ -3,6 +3,7 @@ const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { getPool } = require('../config/postgres');
+const { emitTransitUpdate } = require('../services/transitEvents');
 
 const getHubs = async (req, res, next) => {
   try {
@@ -56,6 +57,7 @@ const checkInParcel = async (req, res, next) => {
 
     await repositories.parcelPartner.createStatusLog(orderId, 'at_origin_hub', hubId, userId, notes, photoUrl);
     await notifyBuyerCheckIn(order, hub);
+    await emitTransitUpdate(orderId);
 
     ApiResponse.success(res, { trackingNumber: trackingNum }, 'Parcel checked in successfully');
   } catch (error) {
@@ -80,6 +82,7 @@ const dispatchParcel = async (req, res, next) => {
 
     await repositories.parcelPartner.createStatusLog(orderId, 'in_transit_regional', hubId, userId, notes, photoUrl);
     await notifyBuyerDispatch(order, estArrival);
+    await emitTransitUpdate(orderId);
 
     ApiResponse.success(res, { estimatedArrival: estArrival }, 'Parcel dispatched successfully');
   } catch (error) {
@@ -102,6 +105,7 @@ const arriveParcel = async (req, res, next) => {
     await updateOrderOnArrival(orderId);
     await repositories.parcelPartner.createStatusLog(orderId, 'at_destination_hub', hubId, userId, notes, photoUrl);
     await notifyBuyerArrival(order, hub);
+    await emitTransitUpdate(orderId);
 
     ApiResponse.success(res, null, 'Parcel marked as arrived at destination hub');
   } catch (error) {
@@ -195,7 +199,7 @@ async function calculateEstArrival(origin, dest) {
 async function notifyBuyerCheckIn(order, hub) {
   await notificationService.sendNotification({
     userId: order.buyer_id,
-    type: 'order_status_update',
+    type: 'order_update',
     title: 'Parcel Checked In',
     message: `Your parcel from order #${order.order_number} has been received at the origin hub: ${hub.hub_name}.`,
     relatedId: order.id,
@@ -206,7 +210,7 @@ async function notifyBuyerCheckIn(order, hub) {
 async function notifyBuyerDispatch(order, estArrival) {
   await notificationService.sendNotification({
     userId: order.buyer_id,
-    type: 'order_status_update',
+    type: 'order_update',
     title: 'Parcel Dispatched',
     message: `Your parcel from order #${order.order_number} is in transit. Estimated arrival: ${estArrival}.`,
     relatedId: order.id,
@@ -217,7 +221,7 @@ async function notifyBuyerDispatch(order, estArrival) {
 async function notifyBuyerArrival(order, hub) {
   await notificationService.sendNotification({
     userId: order.buyer_id,
-    type: 'order_status_update',
+    type: 'order_update',
     title: 'Parcel Arrived at Hub',
     message: `Your parcel from order #${order.order_number} has arrived at the destination hub: ${hub.hub_name}. You can pick it up or request last-mile delivery.`,
     relatedId: order.id,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
 import { getTransitInfo, requestLastMile, getDisclaimerByType, acknowledgeDisclaimer } from '@/services/api';
+import { socketService } from '@/services/socket';
+import { getLatestLocation } from '@/services/delivery';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
+
+type Coord = { latitude: number; longitude: number };
+
+// A coordinate is only usable if present and non-zero (0,0 is the DB default
+// for a hub/store that never had its location set).
+const toCoord = (lat: any, lng: any): Coord | null => {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (!la || !ln || Number.isNaN(la) || Number.isNaN(ln)) return null;
+  return { latitude: la, longitude: ln };
+};
 
 const { width: SW } = Dimensions.get('window');
 
@@ -25,11 +39,41 @@ export default function TransitTrackerScreen() {
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [data, setData] = useState<any | null>(null);
-  
+
   // Disclaimer state
   const [lastMilePolicy, setLastMilePolicy] = useState<any | null>(null);
   const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
+  // Live driver position for whichever driver leg is currently active.
+  const [driverCoord, setDriverCoord] = useState<Coord | null>(null);
+  const mapRef = useRef<any>(null);
+
+  // Map endpoints (store -> origin hub -> destination hub -> home).
+  const storeCoord = useMemo(() => toCoord(data?.store?.latitude, data?.store?.longitude), [data]);
+  const originHubCoord = useMemo(() => toCoord(data?.originHub?.latitude, data?.originHub?.longitude), [data]);
+  const destHubCoord = useMemo(() => toCoord(data?.destinationHub?.latitude, data?.destinationHub?.longitude), [data]);
+  const homeCoord = useMemo(() => toCoord(data?.destination?.latitude, data?.destination?.longitude), [data]);
+
+  const routeCoords = useMemo(
+    () => [storeCoord, originHubCoord, destHubCoord, homeCoord].filter(Boolean) as Coord[],
+    [storeCoord, originHubCoord, destHubCoord, homeCoord]
+  );
+
+  // Which driver leg (if any) is worth showing a live marker for. First-mile
+  // runs while the order is pre-check-in; last-mile once it's out for delivery.
+  const activeLeg = useMemo(() => {
+    const s = (data?.orderStatus || '').toLowerCase();
+    if (data?.lastMileLeg?.deliveryId && ['awaiting_last_mile', 'in_transit', 'picked_up'].includes(s)) {
+      return { deliveryId: data.lastMileLeg.deliveryId as string, kind: 'last_mile' as const };
+    }
+    if (data?.firstMileLeg?.deliveryId && s === 'ready_for_pickup') {
+      return { deliveryId: data.firstMileLeg.deliveryId as string, kind: 'first_mile' as const };
+    }
+    return null;
+  }, [data]);
+
+  const hasMap = routeCoords.length >= 2;
 
   const fetchTransitDetails = async () => {
     if (!orderId) return;
@@ -66,6 +110,69 @@ export default function TransitTrackerScreen() {
     fetchTransitDetails();
     loadDisclaimer();
   }, [orderId]);
+
+  // Keep the latest fetcher in a ref so the socket effect can call it without
+  // re-subscribing on every render.
+  const refetchRef = useRef<() => void>(() => {});
+  refetchRef.current = fetchTransitDetails;
+
+  // Live hub-milestone updates: refetch when the backend pushes a transit event
+  // for this order (check-in / dispatch / arrive / last-mile requested).
+  useEffect(() => {
+    if (!orderId) return;
+    let mounted = true;
+    const onTransitUpdate = (payload: any) => {
+      if (!mounted || payload?.orderId !== orderId) return;
+      refetchRef.current();
+    };
+    socketService.connect().then((socket) => {
+      if (!mounted) return;
+      socket.on('order:transit_update', onTransitUpdate);
+    });
+    return () => {
+      mounted = false;
+      socketService.getSocket()?.off('order:transit_update', onTransitUpdate);
+    };
+  }, [orderId]);
+
+  // Live driver position for the active leg (first-mile or last-mile).
+  useEffect(() => {
+    setDriverCoord(null);
+    const deliveryId = activeLeg?.deliveryId;
+    if (!deliveryId) return;
+    let mounted = true;
+
+    getLatestLocation(deliveryId)
+      .then((res: any) => {
+        if (mounted && res?.location) {
+          setDriverCoord({ latitude: res.location.latitude, longitude: res.location.longitude });
+        }
+      })
+      .catch(() => {});
+
+    const onLocation = (payload: any) => {
+      if (!mounted || payload?.deliveryId !== deliveryId) return;
+      setDriverCoord({ latitude: payload.latitude, longitude: payload.longitude });
+    };
+    socketService.connect().then((socket) => {
+      if (!mounted) return;
+      socket.on('delivery:location_update', onLocation);
+    });
+    return () => {
+      mounted = false;
+      socketService.getSocket()?.off('delivery:location_update', onLocation);
+    };
+  }, [activeLeg?.deliveryId]);
+
+  // Fit the map to all known points whenever they change.
+  useEffect(() => {
+    const pts = [...routeCoords, driverCoord].filter(Boolean) as Coord[];
+    if (pts.length < 2) return;
+    mapRef.current?.fitToCoordinates(pts, {
+      edgePadding: { top: 60, right: 50, bottom: 60, left: 50 },
+      animated: true,
+    });
+  }, [routeCoords, driverCoord]);
 
   const handleRequestLastMile = async () => {
     if (!orderId) return;
@@ -174,6 +281,69 @@ export default function TransitTrackerScreen() {
             )}
           </View>
         </View>
+
+        {/* Shipment map — schematic hub route + live driver on the active leg */}
+        {hasMap && (
+          <View style={styles.mapCard}>
+            <MapView
+              ref={mapRef}
+              style={styles.map}
+              initialRegion={{
+                ...routeCoords[0],
+                latitudeDelta: 1.5,
+                longitudeDelta: 1.5,
+              }}
+            >
+              <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} zIndex={-1} />
+              {routeCoords.length > 1 && (
+                <Polyline coordinates={routeCoords} strokeColor="#3B82F6" strokeWidth={3} lineDashPattern={[6, 6]} />
+              )}
+              {storeCoord && (
+                <Marker coordinate={storeCoord} title={data.store?.name || 'Store'}>
+                  <View style={[styles.pin, { backgroundColor: '#16A34A' }]}>
+                    <MaterialCommunityIcons name="storefront-outline" size={15} color="#FFF" />
+                  </View>
+                </Marker>
+              )}
+              {originHubCoord && (
+                <Marker coordinate={originHubCoord} title={data.originHub?.hub_name || 'Origin Hub'}>
+                  <View style={[styles.pin, { backgroundColor: '#3B82F6' }]}>
+                    <MaterialCommunityIcons name="warehouse" size={15} color="#FFF" />
+                  </View>
+                </Marker>
+              )}
+              {destHubCoord && (
+                <Marker coordinate={destHubCoord} title={data.destinationHub?.hub_name || 'Destination Hub'}>
+                  <View style={[styles.pin, { backgroundColor: '#7C3AED' }]}>
+                    <MaterialCommunityIcons name="warehouse" size={15} color="#FFF" />
+                  </View>
+                </Marker>
+              )}
+              {homeCoord && (
+                <Marker coordinate={homeCoord} title="Delivery Address">
+                  <View style={[styles.pin, { backgroundColor: '#0C1559' }]}>
+                    <Ionicons name="home" size={14} color="#FFF" />
+                  </View>
+                </Marker>
+              )}
+              {driverCoord && (
+                <Marker coordinate={driverCoord} title="Driver">
+                  <View style={[styles.pin, { backgroundColor: '#0C1559', borderColor: '#A3E635', borderWidth: 2 }]}>
+                    <MaterialCommunityIcons name="bike-fast" size={15} color="#FFF" />
+                  </View>
+                </Marker>
+              )}
+            </MapView>
+            {activeLeg && (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveBadgeText}>
+                  {activeLeg.kind === 'first_mile' ? 'Live · heading to origin hub' : 'Live · out for delivery'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Hub to Hub Routing */}
         <View style={styles.card}>
@@ -372,6 +542,49 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  mapCard: {
+    height: 220,
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pin: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  liveBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(12,21,89,0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#A3E635',
+    marginRight: 6,
+  },
+  liveBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
   },
   cardTitle: {
     fontSize: 14,

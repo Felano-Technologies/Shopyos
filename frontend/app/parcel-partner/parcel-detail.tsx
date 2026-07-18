@@ -162,7 +162,7 @@ export default function ParcelDetailScreen() {
 
           <View style={styles.badgeRow}>
             <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{getStatusLabel(transitData.status)}</Text>
+              <Text style={styles.statusBadgeText}>{getStatusLabel(transitData.orderStatus)}</Text>
             </View>
           </View>
         </View>
@@ -183,8 +183,8 @@ export default function ParcelDetailScreen() {
 
             <View style={styles.routeItem}>
               <Text style={styles.routeLabel}>Destination Region</Text>
-              <Text style={styles.routeText}>{transitData.destHub?.region_name || 'Not Assigned'}</Text>
-              <Text style={styles.hubText}>{transitData.destHub?.hub_name || 'Hub pending'}</Text>
+              <Text style={styles.routeText}>{transitData.destinationHub?.region_name || 'Not Assigned'}</Text>
+              <Text style={styles.hubText}>{transitData.destinationHub?.hub_name || 'Hub pending'}</Text>
             </View>
           </View>
         </View>
@@ -214,7 +214,7 @@ export default function ParcelDetailScreen() {
           />
 
           <View style={styles.actionsContainer}>
-            {transitData.status === 'ready_for_pickup' && (
+            {transitData.orderStatus === 'ready_for_pickup' && (
               <TouchableOpacity
                 style={[styles.primaryActionBtn, submitting && styles.disabledBtn]}
                 onPress={() => handleAction('check-in')}
@@ -231,7 +231,7 @@ export default function ParcelDetailScreen() {
               </TouchableOpacity>
             )}
 
-            {transitData.status === 'at_origin_hub' && (
+            {transitData.orderStatus === 'at_origin_hub' && (
               <TouchableOpacity
                 style={[styles.primaryActionBtn, { backgroundColor: '#D97706' }, submitting && styles.disabledBtn]}
                 onPress={() => handleAction('dispatch')}
@@ -248,7 +248,7 @@ export default function ParcelDetailScreen() {
               </TouchableOpacity>
             )}
 
-            {transitData.status === 'in_transit_regional' && (
+            {transitData.orderStatus === 'in_transit_regional' && (
               <TouchableOpacity
                 style={[styles.primaryActionBtn, { backgroundColor: '#7C3AED' }, submitting && styles.disabledBtn]}
                 onPress={() => handleAction('arrive')}
@@ -265,7 +265,7 @@ export default function ParcelDetailScreen() {
               </TouchableOpacity>
             )}
 
-            {transitData.status === 'at_destination_hub' && (
+            {transitData.orderStatus === 'at_destination_hub' && (
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle" size={20} color="#1E3A8A" style={{ marginRight: 8 }} />
                 <Text style={styles.infoText}>
@@ -279,21 +279,21 @@ export default function ParcelDetailScreen() {
         {/* History Timeline */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Status Audit Logs</Text>
-          {transitData.timeline.length === 0 ? (
+          {!transitData.history || transitData.history.length === 0 ? (
             <Text style={styles.emptyTimelineText}>No logs recorded yet.</Text>
           ) : (
-            transitData.timeline.map((log: any, idx: number) => (
-              <View key={log.createdAt} style={styles.timelineItem}>
+            transitData.history.map((log: any, idx: number) => (
+              <View key={log.created_at} style={styles.timelineItem}>
                 <View style={styles.timelineLineContainer}>
                   <View style={styles.timelineDot} />
-                  {idx !== transitData.timeline.length - 1 && <View style={styles.timelineLine} />}
+                  {idx !== transitData.history.length - 1 && <View style={styles.timelineLine} />}
                 </View>
                 <View style={styles.timelineContent}>
                   <Text style={styles.timelineStatus}>{getStatusLabel(log.status)}</Text>
-                  {log.hubName && <Text style={styles.timelineHub}>Location: {log.hubName}</Text>}
+                  {log.hub_name && <Text style={styles.timelineHub}>Location: {log.hub_name}</Text>}
                   {log.notes && <Text style={styles.timelineNotes}>{`"${log.notes}"`}</Text>}
                   <Text style={styles.timelineDate}>
-                    {new Date(log.createdAt).toLocaleString(undefined, {
+                    {new Date(log.created_at).toLocaleString(undefined, {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
