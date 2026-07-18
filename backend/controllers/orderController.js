@@ -540,11 +540,48 @@ async function notifyNearbyDrivers(store, newDelivery, deliveryFeeVal) {
 }
 
 async function createAndDispatchDelivery(order, store, orderId) {
-  const existingDelivery = await repositories.deliveries.findByOrderId(orderId);
-  if (existingDelivery) return;
   const deliveryFeeVal = Number.parseFloat(order.delivery_fee || 0);
+  const driverPct = (await feeConfigService.get('driver_earnings_percentage')) / 100;
+
+  // Inter-regional orders ship store -> origin hub first (the "first-mile"
+  // leg). A local driver in the store's region carries it to the hub; the
+  // parcel partner then checks it in and the inter-hub transit takes over.
+  // The buyer-end (hub -> door) is a separate "last-mile" leg created later
+  // via interRegionalController.requestLastMile.
+  if (order.order_type === 'inter_regional' && order.origin_hub_id) {
+    const existingFirstMile = await repositories.deliveries.findByOrderIdAndLeg(orderId, 'first_mile');
+    if (existingFirstMile) return;
+
+    const hub = await repositories.parcelPartner.getHubById(order.origin_hub_id);
+    if (!hub) {
+      logger.warn(`Inter-regional order ${order.order_number} has no resolvable origin hub (${order.origin_hub_id}); skipping first-mile dispatch.`);
+      return;
+    }
+
+    const firstMile = await repositories.deliveries.createDelivery({
+      orderId,
+      leg: 'first_mile',
+      pickupAddress: store.address_line1 || 'Store Address',
+      deliveryAddress: hub.address || hub.hub_name || 'Origin Hub',
+      pickupLatitude: store.latitude || 0,
+      pickupLongitude: store.longitude || 0,
+      deliveryLatitude: hub.latitude || 0,
+      deliveryLongitude: hub.longitude || 0,
+      deliveryFee: deliveryFeeVal,
+      driverEarnings: deliveryFeeVal * driverPct
+    });
+    logger.info(`Created first-mile delivery (store -> origin hub) for order ${order.order_number}`);
+    // Drivers near the store (origin region) service the first-mile leg.
+    await notifyNearbyDrivers(store, firstMile, deliveryFeeVal);
+    return;
+  }
+
+  // Local order: single store -> buyer delivery.
+  const existingDelivery = await repositories.deliveries.findByOrderIdAndLeg(orderId, 'local');
+  if (existingDelivery) return;
   const newDelivery = await repositories.deliveries.createDelivery({
     orderId,
+    leg: 'local',
     pickupAddress: store.address_line1 || 'Store Address',
     deliveryAddress: order.delivery_address_line1 || order.delivery_address || 'Customer Address',
     pickupLatitude: store.latitude || 0,
@@ -552,7 +589,7 @@ async function createAndDispatchDelivery(order, store, orderId) {
     deliveryLatitude: order.delivery_latitude || 0,
     deliveryLongitude: order.delivery_longitude || 0,
     deliveryFee: deliveryFeeVal,
-    driverEarnings: deliveryFeeVal * ((await feeConfigService.get('driver_earnings_percentage')) / 100)
+    driverEarnings: deliveryFeeVal * driverPct
   });
   logger.info(`Automatically created delivery for order ${order.order_number}`);
   await notifyNearbyDrivers(store, newDelivery, deliveryFeeVal);

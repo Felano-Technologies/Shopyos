@@ -27,6 +27,7 @@ class DeliveryRepository extends BaseRepository {
         delivery_latitude: deliveryData.deliveryLatitude || 0,
         delivery_longitude: deliveryData.deliveryLongitude || 0,
         status: deliveryData.status || 'unassigned',
+        leg: deliveryData.leg || 'local',
         estimated_pickup_time: deliveryData.estimatedPickupTime || null,
         estimated_delivery_time: deliveryData.estimatedDeliveryTime || null,
         delivery_fee: deliveryData.deliveryFee || 0,
@@ -205,6 +206,18 @@ class DeliveryRepository extends BaseRepository {
    */
   async findByOrderId(orderId) {
     return this.findOne({ order_id: orderId });
+  }
+
+  /**
+   * Get a specific leg's delivery for an order. Inter-regional orders carry
+   * more than one delivery row (first_mile + last_mile), so callers that used
+   * to rely on one-delivery-per-order must scope by leg.
+   * @param {string} orderId
+   * @param {string} leg - 'local' | 'first_mile' | 'last_mile'
+   * @returns {Promise<Object|null>}
+   */
+  async findByOrderIdAndLeg(orderId, leg) {
+    return this.findOne({ order_id: orderId, leg });
   }
 
   /**

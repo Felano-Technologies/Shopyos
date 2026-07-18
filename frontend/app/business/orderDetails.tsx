@@ -103,6 +103,9 @@ export default function OrderDetailsScreen() {
             plate:   o.deliveries[0].plate_number,
           } : null,
           storeName: o.store?.store_name || o.stores?.store_name,
+          orderType: (o.order_type || 'local'),
+          originRegion: o.origin_region,
+          destinationRegion: o.destination_region,
           items: mappedItems,
           payment: {
             subtotal:      Number.parseFloat(o.subtotal || o.subtotal_amount || 0),
@@ -274,7 +277,11 @@ export default function OrderDetailsScreen() {
               {currentStatus === 'ready_for_pickup' && (
                 <View style={S.infoNote}>
                   <Ionicons name="time-outline" size={rs(18)} color="#7C3AED" />
-                  <Text style={S.infoNoteTxt}>Waiting for driver to accept</Text>
+                  <Text style={S.infoNoteTxt}>
+                    {order.orderType === 'inter_regional'
+                      ? `A local driver will collect this and deliver it to the ${order.originRegion || 'origin'} hub for regional transit.`
+                      : 'Waiting for driver to accept'}
+                  </Text>
                 </View>
               )}
 
@@ -363,29 +370,33 @@ export default function OrderDetailsScreen() {
                 accessibilityLabel="Track order on map"
                 accessibilityRole="button"
                 style={S.mapBtn}
-                onPress={() => router.push({
-                  pathname: '/order/tracking',
-                  params: {
-                    deliveryId:       order.delivery.id,
-                    deliveryAddress:  order.customer.address,
-                    orderNumber:      order.orderNumber,
-                    deliveryLatitude:  order.delivery.deliveryLat,
-                    deliveryLongitude: order.delivery.deliveryLng,
-                    storeLatitude:     order.delivery.pickupLat,
-                    storeLongitude:    order.delivery.pickupLng,
-                    driverName:        order.driver?.name,
-                    driverAvatar:      order.driver?.avatar,
-                    driverPhone:       order.driver?.phone,
-                    driverVehicle:     order.driver?.vehicle,
-                    driverPlate:       order.driver?.plate,
-                    storeName:         order.storeName,
-                    orderStatus:       order.status,
-                    deliveryStatus:    order.delivery.status,
-                  },
-                } as any)}
+                onPress={() => router.push(
+                  order.orderType === 'inter_regional'
+                    ? { pathname: '/order/transit-tracker', params: { orderId: order.id } }
+                    : {
+                        pathname: '/order/tracking',
+                        params: {
+                          deliveryId:       order.delivery.id,
+                          deliveryAddress:  order.customer.address,
+                          orderNumber:      order.orderNumber,
+                          deliveryLatitude:  order.delivery.deliveryLat,
+                          deliveryLongitude: order.delivery.deliveryLng,
+                          storeLatitude:     order.delivery.pickupLat,
+                          storeLongitude:    order.delivery.pickupLng,
+                          driverName:        order.driver?.name,
+                          driverAvatar:      order.driver?.avatar,
+                          driverPhone:       order.driver?.phone,
+                          driverVehicle:     order.driver?.vehicle,
+                          driverPlate:       order.driver?.plate,
+                          storeName:         order.storeName,
+                          orderStatus:       order.status,
+                          deliveryStatus:    order.delivery.status,
+                        },
+                      } as any
+                )}
               >
                 <Feather name="map-pin" size={rs(12)} color={C.navy} />
-                <Text style={S.mapBtnTxt}>Track on Map</Text>
+                <Text style={S.mapBtnTxt}>{order.orderType === 'inter_regional' ? 'Track Shipment' : 'Track on Map'}</Text>
               </TouchableOpacity>
             </View>
           </View>

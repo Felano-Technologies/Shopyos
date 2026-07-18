@@ -20,7 +20,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, getAllCategories, CustomInAppToast } from '@/services/api';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 // removed useCloudinaryUpload import
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -441,6 +441,13 @@ const BusinessSetupScreen = () => {
     }
     setLoading(true);
     try {
+      // Persist the seller-commission agreement BEFORE creating the business —
+      // the /business/create route is gated by requireDisclaimer('seller_commission'),
+      // which returns 403 (surfaced to the user as a vague error) if no
+      // acknowledgement exists. Checking the box only sets local state.
+      if (commissionTerms) {
+        await acknowledgeDisclaimer('seller_commission', commissionTerms.version);
+      }
       await submitBusinessRegistration({
         formData,
         logo,

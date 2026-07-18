@@ -6,6 +6,7 @@ const { haversineKm } = require('../utils/distance');
 const { logger } = require('../config/logger');
 const { getPool } = require('../config/postgres');
 const ApiResponse = require('../utils/apiResponse');
+const { emitTransitUpdate } = require('../services/transitEvents');
 
 const requestLastMile = async (req, res, next) => {
   try {
@@ -24,6 +25,7 @@ const requestLastMile = async (req, res, next) => {
     const delivery = await createLastMileDeliveryRecord(order, lastMileFee);
 
     await updateOrderLastMile(orderId, lastMileFee, delivery.id);
+    await emitTransitUpdate(orderId);
 
     ApiResponse.success(res, { fee: lastMileFee, deliveryId: delivery.id }, 'Last-mile delivery requested successfully');
   } catch (error) {
@@ -46,7 +48,16 @@ const getTransitInfo = async (req, res, next) => {
     const originHub = order.origin_hub_id ? await repositories.parcelPartner.getHubById(order.origin_hub_id) : null;
     const destHub = order.destination_hub_id ? await repositories.parcelPartner.getHubById(order.destination_hub_id) : null;
 
+    // Endpoints for the schematic map (store -> origin hub -> dest hub -> home).
+    const store = order.store_id ? await repositories.stores.findById(order.store_id) : null;
+
+    // Driver legs — the tracker shows a live marker only while one is active.
+    const firstMile = await repositories.deliveries.findByOrderIdAndLeg(orderId, 'first_mile').catch(() => null);
+    const lastMile = await repositories.deliveries.findByOrderIdAndLeg(orderId, 'last_mile').catch(() => null);
+    const legSummary = (d) => (d ? { deliveryId: d.id, status: d.status, driverId: d.driver_id || null } : null);
+
     ApiResponse.success(res, {
+      orderId: order.id,
       trackingNumber: order.parcel_tracking_number,
       orderStatus: order.status,
       originHub,
@@ -54,6 +65,14 @@ const getTransitInfo = async (req, res, next) => {
       estimatedHubArrival: order.estimated_hub_arrival,
       lastMileRequested: order.last_mile_requested,
       lastMileFee: order.last_mile_fee,
+      store: store ? { name: store.store_name, latitude: store.latitude, longitude: store.longitude } : null,
+      destination: {
+        latitude: order.delivery_latitude,
+        longitude: order.delivery_longitude,
+        address: order.delivery_address_line1 || order.delivery_address || null,
+      },
+      firstMileLeg: legSummary(firstMile),
+      lastMileLeg: legSummary(lastMile),
       history
     });
   } catch (error) {
@@ -72,6 +91,7 @@ async function createLastMileDeliveryRecord(order, fee) {
 
   const delivery = await repositories.deliveries.createDelivery({
     orderId: order.id,
+    leg: 'last_mile',
     pickupAddress: destHub?.address || 'Destination Hub',
     pickupLatitude: destHub?.latitude || 0,
     pickupLongitude: destHub?.longitude || 0,

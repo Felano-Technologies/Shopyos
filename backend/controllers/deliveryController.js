@@ -244,7 +244,26 @@ async function _notifyPickedUp(order, driverId, updatedDelivery, verificationPin
   }
 }
 
-async function _handlePickedUp(order, driverId, updatedDelivery) {
+async function _handlePickedUp(order, driverId, updatedDelivery, leg = 'local') {
+  // First-mile parcels head to the origin hub, not the customer. There is no
+  // customer PIN, and the order stays 'ready_for_pickup' until the hub checks
+  // it in — so don't touch the order status or mint a PIN here.
+  if (leg === 'first_mile') {
+    if (order && order.buyer_id !== driverId) {
+      await notificationService.sendNotification({
+        userId: order.buyer_id,
+        type: 'order_update',
+        title: 'Parcel Collected',
+        message: `Your order #${order.order_number} has been collected and is on its way to the origin hub.`,
+        relatedId: order.id,
+        relatedType: 'order',
+        data: { orderId: order.id, status: 'ready_for_pickup' },
+        push: { data: { screen: 'order', orderId: order.id } }
+      });
+    }
+    return;
+  }
+
   const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
   await repositories.orders.db.from('orders')
     .update({
@@ -256,7 +275,28 @@ async function _handlePickedUp(order, driverId, updatedDelivery) {
   await _notifyPickedUp(order, driverId, updatedDelivery, verificationPin);
 }
 
-async function _handleDelivered(order, driverId, updatedDelivery) {
+// First-mile drop-off at the origin hub. The order deliberately stays at
+// 'ready_for_pickup' so it remains in the hub's check-in queue; the partner's
+// check-in scan is the authoritative arrival record and advances the order.
+async function _handleFirstMileArrivedAtHub(order, driverId) {
+  if (!order || order.buyer_id === driverId) return;
+  await notificationService.sendNotification({
+    userId: order.buyer_id,
+    type: 'order_update',
+    title: 'Arrived at Origin Hub',
+    message: `Your order #${order.order_number} has reached the origin hub and is awaiting processing for regional transit.`,
+    relatedId: order.id,
+    relatedType: 'order',
+    data: { orderId: order.id, status: 'ready_for_pickup' },
+    push: { data: { screen: 'order', orderId: order.id } }
+  });
+}
+
+async function _handleDelivered(order, driverId, updatedDelivery, leg = 'local') {
+  if (leg === 'first_mile') {
+    await _handleFirstMileArrivedAtHub(order, driverId);
+    return;
+  }
   await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
   if (!order || order.buyer_id === driverId) return;
   await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
@@ -288,15 +328,17 @@ async function _handleFailedOrCancelled(order, driverId, status, updatedDelivery
   });
 }
 
-async function _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery) {
+async function _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery, leg = 'local') {
   if (status === 'picked_up') {
-    await _handlePickedUp(order, driverId, updatedDelivery);
+    await _handlePickedUp(order, driverId, updatedDelivery, leg);
   } else if (status === 'in_transit') {
-    if (order && order.buyer_id !== driverId) {
+    // First-mile in-transit is store->hub; don't tell the buyer their order is
+    // "on the way" to them — that only holds once the buyer-facing leg starts.
+    if (leg !== 'first_mile' && order && order.buyer_id !== driverId) {
       await notificationService.sendOrderNotification(order.buyer_id, order, 'in_transit');
     }
   } else if (status === 'delivered') {
-    await _handleDelivered(order, driverId, updatedDelivery);
+    await _handleDelivered(order, driverId, updatedDelivery, leg);
   } else if (status === 'failed' || status === 'cancelled') {
     await _handleFailedOrCancelled(order, driverId, status, updatedDelivery);
   }
@@ -317,20 +359,23 @@ const updateDeliveryStatus = async (req, res, next) => {
       return ApiResponse.error(res, 'Invalid status', 400);
     }
 
-    const isOwner = await repositories.deliveries.verifyDriverOwnership(deliveryId, driverId);
-    if (!isOwner) {
+    const existing = await repositories.deliveries.findById(deliveryId);
+    if (!existing || existing.driver_id !== driverId) {
       return ApiResponse.error(res, 'Not authorized to update this delivery', 403);
     }
+    const leg = existing.leg || 'local';
 
-    // Enforce role boundary: drivers must verify PIN via verify-pin endpoint, not direct status change
-    if (status === 'delivered') {
+    // Enforce role boundary: for buyer-facing legs, drivers must verify the
+    // customer's PIN via the verify-pin endpoint. The first-mile leg drops at
+    // the hub (no customer present), so it completes directly.
+    if (status === 'delivered' && leg !== 'first_mile') {
       return ApiResponse.error(res, "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint.", 400);
     }
 
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
     const order = await repositories.orders.findById(updatedDelivery.order_id);
 
-    await _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery);
+    await _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery, leg);
 
     ApiResponse.withEntity(res, 'delivery', updatedDelivery, 'Delivery status updated');
   } catch (error) {

@@ -36,7 +36,19 @@ if (Platform.OS === 'android') {
 }
 
 const { height } = Dimensions.get('window');
-const ORDER_STEPS = ['Go to Restaurant', 'Confirm Pickup', 'Go to Customer', 'Confirm Delivery'];
+// Step titles + action-button text vary by delivery leg. First-mile carries a
+// parcel from the store to the origin hub (no customer PIN); last-mile carries
+// it from the destination hub to the buyer (PIN required, same as local).
+const STEP_LABELS: Record<string, string[]> = {
+  local: ['Go to Restaurant', 'Confirm Pickup', 'Go to Customer', 'Confirm Delivery'],
+  first_mile: ['Go to Store', 'Confirm Pickup', 'Go to Origin Hub', 'Drop at Hub'],
+  last_mile: ['Go to Hub', 'Confirm Pickup', 'Go to Customer', 'Confirm Delivery'],
+};
+const BUTTON_LABELS: Record<string, string[]> = {
+  local: ['Arrived at Restaurant', 'Confirm Pickup', 'Arrived at Customer', 'Complete Delivery'],
+  first_mile: ['Arrived at Store', 'Confirm Pickup', 'Arrived at Hub', 'Confirm Drop-off'],
+  last_mile: ['Arrived at Hub', 'Confirm Pickup', 'Arrived at Customer', 'Complete Delivery'],
+};
 export default function ActiveOrderScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -51,6 +63,8 @@ export default function ActiveOrderScreen() {
   // --- TanStack Query Hooks ---
   const { data, isLoading } = useDeliveryDetails(deliveryId);
   const delivery = data?.delivery;
+  const leg: string = delivery?.leg || 'local';
+  const steps = STEP_LABELS[leg] || STEP_LABELS.local;
   const updateStatusMutation = useUpdateDeliveryStatus();
   // Sync step with delivery status
   useEffect(() => {
@@ -166,21 +180,34 @@ export default function ActiveOrderScreen() {
         await updateStatusMutation.mutateAsync({ deliveryId, status: 'in_transit' });
         setStep(3);
       } else if (step === 3) {
+        // First-mile drops at the hub — no customer, no PIN. Mark delivered
+        // directly; the backend records it as a hub drop-off.
+        if (leg === 'first_mile') {
+          await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
+          await stopDriverLocationTracking();
+          CustomInAppToast.show({
+            type: 'success',
+            title: 'Dropped at Hub',
+            message: 'Parcel handed over to the origin hub. Thank you!'
+          });
+          router.replace('/driver/dashboard');
+          return;
+        }
         if (!pinCode || pinCode.trim().length !== 6) {
-          CustomInAppToast.show({ 
-            type: 'error', 
-            title: 'Verification Failed', 
-            message: 'Please enter the valid 6-digit PIN code provided by the customer.' 
+          CustomInAppToast.show({
+            type: 'error',
+            title: 'Verification Failed',
+            message: 'Please enter the valid 6-digit PIN code provided by the customer.'
           });
           return;
         }
         await verifyPinMutation.mutateAsync({ deliveryId, pin: pinCode.trim() });
         // Stop background tracking when delivery is completed
         await stopDriverLocationTracking();
-        CustomInAppToast.show({ 
-          type: 'success', 
-          title: 'Order Completed', 
-          message: 'Great job! Your earnings have been updated.' 
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Order Completed',
+          message: 'Great job! Your earnings have been updated.'
         });
         router.replace('/driver/dashboard');
         return;
@@ -193,15 +220,7 @@ export default function ActiveOrderScreen() {
       });
     }
   };
-  const getButtonText = () => {
-    switch (step) {
-      case 0: return "Arrived at Restaurant";
-      case 1: return "Confirm Pickup";
-      case 2: return "Arrived at Customer";
-      case 3: return "Complete Delivery";
-      default: return "Complete";
-    }
-  };
+  const getButtonText = () => (BUTTON_LABELS[leg] || BUTTON_LABELS.local)[step] || 'Complete';
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -294,7 +313,7 @@ export default function ActiveOrderScreen() {
         <View style={styles.handleBar} />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           <View style={styles.statusRow}>
-            <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
+            <Text style={styles.statusTitle}>{steps[step]}</Text>
             <Text style={styles.timeRemaining}>{etaDisplay}</Text>
           </View>
           {/* Address Info */}
@@ -303,9 +322,15 @@ export default function ActiveOrderScreen() {
               <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color="#0C1559" />
             </View>
             <View style={{ flex: 1, marginLeft: 15 }}>
-              <Text style={styles.locationLabel}>{step <= 1 ? "Pick Up At" : "Deliver To"}</Text>
+              <Text style={styles.locationLabel}>
+                {step <= 1
+                  ? (leg === 'last_mile' ? 'Pick Up At (Hub)' : 'Pick Up At')
+                  : (leg === 'first_mile' ? 'Deliver To (Hub)' : 'Deliver To')}
+              </Text>
               <Text style={styles.locationName}>
-                {step <= 1 ? (storeDetails?.store_name || "Store") : (buyerProfile?.full_name || "Customer")}
+                {step <= 1
+                  ? (leg === 'last_mile' ? 'Destination Hub' : (storeDetails?.store_name || 'Store'))
+                  : (leg === 'first_mile' ? 'Origin Hub' : (buyerProfile?.full_name || 'Customer'))}
               </Text>
               <Text style={styles.locationAddress} numberOfLines={2}>
                 {step <= 1 ? (delivery.pickup_address) : (delivery.delivery_address)}
@@ -393,7 +418,7 @@ export default function ActiveOrderScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          {step === 3 && (
+          {step === 3 && leg !== 'first_mile' && (
             <View style={styles.pinCard}>
               <View style={styles.pinHeader}>
                 <Ionicons name="shield-checkmark-outline" size={24} color="#0C1559" />

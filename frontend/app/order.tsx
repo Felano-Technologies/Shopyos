@@ -56,6 +56,11 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
   processing:         { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 1,  label: 'Processing' },
   'ready for pickup': { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'Ready'      },
   'in transit':       { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'In Transit' },
+  // Inter-regional hub milestones (map onto the shared 4-step bar)
+  'at origin hub':       { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 2, label: 'At Origin Hub'   },
+  'in transit regional': { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 2, label: 'In Transit'      },
+  'at destination hub':  { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2, label: 'At Dest. Hub'     },
+  'awaiting last mile':  { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2, label: 'Awaiting Pickup'  },
   delivered:          { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', timelineStep: 3,  label: 'Delivered'  },
   cancelled:          { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', timelineStep: -1, label: 'Cancelled'  },
 };

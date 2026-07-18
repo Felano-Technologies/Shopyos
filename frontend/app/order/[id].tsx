@@ -70,6 +70,11 @@ const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon:
   ready_for_pickup: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'storefront-outline', label: 'Ready for Pickup' },
   picked_up: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline', label: 'Driver Picked Up' },
   in_transit: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline', label: 'On the Way' },
+  // Inter-regional hub statuses
+  at_origin_hub: { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'business-outline', label: 'At Origin Hub' },
+  in_transit_regional: { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'airplane-outline', label: 'In Regional Transit' },
+  at_destination_hub: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'business-outline', label: 'At Destination Hub' },
+  awaiting_last_mile: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline', label: 'Awaiting Last-Mile' },
   delivered: { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', icon: 'checkmark-circle-outline', label: 'Delivered' },
   cancelled: { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', icon: 'close-circle-outline', label: 'Cancelled' },
 };
@@ -83,8 +88,18 @@ const TIMELINE = [
   { id: 'in_transit', label: 'On Way', icon: 'bicycle-outline' },
   { id: 'delivered', label: 'Arrived', icon: 'checkmark-done-outline' },
 ];
+// Inter-regional orders travel through hubs, so they get their own steps.
+const INTER_REGIONAL_TIMELINE = [
+  { id: 'ready_for_pickup', label: 'Dispatch', icon: 'storefront-outline' },
+  { id: 'at_origin_hub', label: 'Origin Hub', icon: 'business-outline' },
+  { id: 'in_transit_regional', label: 'Transit', icon: 'airplane-outline' },
+  { id: 'at_destination_hub', label: 'Dest. Hub', icon: 'business-outline' },
+  { id: 'delivered', label: 'Delivered', icon: 'checkmark-done-outline' },
+];
 // Status rank for progress comparison
 const STATUS_RANK = ['pending', 'paid', 'confirmed', 'processing', 'ready_for_pickup', 'picked_up', 'in_transit', 'delivered'];
+// Inter-regional ordering: hub milestones sit between dispatch and delivery.
+const INTER_REGIONAL_RANK = ['pending', 'paid', 'confirmed', 'processing', 'ready_for_pickup', 'at_origin_hub', 'in_transit_regional', 'at_destination_hub', 'awaiting_last_mile', 'picked_up', 'in_transit', 'delivered'];
 const OrderDetailsScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -210,9 +225,50 @@ const OrderDetailsScreen = () => {
   }
   // ── Derived values ──────────────────────────────────────────────────────────
   const statusCfg = getStatusCfg(order.status);
-  const delivery = order.deliveries?.[0];
+  const isInterRegional = (order.order_type || '').toLowerCase() === 'inter_regional';
+  // Inter-regional orders can carry two delivery legs; the buyer-facing one is
+  // the last-mile (or, before last-mile is requested, none). Prefer a non-
+  // first_mile leg for the local live map.
+  const deliveries = order.deliveries ?? [];
+  const delivery = isInterRegional
+    ? (deliveries.find((d: any) => d.leg && d.leg !== 'first_mile') ?? deliveries[0])
+    : deliveries[0];
   const driver = delivery?.driver;
-  const currentRank = STATUS_RANK.indexOf(order.status.toLowerCase());
+  const activeTimeline = isInterRegional ? INTER_REGIONAL_TIMELINE : TIMELINE;
+  const activeRank = isInterRegional ? INTER_REGIONAL_RANK : STATUS_RANK;
+  const currentRank = activeRank.indexOf(order.status.toLowerCase());
+
+  // Inter-regional shipments have their own hub-to-hub tracker (schematic map +
+  // live driver legs); local orders use the single-driver live map.
+  const handleTrack = () => {
+    if (isInterRegional) {
+      router.push({ pathname: '/order/transit-tracker', params: { orderId: order.id } } as any);
+      return;
+    }
+    router.push({
+      pathname: '/order/tracking',
+      params: {
+        orderId: order.id,
+        deliveryId: delivery?.id,
+        deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
+        orderNumber: order.order_number,
+        deliveryLatitude: delivery?.delivery_latitude,
+        deliveryLongitude: delivery?.delivery_longitude,
+        storeLatitude: delivery?.pickup_latitude,
+        storeLongitude: delivery?.pickup_longitude,
+        driverName: driver?.user_profiles?.full_name,
+        driverAvatar: driver?.user_profiles?.avatar_url,
+        driverPhone: driver?.user_profiles?.phone,
+        driverVehicle: driver?.vehicle_type,
+        driverPlate: driver?.plate_number,
+        storeName: order.store?.store_name,
+        storeLogo: order.store?.logo || order.store?.logo_url,
+        storeCategory: order.store?.store_category || order.store?.category,
+        orderStatus: order.status,
+        deliveryStatus: delivery?.status
+      }
+    } as any);
+  };
   // ── Grand total calculation ─────────────────────────────────────────────────
   // Priority: sum from order_items (most accurate) → total_amount field → payment amount
   const itemsSubtotal: number = (order.order_items ?? []).reduce(
@@ -229,7 +285,9 @@ const OrderDetailsScreen = () => {
   // Date string
   let dateStr = '';
   try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch (e) { console.error('Failed to format order date:', e); }
-  const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
+  const isLiveTrackable = isInterRegional
+    ? ['ready_for_pickup', 'at_origin_hub', 'in_transit_regional', 'at_destination_hub', 'awaiting_last_mile', 'picked_up', 'in_transit'].includes(order.status.toLowerCase())
+    : ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -241,32 +299,7 @@ const OrderDetailsScreen = () => {
             <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
           <Text style={S.hdrTitle}>Order Tracking</Text>
-          <TouchableOpacity
-            style={S.hdrBtn}
-            onPress={() => router.push({
-              pathname: '/order/tracking',
-              params: {
-                orderId: order.id,
-                deliveryId: delivery?.id,
-                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
-                orderNumber: order.order_number,
-                deliveryLatitude: delivery?.delivery_latitude,
-                deliveryLongitude: delivery?.delivery_longitude,
-                storeLatitude: delivery?.pickup_latitude,
-                storeLongitude: delivery?.pickup_longitude,
-                driverName: driver?.user_profiles?.full_name,
-                driverAvatar: driver?.user_profiles?.avatar_url,
-                driverPhone: driver?.user_profiles?.phone,
-                driverVehicle: driver?.vehicle_type,
-                driverPlate: driver?.plate_number,
-                storeName: order.store?.store_name,
-                storeLogo: order.store?.logo || order.store?.logo_url,
-                storeCategory: order.store?.store_category || order.store?.category,
-                orderStatus: order.status,
-                deliveryStatus: delivery?.status
-              }
-            })}
-          >
+          <TouchableOpacity style={S.hdrBtn} onPress={handleTrack}>
             <Feather name="map" size={rs(18)} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
         </View>
@@ -289,8 +322,8 @@ const OrderDetailsScreen = () => {
       >
         {/* ── Progress timeline ────────────────────────────────────────────── */}
         <View style={S.timelineWrap}>
-          {TIMELINE.map((step, i) => {
-            const stepRank = STATUS_RANK.indexOf(step.id);
+          {activeTimeline.map((step, i) => {
+            const stepRank = activeRank.indexOf(step.id);
             const isComplete = currentRank >= stepRank && currentRank !== -1;
             const isActive =
               order.status.toLowerCase() === step.id ||
@@ -345,29 +378,7 @@ const OrderDetailsScreen = () => {
           <TouchableOpacity
             style={S.trackingHint}
             activeOpacity={0.85}
-            onPress={() => router.push({
-              pathname: '/order/tracking',
-              params: {
-                orderId: order.id,
-                deliveryId: delivery?.id,
-                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
-                orderNumber: order.order_number,
-                deliveryLatitude: delivery?.delivery_latitude,
-                deliveryLongitude: delivery?.delivery_longitude,
-                storeLatitude: delivery?.pickup_latitude,
-                storeLongitude: delivery?.pickup_longitude,
-                driverName: driver?.user_profiles?.full_name,
-                driverAvatar: driver?.user_profiles?.avatar_url,
-                driverPhone: driver?.user_profiles?.phone,
-                driverVehicle: driver?.vehicle_type,
-                driverPlate: driver?.plate_number,
-                storeName: order.store?.store_name,
-                storeLogo: order.store?.logo || order.store?.logo_url,
-                storeCategory: order.store?.store_category || order.store?.category,
-                orderStatus: order.status,
-                deliveryStatus: delivery?.status
-              }
-            })}
+            onPress={handleTrack}
           >
             <View style={S.trackingHintIcon}>
               <Ionicons name="map-outline" size={rs(22)} color={C.limeText} />
