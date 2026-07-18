@@ -40,7 +40,7 @@ export {
 export {
   getConversations, getMessages, sendMessage, markConversationRead, startConversation,
   deleteMessage, deleteConversation, uploadChatMedia, getStickerPacks, createCustomSticker,
-  getPresence, getChatContacts,
+  getPresence, getChatContacts, getConversationDetails,
 } from './messaging';
 
 export {

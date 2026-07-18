@@ -17,7 +17,7 @@ import {
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
   blockUser, uploadChatMedia, markNotificationsReadByConversation,
-  getPresence
+  getPresence, getConversationDetails
 } from '../../services/api';
 import { useMessages, useChatActions } from '@/hooks/useChat';
 import { socketService } from '../../services/socket';
@@ -241,8 +241,33 @@ export default function ConversationScreen() {
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
-  const displayName = name || 'Chat';
-  const displayAvatar = avatar || null;
+  // Notification-tap navigation never had the other participant's name to
+  // pass as a route param (the backend never populated it), so the header
+  // fell back to a bare "Chat". Fetch it directly from the conversation once
+  // we know who the current user is, whenever the param didn't arrive.
+  const [fetchedParticipant, setFetchedParticipant] = useState<{ name: string; avatar: string | null } | null>(null);
+  useEffect(() => {
+    if (name || !conversationId || !currentUserId) return;
+    let alive = true;
+    getConversationDetails(conversationId)
+      .then((conversation: any) => {
+        if (!alive || !conversation) return;
+        const other = conversation.participant1?.id === currentUserId
+          ? conversation.participant2
+          : conversation.participant1;
+        const profiles = other?.user_profiles;
+        const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+        const stores = other?.stores;
+        const store = Array.isArray(stores) ? stores[0] : stores;
+        const fullName = profile?.full_name || store?.store_name || null;
+        if (fullName) setFetchedParticipant({ name: fullName, avatar: profile?.avatar_url || store?.logo_url || null });
+      })
+      .catch((e: any) => console.warn('Failed to fetch conversation details for header:', e));
+    return () => { alive = false; };
+  }, [name, conversationId, currentUserId]);
+
+  const displayName = name || fetchedParticipant?.name || 'Chat';
+  const displayAvatar = avatar || fetchedParticipant?.avatar || null;
   const initials = (n: string) =>
     (n || 'S').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -478,8 +503,9 @@ export default function ConversationScreen() {
       const sent = res.message;
       replaceMessage(tempId, { ...sent, pending: false });
     } catch {
+      // The failed bubble itself (red, "Tap to retry") already communicates
+      // this — a toast on top is redundant.
       updateMessage(tempId, { pending: false, failed: true });
-      CustomInAppToast.show({ type: 'error', title: 'Failed to send', message: 'Tap to retry.' });
     } finally { setSending(false); setReplyTo(null); }
   };
 
@@ -785,7 +811,11 @@ export default function ConversationScreen() {
       </LinearGradient>
 
       {/* Body */}
-      <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
+      {/* windowSoftInputMode="adjustResize" is set natively, but with
+          edge-to-edge display enabled that alone doesn't reliably resize this
+          screen — 'height' makes the input bar float above the keyboard the
+          same way 'padding' already does on iOS. */}
+      <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
         {loading ? (
           <View style={styles.loadingWrap}><ActivityIndicator size="large" color={C.navyDeep} /></View>
         ) : messages.length === 0 ? (

@@ -524,7 +524,7 @@ const BusinessDashboard = () => {
             <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
             <Text style={styles.alertMessage}>You have not set up a store yet. Create your business profile to start selling.</Text>
-            <TouchableOpacity accessibilityLabel="Create business profile" accessibilityRole="button" style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.replace('/business/register'); }}>
+            <TouchableOpacity accessibilityLabel="Create business profile" accessibilityRole="button" style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.push('/business/register'); }}>
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />
             </TouchableOpacity>
@@ -534,7 +534,7 @@ const BusinessDashboard = () => {
                 accessibilityLabel="Go to home page"
                 accessibilityRole="button"
                 style={[styles.outlineButton, { flex: 1 }]}
-                onPress={() => { setShowNoBusinessModal(false); router.replace('/'); }}
+                onPress={() => { setShowNoBusinessModal(false); router.push('/'); }}
               >
                 <Text style={styles.outlineButtonText}>Go Home</Text>
               </TouchableOpacity>

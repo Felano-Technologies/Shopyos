@@ -88,6 +88,24 @@ const getUserProfile = async (userId) => {
   return rows[0] || null;
 };
 
+// Sellers are represented by their store everywhere in chat (the header
+// shows the store name, not the owner's personal name) — notifications
+// should match that convention instead of naming the person.
+const getUserDisplayName = async (userId) => {
+  const db = getPool();
+  const { rows: storeRows } = await db.query(
+    'SELECT store_name FROM stores WHERE owner_id = $1 LIMIT 1',
+    [userId]
+  );
+  if (storeRows[0]?.store_name) return storeRows[0].store_name;
+
+  const { rows: profileRows } = await db.query(
+    'SELECT full_name FROM user_profiles WHERE user_id = $1 LIMIT 1',
+    [userId]
+  );
+  return profileRows[0]?.full_name || null;
+};
+
 const updateUserPresence = async (userId, isOnline) => {
   const db = getPool();
   if (isOnline) {
@@ -148,6 +166,7 @@ module.exports = {
   getMessageWithSender,
   markConversationRead,
   getUserProfile,
+  getUserDisplayName,
   updateUserPresence,
   getLastSeen,
   getMissedNotifications,

@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { Platform, Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { registerPushTokenInBackend, storage } from '../services/api';
+import { registerPushTokenInBackend, storage, secureStorage } from '../services/api';
 import { getCachedUserProfile } from '../services/storage';
 import { getRouteFromPushData } from '../utils/notificationRouting';
 
@@ -15,6 +15,11 @@ const isExpoGo = Constants.appOwnership === 'expo';
 // notifications screen. Remember handled response ids and ignore repeats.
 let lastHandledNotificationId: string | null = null;
 let hydrateHandledId: Promise<void> | null = null;
+
+// A replayed intent from process recreation is, by definition, old — a
+// genuinely fresh tap always arrives within a few seconds of the user
+// actually tapping it.
+const NOTIFICATION_STALE_MS = 2 * 60 * 1000;
 
 async function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
     // Make sure the persisted marker is loaded before deciding (cold-start
@@ -29,6 +34,24 @@ async function handleNotificationResponse(response: any, router: ReturnType<type
     if (notificationId) {
         lastHandledNotificationId = notificationId;
         storage.setItem('lastHandledNotificationId', notificationId).catch(() => {});
+    }
+
+    // Never navigate anywhere on a stale/replayed intent (Android's singleTask
+    // launch mode redelivers the last Intent when the OS recreates the killed
+    // process on resume) — the id-based dedup above doesn't catch a "new to
+    // this process lifetime but old in wall-clock time" replay.
+    const notifiedAt = response?.notification?.date;
+    if (typeof notifiedAt === 'number' && Date.now() - notifiedAt > NOTIFICATION_STALE_MS) {
+        console.log('[PushNotifications] Ignoring stale notification tap (likely a replayed intent)');
+        return;
+    }
+
+    // Never navigate to a screen requiring auth if the user is logged out —
+    // a stale intent tapped after logout shouldn't force any navigation.
+    const userToken = await secureStorage.getItem('userToken').catch(() => null);
+    if (!userToken) {
+        console.log('[PushNotifications] Ignoring notification tap — no active session');
+        return;
     }
 
     const data = response.notification.request.content.data || {};

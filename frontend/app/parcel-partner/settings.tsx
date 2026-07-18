@@ -153,7 +153,7 @@ export default function ParcelPartnerSettings() {
           style={styles.shopBtn}
           onPress={() => {
             switchToBuyerMode('parcel_partner');
-            router.replace('/home');
+            router.push('/home');
           }}
         >
           <Feather name="shopping-bag" size={18} color="#1D4ED8" />

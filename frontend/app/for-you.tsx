@@ -126,7 +126,13 @@ export default function ForYouScreen() {
   }, [fadeAnim]);
 
   const handleAddToCart = useCallback((item: any) => {
-    addToCart({ id: item._id, title: item.name, price: item.price, image: { uri: item.images?.[0] }, storeId: null });
+    // A hardcoded null here was the actual cause of "select pickup, still
+    // billed for delivery" — checkout groups items by storeId, and a null/
+    // 'unknown' group can never match the backend's per-store pickup check.
+    addToCart({
+      id: item._id, title: item.name, price: item.price, image: { uri: item.images?.[0] },
+      storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
+    });
     showToast(`${item.name} added to cart!`);
   }, [addToCart, showToast]);
 

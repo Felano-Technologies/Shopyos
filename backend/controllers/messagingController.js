@@ -156,12 +156,9 @@ async function handleBotInterceptor(conversationId, userId, finalContent, isMode
     });
     // Clear the client's typing indicator on success too (was error-path only)
     emitToConversation(conversationId, 'bot:stop_typing', { conversationId });
-    await notificationService.sendNotification({
-      userId, type: 'new_message', title: 'Shopyos Bot', message: reply.substring(0, 100),
-      relatedId: conversationId, relatedType: 'conversation',
-      data: { conversationId, messageId: botMessage.id },
-      push: { data: { screen: 'messages', conversationId, messageId: botMessage.id } }
-    }).catch(notifErr => { logger.error('Failed to notify user of support bot message:', notifErr); });
+    // No push/in-app notification for bot replies — the user is actively in
+    // the conversation (that's how the bot got triggered), and the socket
+    // message:new event above already delivers it in real time.
     if (isEscalation) {
       logger.info(`[Shopyos Bot] Escalation triggered for conversation ${conversationId}`);
       emitToConversation(conversationId, 'conversation:escalated', { conversationId });
@@ -190,9 +187,16 @@ async function handleBotInterceptor(conversationId, userId, finalContent, isMode
   }
 }
 
+// Sellers are represented by their store everywhere in chat (the header
+// shows the store name, not the owner's personal name) — notifications
+// should match that convention instead of naming the person.
 function resolveSenderName(messageWithSender) {
-  if (!messageWithSender?.sender?.user_profiles) return 'Someone';
-  const profiles = messageWithSender.sender.user_profiles;
+  const sender = messageWithSender?.sender;
+  if (!sender) return 'Someone';
+  const stores = sender.stores;
+  const store = Array.isArray(stores) ? stores[0] : stores;
+  if (store?.store_name) return store.store_name;
+  const profiles = sender.user_profiles;
   const profile = Array.isArray(profiles) ? profiles[0] : profiles;
   return profile?.full_name || 'Someone';
 }
@@ -241,7 +245,8 @@ const sendMessage = async (req, res, next) => {
           *,
           sender:sender_id (
             id,
-            user_profiles (full_name, avatar_url)
+            user_profiles (full_name, avatar_url),
+            stores (store_name)
           ),
           reply_to_message:reply_to_message_id (
             id,
@@ -304,13 +309,15 @@ const sendMessage = async (req, res, next) => {
           relatedType: 'conversation',
           data: {
             conversationId,
-            messageId: message.id
+            messageId: message.id,
+            senderName
           },
           push: {
             data: {
               screen: 'messages',
               conversationId,
-              messageId: message.id
+              messageId: message.id,
+              senderName
             }
           }
         });

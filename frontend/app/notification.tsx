@@ -157,10 +157,9 @@ const NotificationScreen = () => {
             </View>
           </View>
           
-          <Text
-            style={[S.messageTxt, unread ? S.messageUnread : S.messageRead]}
-            numberOfLines={2}
-          >
+          {/* No dedicated detail screen — tapping navigates straight to the
+              related content — so the full message must be readable here. */}
+          <Text style={[S.messageTxt, unread ? S.messageUnread : S.messageRead]}>
             {item.message}
           </Text>
         </View>
@@ -277,7 +276,7 @@ const NotificationScreen = () => {
             <Text style={S.emptySub}>
               You&apos;ll get updates on your orders and account activity here.
             </Text>
-            <TouchableOpacity style={S.shopBtn} onPress={() => router.replace('/home')}>
+            <TouchableOpacity style={S.shopBtn} onPress={() => router.push('/home')}>
               <Text style={S.shopBtnTxt}>Start Shopping</Text>
             </TouchableOpacity>
           </View>

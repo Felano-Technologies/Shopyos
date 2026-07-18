@@ -51,10 +51,16 @@ type StoreGroup = {
   items: any[];
 };
 
-function groupByStore(items: any[]): StoreGroup[] {
+// resolvedIds maps item.id -> real store id, for legacy cart items persisted
+// with storeId: null before that was fixed at add-to-cart time. Resolving
+// per-item (not per the 'unknown' group as a whole) matters because a stale
+// cart can hold items from several different stores that would otherwise all
+// collapse into one bogus group, corrupting the fee quote and pickup choice
+// for all but the first item.
+function groupByStore(items: any[], resolvedIds: Record<string, string> = {}): StoreGroup[] {
   const map: Record<string, StoreGroup> = {};
   for (const item of items) {
-    const sid = item.storeId ?? 'unknown';
+    const sid = resolvedIds[item.id] || item.storeId || 'unknown';
     if (!map[sid]) {
       map[sid] = { storeId: sid, storeName: item.storeName ?? 'Store', storeLogo: item.storeLogo, items: [] };
     }
@@ -103,6 +109,9 @@ export default function CheckoutScreen() {
 
   // Delivery fee state — one quote per store
   const [storeQuotes, setStoreQuotes] = useState<Record<string, StoreQuote>>({});
+  // item.id -> real store id, resolved for legacy cart items saved with a
+  // null storeId before that was fixed — see groupByStore's comment.
+  const [resolvedStoreIds, setResolvedStoreIds] = useState<Record<string, string>>({});
   const [isFetchingFee, setIsFetchingFee] = useState(false);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -132,25 +141,37 @@ export default function CheckoutScreen() {
   useEffect(() => {
     if (cartItems.length === 0) return;
 
-    const groups = groupByStore(cartItems);
-
     (async () => {
       setIsFetchingFee(true);
+
+      // Resolve every legacy (storeId-less) item individually before
+      // grouping — a stale 'unknown' bucket can hold items from several
+      // different stores, not just one.
+      const unresolvedItems = cartItems.filter((item) => !item.storeId && !resolvedStoreIds[item.id]);
+      let effectiveResolvedIds = resolvedStoreIds;
+      if (unresolvedItems.length > 0) {
+        const newlyResolved: Record<string, string> = {};
+        await Promise.all(unresolvedItems.map(async (item) => {
+          try {
+            const prodRes = await getProductById(item.id);
+            const sid = prodRes.success
+              ? (prodRes.product.store_id || prodRes.product.store?._id || prodRes.product.businessId)
+              : null;
+            if (sid) newlyResolved[item.id] = sid;
+          } catch { /* fail silently — this item's group stays 'unknown' */ }
+        }));
+        if (Object.keys(newlyResolved).length > 0) {
+          effectiveResolvedIds = { ...resolvedStoreIds, ...newlyResolved };
+          // Persisted for the render-time storeGroups computation below.
+          setResolvedStoreIds(effectiveResolvedIds);
+        }
+      }
+
+      const groups = groupByStore(cartItems, effectiveResolvedIds);
       const newQuotes: Record<string, StoreQuote> = {};
 
       await Promise.all(groups.map(async (group) => {
-        let { storeId } = group;
-
-        // Fallback for legacy cart items without storeId
-        if (storeId === 'unknown' && group.items[0]?.id) {
-          try {
-            const prodRes = await getProductById(group.items[0].id);
-            if (prodRes.success) {
-              storeId = prodRes.product.store_id || prodRes.product.store?._id || prodRes.product.businessId || '';
-            }
-          } catch { /* fail silently */ }
-        }
-
+        const { storeId } = group;
         if (!storeId || storeId === 'unknown') return;
 
         try {
@@ -174,9 +195,9 @@ export default function CheckoutScreen() {
       setStoreQuotes(newQuotes);
       setIsFetchingFee(false);
     })();
-  }, [buyerCoords, cartItems, deliveryState]);
+  }, [buyerCoords, cartItems, deliveryState, resolvedStoreIds]);
 
-  const storeGroups = groupByStore(cartItems);
+  const storeGroups = groupByStore(cartItems, resolvedStoreIds);
   // Pickup stores contribute no delivery/transit fees and don't need range checks
   const quoteEntries = Object.entries(storeQuotes);
   const storeQuoteList = Object.values(storeQuotes);

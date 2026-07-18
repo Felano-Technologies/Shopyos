@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   getConversations,
   getMessages,
@@ -67,21 +67,39 @@ export const useMessages = (conversationId: string) => {
     refetchOnMount: true,
   });
 
+  // Optimistic sends (text/media/voice/sticker) and the socket echo of our
+  // own message both reconcile the same temp bubble, independently and out
+  // of order. Matching the echo by sender+content broke as soon as two
+  // in-flight sends shared identical content — the second optimistic insert
+  // would steal the first's temp bubble, so the first's later reconciliation
+  // (whichever of REST/socket lost the race) found nothing left to resolve
+  // and the message rendered as an empty box. Track pending tempIds in
+  // arrival order instead, so reconciliation is exact, never a content guess.
+  const pendingTempIds = useRef<string[]>([]);
+
   const appendMessage = useCallback(
     (message: MessageItem) => {
       queryClient.setQueryData<MessageItem[]>(key, (prev = []) => {
         if (prev.some((m) => m.id === message.id)) return prev;
-        // The socket echo of our own message is delivery confirmation: replace
-        // a matching pending/failed temp bubble (lost REST response) instead of
-        // appending a duplicate.
-        const tempIdx = prev.findIndex(
-          (m) => m.id.startsWith('temp_') && (m.pending || m.failed) &&
-            m.sender_id === message.sender_id && m.content === message.content
-        );
-        if (tempIdx !== -1) {
-          const next = [...prev];
-          next[tempIdx] = { ...message, pending: false, failed: false };
-          return next;
+
+        // A brand-new optimistic bubble: register it so a later echo (via
+        // REST replaceMessage or this same socket path) can resolve it.
+        if (message.pending && message.id.startsWith('temp_')) {
+          pendingTempIds.current.push(message.id);
+          return [...prev, message];
+        }
+
+        // Incoming/echoed real message: resolve the oldest still-present
+        // pending tempId from the *same sender* — exact identity, not a
+        // content guess, so identical-text messages in flight never collide.
+        const pendingIdx = pendingTempIds.current.findIndex((tempId) => {
+          const temp = prev.find((m) => m.id === tempId);
+          return temp && temp.sender_id === message.sender_id;
+        });
+        if (pendingIdx !== -1) {
+          const tempId = pendingTempIds.current[pendingIdx];
+          pendingTempIds.current.splice(pendingIdx, 1);
+          return prev.map((m) => (m.id === tempId ? { ...message, pending: false, failed: false } : m));
         }
         return [...prev, message];
       });
@@ -91,6 +109,7 @@ export const useMessages = (conversationId: string) => {
 
   const replaceMessage = useCallback(
     (tempId: string, message: MessageItem) => {
+      pendingTempIds.current = pendingTempIds.current.filter((id) => id !== tempId);
       queryClient.setQueryData<MessageItem[]>(key, (prev = []) => {
         const filtered = prev.filter((m) => m.id !== tempId);
         if (filtered.some((m) => m.id === message.id)) return filtered;
@@ -111,6 +130,7 @@ export const useMessages = (conversationId: string) => {
 
   const removeMessage = useCallback(
     (id: string) => {
+      pendingTempIds.current = pendingTempIds.current.filter((tempId) => tempId !== id);
       queryClient.setQueryData<MessageItem[]>(key, (prev = []) =>
         prev.filter((m) => m.id !== id)
       );

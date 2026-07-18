@@ -18,6 +18,15 @@ export const getMessages = async (conversationId: string) => {
   }
 };
 
+export const getConversationDetails = async (conversationId: string) => {
+  try {
+    const response = await api.get(`/messaging/conversations/${conversationId}`);
+    return response.data?.conversation ?? response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const sendMessage = async (
   conversationId: string,
   content: string,
