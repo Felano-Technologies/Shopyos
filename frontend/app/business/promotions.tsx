@@ -14,7 +14,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { initializeBannerPayment, verifyBannerPayment, getUserData } from '@/services/api';
 import { useMyCampaigns, useCreateCampaign, useActiveBusiness, useStoreProducts } from '@/hooks/useBusiness';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
@@ -430,7 +430,11 @@ export default function PromotionsScreen() {
               </View>
               {adTerms && (
                 <View style={styles.disclaimerRow}>
-                  <TouchableOpacity onPress={() => setIsAdTermsChecked(!isAdTermsChecked)} activeOpacity={0.8}>
+                  <TouchableOpacity activeOpacity={0.8} onPress={async () => {
+                    if (isAdTermsChecked) { setIsAdTermsChecked(false); return; }
+                    try { await acknowledgeDisclaimer('advertising_terms', adTerms.version); setIsAdTermsChecked(true); }
+                    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                  }}>
                     <View style={[styles.disclaimerBox, isAdTermsChecked && styles.disclaimerBoxChecked]}>
                       {isAdTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
                     </View>

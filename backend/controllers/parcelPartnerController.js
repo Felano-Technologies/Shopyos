@@ -4,6 +4,7 @@ const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { getPool } = require('../config/postgres');
 const { emitTransitUpdate } = require('../services/transitEvents');
+const feeConfigService = require('../services/feeConfigService');
 
 const getHubs = async (req, res, next) => {
   try {
@@ -102,7 +103,13 @@ const arriveParcel = async (req, res, next) => {
     const hub = await repositories.parcelPartner.getHubById(hubId);
     if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
 
-    await updateOrderOnArrival(orderId);
+    // Arrival at the destination hub is the point both hubs' work is
+    // verifiably complete and the last-mile phase begins, so this is where
+    // the transit fee is paid out — split 50/50 between origin and
+    // destination hub (or 100% to whichever single hub exists). Guarded by
+    // orders.transit_fee_paid_at so a repeat call can't double-pay.
+    await payHubTransitFee(orderId, order);
+
     await repositories.parcelPartner.createStatusLog(orderId, 'at_destination_hub', hubId, userId, notes, photoUrl);
     await notifyBuyerArrival(order, hub);
     await emitTransitUpdate(orderId);
@@ -112,6 +119,61 @@ const arriveParcel = async (req, res, next) => {
     next(error);
   }
 };
+
+async function payHubTransitFee(orderId, order) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: lockRows } = await client.query(
+      `SELECT transit_fee_paid_at FROM orders WHERE id = $1 FOR UPDATE`,
+      [orderId]
+    );
+    const alreadyPaid = !!lockRows[0]?.transit_fee_paid_at;
+
+    if (!alreadyPaid) {
+      const hubEarningsPct = await feeConfigService.get('hub_earnings_percentage', 88);
+      const transitFee = Number.parseFloat(order.parcel_transit_fee || 0);
+      const hubIds = [...new Set([order.origin_hub_id, order.destination_hub_id].filter(Boolean))];
+
+      if (transitFee > 0 && hubIds.length > 0) {
+        const totalHubEarnings = Number.parseFloat((transitFee * hubEarningsPct / 100).toFixed(2));
+        const perHub = Number.parseFloat((totalHubEarnings / hubIds.length).toFixed(2));
+
+        for (const hId of hubIds) {
+          const { rows: balRows } = await client.query(
+            `UPDATE parcel_partner_hubs SET current_balance = current_balance + $2, updated_at = NOW()
+             WHERE id = $1 RETURNING current_balance`,
+            [hId, perHub]
+          );
+          await client.query(
+            `INSERT INTO hub_balance_logs (hub_id, amount, transaction_type, order_id, balance_after)
+             VALUES ($1, $2, 'transit_fee', $3, $4)`,
+            [hId, perHub, orderId, balRows[0]?.current_balance]
+          );
+        }
+      }
+
+      await client.query(
+        `UPDATE orders SET status = 'at_destination_hub', transit_fee_paid_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [orderId]
+      );
+    } else {
+      await client.query(
+        `UPDATE orders SET status = 'at_destination_hub', updated_at = NOW() WHERE id = $1`,
+        [orderId]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (txErr) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw txErr;
+  } finally {
+    client.release();
+  }
+}
 
 // --- Helper Functions to keep action methods under 30 lines ---
 
@@ -176,14 +238,6 @@ async function updateOrderOnDispatch(orderId, estArrival) {
   await pool.query(
     "UPDATE orders SET estimated_hub_arrival = $1, status = 'in_transit_regional', updated_at = NOW() WHERE id = $2",
     [estArrival, orderId]
-  );
-}
-
-async function updateOrderOnArrival(orderId) {
-  const pool = getPool();
-  await pool.query(
-    "UPDATE orders SET status = 'at_destination_hub', updated_at = NOW() WHERE id = $1",
-    [orderId]
   );
 }
 

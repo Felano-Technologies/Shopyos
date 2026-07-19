@@ -46,7 +46,7 @@ jest.mock('../../db/repositories', () => ({
     createProductReview: jest.fn(),
     findStoreReviewByUser: jest.fn(),
     createStoreReview: jest.fn(),
-    findDriverReviewByDelivery: jest.fn(),
+    findDriverReviewByOrder: jest.fn(),
     createDriverReview: jest.fn(),
     getProductReviews: jest.fn(),
     getProductRatingStats: jest.fn(),
@@ -265,9 +265,10 @@ describe('ReviewController Unit Tests', () => {
     test('test_createDriverReview_validInput_createsDriverReviewSuccessfully', async () => {
       // Arrange
       const mockReview = { id: 'driver-rev-1', rating: 5 };
-      repositories.reviews.findDriverReviewByDelivery.mockResolvedValueOnce(null);
+      repositories.reviews.findDriverReviewByOrder.mockResolvedValueOnce(null);
       repositories.deliveries.getDeliveryDetails.mockResolvedValueOnce({
         id: 'delivery-123',
+        order_id: 'order-123',
         driver_id: 'driver-1',
         order: { buyer_id: 'buyer-user-id' },
       });
@@ -286,7 +287,7 @@ describe('ReviewController Unit Tests', () => {
       expect(repositories.reviews.createDriverReview).toHaveBeenCalledWith({
         driverId: 'driver-1',
         userId: 'buyer-user-id',
-        deliveryId: 'delivery-123',
+        orderId: 'order-123',
         rating: 5,
         reviewText: 'Fast!',
       });
