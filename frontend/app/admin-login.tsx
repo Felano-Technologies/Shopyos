@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -27,9 +28,9 @@ const DEV_ACCOUNTS = [
 
 const FEATURES = [
   { icon: 'bar-chart-2', text: 'Real-time platform analytics' },
-  { icon: 'users',       text: 'Full user & seller management' },
-  { icon: 'shield',      text: 'Audit logs & security controls' },
-  { icon: 'truck',       text: 'Driver & delivery oversight' },
+  { icon: 'users', text: 'Full user & seller management' },
+  { icon: 'shield', text: 'Audit logs & security controls' },
+  { icon: 'truck', text: 'Driver & delivery oversight' },
 ];
 
 async function getLocation() {
@@ -50,10 +51,10 @@ async function getLocation() {
 
 export default function AdminLoginScreen() {
   const { refresh } = useOnboarding();
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [showPw, setShowPw]       = useState(false);
-  const [loading, setLoading]     = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { width } = Dimensions.get('window');
   const isTwoPanel = width >= 900;
@@ -78,11 +79,17 @@ export default function AdminLoginScreen() {
         return;
       }
 
-      const role = response.role?.toLowerCase();
-      if (role !== 'admin') {
+      const roleStr = String(response?.role ?? response?.account_type ?? '').toLowerCase();
+      const rolesArr = Array.isArray(response?.roles) ? response.roles : [];
+      const isAdmin = roleStr === 'admin' || rolesArr.some((item: any) => {
+        if (typeof item === 'string') return item.toLowerCase() === 'admin';
+        return String(item?.name ?? item?.role ?? '').toLowerCase() === 'admin';
+      });
+
+      if (!isAdmin) {
         // loginUser already stored tokens — tear the session down so a
         // rejected non-admin doesn't remain silently authenticated.
-        await logoutUser().catch(() => {});
+        await logoutUser().catch(() => { });
         CustomInAppToast.show({
           type: 'error',
           title: 'Access Denied',
@@ -106,7 +113,7 @@ export default function AdminLoginScreen() {
   };
 
   // ── Left branding panel ────────────────────────────────────────────────────
-  const BrandPanel = () => (
+  const renderBrandPanel = () => (
     <LinearGradient
       colors={['#01217B', '#0C3494', '#0A5CA8']}
       style={[styles.brandPanel, !isTwoPanel && styles.brandPanelMobile]}
@@ -121,9 +128,10 @@ export default function AdminLoginScreen() {
         <AppImage
           source={require('../assets/images/iconwhite.png')}
           style={styles.brandLogo}
+          contentFit="contain"
         />
 
-        <Text style={styles.brandHeadline}>Shopyos{'\n'}Admin Portal</Text>
+        <Text style={styles.brandHeadline}>Welcome to{'\n'}Shopyos Admin Portal</Text>
         <Text style={styles.brandSubtitle}>
           Manage your platform, people, and operations from one powerful hub.
         </Text>
@@ -152,7 +160,7 @@ export default function AdminLoginScreen() {
   );
 
   // ── Right form panel ───────────────────────────────────────────────────────
-  const FormPanel = () => (
+  const renderFormPanel = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.formPanel, !isTwoPanel && styles.formPanelMobile]}
@@ -225,9 +233,9 @@ export default function AdminLoginScreen() {
             {loading
               ? <ActivityIndicator color="#FFF" />
               : <>
-                  <Text style={styles.signInText}>Sign in to Admin Portal</Text>
-                  <Feather name="arrow-right" size={18} color="#85CC16" />
-                </>}
+                <Text style={styles.signInText}>Sign in to Admin Portal</Text>
+                <Feather name="arrow-right" size={18} color="#85CC16" />
+              </>}
           </LinearGradient>
         </TouchableOpacity>
 
@@ -269,14 +277,14 @@ export default function AdminLoginScreen() {
       <StatusBar style="light" />
       {isTwoPanel ? (
         <View style={styles.twoPanel}>
-          <BrandPanel />
-          <FormPanel />
+          {renderBrandPanel()}
+          {renderFormPanel()}
         </View>
       ) : (
-        <View style={styles.singlePanel}>
-          <BrandPanel />
-          <FormPanel />
-        </View>
+        <ScrollView style={styles.singlePanel} contentContainerStyle={{ flexGrow: 1 }} bounces={false} keyboardShouldPersistTaps="handled">
+          {renderBrandPanel()}
+          {renderFormPanel()}
+        </ScrollView>
       )}
     </View>
   );
@@ -511,10 +519,12 @@ const styles = StyleSheet.create({
   },
   brandPanelMobile: {
     width: '100%',
-    paddingVertical: 40,
+    paddingTop: 60,
+    paddingBottom: 60,
     paddingHorizontal: 24,
     minHeight: undefined,
     justifyContent: 'center',
+    flexShrink: 0,
   },
   formPanelMobile: {
     flex: 1,

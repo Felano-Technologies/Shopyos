@@ -54,9 +54,9 @@ export const createCategory = async (name: string, description?: string) => {
   }
 };
 
-export const updateCategory = async (id: string, name: string) => {
+export const updateCategory = async (id: string, name: string, description?: string) => {
   try {
-    const response = await api.put(`/categories/${id}`, { name });
+    const response = await api.put(`/categories/${id}`, { name, description });
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to update category');

@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
@@ -44,7 +45,12 @@ const ForgotPasswordScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: '#fff' }} 
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      bounces={false}
+    >
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       <AppImage
@@ -129,7 +135,7 @@ const ForgotPasswordScreen = () => {
           style={styles.brandLogo}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 };
 

@@ -34,15 +34,25 @@ export const Login: React.FC = () => {
     }
 
     try {
-      await loginUser(email, password, lat, lng);
+      const response = await loginUser(email, password, lat, lng);
       setAuthenticated(true);
       
       window.dispatchEvent(new CustomEvent('app-toast', {
         detail: { type: 'success', title: 'Welcome Back', message: `Signed in successfully as ${email}` }
       }));
 
-      // Redirect to home page
-      navigate('/');
+      const roleStr = String(response?.role ?? response?.account_type ?? '').toLowerCase();
+      const rolesArr = Array.isArray(response?.roles) ? response.roles : [];
+      const isAdmin = roleStr === 'admin' || rolesArr.some((item: any) => {
+        if (typeof item === 'string') return item.toLowerCase() === 'admin';
+        return String(item?.name ?? item?.role ?? '').toLowerCase() === 'admin';
+      });
+
+      if (isAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.');
     } finally {
