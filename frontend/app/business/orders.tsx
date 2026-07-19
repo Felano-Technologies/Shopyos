@@ -259,7 +259,7 @@ export default function OrdersScreen() {
               <View style={S.orderIcon}>
                 <Feather name="package" size={rs(13)} color={C.navy} />
               </View>
-              <Text style={S.orderNum} numberOfLines={1}>{item.orderNumber}</Text>
+              <Text style={S.orderNum}>{item.orderNumber}</Text>
             </View>
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
               <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
@@ -553,7 +553,7 @@ const S = StyleSheet.create({
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: rs(20),
-    paddingBottom: rs(28),
+    paddingBottom: rs(14),
     position: 'relative',
     elevation: 10,
     shadowColor: C.navy,
@@ -604,8 +604,8 @@ const S = StyleSheet.create({
   },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: rs(24), backgroundColor: C.bg,
-    borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+    height: rs(12), backgroundColor: C.bg,
+    borderTopLeftRadius: rs(12), borderTopRightRadius: rs(12),
   },
 
   // ── Stat row ───────────────────────────────────────────────────────────────

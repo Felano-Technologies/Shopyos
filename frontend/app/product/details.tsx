@@ -479,10 +479,10 @@ export default function ProductDetails() {
                         <View style={styles.sellerContainer}>
                             <View style={styles.sellerInfo}>
                                 <AppImage uri={product.storeImage || 'https://via.placeholder.com/100?text=Store'} style={styles.sellerAvatar} />
-                                <View>
+                                <View style={{ flex: 1 }}>
                                     <Text style={styles.sellerLabel}>Sold by</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                        <Text style={styles.sellerName}>{product.sellerName}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                                        <Text style={styles.sellerName} numberOfLines={2}>{product.sellerName}</Text>
                                         {product.isTrusted && (
                                             <Ionicons name="checkmark-circle" size={14} color="#84cc16" />
                                         )}
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
     description: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 22, marginBottom: 24 },
     sellerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 12, borderRadius: 16, marginBottom: 30, borderWidth: 1, borderColor: '#E2E8F0' },
-    sellerInfo: { flexDirection: 'row', alignItems: 'center' },
+    sellerInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
     sellerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
     sellerLabel: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
     sellerName: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },

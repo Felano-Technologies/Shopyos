@@ -182,7 +182,7 @@ export default function AdminOrders() {
         activeOpacity={0.86}
       >
         <View style={styles.orderRowTop}>
-          <View>
+          <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={styles.orderIdText}>
               {item.order_number ? `#${item.order_number}` : `#${item.id.slice(0, 8).toUpperCase()}`}
             </Text>
