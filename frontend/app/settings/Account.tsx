@@ -324,81 +324,81 @@ export default function AccountScreen() {
     <View style={styles.mainContainer}>
       <StatusBar style="light" backgroundColor="#0C1559" />
       <Stack.Screen options={{ headerShown: false }} />
-      {/* --- Header Section --- */}
-      <View style={styles.header}>
-        <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
-          <View style={styles.navBar}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#A3E635" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Edit Profile</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          <View style={styles.profileSection}>
-            {loading ? (
-              <View style={[styles.profileImageSkeleton, { marginBottom: 12 }]} />
-            ) : (
-              <TappableAvatar
-                uri={userData.avatar}
-                size={100}
-                label={userData.name}
-                onEditPress={() => setShowAvatarModal(true)}
-                style={{ marginBottom: 12 }}
-              />
-            )}
-            {loading ? (
-              <>
-                <View style={styles.nameSkeleton} />
-                <View style={styles.dateSkeleton} />
-              </>
-            ) : (
-              <>
-                <Text style={styles.profileName}>{userData.name || 'User'}</Text>
-                <View style={styles.dateBadge}>
-                  <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
-                </View>
-                {userData.referralCode ? (
-                  <View style={styles.referralRow}>
-                    <TouchableOpacity
-                      accessibilityLabel="Copy referral code"
-                      accessibilityRole="button"
-                      style={styles.referralChip}
-                      onPress={copyReferralCode}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.referralLabel}>Your Referral Code</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.referralCode}>{userData.referralCode}</Text>
-                        <Ionicons name="copy-outline" size={14} color="#CBD5E1" />
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      accessibilityLabel="Share referral code"
-                      accessibilityRole="button"
-                      style={styles.referralShareBtn}
-                      onPress={shareReferralCode}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="share-social-outline" size={18} color="#A3E635" />
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-              </>
-            )}
-          </View>
-        </SafeAreaView>
-      </View>
-      {/* --- Content Area --- */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.contentArea}
+        style={{ flex: 1 }}
       >
-        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* --- Header Section --- */}
+          <View style={styles.header}>
+            <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
+              <View style={styles.navBar}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                  <Ionicons name="arrow-back" size={24} color="#A3E635" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Edit Profile</Text>
+                <View style={{ width: 40 }} />
+              </View>
+              <View style={styles.profileSection}>
+                {loading ? (
+                  <View style={[styles.profileImageSkeleton, { marginBottom: 12 }]} />
+                ) : (
+                  <TappableAvatar
+                    uri={userData.avatar}
+                    size={100}
+                    label={userData.name}
+                    onEditPress={() => setShowAvatarModal(true)}
+                    style={{ marginBottom: 12 }}
+                  />
+                )}
+                {loading ? (
+                  <>
+                    <View style={styles.nameSkeleton} />
+                    <View style={styles.dateSkeleton} />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.profileName}>{userData.name || 'User'}</Text>
+                    <View style={styles.dateBadge}>
+                      <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
+                    </View>
+                    {userData.referralCode ? (
+                      <View style={styles.referralRow}>
+                        <TouchableOpacity
+                          accessibilityLabel="Copy referral code"
+                          accessibilityRole="button"
+                          style={styles.referralChip}
+                          onPress={copyReferralCode}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.referralLabel}>Your Referral Code</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.referralCode}>{userData.referralCode}</Text>
+                            <Ionicons name="copy-outline" size={14} color="#CBD5E1" />
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          accessibilityLabel="Share referral code"
+                          accessibilityRole="button"
+                          style={styles.referralShareBtn}
+                          onPress={shareReferralCode}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="share-social-outline" size={18} color="#A3E635" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              </View>
+            </SafeAreaView>
+          </View>
+          {/* --- Form Fields --- */}
+          <View style={styles.formArea}>
             {loading ? (
               <>
                 <View style={styles.fieldSkeleton} />
@@ -472,8 +472,8 @@ export default function AccountScreen() {
                 <View style={{ height: 40 }} />
               </>
             )}
-          </ScrollView>
-        </SafeAreaView>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
       {/* --- MODALS --- */}
       <SelectionModal
@@ -652,35 +652,30 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
   // Content
-  contentArea: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 100 },
+  scrollContent: { paddingBottom: 100 },
+  formArea: { paddingHorizontal: 20, paddingTop: 30 },
   fieldSkeleton: {
     height: 54,
-    borderRadius: 25,
+    borderRadius: 14,
     backgroundColor: '#E2E8F0',
-    borderWidth: 1.5,
-    borderColor: '#D7DFEA',
     marginBottom: 16,
   },
   saveSkeleton: {
     height: 56,
-    borderRadius: 28,
+    borderRadius: 14,
     backgroundColor: '#D7DFEA',
   },
-  fieldRow: { marginBottom: 16 },
+  fieldRow: { marginBottom: 14 },
   inputWrapper: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
-    borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 25,
-    height: 54, paddingHorizontal: 6,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+    height: 54, paddingHorizontal: 16,
   },
   iconArea: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
-    justifyContent: 'center', alignItems: 'center', marginLeft: 4,
+    marginRight: 8,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium', paddingHorizontal: 12, height: '100%' },
-  flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 10 },
+  input: { flex: 1, fontSize: 16, color: '#000', marginLeft: 0, height: '100%' },
+  flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 4 },
   flag: { width: 24, height: 16, borderRadius: 2 },
   phonePrefix: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },
   verticalDivider: { width: 1, height: 20, backgroundColor: '#CBD5E1', marginLeft: 10 },

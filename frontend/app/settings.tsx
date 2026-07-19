@@ -381,9 +381,15 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'file-text',
+            label: 'Privacy Policy',
+            onPress: () => router.push('/settings/privacyPolicy' as any)
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'info',
             label: 'About App',
-            onPress: () => { }
+            onPress: () => router.push('/settings/aboutApp' as any)
           })}
         </View>
         {/* Logout */}

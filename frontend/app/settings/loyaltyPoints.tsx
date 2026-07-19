@@ -195,8 +195,8 @@ export default function LoyaltyPointsScreen() {
         const p = profile?.user || profile;
         if (p?.referral_code) setReferralCode(p.referral_code);
       })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = () => {
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FDF4',
     borderRadius: 16,
     padding: 16,
-    marginTop: 12,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: '#BBF7D0',
   },
@@ -472,7 +472,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 12,
+    marginTop: 15,
+    marginBottom: 15,
   },
   // Transaction items
   txCard: {
