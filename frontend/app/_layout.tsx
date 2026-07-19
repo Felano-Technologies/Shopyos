@@ -334,6 +334,11 @@ export default function RootLayout() {
     'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
     'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
     'Montserrat-Black': require('../assets/fonts/Montserrat-Black.ttf'),
+    // Montserrat-Medium is referenced across ~112 screens but has no font file
+    // and was never registered — on Android that renders text with broken
+    // metrics ("spaced out letter by letter"). Alias it to Regular so the
+    // family always resolves to a real font.
+    'Montserrat-Medium': require('../assets/fonts/Montserrat-Regular.ttf'),
   });
 
   useEffect(() => {

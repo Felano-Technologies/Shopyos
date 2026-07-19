@@ -5,6 +5,8 @@ const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
+const { emitTransitUpdate } = require('../services/transitEvents');
+const { getPool } = require('../config/postgres');
 
 /**
  * @route   POST /api/deliveries/create
@@ -365,11 +367,14 @@ const updateDeliveryStatus = async (req, res, next) => {
     }
     const leg = existing.leg || 'local';
 
-    // Enforce role boundary: for buyer-facing legs, drivers must verify the
-    // customer's PIN via the verify-pin endpoint. The first-mile leg drops at
-    // the hub (no customer present), so it completes directly.
-    if (status === 'delivered' && leg !== 'first_mile') {
-      return ApiResponse.error(res, "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint.", 400);
+    // Completion always goes through a verification endpoint, never a raw
+    // status update: buyer-facing legs use the customer PIN (verify-pin);
+    // the first-mile leg uses the hub handoff code (verify-hub-dropoff).
+    if (status === 'delivered') {
+      const msg = leg === 'first_mile'
+        ? 'To complete a hub drop-off, enter the hub handoff code via the drop-off endpoint.'
+        : "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint.";
+      return ApiResponse.error(res, msg, 400);
     }
 
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
@@ -734,6 +739,124 @@ const verifyDeliveryPin = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   POST /api/deliveries/:deliveryId/verify-hub-dropoff
+ * @desc    First-mile driver confirms drop-off at the origin hub by entering
+ *          the hub's handoff code (the hub-side analog of the customer PIN).
+ * @access  Private (Driver)
+ */
+const verifyHubDropoff = async (req, res, next) => {
+  try {
+    const { deliveryId } = req.params;
+    const { code } = req.body;
+    const driverId = req.user.id;
+
+    if (!code) {
+      return ApiResponse.error(res, 'Hub drop-off code is required', 400);
+    }
+
+    const delivery = await repositories.deliveries.findById(deliveryId);
+    if (!delivery || delivery.driver_id !== driverId) {
+      return ApiResponse.error(res, 'Not authorized to update this delivery', 403);
+    }
+    if ((delivery.leg || 'local') !== 'first_mile') {
+      return ApiResponse.error(res, 'Hub drop-off verification only applies to first-mile deliveries', 400);
+    }
+
+    const order = await repositories.orders.findById(delivery.order_id);
+    if (!order?.origin_hub_id) {
+      return ApiResponse.error(res, 'No origin hub is set for this order', 400);
+    }
+    const hub = await repositories.parcelPartner.getHubById(order.origin_hub_id);
+    if (!hub?.handoff_code) {
+      return ApiResponse.error(res, 'This hub has no handoff code configured. Contact support.', 400);
+    }
+    if (String(code).trim() !== String(hub.handoff_code).trim()) {
+      return ApiResponse.error(res, 'Invalid hub code. Ask the hub staff for the current drop-off code.', 400);
+    }
+
+    // The hub code proves hub staff received the parcel, so a verified drop-off
+    // IS the origin-hub check-in: advance the order to at_origin_hub, stamp a
+    // tracking number, and pay the first-mile driver immediately (they don't
+    // wait on the buyer, unlike the last-mile/local driver). All atomic and
+    // guarded by re-checking the delivery's status under a row lock, so a
+    // double-submit can't pay the driver twice.
+    const trackingNum = order.parcel_tracking_number
+      || `SPY-PRC-${String(order.id).substring(0, 8).toUpperCase()}`;
+
+    const pool = getPool();
+    const client = await pool.connect();
+    let updatedDelivery;
+    try {
+      await client.query('BEGIN');
+
+      const { rows: curRows } = await client.query(
+        'SELECT status, driver_earnings FROM deliveries WHERE id = $1 FOR UPDATE',
+        [deliveryId]
+      );
+      if (curRows[0]?.status === 'delivered') {
+        await client.query('ROLLBACK');
+        return ApiResponse.error(res, 'This drop-off has already been confirmed', 400);
+      }
+
+      const { rows: updRows } = await client.query(
+        `UPDATE deliveries SET status = 'delivered', delivered_at = NOW(), updated_at = NOW()
+         WHERE id = $1 RETURNING *`,
+        [deliveryId]
+      );
+      updatedDelivery = updRows[0];
+
+      const earnings = Number.parseFloat(curRows[0]?.driver_earnings || 0);
+      if (earnings > 0) {
+        const { rows: walletRows } = await client.query(
+          `UPDATE user_profiles SET wallet_balance = COALESCE(wallet_balance, 0) + $2, updated_at = NOW()
+           WHERE user_id = $1 RETURNING wallet_balance`,
+          [driverId, earnings]
+        );
+        await client.query(
+          `INSERT INTO wallet_logs (user_id, amount, transaction_type, order_id, balance_after)
+           VALUES ($1, $2, 'earning', $3, $4)`,
+          [driverId, earnings, order.id, walletRows[0]?.wallet_balance]
+        );
+      }
+
+      await client.query(
+        `UPDATE orders SET status = 'at_origin_hub', parcel_tracking_number = $2, updated_at = NOW() WHERE id = $1`,
+        [order.id, trackingNum]
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    await repositories.parcelPartner
+      .createStatusLog(order.id, 'at_origin_hub', order.origin_hub_id, driverId, 'Dropped off by first-mile driver', null)
+      .catch((e) => console.warn('[verifyHubDropoff] status log failed:', e.message));
+
+    if (order.buyer_id && order.buyer_id !== driverId) {
+      await notificationService.sendNotification({
+        userId: order.buyer_id,
+        type: 'order_update',
+        title: 'Arrived at Origin Hub',
+        message: `Your order #${order.order_number} has reached the origin hub and is being processed for regional transit.`,
+        relatedId: order.id,
+        relatedType: 'order',
+        data: { orderId: order.id, status: 'at_origin_hub' },
+        push: { data: { screen: 'order', orderId: order.id } }
+      }).catch(() => {});
+    }
+    await emitTransitUpdate(order.id);
+
+    ApiResponse.withEntity(res, 'delivery', updatedDelivery, 'Hub drop-off confirmed');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDelivery,
   getAvailableDeliveries,
@@ -747,5 +870,6 @@ module.exports = {
   getLatestLocation,
   getDeliveryByOrder,
   getDriverStats,
-  verifyDeliveryPin
+  verifyDeliveryPin,
+  verifyHubDropoff
 };

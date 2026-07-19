@@ -7,7 +7,9 @@ const sharp = require('sharp');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const LRUCache = require('lru-cache');
+// lru-cache v7+ exports { LRUCache } — the module itself is not a constructor.
+// Importing it bare makes `new LRUCache(...)` throw at boot and kills the API.
+const { LRUCache } = require('lru-cache');
 const { envInt } = require('./envConfig');
 
 const endpoint = (process.env.STORAGE_ENDPOINT || '').trim();

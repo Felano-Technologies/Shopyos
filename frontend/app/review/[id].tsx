@@ -20,7 +20,7 @@ import { createProductReview, createStoreReview, createDriverReview } from '@/se
 import { useOrderDetail } from '@/hooks/useOrders';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 function StarRating({ rating, onRate, size = 32 }: Readonly<{ rating: number; onRate: (r: number) => void; size?: number }>) {
     return (
@@ -95,7 +95,7 @@ const ReviewScreen = () => {
             });
         },
     });
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (storeRating === 0) {
             CustomInAppToast.show({
                 type: 'info',
@@ -216,8 +216,12 @@ const ReviewScreen = () => {
                 {reviewTerms && (
                     <TouchableOpacity
                         style={styles.disclaimerRow}
-                        onPress={() => setIsTermsChecked(!isTermsChecked)}
                         activeOpacity={0.7}
+                        onPress={async () => {
+                            if (isTermsChecked) { setIsTermsChecked(false); return; }
+                            try { await acknowledgeDisclaimer('review_terms', reviewTerms.version); setIsTermsChecked(true); }
+                            catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                        }}
                     >
                         <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
                             {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}

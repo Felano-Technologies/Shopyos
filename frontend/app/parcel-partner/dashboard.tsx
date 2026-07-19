@@ -190,6 +190,26 @@ export default function ParcelPartnerDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0C1559']} />
         }
       >
+        {/* Hub balance — credited when a parcel arrives at this hub (its share
+            of the transit fee) */}
+        {selectedHub && (
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>Hub Balance</Text>
+            <Text style={styles.balanceValue}>₵{Number(selectedHub.current_balance || 0).toFixed(2)}</Text>
+          </View>
+        )}
+
+        {/* Hub drop-off code — read this to first-mile drivers to confirm handoff */}
+        {selectedHub?.handoff_code && (
+          <View style={styles.codeBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.codeBannerLabel}>Drop-off Code</Text>
+              <Text style={styles.codeBannerHint}>Give this to drivers dropping parcels here</Text>
+            </View>
+            <Text style={styles.codeBannerValue}>{selectedHub.handoff_code}</Text>
+          </View>
+        )}
+
         {/* Statistics Grid */}
         <Text style={styles.sectionTitle}>Hub Statistics</Text>
         {loadingData ? (
@@ -448,6 +468,28 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 12,
   },
+  balanceCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  balanceLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  balanceValue: { fontSize: 26, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginTop: 4 },
+  codeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0C1559',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginTop: 16,
+  },
+  codeBannerLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#A3E635', textTransform: 'uppercase', letterSpacing: 0.5 },
+  codeBannerHint: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  codeBannerValue: { fontSize: 28, fontFamily: 'Montserrat-Bold', color: '#FFF', letterSpacing: 4 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

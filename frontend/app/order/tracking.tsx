@@ -9,7 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -41,6 +41,7 @@ async function computeAndSetRoute(
 
 export default function OrderTrackingMap() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
 
   const deliveryId = params.deliveryId as string | undefined;
@@ -248,11 +249,11 @@ export default function OrderTrackingMap() {
           colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
           style={styles.topGradient}
         />
-        <SafeAreaView style={styles.topSafeArea}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <View style={[styles.topSafeArea, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       </View>
 
       {/* Bottom sheet */}
@@ -342,10 +343,10 @@ export default function OrderTrackingMap() {
               <Ionicons name="location" size={20} color="#0C1559" />
             </View>
             <View style={styles.addressBox}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={styles.addressLabel}>Drop-off</Text>
                 {storeName && (
-                  <Text style={styles.storeTag}>{storeCategory || 'Store'} · {storeName}</Text>
+                  <Text style={styles.storeTag} numberOfLines={1}>{storeCategory || 'Store'} · {storeName}</Text>
                 )}
               </View>
               <Text style={styles.addressText} numberOfLines={2}>{deliveryAddress}</Text>
@@ -465,5 +466,5 @@ const styles = StyleSheet.create({
   addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
   storeLogoBadge: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' },
   miniLogo: { width: '100%', height: '100%' },
-  storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, flexShrink: 1, marginLeft: 8, maxWidth: '65%' },
 });

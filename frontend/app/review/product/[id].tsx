@@ -19,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 function StarRating({ currentRating, onRate }: Readonly<{ currentRating: number; onRate: (r: number) => void }>) {
     return (
@@ -166,7 +166,11 @@ const ProductReviewScreen = () => {
                 </View>
                 {reviewTerms && (
                     <View style={styles.disclaimerRow}>
-                        <TouchableOpacity style={styles.disclaimerCheckbox} onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                        <TouchableOpacity style={styles.disclaimerCheckbox} activeOpacity={0.8} onPress={async () => {
+                            if (isTermsChecked) { setIsTermsChecked(false); return; }
+                            try { await acknowledgeDisclaimer('review_terms', reviewTerms.version); setIsTermsChecked(true); }
+                            catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                        }}>
                             <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
                                 {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
                             </View>

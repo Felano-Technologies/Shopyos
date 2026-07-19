@@ -16,7 +16,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 
@@ -273,7 +273,11 @@ export default function PayoutScreen() {
 
               {payoutTerms && (
                 <View style={styles.disclaimerRow}>
-                  <TouchableOpacity onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                  <TouchableOpacity activeOpacity={0.8} onPress={async () => {
+                    if (isTermsChecked) { setIsTermsChecked(false); return; }
+                    try { await acknowledgeDisclaimer('payout_terms', payoutTerms.version); setIsTermsChecked(true); }
+                    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                  }}>
                     <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
                       {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
                     </View>
