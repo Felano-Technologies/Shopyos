@@ -103,7 +103,7 @@ class ReviewRepository extends BaseRepository {
       .insert({
         driver_id: reviewData.driverId,
         buyer_id: reviewData.userId,
-        delivery_id: reviewData.deliveryId,
+        order_id: reviewData.orderId,
         rating: reviewData.rating,
         review_text: reviewData.reviewText || null
       })
@@ -363,17 +363,17 @@ class ReviewRepository extends BaseRepository {
   }
 
   /**
-   * Check if user has reviewed driver for delivery
+   * Check if user has reviewed driver for an order
    * @param {string} userId
-   * @param {string} deliveryId
+   * @param {string} orderId
    * @returns {Promise<Object|null>}
    */
-  async findDriverReviewByDelivery(userId, deliveryId) {
+  async findDriverReviewByOrder(userId, orderId) {
     const { data, error } = await this.db
       .from('driver_reviews')
       .select('*')
       .eq('buyer_id', userId)
-      .eq('delivery_id', deliveryId)
+      .eq('order_id', orderId)
       .is('deleted_at', null)
       .single();
 

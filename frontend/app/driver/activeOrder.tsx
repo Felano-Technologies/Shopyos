@@ -15,10 +15,10 @@ import {
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { useDeliveryDetails, useUpdateDeliveryStatus, useVerifyDeliveryPin } from '@/hooks/useDelivery';
+import { useDeliveryDetails, useUpdateDeliveryStatus, useVerifyDeliveryPin, useVerifyHubDropoff } from '@/hooks/useDelivery';
 import { startConversation, CustomInAppToast } from '@/services/api';
 import {
   startDriverLocationTracking,
@@ -51,15 +51,18 @@ const BUTTON_LABELS: Record<string, string[]> = {
 };
 export default function ActiveOrderScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
   const [pinCode, setPinCode] = useState('');
+  const [hubCode, setHubCode] = useState('');
   const [driverCoord, setDriverCoord] = useState<{ latitude: number; longitude: number } | null>(null);
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [liveEta, setLiveEta] = useState<number | null>(null);
   const lastRouteFetchCoord = useRef<{ latitude: number; longitude: number } | null>(null);
   const verifyPinMutation = useVerifyDeliveryPin();
+  const verifyHubMutation = useVerifyHubDropoff();
   // --- TanStack Query Hooks ---
   const { data, isLoading } = useDeliveryDetails(deliveryId);
   const delivery = data?.delivery;
@@ -180,10 +183,18 @@ export default function ActiveOrderScreen() {
         await updateStatusMutation.mutateAsync({ deliveryId, status: 'in_transit' });
         setStep(3);
       } else if (step === 3) {
-        // First-mile drops at the hub — no customer, no PIN. Mark delivered
-        // directly; the backend records it as a hub drop-off.
+        // First-mile drops at the hub — verified with the hub's handoff code
+        // (the hub-side analog of the customer PIN), which staff read to the driver.
         if (leg === 'first_mile') {
-          await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
+          if (!hubCode || hubCode.trim().length < 3) {
+            CustomInAppToast.show({
+              type: 'error',
+              title: 'Hub Code Required',
+              message: 'Ask the hub staff for the drop-off code and enter it to confirm.'
+            });
+            return;
+          }
+          await verifyHubMutation.mutateAsync({ deliveryId, code: hubCode.trim() });
           await stopDriverLocationTracking();
           CustomInAppToast.show({
             type: 'success',
@@ -240,11 +251,16 @@ export default function ActiveOrderScreen() {
   }
   const buyerProfile = delivery.order?.buyer?.user_profiles;
   const storeDetails = delivery.order?.store;
-  let initialRegion: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | undefined;
+  // Always give the map a region so it renders tiles instead of a blank grey
+  // box. Prefer the driver's live position, then the leg's pickup, then the
+  // drop-off (e.g. a hub), falling back to a country-level view of Ghana.
+  let initialRegion = { latitude: 7.9465, longitude: -1.0232, latitudeDelta: 4, longitudeDelta: 4 };
   if (driverCoord) {
     initialRegion = { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 };
   } else if (delivery.pickup_latitude) {
     initialRegion = { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+  } else if (delivery.delivery_latitude) {
+    initialRegion = { latitude: delivery.delivery_latitude, longitude: delivery.delivery_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 };
   }
   let etaDisplay: string;
   if (liveEta === null) {
@@ -302,11 +318,11 @@ export default function ActiveOrderScreen() {
             <Polyline coordinates={routeCoords} strokeColor="#0C1559" strokeWidth={4} />
           )}
         </MapView>
-        <SafeAreaView style={styles.safeMapOverlay}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <View style={[styles.safeMapOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       </View>
       {/* --- BOTTOM SHEET --- */}
       <View style={styles.bottomSheet}>
@@ -327,7 +343,7 @@ export default function ActiveOrderScreen() {
                   ? (leg === 'last_mile' ? 'Pick Up At (Hub)' : 'Pick Up At')
                   : (leg === 'first_mile' ? 'Deliver To (Hub)' : 'Deliver To')}
               </Text>
-              <Text style={styles.locationName}>
+              <Text style={styles.locationName} numberOfLines={1}>
                 {step <= 1
                   ? (leg === 'last_mile' ? 'Destination Hub' : (storeDetails?.store_name || 'Store'))
                   : (leg === 'first_mile' ? 'Origin Hub' : (buyerProfile?.full_name || 'Customer'))}
@@ -353,71 +369,98 @@ export default function ActiveOrderScreen() {
           {/* Contact Section - Showing both for convenience */}
           <Text style={styles.summaryTitle}>Contacts</Text>
           
-          {/* Store Contact */}
-          <View style={styles.contactRow}>
-            <View style={styles.customerInfo}>
-              <AppImage
-                uri={storeDetails?.logo_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Store'}
-                style={styles.customerImg}
-              />
-              <View>
-                <Text style={styles.customerName}>{storeDetails?.store_name || "Store"}</Text>
-                <Text style={styles.customerRole}>Seller</Text>
+          {/* Store contact — the pickup party for local & first-mile legs
+              (a last-mile parcel is collected from the hub, not the store). */}
+          {leg !== 'last_mile' && (
+            <View style={styles.contactRow}>
+              <View style={styles.customerInfo}>
+                <AppImage
+                  uri={storeDetails?.logo_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Store'}
+                  style={styles.customerImg}
+                />
+                <View style={styles.customerNameWrap}>
+                  <Text style={styles.customerName} numberOfLines={1}>{storeDetails?.store_name || "Store"}</Text>
+                  <Text style={styles.customerRole}>{leg === 'first_mile' ? 'Seller · Pickup' : 'Seller'}</Text>
+                </View>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={styles.circleBtn}
+                  onPress={() => handleChat(
+                    storeDetails?.owner_id,
+                    storeDetails?.store_name,
+                    storeDetails?.logo_url,
+                    'buyer', // Driver chatting with store -> reporting should be 'store'
+                    storeDetails?._id || storeDetails?.id
+                  )}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
+                  onPress={() => handleCall(storeDetails?.phone)}
+                >
+                  <Ionicons name="call-outline" size={22} color="#0C1559" />
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.circleBtn}
-                onPress={() => handleChat(
-                  storeDetails?.owner_id, 
-                  storeDetails?.store_name, 
-                  storeDetails?.logo_url,
-                  'buyer', // Driver chatting with store -> reporting should be 'store'
-                  storeDetails?._id || storeDetails?.id
-                )}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
-                onPress={() => handleCall(storeDetails?.phone)}
-              >
-                <Ionicons name="call-outline" size={22} color="#0C1559" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Customer Contact */}
-          <View style={styles.contactRow}>
-            <View style={styles.customerInfo}>
-              <AppImage
-                uri={buyerProfile?.avatar_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah'}
-                style={styles.customerImg}
-              />
-              <View>
-                <Text style={styles.customerName}>{buyerProfile?.full_name || "Customer"}</Text>
-                <Text style={styles.customerRole}>Recipient</Text>
+          )}
+          {/* Parcel hub — the drop-off for first-mile, the pickup for last-mile.
+              A hub has no personal contact, so this row is informational. */}
+          {(leg === 'first_mile' || leg === 'last_mile') && (
+            <View style={styles.contactRow}>
+              <View style={styles.customerInfo}>
+                <View style={styles.hubIconCircle}>
+                  <MaterialIcons name="warehouse" size={22} color="#1D4ED8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.customerName}>
+                    {leg === 'first_mile' ? 'Origin Hub' : 'Destination Hub'}
+                  </Text>
+                  <Text style={styles.customerRole} numberOfLines={1}>
+                    {leg === 'first_mile'
+                      ? (delivery.delivery_address || 'Drop-off point')
+                      : (delivery.pickup_address || 'Pickup point')}
+                  </Text>
+                </View>
               </View>
             </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.circleBtn}
-                onPress={() => handleChat(
-                  delivery.order?.buyer_id, 
-                  buyerProfile?.full_name, 
-                  buyerProfile?.avatar_url,
-                  'seller' // Driver chatting with customer -> reporting should be 'user'
-                )}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
-                onPress={() => handleCall(buyerProfile?.phone)}
-              >
-                <Ionicons name="call-outline" size={22} color="#0C1559" />
-              </TouchableOpacity>
+          )}
+          {/* Customer contact — the recipient for local & last-mile legs
+              (a first-mile parcel is handed to the hub, not the buyer). */}
+          {leg !== 'first_mile' && (
+            <View style={styles.contactRow}>
+              <View style={styles.customerInfo}>
+                <AppImage
+                  uri={buyerProfile?.avatar_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah'}
+                  style={styles.customerImg}
+                />
+                <View style={styles.customerNameWrap}>
+                  <Text style={styles.customerName} numberOfLines={1}>{buyerProfile?.full_name || "Customer"}</Text>
+                  <Text style={styles.customerRole}>Recipient</Text>
+                </View>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={styles.circleBtn}
+                  onPress={() => handleChat(
+                    delivery.order?.buyer_id,
+                    buyerProfile?.full_name,
+                    buyerProfile?.avatar_url,
+                    'seller' // Driver chatting with customer -> reporting should be 'user'
+                  )}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
+                  onPress={() => handleCall(buyerProfile?.phone)}
+                >
+                  <Ionicons name="call-outline" size={22} color="#0C1559" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
           {step === 3 && leg !== 'first_mile' && (
             <View style={styles.pinCard}>
               <View style={styles.pinHeader}>
@@ -436,6 +479,28 @@ export default function ActiveOrderScreen() {
                   placeholderTextColor="#94A3B8"
                   maxLength={6}
                   keyboardType="number-pad"
+                />
+              </View>
+            </View>
+          )}
+          {step === 3 && leg === 'first_mile' && (
+            <View style={styles.pinCard}>
+              <View style={styles.pinHeader}>
+                <MaterialIcons name="warehouse" size={22} color="#0C1559" />
+                <Text style={styles.pinTitle}>Confirm Drop-off at Hub</Text>
+              </View>
+              <Text style={styles.pinSub}>
+                Ask the hub staff for the drop-off code and enter it to hand the parcel over.
+              </Text>
+              <View style={styles.pinInputContainer}>
+                <TextInput
+                  style={styles.pinInput}
+                  value={hubCode}
+                  onChangeText={(val) => setHubCode(val.replace(/[^0-9A-Za-z]/g, '').toUpperCase())}
+                  placeholder="HUB CODE"
+                  placeholderTextColor="#94A3B8"
+                  maxLength={8}
+                  autoCapitalize="characters"
                 />
               </View>
             </View>
@@ -472,15 +537,15 @@ export default function ActiveOrderScreen() {
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
-              styles.mainBtn, 
-              step === 3 && styles.completeBtn, 
-              (updateStatusMutation.isPending || verifyPinMutation.isPending) && { opacity: 0.8 }
+              styles.mainBtn,
+              step === 3 && styles.completeBtn,
+              (updateStatusMutation.isPending || verifyPinMutation.isPending || verifyHubMutation.isPending) && { opacity: 0.8 }
             ]}
             onPress={handleProgress}
             activeOpacity={0.8}
-            disabled={updateStatusMutation.isPending || verifyPinMutation.isPending}
+            disabled={updateStatusMutation.isPending || verifyPinMutation.isPending || verifyHubMutation.isPending}
           >
-            {updateStatusMutation.isPending || verifyPinMutation.isPending ? (
+            {updateStatusMutation.isPending || verifyPinMutation.isPending || verifyHubMutation.isPending ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <>
@@ -518,7 +583,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
   },
-  safeMapOverlay: { position: 'absolute', top: 0, left: 20 },
+  safeMapOverlay: { position: 'absolute', left: 16, zIndex: 20 },
   backBtn: { backgroundColor: '#FFF', padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
   // Bottom Sheet
   bottomSheet: {
@@ -541,8 +606,10 @@ const styles = StyleSheet.create({
   navBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
   // Contact Row
   contactRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  customerInfo: { flexDirection: 'row', alignItems: 'center' },
+  customerInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
+  customerNameWrap: { flex: 1, minWidth: 0 },
   customerImg: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: '#F1F5F9' },
+  hubIconCircle: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
   customerName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   customerRole: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
   actionButtons: { flexDirection: 'row', gap: 12 },

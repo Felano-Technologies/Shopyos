@@ -156,12 +156,6 @@ const createDriverReview = async (req, res, next) => {
       return ApiResponse.error(res, 'Rating must be between 1 and 5', 400);
     }
 
-    // Check if user has already reviewed this driver for this delivery
-    const existingReview = await repositories.reviews.findDriverReviewByDelivery(userId, deliveryId);
-    if (existingReview) {
-      return ApiResponse.error(res, 'You have already reviewed this driver for this delivery', 400);
-    }
-
     // Verify delivery exists and was delivered to user
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
     const buyerId = delivery?.order?.buyer?.id ?? delivery?.order?.buyer_id;
@@ -173,11 +167,21 @@ const createDriverReview = async (req, res, next) => {
       return ApiResponse.error(res, 'Driver mismatch', 400);
     }
 
+    // driver_reviews is keyed by order_id (UNIQUE driver_id, order_id, buyer_id) —
+    // there is no delivery_id column. Resolve the order from the delivery.
+    const reviewOrderId = delivery.order_id ?? delivery.order?.id;
+
+    // Check if user has already reviewed this driver for this order
+    const existingReview = await repositories.reviews.findDriverReviewByOrder(userId, reviewOrderId);
+    if (existingReview) {
+      return ApiResponse.error(res, 'You have already reviewed this driver for this delivery', 400);
+    }
+
     // Create review
     const review = await repositories.reviews.createDriverReview({
       driverId,
       userId,
-      deliveryId,
+      orderId: reviewOrderId,
       rating,
       reviewText: reviewText || null
     });

@@ -57,8 +57,11 @@ const getTransitInfo = async (req, res, next) => {
     }
 
     const history = await repositories.parcelPartner.getStatusHistory(orderId);
-    const originHub = order.origin_hub_id ? await repositories.parcelPartner.getHubById(order.origin_hub_id) : null;
-    const destHub = order.destination_hub_id ? await repositories.parcelPartner.getHubById(order.destination_hub_id) : null;
+    // The handoff_code is hub-staff-only — never expose it on this endpoint,
+    // which buyers and drivers can call.
+    const stripCode = (hub) => { if (hub) delete hub.handoff_code; return hub; };
+    const originHub = order.origin_hub_id ? stripCode(await repositories.parcelPartner.getHubById(order.origin_hub_id)) : null;
+    const destHub = order.destination_hub_id ? stripCode(await repositories.parcelPartner.getHubById(order.destination_hub_id)) : null;
 
     // Endpoints for the schematic map (store -> origin hub -> dest hub -> home).
     const store = order.store_id ? await repositories.stores.findById(order.store_id) : null;

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createSnap, uploadSnapImage } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 
@@ -199,7 +199,11 @@ export default function CreateSnapScreen() {
 
         {contentTerms && (
           <View style={styles.disclaimerRow}>
-            <TouchableOpacity style={styles.disclaimerCheckbox} onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.disclaimerCheckbox} activeOpacity={0.8} onPress={async () => {
+              if (isTermsChecked) { setIsTermsChecked(false); return; }
+              try { await acknowledgeDisclaimer('content_terms', contentTerms.version); setIsTermsChecked(true); }
+              catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+            }}>
               <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
                 {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
               </View>

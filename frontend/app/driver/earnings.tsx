@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -119,7 +119,12 @@ export default function DriverEarnings() {
         </SafeAreaView>
       </LinearGradient>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {loading && !refreshing ? (
           <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 20 }} />
         ) : (
@@ -225,20 +230,16 @@ export default function DriverEarnings() {
 
             {/* Recent Activity */}
             <Text style={styles.sectionTitle}>Recent Deliveries</Text>
-            <FlatList
-                data={transactions}
-                keyExtractor={item => item.id}
-                renderItem={renderTransaction}
-                contentContainerStyle={{ paddingBottom: 120 }}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#64748B' }}>No recent deliveries</Text>}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                scrollEnabled={false}
-            />
+            {transactions.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: '#64748B' }}>No recent deliveries</Text>
+            ) : (
+              transactions.map((item) => (
+                <View key={item.id}>{renderTransaction({ item })}</View>
+              ))
+            )}
           </>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   cashoutBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#A3E635', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
   cashoutText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', marginRight: 5 },
 
-  content: { flex: 1, padding: 20 },
+  content: { flex: 1 },
 
   summaryCard: {
     backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16,

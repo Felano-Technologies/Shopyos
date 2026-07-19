@@ -270,32 +270,39 @@ export default function Dashboard() {
     }
   }, [refetchStats, refetchActive, refetchAvailable]);
 
+  // Track which specific card is being accepted so only its button spins
+  // (assignDriverMutation.isPending is global and would light up every card).
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const handleAccept = async (id: string) => {
     if (!isVerified) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Verification Required', 
-        message: 'Your account is under review. You will be able to accept orders once it is done.' 
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Verification Required',
+        message: 'Your account is under review. You will be able to accept orders once it is done.'
       });
       return;
     }
     if (activeDeliveries.length > 0) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Active Delivery', 
-        message: 'Please complete your current delivery before accepting a new one.' 
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Active Delivery',
+        message: 'Please complete your current delivery before accepting a new one.'
       });
       return;
     }
+    if (acceptingId) return; // guard against double-taps across cards
+    setAcceptingId(id);
     try {
       await assignDriverMutation.mutateAsync(id);
       router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
     } catch (e: any) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Error', 
-        message: e.message || 'Failed to accept order' 
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Error',
+        message: e.message || 'Failed to accept order'
       });
+    } finally {
+      setAcceptingId(null);
     }
   };
   let verificationBannerText: string;
@@ -415,7 +422,7 @@ export default function Dashboard() {
               <FlatList
                 data={requests}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <RequestCard item={item} isPending={assignDriverMutation.isPending} onAccept={handleAccept} />}
+                renderItem={({ item }) => <RequestCard item={item} isPending={acceptingId === item.id} onAccept={handleAccept} />}
                 contentContainerStyle={{ paddingBottom: 120 }}
                 showsVerticalScrollIndicator={false}
                 refreshing={refreshing}

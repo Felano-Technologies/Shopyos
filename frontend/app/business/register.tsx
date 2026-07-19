@@ -441,13 +441,6 @@ const BusinessSetupScreen = () => {
     }
     setLoading(true);
     try {
-      // Persist the seller-commission agreement BEFORE creating the business —
-      // the /business/create route is gated by requireDisclaimer('seller_commission'),
-      // which returns 403 (surfaced to the user as a vague error) if no
-      // acknowledgement exists. Checking the box only sets local state.
-      if (commissionTerms) {
-        await acknowledgeDisclaimer('seller_commission', commissionTerms.version);
-      }
       await submitBusinessRegistration({
         formData,
         logo,
@@ -734,7 +727,11 @@ const BusinessSetupScreen = () => {
             {/* --- Commission Agreement --- */}
             {commissionTerms && (
               <View style={styles.disclaimerRow}>
-                <TouchableOpacity style={styles.disclaimerCheckbox} onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.disclaimerCheckbox} activeOpacity={0.8} onPress={async () => {
+                  if (isTermsChecked) { setIsTermsChecked(false); return; }
+                  try { await acknowledgeDisclaimer('seller_commission', commissionTerms.version); setIsTermsChecked(true); }
+                  catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                }}>
                   <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
                     {isTermsChecked && <Feather name="check" size={13} color="#FFF" />}
                   </View>

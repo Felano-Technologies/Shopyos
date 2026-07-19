@@ -16,7 +16,8 @@ const {
   getLatestLocation,
   getDeliveryByOrder,
   getDriverStats,
-  verifyDeliveryPin
+  verifyDeliveryPin,
+  verifyHubDropoff
 } = require('../controllers/deliveryController');
 const {
   submitVerification,
@@ -392,6 +393,11 @@ router.put('/:deliveryId/status', driver, auditLog('update_delivery_status', 'de
 // @desc    Verify delivery PIN and release funds
 // @access  Private (Driver)
 router.post('/:deliveryId/verify-pin', driver, verifyDeliveryPin);
+
+// @route   POST /api/deliveries/:deliveryId/verify-hub-dropoff
+// @desc    First-mile driver confirms drop-off at origin hub with the hub code
+// @access  Private (Driver)
+router.post('/:deliveryId/verify-hub-dropoff', driver, verifyHubDropoff);
 
 /**
  * @swagger

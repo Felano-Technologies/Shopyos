@@ -98,6 +98,15 @@ export const verifyDeliveryPin = async (deliveryId: string, pin: string) => {
   }
 };
 
+export const verifyHubDropoff = async (deliveryId: string, code: string) => {
+  try {
+    const response = await api.post(`/deliveries/${deliveryId}/verify-hub-dropoff`, { code });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getActiveDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/active');

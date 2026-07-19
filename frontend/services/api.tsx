@@ -32,7 +32,7 @@ export {
 
 export {
   getDeliveryQuote, getPublicFeeConfigs, createDelivery, getAvailableDeliveries, assignDriver, getMyDeliveries,
-  getDeliveryDetails, updateDeliveryStatus, verifyDeliveryPin, getActiveDeliveries,
+  getDeliveryDetails, updateDeliveryStatus, verifyDeliveryPin, verifyHubDropoff, getActiveDeliveries,
   getDriverStats, getDriverEarningsAnalytics, updateDriverLocation, getDriverProfile, updateDriverAvailability,
   submitDriverVerification,
 } from './delivery';
