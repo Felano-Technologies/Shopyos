@@ -49,8 +49,8 @@ const FEATURES = [
 ];
 
 const TEAM_INFO = {
-  company: 'Felano Technologies',
-  location: 'Kumasi, Ghana',
+  company: 'Shopyos E-commerce Hub.',
+  location: '18 Nana Kesse Avenue, Ayeduase- Near KNUST, Kumasi.',
   email: 'support@shopyos.com',
   website: 'www.shopyos.com',
 };
@@ -162,6 +162,9 @@ export default function AboutAppScreen() {
         <Text style={styles.sectionHeader}>Built By</Text>
         <View style={styles.teamCard}>
           <Text style={styles.companyName}>{TEAM_INFO.company}</Text>
+          <Text style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 12, marginTop: -8 }}>
+            In collaboration with <Text style={{ fontFamily: 'ciguatera', fontWeight: 'bold' }}>Felano Technologies</Text>
+          </Text>
           <View style={styles.teamInfoRow}>
             <Ionicons name="location-outline" size={16} color="#64748B" />
             <Text style={styles.teamInfoText}>{TEAM_INFO.location}</Text>
@@ -224,7 +227,7 @@ export default function AboutAppScreen() {
             contentFit="contain"
           />
           <Text style={styles.footerText}>
-            © {new Date().getFullYear()} Felano Technologies. All rights reserved.
+            © {new Date().getFullYear()} Shopyos E-commerce Hub. All rights reserved.
           </Text>
         </View>
       </ScrollView>

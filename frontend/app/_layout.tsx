@@ -339,6 +339,7 @@ export default function RootLayout() {
     // metrics ("spaced out letter by letter"). Alias it to Regular so the
     // family always resolves to a real font.
     'Montserrat-Medium': require('../assets/fonts/Montserrat-Regular.ttf'),
+    'ciguatera': require('../assets/fonts/ciguatera.otf'),
   });
 
   useEffect(() => {
