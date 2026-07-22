@@ -16,17 +16,10 @@ export const Header: React.FC = () => {
   return (
     <header className="glassmorphism sticky top-0 z-50 flex justify-between items-center px-4 md:px-6 py-4 border-b border-gray-200">
       <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center gap-2 text-xl md:text-2xl font-bold tracking-tight text-navy">
-          <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain rounded-lg" />
+        <Link to="/" className="md:hidden flex items-center gap-2 text-xl font-bold tracking-tight text-navy">
+          <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-8 h-8 object-contain rounded-lg" />
           SHOPYOS
         </Link>
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold" aria-label="Main navigation">
-          <Link to="/" className="hover:text-lime transition-colors text-body">Marketplace</Link>
-          <Link to="/search" className="hover:text-lime transition-colors text-body">Search</Link>
-          {isAuthenticated && <Link to="/orders" className="hover:text-lime transition-colors text-body">My Orders</Link>}
-          {isAuthenticated && <Link to="/chat" className="hover:text-lime transition-colors text-body">Chats</Link>}
-        </nav>
       </div>
 
       <div className="flex items-center gap-4">

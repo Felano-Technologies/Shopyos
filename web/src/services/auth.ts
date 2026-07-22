@@ -106,25 +106,31 @@ export const loginUser = async (
 ) => {
   try {
     const response = await api.post('/auth/login', { email, password, latitude, longitude });
-    if (response.data.token) {
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+    const payload = response.data?.data || {};
+    if (payload.token || response.data.token) {
+      const token = payload.token || response.data.token;
+      await secureStorage.setItem('userToken', token);
+      if (payload.refreshToken || response.data.refreshToken) {
+        await secureStorage.setItem('refreshToken', payload.refreshToken || response.data.refreshToken);
+      }
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
         }
-        await cacheUserProfile(meResponse.data);
+        await cacheUserProfile(me);
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
       }
     }
+    const mergedData = { ...response.data, ...payload };
     const needsRole =
-      response.data.requiresRoleSelection ||
-      response.data.role === 'none' ||
-      !response.data.role ||
-      (response.data.roles?.length === 0);
-    return { ...response.data, needsRole };
+      mergedData.requiresRoleSelection ||
+      mergedData.role === 'none' ||
+      !mergedData.role ||
+      (mergedData.roles?.length === 0);
+    return { ...mergedData, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Login Error: ${error.response.status}`);
     throw new Error(error.message || 'Network error during login');

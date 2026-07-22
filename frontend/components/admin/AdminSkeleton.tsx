@@ -3,12 +3,19 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 // Single shared animation — all blocks pulse in perfect sync
 const _pulse = new Animated.Value(0.35);
-Animated.loop(
-  Animated.sequence([
-    Animated.timing(_pulse, { toValue: 0.85, duration: 850, useNativeDriver: true }),
-    Animated.timing(_pulse, { toValue: 0.35, duration: 850, useNativeDriver: true }),
-  ])
-).start();
+
+export function usePulse() {
+  React.useEffect(() => {
+    // Only start if it hasn't been started, though Animated.loop handles multiple calls safely
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(_pulse, { toValue: 0.85, duration: 850, useNativeDriver: true }),
+        Animated.timing(_pulse, { toValue: 0.35, duration: 850, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return _pulse;
+}
 
 // ── Primitive ─────────────────────────────────────────────────────────────────
 interface BlockProps {
@@ -18,9 +25,10 @@ interface BlockProps {
   style?: any;
 }
 export function SkeletonBlock({ w = '100%', h = 16, r = 8, style }: BlockProps) {
+  const pulse = usePulse();
   return (
     <Animated.View
-      style={[{ width: w as any, height: h, borderRadius: r, backgroundColor: '#DDE3EF', opacity: _pulse }, style]}
+      style={[{ width: w as any, height: h, borderRadius: r, backgroundColor: '#DDE3EF', opacity: pulse }, style]}
     />
   );
 }

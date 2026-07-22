@@ -35,9 +35,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
               <span className="text-3xl font-bold text-red-500">!</span>
             </div>
-            <h2 className="text-2xl font-bold text-body mb-2">Something went wrong</h2>
-            <p className="text-sm text-subtle mb-6 leading-relaxed">
-              An unexpected error occurred. Please try again or contact support if the problem persists.
+            <h2 className="text-xl font-bold text-navy mb-2">Something went wrong</h2>
+            <p className="text-sm text-subtle mb-6 text-center max-w-sm">
+              {this.state.error?.message || "An unexpected error occurred. Please try again."}
             </p>
             <button
               onClick={this.handleReset}

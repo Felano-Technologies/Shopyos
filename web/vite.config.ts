@@ -5,7 +5,7 @@ import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), 'EXPO_PUBLIC_');
+  const env = loadEnv(mode, path.resolve(process.cwd(), '../frontend'), 'EXPO_PUBLIC_');
   const isDev = env.EXPO_PUBLIC_DEV_MODE === 'true';
   const devApiUrl = env.EXPO_PUBLIC_DEV_API_URL || 'https://2f58-154-161-238-136.ngrok-free.app';
   const devSocketUrl = env.EXPO_PUBLIC_DEV_SOCKET_URL || 'https://2f58-154-161-238-136.ngrok-free.app';
@@ -92,6 +92,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    envDir: '../frontend',
     envPrefix: 'EXPO_PUBLIC_',
     server: {
       proxy: {
