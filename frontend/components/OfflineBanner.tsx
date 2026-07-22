@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Text, StyleSheet, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 export function OfflineBanner() {
+  const insets = useSafeAreaInsets();
   const [isConnected, setIsConnected] = useState(true);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
+  // The banner fills the status-bar / Dynamic Island region with its red
+  // background, but the text must sit below the inset or the cutout hides it.
+  const bannerHeight = insets.top + 34;
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
@@ -29,10 +34,11 @@ export function OfflineBanner() {
       style={[
         styles.banner,
         {
+          paddingTop: insets.top,
           transform: [{
             translateY: slideAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [-40, 0],
+              outputRange: [-bannerHeight, 0],
             }),
           }],
         },
@@ -51,7 +57,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9999,
     backgroundColor: '#DC2626',
-    paddingVertical: 8,
+    paddingBottom: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
   },

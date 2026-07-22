@@ -19,7 +19,7 @@ export {
 } from './business';
 
 export {
-  getStoreProducts, searchProducts, getAllCategories, createCategory, updateCategory,
+  getStoreProducts, searchProducts, getProductFilterOptions, getAllCategories, createCategory, updateCategory,
   deleteCategory, getProductById, createProduct, deleteProduct, updateProduct,
   uploadProductImages, getPromotedProducts,
 } from './products';

@@ -285,8 +285,8 @@ const getProductById = async (req, res, next) => {
       stockQuantity: Array.isArray(product.inventory) ? product.inventory[0]?.quantity : (product.inventory?.quantity || 0),
       viewCount: product.view_count,
       salesCount: product.total_sales || product.sales_count || 0,
-      averageRating: product.avg_rating || 0,
-      reviewCount: product.review_count || 0,
+      averageRating: product.average_rating || 0,
+      reviewCount: product.total_reviews || 0,
       variants,
       variantOptions,
       store: product.stores ? {
@@ -723,8 +723,8 @@ const searchProducts = async (req, res, next) => {
       category: p.category,
       gender: p.gender,
       salesCount: p.total_sales || p.sales_count || 0,
-      averageRating: p.avg_rating || 0,
-      reviewCount: p.review_count || 0,
+      averageRating: p.average_rating || 0,
+      reviewCount: p.total_reviews || 0,
       store: p.stores ? {
         store_name: p.stores.store_name,
         name: p.stores.store_name,
@@ -752,6 +752,21 @@ const searchProducts = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   GET /api/products/filter-options
+ * @desc    Distinct color/size/material/style/brand values across currently
+ *          visible products, so the filter UI only offers selectable values
+ * @access  Public
+ */
+const getFilterOptions = async (req, res, next) => {
+  try {
+    const options = await repositories.products.getFilterOptions();
+    ApiResponse.success(res, options);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProduct,
   getStoreProducts,
@@ -760,6 +775,7 @@ module.exports = {
   deleteProduct,
   uploadProductImages,
   deleteProductImage,
+  getFilterOptions,
   searchProducts,
   getCategories
 };
