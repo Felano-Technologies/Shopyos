@@ -45,6 +45,7 @@ export const productsApi = {
     const response = await ApiService.searchProducts({
       query,
       category: filters?.category,
+      gender: filters?.gender,
       minPrice: filters?.minPrice,
       maxPrice: filters?.maxPrice,
       minRating: filters?.minRating,
@@ -58,6 +59,11 @@ export const productsApi = {
       offset,
     });
     return response;
+  },
+
+  getFilterOptions: async () => {
+    const response = await ApiService.getProductFilterOptions();
+    return response.data as { colors: string[]; sizes: string[]; materials: string[]; styles: string[]; brands: string[] };
   },
   
   getById: async (id: string) => {

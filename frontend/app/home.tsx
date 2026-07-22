@@ -431,12 +431,21 @@ const { data: notifData } = useUnreadNotificationCount(false);
           {/* Quick actions: Categories / Orders / Wishlist / Stores */}
           <QuickActions actions={quickActions} />
 
-          {/* Flash sales — admin-curated, real countdown from ends_at */}
+          {/* Flash sales — admin-curated, real countdown from ends_at.
+              Falls back to regular deals as filler when there's no active
+              sale, so "See All" must not silently open /deals as if it were
+              flash-sale content — tell the buyer there's no sale instead. */}
           <FlashSaleSection
             products={flashActive ? flashProducts : dealsProducts}
             loading={loadingFlash || loadingDeals}
             onPressProduct={goToDetails}
-            onSeeAll={() => router.push('/deals' as any)}
+            onSeeAll={() => {
+              if (!flashActive) {
+                CustomInAppToast.show({ type: 'info', title: 'No Active Flash Sale', message: 'There is no flash sale running right now. Check back later!' });
+                return;
+              }
+              router.push('/deals' as any);
+            }}
             endsAt={flashSale?.endsAt}
             saleTitle={flashSale?.title}
           />

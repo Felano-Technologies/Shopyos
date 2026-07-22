@@ -14,6 +14,7 @@ export const getStoreProducts = async (storeId: string, params: any = {}) => {
 export const searchProducts = async (params: {
   query?: string;
   category?: string;
+  gender?: string;
   limit?: number;
   offset?: number;
   sortBy?: string;
@@ -30,6 +31,15 @@ export const searchProducts = async (params: {
     const response = await api.get('/products/search', { params });
     const res = response.data;
     return { ...res, products: res.data || res.products || [] };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getProductFilterOptions = async () => {
+  try {
+    const response = await api.get('/products/filter-options');
+    return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

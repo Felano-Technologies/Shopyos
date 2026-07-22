@@ -6,7 +6,7 @@ const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
   createProduct, getStoreProducts, getProductById,
   updateProduct, deleteProduct, uploadProductImages,
-  deleteProductImage, searchProducts
+  deleteProductImage, searchProducts, getFilterOptions
 } = require('../controllers/productController');
 const { getSimilar } = require('../controllers/recommendationController');
 const { validateSearch, validateCreateProduct } = require('../middleware/validators');
@@ -76,6 +76,18 @@ const { validateSearch, validateCreateProduct } = require('../middleware/validat
 router.get('/search', validateSearch, cacheMiddleware(
   (req) => productCacheKey.search(req.query), 300
 ), searchProducts);
+
+/**
+ * @swagger
+ * /api/v1/products/filter-options:
+ *   get:
+ *     summary: Get distinct filterable attribute values (color, size, material, style, brand)
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Distinct values currently in use across visible products
+ */
+router.get('/filter-options', cacheMiddleware('products:filter-options', 900), getFilterOptions);
 
 /**
  * @swagger

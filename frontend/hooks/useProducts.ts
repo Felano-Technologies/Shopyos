@@ -23,12 +23,12 @@ export const useProducts = (filters?: ProductFilters, limit = 20) => {
   });
 };
 
-export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
+export const useInfiniteProducts = (filters?: ProductFilters, limit = 20, query?: string) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useInfiniteQuery({
-    queryKey: queryKeys.products.infinite(filters),
+    queryKey: queryKeys.products.infinite(filters, query),
     queryFn: ({ pageParam = 0 }) =>
-      productsApi.search(undefined, filters, limit, pageParam),
+      productsApi.search(query, filters, limit, pageParam),
     getNextPageParam: (lastPage, allPages) => {
       if (!lastPage.success || !lastPage.products || lastPage.products.length < limit) {
         return undefined;
@@ -52,6 +52,15 @@ export const useProduct = (id: string, options?: Partial<UseQueryOptions<Product
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     ...options,
+  });
+};
+
+export const useProductFilterOptions = () => {
+  return useQuery({
+    queryKey: ['products', 'filter-options'],
+    queryFn: productsApi.getFilterOptions,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 };
 

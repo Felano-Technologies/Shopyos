@@ -16,6 +16,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
@@ -263,16 +264,20 @@ export default function FavoritesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={COLORS.navy} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Favorites</Text>
-          <View style={{ width: 44 }} />
-        </View>
+      <StatusBar style="light" />
+      <LinearGradient colors={[COLORS.navy, COLORS.navyMid]} style={styles.header}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Favorites</Text>
+            <View style={{ width: 44 }} />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
+      <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -394,26 +399,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    paddingBottom: 14,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
   },
   backBtn: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    color: COLORS.navy,
+    color: '#FFF',
   },
   listHeader: {
     paddingHorizontal: 16,

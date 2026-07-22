@@ -21,6 +21,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from '@/store/cartStore';
+import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavorites';
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
@@ -85,6 +86,11 @@ function buildFilters(
     minPrice: params.minPrice ? Number.parseFloat(String(params.minPrice)) : undefined,
     maxPrice: params.maxPrice ? Number.parseFloat(String(params.maxPrice)) : undefined,
     minRating: params.minRating ? Number.parseFloat(String(params.minRating)) : undefined,
+    color: params.color ? String(params.color) : undefined,
+    size: params.size ? String(params.size) : undefined,
+    material: params.material ? String(params.material) : undefined,
+    style: params.style ? String(params.style) : undefined,
+    brand: params.brand ? String(params.brand) : undefined,
   };
 }
 
@@ -163,13 +169,20 @@ function StoreList({ stores }: { stores: any[] }) {
   );
 }
 
-const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isFavorite, onToggleFavorite, favoriteBusy }: { item: any; addingId: string | null; onAddToCart: (item: any) => void; isFavorite: boolean; onToggleFavorite: (item: any) => void; favoriteBusy: boolean }) {
   return (
     <TouchableOpacity accessibilityLabel={`View ${item.name}`} accessibilityRole="button" style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <View style={styles.gridImgWrap}>
         <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.gridImg} />
-        <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="heart-outline" size={13} color={C.navy} />
+        <TouchableOpacity
+          accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          accessibilityRole="button"
+          style={styles.favBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          disabled={favoriteBusy}
+          onPress={(e: any) => { e?.stopPropagation?.(); onToggleFavorite(item); }}
+        >
+          <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={13} color={isFavorite ? '#EF4444' : C.navy} />
         </TouchableOpacity>
         {item.isNew && <View style={styles.badgeNew}><Text style={styles.badgeNewTxt}>NEW</Text></View>}
       </View>
@@ -364,6 +377,7 @@ export default function SearchScreen() {
   const [sortOpen, setSortOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -443,6 +457,28 @@ export default function SearchScreen() {
     await storage.removeItem(RECENT_KEY);
   }, []);
 
+  const { data: favoriteProducts = [] } = useFavorites();
+  const addFavoriteMutation = useAddFavorite();
+  const removeFavoriteMutation = useRemoveFavorite();
+  const favoriteIds = useMemo(
+    () => new Set<string>((favoriteProducts || []).map((p: any) => String(p.id || p._id || p.productId))),
+    [favoriteProducts]
+  );
+  const handleToggleFavorite = useCallback((item: any) => {
+    const productId = String(item._id || item.id || '');
+    if (!productId || favoriteBusyId === productId) return;
+    setFavoriteBusyId(productId);
+    const onSettled = () => setFavoriteBusyId(null);
+    if (favoriteIds.has(productId)) {
+      removeFavoriteMutation.mutate(productId, { onSettled });
+      return;
+    }
+    addFavoriteMutation.mutate(productId, {
+      onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
+      onSettled,
+    });
+  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation]);
+
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
   const visibleCategories = categories.filter((cat: any) => {
@@ -458,7 +494,7 @@ export default function SearchScreen() {
     fetchNextPage,
     hasNextPage,
     refetch: refetchProducts,
-  } = useInfiniteProducts(filters, 20);
+  } = useInfiniteProducts(filters, 20, isActive ? debouncedQuery : undefined);
   const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(debouncedQuery, category, 10);
   const loading = loadingProducts && !infiniteData;
   const products = useMemo(
@@ -500,7 +536,16 @@ export default function SearchScreen() {
       }
     </View>
   ), [stores, searchAds, handleAdPress]);
-  const renderGrid = useCallback(({ item }: { item: any }) => <GridCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />, [addingId, handleAddToCart]);
+  const renderGrid = useCallback(({ item }: { item: any }) => (
+    <GridCard
+      item={item}
+      addingId={addingId}
+      onAddToCart={handleAddToCart}
+      isFavorite={favoriteIds.has(String(item._id || item.id))}
+      onToggleFavorite={handleToggleFavorite}
+      favoriteBusy={favoriteBusyId === String(item._id || item.id)}
+    />
+  ), [addingId, handleAddToCart, favoriteIds, handleToggleFavorite, favoriteBusyId]);
   const renderList = useCallback(({ item, index }: { item: any; index: number }) =>
     index === 0
       ? <FeaturedCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />
@@ -607,6 +652,29 @@ export default function SearchScreen() {
                       <Ionicons name="funnel-outline" size={11} color={C.navy} />
                       <Text style={styles.sortBtnTxt}>{SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}</Text>
                       <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={C.navy} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel="Open filters"
+                      accessibilityRole="button"
+                      style={styles.sortBtn}
+                      onPress={() => safePush('/filter', {
+                        query: query || undefined,
+                        category: category || undefined,
+                        gender: gender || undefined,
+                        sortBy,
+                        minPrice: params.minPrice,
+                        maxPrice: params.maxPrice,
+                        priceRange: params.priceRange,
+                        minRating: params.minRating,
+                        color: params.color,
+                        size: params.size,
+                        material: params.material,
+                        style: params.style,
+                        brand: params.brand,
+                      })}
+                    >
+                      <MaterialCommunityIcons name="tune-variant" size={13} color={C.navy} />
+                      <Text style={styles.sortBtnTxt}>Filters</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

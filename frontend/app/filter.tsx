@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useCategories } from '@/hooks/useCategories';
+import { useProductFilterOptions } from '@/hooks/useProducts';
 
 const { width } = Dimensions.get('window');
 
@@ -50,28 +51,91 @@ const RATING_OPTIONS = [
   { label: '5★',   value: '5'   },
 ];
 
-function buildActiveFilters(category: string, pricePreset: string, rating: string, sortBy: string) {
+type Setter = (v: string) => void;
+
+interface FilterState {
+  category: string;
+  pricePreset: string;
+  rating: string;
+  sortBy: string;
+  color: string;
+  size: string;
+  material: string;
+  style: string;
+  brand: string;
+}
+
+function buildActiveFilters(f: FilterState) {
   const filters: { key: string; label: string }[] = [];
-  if (category !== 'All') filters.push({ key: 'category', label: category });
-  if (pricePreset !== 'any') {
-    const p = PRICE_PRESETS.find(x => x.value === pricePreset);
+  if (f.category !== 'All') filters.push({ key: 'category', label: f.category });
+  if (f.pricePreset !== 'any') {
+    const p = PRICE_PRESETS.find(x => x.value === f.pricePreset);
     if (p) filters.push({ key: 'price', label: p.label });
   }
-  if (rating !== 'any') filters.push({ key: 'rating', label: `${rating}★+` });
-  if (sortBy !== 'newest') {
-    const s = SORT_OPTIONS.find(x => x.value === sortBy);
+  if (f.rating !== 'any') filters.push({ key: 'rating', label: `${f.rating}★+` });
+  if (f.color !== 'any') filters.push({ key: 'color', label: f.color });
+  if (f.size !== 'any') filters.push({ key: 'size', label: f.size });
+  if (f.material !== 'any') filters.push({ key: 'material', label: f.material });
+  if (f.style !== 'any') filters.push({ key: 'style', label: f.style });
+  if (f.brand !== 'any') filters.push({ key: 'brand', label: f.brand });
+  if (f.sortBy !== 'newest') {
+    const s = SORT_OPTIONS.find(x => x.value === f.sortBy);
     if (s) filters.push({ key: 'sort', label: s.label });
   }
   return filters;
 }
 
-type Setter = (v: string) => void;
+interface FilterSetters {
+  setCategory: Setter;
+  setPricePreset: Setter;
+  setRating: Setter;
+  setSortBy: Setter;
+  setColor: Setter;
+  setSize: Setter;
+  setMaterial: Setter;
+  setStyle: Setter;
+  setBrand: Setter;
+}
 
-function applyRemoveFilter(key: string, setCategory: Setter, setPricePreset: Setter, setRating: Setter, setSortBy: Setter) {
-  if (key === 'category') setCategory('All');
-  if (key === 'price')    setPricePreset('any');
-  if (key === 'rating')   setRating('any');
-  if (key === 'sort')     setSortBy('newest');
+function applyRemoveFilter(key: string, s: FilterSetters) {
+  if (key === 'category') s.setCategory('All');
+  if (key === 'price')    s.setPricePreset('any');
+  if (key === 'rating')   s.setRating('any');
+  if (key === 'color')    s.setColor('any');
+  if (key === 'size')     s.setSize('any');
+  if (key === 'material') s.setMaterial('any');
+  if (key === 'style')    s.setStyle('any');
+  if (key === 'brand')    s.setBrand('any');
+  if (key === 'sort')     s.setSortBy('newest');
+}
+
+function AttributeChips({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: Setter }) {
+  if (!options.length) return null;
+  return (
+    <>
+      <View style={styles.divider} />
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{label}</Text>
+        <View style={styles.catGrid}>
+          {options.map(opt => {
+            const on = value === opt;
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.catTile, on && styles.catTileOn]}
+                onPress={() => onChange(on ? 'any' : opt)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.catTileTxt, on && styles.catTileTxtOn]} numberOfLines={1}>
+                  {opt}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    </>
+  );
 }
 
 export default function FilterScreen() {
@@ -82,12 +146,24 @@ export default function FilterScreen() {
   const dynamicCategories = categoriesData?.map((c: any) => c.name) || [];
   const allCategories = ['All', ...dynamicCategories];
 
+  const { data: filterOptions } = useProductFilterOptions();
+  const colors = filterOptions?.colors || [];
+  const sizes = filterOptions?.sizes || [];
+  const materials = filterOptions?.materials || [];
+  const productStyles = filterOptions?.styles || [];
+  const brands = filterOptions?.brands || [];
+
   const [sortBy,    setSortBy]    = useState<string>(String(params.sortBy    || 'newest'));
   const [category,  setCategory]  = useState<string>(String(params.category  || 'All'));
   const [pricePreset, setPricePreset]  = useState<string>(String(params.priceRange || 'any'));
   const [rating,    setRating]    = useState<string>(String(params.minRating || 'any'));
+  const [color,     setColor]     = useState<string>(String(params.color    || 'any'));
+  const [size,      setSize]      = useState<string>(String(params.size     || 'any'));
+  const [material,  setMaterial]  = useState<string>(String(params.material || 'any'));
+  const [style,     setStyle]     = useState<string>(String(params.style    || 'any'));
+  const [brand,     setBrand]     = useState<string>(String(params.brand    || 'any'));
 
-  const activeFilters = buildActiveFilters(category, pricePreset, rating, sortBy);
+  const activeFilters = buildActiveFilters({ category, pricePreset, rating, sortBy, color, size, material, style, brand });
 
   // ── Apply / Reset ─────────────────────────────────────────────────────────
   const applyFilters = () => {
@@ -101,7 +177,16 @@ export default function FilterScreen() {
         maxPrice:  preset?.max,
         priceRange: pricePreset,
         minRating: rating === 'any' ? undefined : rating,
+        color:     color === 'any' ? undefined : color,
+        size:      size === 'any' ? undefined : size,
+        material:  material === 'any' ? undefined : material,
+        style:     style === 'any' ? undefined : style,
+        brand:     brand === 'any' ? undefined : brand,
         query: params.query ? String(params.query) : undefined,
+        // Not editable on this screen (set via the gender chips on Search
+        // itself) — pass it straight through so applying filters doesn't
+        // silently clear an active gender selection.
+        gender: params.gender ? String(params.gender) : undefined,
       } as any,
     });
   };
@@ -111,6 +196,11 @@ export default function FilterScreen() {
     setCategory('All');
     setPricePreset('any');
     setRating('any');
+    setColor('any');
+    setSize('any');
+    setMaterial('any');
+    setStyle('any');
+    setBrand('any');
   }, []);
 
   return (
@@ -143,7 +233,7 @@ export default function FilterScreen() {
               <TouchableOpacity
                 key={f.key}
                 style={styles.activeBadge}
-                onPress={() => applyRemoveFilter(f.key, setCategory, setPricePreset, setRating, setSortBy)}
+                onPress={() => applyRemoveFilter(f.key, { setCategory, setPricePreset, setRating, setSortBy, setColor, setSize, setMaterial, setStyle, setBrand })}
               >
                 <Text style={styles.activeBadgeTxt}>{f.label}</Text>
                 <View style={styles.badgeX}>
@@ -307,6 +397,12 @@ export default function FilterScreen() {
               })}
             </View>
           </View>
+
+          <AttributeChips label="Color" options={colors} value={color} onChange={setColor} />
+          <AttributeChips label="Size" options={sizes} value={size} onChange={setSize} />
+          <AttributeChips label="Material" options={materials} value={material} onChange={setMaterial} />
+          <AttributeChips label="Style" options={productStyles} value={style} onChange={setStyle} />
+          <AttributeChips label="Brand" options={brands} value={brand} onChange={setBrand} />
 
         </ScrollView>
 

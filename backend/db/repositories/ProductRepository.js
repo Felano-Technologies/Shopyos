@@ -91,9 +91,9 @@ class ProductRepository extends BaseRepository {
       brand
     } = params;
 
-    const verifiedStoreIds = await this._getVerifiedStoreIds(minRating);
+    const verifiedStoreIds = await this._getVerifiedStoreIds();
     const storeFilter = verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000'];
-    const filterOpts = { category, gender, minPrice, maxPrice, material, style, brand, colorIds: null, sizeIds: null };
+    const filterOpts = { category, gender, minPrice, maxPrice, minRating, material, style, brand, colorIds: null, sizeIds: null };
 
     if (color) {
       const colorIds = await this._getVariantOptionProductIds('color', color);
@@ -143,33 +143,82 @@ class ProductRepository extends BaseRepository {
     return { data: data || [], count: count || 0 };
   }
 
-  async _getVerifiedStoreIds(minRating) {
+  async _getVerifiedStoreIds() {
     const { data: verifiedStores } = await this.db
       .from('stores').select('id').eq('is_verified', true).eq('is_active', true);
-    let verifiedStoreIds = (verifiedStores || []).map(s => s.id);
-
-    if (minRating != null) {
-      const { data: ratedStores, error: ratedStoresError } = await this.db
-        .from('stores').select('id').eq('is_verified', true).eq('is_active', true).gte('average_rating', minRating);
-      if (ratedStoresError) throw ratedStoresError;
-      const ratedStoreIds = new Set((ratedStores || []).map(s => s.id));
-      verifiedStoreIds = verifiedStoreIds.filter(id => ratedStoreIds.has(id));
-    }
-
-    return verifiedStoreIds;
+    return (verifiedStores || []).map(s => s.id);
   }
 
-  _applySearchFilters(q, { category, gender, minPrice, maxPrice, material, style, brand, colorIds, sizeIds }) {
+  _applySearchFilters(q, { category, gender, minPrice, maxPrice, minRating, material, style, brand, colorIds, sizeIds }) {
     if (category) q = q.ilike('category', String(category).trim());
     if (gender) q = q.eq('gender', gender);
     if (minPrice != null) q = q.gte('price', minPrice);
     if (maxPrice != null) q = q.lte('price', maxPrice);
+    // Product's own rating, not the seller's store rating — a 4-star store
+    // can still list a brand-new, unrated product.
+    if (minRating != null) q = q.gte('average_rating', minRating);
     if (material) q = q.contains('attributes', { material });
     if (style) q = q.contains('attributes', { style });
     if (brand) q = q.ilike('brand', `%${brand}%`);
     if (colorIds) q = q.in('id', colorIds);
     if (sizeIds) q = q.in('id', sizeIds);
     return q;
+  }
+
+  /**
+   * Distinct filterable attribute values across currently visible products
+   * (active, in stock, from verified stores) — used to populate the filter
+   * screen's color/size/material/style/brand chips with real, selectable
+   * values instead of a guessed static list.
+   * @returns {Promise<{colors: string[], sizes: string[], materials: string[], styles: string[], brands: string[]}>}
+   */
+  async getFilterOptions() {
+    const verifiedStoreIds = await this._getVerifiedStoreIds();
+    const storeFilter = verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000'];
+
+    const [{ rows: colorRows }, { rows: sizeRows }, { data: productRows, error: attrError }] = await Promise.all([
+      this.db.query(
+        `SELECT DISTINCT unnest(pvo.option_values) AS value
+         FROM product_variant_options pvo
+         JOIN products p ON p.id = pvo.product_id
+         WHERE pvo.option_name = 'color' AND p.is_active = TRUE AND p.deleted_at IS NULL
+           AND p.store_id = ANY($1::uuid[])
+         ORDER BY value`,
+        [storeFilter]
+      ),
+      this.db.query(
+        `SELECT DISTINCT unnest(pvo.option_values) AS value
+         FROM product_variant_options pvo
+         JOIN products p ON p.id = pvo.product_id
+         WHERE pvo.option_name = 'size' AND p.is_active = TRUE AND p.deleted_at IS NULL
+           AND p.store_id = ANY($1::uuid[])
+         ORDER BY value`,
+        [storeFilter]
+      ),
+      this.db.from(this.tableName)
+        .select('brand, attributes')
+        .eq('is_active', true).is('deleted_at', null).in('store_id', storeFilter),
+    ]);
+
+    if (attrError) throw attrError;
+
+    const brands = new Set();
+    const materials = new Set();
+    const styles = new Set();
+    for (const row of productRows || []) {
+      if (row.brand) brands.add(row.brand);
+      const attrs = row.attributes || {};
+      if (attrs.material) materials.add(attrs.material);
+      if (attrs.style) styles.add(attrs.style);
+    }
+
+    return {
+      colors: colorRows.map(r => r.value),
+      sizes: sizeRows.map(r => r.value),
+      materials: [...materials].sort(),
+      styles: [...styles].sort(),
+      brands: [...brands].sort(),
+    };
   }
 
   /**

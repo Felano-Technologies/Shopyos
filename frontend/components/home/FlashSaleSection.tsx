@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Dimensions, Easing,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
-
-const { width: SW } = Dimensions.get('window');
 
 const C = {
   navy: '#0C1559',
@@ -41,9 +40,7 @@ type Props = Readonly<{
 
 export const FlashSaleSection = React.memo(function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, endsAt, saleTitle }: Props) {
   const [time, setTime] = useState(endsAt ? getTimeLeft(endsAt) : { h: 0, m: 0, s: 0, expired: false });
-  const scrollAnim = useRef(new Animated.Value(0)).current;
 
-  // Countdown timer
   useEffect(() => {
     if (!endsAt) return;
     setTime(getTimeLeft(endsAt));
@@ -51,49 +48,33 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
     return () => clearInterval(id);
   }, [endsAt]);
 
-  // Marquee scroll animation loop
-  useEffect(() => {
-    if (loading || products.length === 0 || time.expired) return;
-
-    scrollAnim.setValue(0);
-    const animation = Animated.loop(
-      Animated.timing(scrollAnim, {
-        toValue: -1,
-        duration: 12000, // 12 seconds per loop
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [loading, products.length, time.expired, scrollAnim]);
-
   if (loading || products.length === 0 || time.expired) return null;
 
   const items = products.slice(0, 10);
 
-  const translateX = scrollAnim.interpolate({
-    inputRange: [-1, 0],
-    outputRange: [-SW * 1.5, SW],
-  });
-
-  const timerString = `${pad(time.h)}:${pad(time.m)}:${pad(time.s)}`;
-  const tickerText = `⚡ ${saleTitle?.toUpperCase() || 'FLASH SALE'} IS LIVE!   •   ENDS IN: ${timerString}   •   GET UP TO 70% OFF ON SHOPYOS DEALS!   •   TAP TO VIEW ALL OFFERS! ⚡`;
-
   return (
     <View style={S.wrap}>
-      {/* Red header bar — Marquee cycling */}
-      <TouchableOpacity
-        style={S.header}
-        activeOpacity={0.95}
-        onPress={onSeeAll}
-        accessibilityRole="button"
-        accessibilityLabel="View all flash sale deals"
-      >
-        <Animated.View style={[S.marqueeContainer, { transform: [{ translateX }] }]}>
-          <Text style={S.headerTitle}>{tickerText}</Text>
-        </Animated.View>
-      </TouchableOpacity>
+      {/* Red header bar — like Jumia's Flash Sales */}
+      <View style={S.header}>
+        <View style={S.headerLeft}>
+          <Ionicons name="flash" size={15} color="#fff" />
+          <Text style={S.headerTitle}>{saleTitle?.toUpperCase() || 'FLASH SALES'}</Text>
+        </View>
+        <View style={S.timerRow}>
+          <Text style={S.timerLabel}>Time Left:</Text>
+          {(['h', 'm', 's'] as const).map((part, i) => (
+            <React.Fragment key={part}>
+              <View style={S.timerBox}>
+                <Text style={S.timerNum}>{pad(time[part])}</Text>
+              </View>
+              {i < 2 && <Text style={S.colon}>:</Text>}
+            </React.Fragment>
+          ))}
+        </View>
+        <TouchableOpacity onPress={onSeeAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={S.seeAll}>SEE ALL</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Product cards */}
       <ScrollView
@@ -104,6 +85,7 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
       >
         {items.map((item) => {
           const price = Number(item.price || 0);
+          // compare_at_price is the DB field name; oldPrice is returned by deals.tsx mapping
           const origPrice = Number(item.compare_at_price || item.oldPrice || 0);
           const discountPct = origPrice > price
             ? Math.round(((origPrice - price) / origPrice) * 100)
@@ -161,22 +143,22 @@ const S = StyleSheet.create({
   wrap: { marginBottom: 10 },
   header: {
     backgroundColor: '#EF4444',
-    height: 38,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  marqueeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: SW * 2,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
   },
-  headerTitle: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Bold',
-    color: '#fff',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
+  headerTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: 0.5 },
+  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginRight: 10 },
+  timerLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.8)', marginRight: 3 },
+  timerBox: {
+    backgroundColor: '#0C1559', borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 2, minWidth: 26, alignItems: 'center',
   },
+  timerNum: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff' },
+  colon: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#fff' },
+  seeAll: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#fff' },
   scroll: { backgroundColor: '#fff' },
   list: { paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
   card: {

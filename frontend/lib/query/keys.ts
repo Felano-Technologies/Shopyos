@@ -3,7 +3,7 @@ export const queryKeys = {
     all: ['products'] as const,
     lists: () => ['products', 'list'] as const,
     list: (filters?: ProductFilters) => ['products', 'list', filters] as const,
-    infinite: (filters?: ProductFilters) => ['products', 'infinite', filters] as const,
+    infinite: (filters?: ProductFilters, query?: string) => ['products', 'infinite', filters, query] as const,
     details: () => ['products', 'detail'] as const,
     detail: (id: string) => ['products', 'detail', id] as const,
     searchAll: () => ['products', 'search'] as const,
@@ -137,6 +137,7 @@ export const queryKeys = {
 
 export interface ProductFilters {
   category?: string;
+  gender?: string;
   minPrice?: number;
   maxPrice?: number;
   minRating?: number;

@@ -151,8 +151,8 @@ export default function ProductDetails() {
                     sellerId: res.product.store?.ownerId || "",
                     storeId: res.product.store?._id || res.product.businessId || "",
                     storeImage: res.product.store?.logo || null,
-                    rating: res.product.average_rating || 0,
-                    reviewsCount: res.product.total_reviews || 0,
+                    rating: res.product.averageRating || 0,
+                    reviewsCount: res.product.reviewCount || 0,
                     isTrusted: res.product.store?.is_trusted || false,
                     stockQuantity: res.product.stockQuantity ?? null,
                     brand: res.product.brand || '',
@@ -227,15 +227,21 @@ export default function ProductDetails() {
         finally { setCommentSubmitting(false); }
     };
     const toggleFavorite = async () => {
+        // Flip immediately so the heart responds to the tap right away, and
+        // roll back if the request actually fails.
+        const wasLiked = isLiked;
+        setIsLiked(!wasLiked);
         try {
-            if (isLiked) {
+            if (wasLiked) {
                 await removeFromFavorites(product.id);
-                setIsLiked(false);
             } else {
                 await addToFavorites(product.id);
-                setIsLiked(true);
+                CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: product.title || '' });
             }
-        } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" }); }
+        } catch (error: unknown) {
+            setIsLiked(wasLiked);
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" });
+        }
     };
     const handleChat = async () => {
         try {
