@@ -269,7 +269,12 @@ api.interceptors.response.use(
     // registration, transient "user not found" read lag); wiping tokens and
     // yanking the user to /login over that stranded people mid-onboarding.
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const hasRefreshToken = !!(await secureStorage.getItem('refreshToken').catch(() => null));
+      // A 401 on /auth/refresh itself (dead refresh token) must not re-enter
+      // handleTokenExpired: isRefreshing is still true from the call that's
+      // awaiting this very request, so it would queue behind a promise that
+      // only resolves once this request settles — a permanent deadlock.
+      const isNonRetriablePath = NEVER_RETRY_PATHS.some(p => (originalRequest.url || '').includes(p));
+      const hasRefreshToken = !isNonRetriablePath && !!(await secureStorage.getItem('refreshToken').catch(() => null));
       if (hasRefreshToken) {
         try {
           return await handleTokenExpired(error, originalRequest);
