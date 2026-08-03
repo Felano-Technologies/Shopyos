@@ -31,6 +31,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
               uri={url}
               style={StyleSheet.absoluteFillObject}
               onLoadEnd={() => setLoading(false)}
+              onError={() => setLoading(false)}
             />
             <View style={styles.playButtonWrapper}>
               <Ionicons name="play" size={32} color="#FFFFFF" style={{ marginLeft: 3 }} />
@@ -85,6 +86,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
           style={styles.image}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
+          onError={() => setLoading(false)}
         />
         {loading && (
           <View style={styles.loaderWrapper}>

@@ -777,7 +777,6 @@ export default function ConversationScreen() {
   ) : null;
 
   const replyLabelText = replyTo?.sender_id === currentUserId ? 'You' : displayName;
-  const paperclipColor = isUploadingMedia ? '#CBD5E1' : C.mutedText;
 
   return (
     <View style={styles.root}>
@@ -798,8 +797,8 @@ export default function ConversationScreen() {
               }
               {isOnline && <View style={styles.hdrOnline} />}
             </View>
-            <View>
-              <Text style={styles.hdrName} numberOfLines={1}>{displayName}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.hdrName}>{displayName}</Text>
               <Text style={styles.hdrStatus}>{hdrStatusText}</Text>
             </View>
           </TouchableOpacity>
@@ -877,12 +876,12 @@ export default function ConversationScreen() {
             <View style={styles.pill}>
               {/* Paperclip */}
               <TouchableOpacity style={styles.attachBtn} onPress={handleAttachMedia} disabled={isUploadingMedia}>
-                <Feather name="paperclip" size={18} color={paperclipColor} />
+                <Feather name="paperclip" size={19} color={isUploadingMedia ? '#CBD5E1' : C.navyDeep} />
               </TouchableOpacity>
 
-              {/* Sticker */}
+              {/* Sticker / Emoji */}
               <TouchableOpacity style={styles.attachBtn} onPress={() => { setShowStickerPicker(true); inputRef.current?.blur(); }}>
-                <Ionicons name="happy-outline" size={20} color={C.mutedText} />
+                <Ionicons name="happy-outline" size={21} color={C.navyMid} />
               </TouchableOpacity>
 
               <TextInput
@@ -909,7 +908,7 @@ export default function ConversationScreen() {
               {/* Send button (when text is typed) */}
               {!!text.trim() && (
                 <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={!text.trim() || sending} activeOpacity={0.8}>
-                  {sending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={15} color="#fff" style={{ marginLeft: 2 }} />}
+                  {sending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={16} color="#fff" style={{ marginLeft: 2 }} />}
                 </TouchableOpacity>
               )}
             </View>
@@ -1009,17 +1008,41 @@ export default function ConversationScreen() {
         ]}
       />
 
-      <ConfirmModal
-        visible={showAttachMedia}
-        onClose={() => setShowAttachMedia(false)}
-        title="Attach Media"
-        message="Choose an attachment type"
-        actions={[
-          { label: '\u{1F4F7} Photo (Max 10MB)', onPress: () => { setShowAttachMedia(false); handlePickMedia('image'); } },
-          { label: '\u{1F3AC} Video (Max 20MB)', onPress: () => { setShowAttachMedia(false); handlePickMedia('video'); } },
-          { label: 'Cancel', onPress: () => setShowAttachMedia(false), variant: 'cancel' },
-        ]}
-      />
+      {/* ── Attachment bottom sheet ──────────────────────────────────── */}
+      {showAttachMedia && (
+        <Pressable style={styles.attachOverlay} onPress={() => setShowAttachMedia(false)}>
+          <Pressable style={styles.attachSheet}>
+            <View style={styles.attachSheetHandle} />
+            <Text style={styles.attachSheetTitle}>Send Attachment</Text>
+            <View style={styles.attachGrid}>
+              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('image'); }}>
+                <LinearGradient colors={['#1e3a8a', '#0C1559']} style={styles.attachOptionIcon}>
+                  <Ionicons name="image-outline" size={26} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.attachOptionLabel}>Photo</Text>
+                <Text style={styles.attachOptionSub}>Up to 10 MB</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('video'); }}>
+                <LinearGradient colors={['#84cc16', '#4d7c0f']} style={styles.attachOptionIcon}>
+                  <Ionicons name="videocam-outline" size={26} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.attachOptionLabel}>Video</Text>
+                <Text style={styles.attachOptionSub}>Up to 20 MB</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); setIsVoiceRecording(true); }}>
+                <LinearGradient colors={['#7c3aed', '#4c1d95']} style={styles.attachOptionIcon}>
+                  <Ionicons name="mic-outline" size={26} color="#fff" />
+                </LinearGradient>
+                <Text style={styles.attachOptionLabel}>Voice</Text>
+                <Text style={styles.attachOptionSub}>Record audio</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.attachCancelBtn} onPress={() => setShowAttachMedia(false)}>
+              <Text style={styles.attachCancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1041,7 +1064,7 @@ const styles = StyleSheet.create({
   hdrAvatarFallback: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.lime, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center' },
   hdrAvatarTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#111827' },
   hdrOnline: { width: 11, height: 11, borderRadius: 6, backgroundColor: C.onlineGreen, position: 'absolute', bottom: 0, right: 0, borderWidth: 2, borderColor: C.navyDeep },
-  hdrName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', maxWidth: width * 0.48 },
+  hdrName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   moreBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
 
@@ -1052,96 +1075,185 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 6 },
   emptyBody: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.mutedText, textAlign: 'center' },
 
-  listContent: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10 },
+  listContent: { paddingHorizontal: 14, paddingTop: 18, paddingBottom: 14 },
 
   // Date separator
-  dateSep: { alignItems: 'center', marginVertical: 14 },
-  datePill: { backgroundColor: 'rgba(12,21,89,0.13)', borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.2)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
-  dateText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#334155', textTransform: 'uppercase', letterSpacing: 0.6 },
+  dateSep: { alignItems: 'center', marginVertical: 16 },
+  datePill: { backgroundColor: 'rgba(12,21,89,0.09)', borderWidth: 1, borderColor: 'rgba(12,21,89,0.14)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#475569', textTransform: 'uppercase', letterSpacing: 1 },
 
   // Bubbles
-  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, maxWidth: '100%' },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 4, maxWidth: '100%' },
   rowMe: { justifyContent: 'flex-end' },
   rowThem: { justifyContent: 'flex-start' },
-  msgAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 6, marginBottom: 2 },
-  msgAvatarFallback: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.lime, marginRight: 6, marginBottom: 2, justifyContent: 'center', alignItems: 'center' },
+  msgAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8, marginBottom: 2, borderWidth: 1.5, borderColor: '#fff' },
+  msgAvatarFallback: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.lime, marginRight: 8, marginBottom: 2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#fff' },
   msgAvatarTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#111827' },
 
-  bubble: { maxWidth: '76%', borderRadius: 20, overflow: 'hidden' },
-  bubbleMe: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 4, elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 8 },
-  bubbleMeGrad: { paddingVertical: 10, paddingHorizontal: 14 },
-  bubbleThem: { backgroundColor: C.cardBg, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 4, borderBottomRightRadius: 20, paddingVertical: 10, paddingHorizontal: 14, elevation: 3, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, borderWidth: 0.5, borderColor: C.borderCard },
-  bubbleReplyPreview: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', marginBottom: 6, maxWidth: '100%' },
-  bubbleReplyMe: { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
-  bubbleReplyThem: { backgroundColor: '#F1F5F9', borderWidth: 0.5, borderColor: '#E2E8F0' },
-  bubbleReplyAccent: { width: 3.5 },
-  bubbleReplyAccentMe: { backgroundColor: '#fff' },
+  bubble: { maxWidth: '78%', borderRadius: 22, overflow: 'hidden' },
+  bubbleMe: {
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    borderBottomLeftRadius: 22, borderBottomRightRadius: 6,
+    elevation: 6,
+    shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10,
+  },
+  bubbleMeGrad: { paddingVertical: 8, paddingHorizontal: 13 },
+  bubbleThem: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 6, borderTopRightRadius: 22,
+    borderBottomLeftRadius: 22, borderBottomRightRadius: 22,
+    paddingVertical: 4, paddingHorizontal: 12,
+    elevation: 3,
+    shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(12,21,89,0.07)',
+  },
+  bubbleReplyPreview: { flexDirection: 'row', borderRadius: 10, overflow: 'hidden', marginBottom: 8, maxWidth: '100%' },
+  bubbleReplyMe: { backgroundColor: 'rgba(255,255,255,0.14)' },
+  bubbleReplyThem: { backgroundColor: '#F0F4FF', borderWidth: 1, borderColor: '#DBEAFE' },
+  bubbleReplyAccent: { width: 4 },
+  bubbleReplyAccentMe: { backgroundColor: 'rgba(255,255,255,0.8)' },
   bubbleReplyAccentThem: { backgroundColor: C.navyDeep },
-  bubbleReplyBody: { flex: 1, paddingVertical: 5, paddingHorizontal: 8 },
+  bubbleReplyBody: { flex: 1, paddingVertical: 6, paddingHorizontal: 10 },
   bubbleReplyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', marginBottom: 2 },
-  bubbleReplyLabelMe: { color: '#fff' },
+  bubbleReplyLabelMe: { color: 'rgba(255,255,255,0.9)' },
   bubbleReplyLabelThem: { color: C.navyDeep },
-  bubbleReplyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', lineHeight: 16 },
-  bubbleReplyTextMe: { color: 'rgba(255, 255, 255, 0.8)' },
-  bubbleReplyTextThem: { color: C.mutedText },
-  bubblePending: { opacity: 0.55 },
-  bubbleFailed: { backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FECACA', paddingVertical: 10, paddingHorizontal: 14 },
+  bubbleReplyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', lineHeight: 17 },
+  bubbleReplyTextMe: { color: 'rgba(255,255,255,0.75)' },
+  bubbleReplyTextThem: { color: '#64748B' },
+  bubblePending: { opacity: 0.5 },
+  bubbleFailed: { backgroundColor: '#FFF5F5', borderWidth: 1.5, borderColor: '#FCA5A5', paddingVertical: 11, paddingHorizontal: 16, borderRadius: 18 },
   bubbleFailedInner: {},
-  failRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  failText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.alertRed },
+  failRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
+  failText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.alertRed },
 
-  bubbleTxtMe: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
-  bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, lineHeight: 21 },
+  bubbleTxtMe: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#FFFFFF', lineHeight: 22 },
+  bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', lineHeight: 22 },
 
-  typingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8, paddingLeft: 2 },
-  typingBubble: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16 },
+  typingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 10, paddingLeft: 4 },
+  typingBubble: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 20, borderTopLeftRadius: 6,
+    elevation: 3, shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(12,21,89,0.07)',
+  },
   typingText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText },
-  bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 21 },
+  bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 22 },
 
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 4 },
-  metaTimeMe: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.72)' },
-  metaTimeThem: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
+  metaTimeMe: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)' },
+  metaTimeThem: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
 
   // Sticker
   stickerBubble: { padding: 4 },
   stickerImage: { width: 140, height: 140 },
 
   // System notice
-  systemNoticeRow: { alignItems: 'center', marginVertical: 4 },
-  systemNoticePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF5F5', borderWidth: 0.5, borderColor: '#FECACA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  systemNoticeText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#EF4444' },
+  systemNoticeRow: { alignItems: 'center', marginVertical: 6 },
+  systemNoticePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF1F2', borderWidth: 1, borderColor: '#FCA5A5', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
+  systemNoticeText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#DC2626' },
 
   // Input bar
-  inputBar: { paddingHorizontal: 12, paddingTop: 8, backgroundColor: 'rgba(233,240,255,0.97)', borderTopWidth: 0.5, borderTopColor: C.borderLight },
-  replyPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 0.5, borderColor: C.borderCard, borderRadius: 12, padding: 10, marginBottom: 8, elevation: 1, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
-  replyAccent: { width: 3, alignSelf: 'stretch', backgroundColor: C.navyDeep, borderRadius: 2, marginRight: 10 },
+  inputBar: { paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#F0F5FF', borderTopWidth: 1, borderTopColor: 'rgba(12,21,89,0.07)' },
+  replyPreview: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#DBEAFE',
+    borderRadius: 14, padding: 10, marginBottom: 10,
+    elevation: 2, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
+  },
+  replyAccent: { width: 4, alignSelf: 'stretch', backgroundColor: C.navyDeep, borderRadius: 3, marginRight: 10 },
   replyBody: { flex: 1 },
-  replyLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 2 },
-  replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.mutedText },
-  replyClose: { padding: 4 },
+  replyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 2 },
+  replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  replyClose: { padding: 6 },
 
   // Upload progress
-  uploadBar: { height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginBottom: 8, overflow: 'hidden', position: 'relative' },
-  uploadFill: { height: '100%', backgroundColor: C.lime, borderRadius: 2 },
-  uploadPct: { position: 'absolute', right: 0, top: -16, fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.mutedText },
+  uploadBar: { height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', marginBottom: 10, overflow: 'hidden' },
+  uploadFill: { height: '100%', backgroundColor: C.lime, borderRadius: 3 },
+  uploadPct: { position: 'absolute', right: 0, top: -18, fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
 
   // Input pill
-  pill: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: C.cardBg, borderRadius: 28, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 0.5, borderColor: C.borderCard, elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, marginBottom: 4 },
-  attachBtn: { width: 34, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 17 },
-  textInput: { flex: 1, minHeight: 38, maxHeight: 110, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, paddingTop: Platform.OS === 'android' ? 8 : 10, paddingBottom: Platform.OS === 'android' ? 8 : 10, paddingHorizontal: 6, textAlignVertical: 'center' },
-  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: C.lime, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
-  micBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.navyDeep, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+  pill: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32, paddingHorizontal: 6, paddingVertical: 5,
+    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)',
+    elevation: 6, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10,
+    marginBottom: 4,
+  },
+  attachBtn: { width: 36, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 18 },
+  textInput: {
+    flex: 1, minHeight: 40, maxHeight: 120,
+    fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A',
+    paddingTop: Platform.OS === 'android' ? 9 : 11,
+    paddingBottom: Platform.OS === 'android' ? 9 : 11,
+    paddingHorizontal: 8, textAlignVertical: 'center',
+  },
+  sendBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: C.lime,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 4, shadowColor: C.lime, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 6,
+  },
+  micBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: C.navyDeep,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6,
+  },
 
-  // Modals
-  overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.35)', justifyContent: 'center', alignItems: 'center' },
-  contextMenu: { backgroundColor: C.cardBg, borderRadius: 20, width: width * 0.76, overflow: 'hidden', elevation: 20, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.18, shadowRadius: 24 },
-  ctxPreview: { padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: '#F8FAFF' },
-  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, lineHeight: 19 },
-  ctxItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
+  // Attachment bottom sheet
+  attachOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(12,21,89,0.5)', justifyContent: 'flex-end',
+    zIndex: 100,
+  },
+  attachSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 24, paddingTop: 14, paddingBottom: 36,
+    elevation: 24, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.18, shadowRadius: 20,
+  },
+  attachSheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 20,
+  },
+  attachSheetTitle: {
+    fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.navyDeep,
+    textAlign: 'center', marginBottom: 24, letterSpacing: -0.3,
+  },
+  attachGrid: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginBottom: 28 },
+  attachOption: { alignItems: 'center', gap: 10 },
+  attachOptionIcon: {
+    width: 68, height: 68, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 8,
+  },
+  attachOptionLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.navyDeep },
+  attachOptionSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: -6 },
+  attachCancelBtn: {
+    height: 48, borderRadius: 16, backgroundColor: '#F1F5F9',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  attachCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#475569' },
+
+  // Modals / context menu
+  overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.45)', justifyContent: 'center', alignItems: 'center' },
+  contextMenu: {
+    backgroundColor: '#fff', borderRadius: 24, width: width * 0.78, overflow: 'hidden',
+    elevation: 24, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 28,
+  },
+  ctxPreview: { padding: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F8FAFF' },
+  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', lineHeight: 20 },
+  ctxItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
   ctxDanger: { borderBottomWidth: 0 },
 
-  moreMenu: { position: 'absolute', right: 12, backgroundColor: C.cardBg, borderRadius: 16, minWidth: 200, overflow: 'hidden', elevation: 16, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 16 },
-  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
-  moreItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
+  moreMenu: {
+    position: 'absolute', right: 12,
+    backgroundColor: '#fff', borderRadius: 20, minWidth: 210, overflow: 'hidden',
+    elevation: 20, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 20,
+  },
+  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  moreItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
 });

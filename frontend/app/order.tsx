@@ -266,7 +266,7 @@ const OrdersScreen = () => {
           {showTrack && renderTimeline(cfg.timelineStep)}
 
           <View style={S.cardMid}>
-            <View>
+            <View style={{ flex: 1, marginRight: rs(12) }}>
               <Text style={S.orderNum}>#{item.orderNumber}</Text>
               <Text style={S.orderDate}>{dateStr}</Text>
             </View>
@@ -530,7 +530,7 @@ const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
   hdrGradient: {
-    position: 'relative', paddingBottom: rs(26), zIndex: 20,
+    position: 'relative', paddingBottom: rs(14), zIndex: 20,
     elevation: 12, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(10) }, shadowOpacity: 0.22, shadowRadius: rs(20),
   },
@@ -577,8 +577,8 @@ const S = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center',
   },
   hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(12),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(12), borderTopRightRadius: rs(12),
   },
 
   // ── Chip strip — THE FIX ──────────────────────────────────────────────────

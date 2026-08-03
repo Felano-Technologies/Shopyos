@@ -244,7 +244,7 @@ export default function OrderDetailsScreen() {
             <View style={S.hdrSummary}>
               <View style={{ flex: 1, marginRight: rs(12) }}>
                 <Text style={S.hdrLbl}>Order Number</Text>
-                <Text style={S.hdrOrderNum} numberOfLines={1}>#{order.orderNumber}</Text>
+                <Text style={S.hdrOrderNum}>#{order.orderNumber}</Text>
               </View>
               <View style={[S.hdrDateWrap, { flexShrink: 0 }]}>
                 <Text style={S.hdrDate}>{dateStr}</Text>
@@ -514,7 +514,7 @@ const S = StyleSheet.create({
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   scroll: { flexGrow: 1 },
   header: {
-    paddingHorizontal: rs(20), paddingBottom: rs(28),
+    paddingHorizontal: rs(20), paddingBottom: rs(14),
     position: 'relative', elevation: 10, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
   },
@@ -537,12 +537,12 @@ const S = StyleSheet.create({
   hdrDate:     { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: '#fff' },
   hdrTime:     { fontSize: rf(11), fontFamily: 'Montserrat-Medium',   color: 'rgba(255,255,255,0.55)' },
   hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(12),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(12), borderTopRightRadius: rs(12),
   },
   // Status card
   statusCard: {
-    backgroundColor: C.card, marginHorizontal: rs(16), marginTop: rs(8),
+    backgroundColor: C.card, marginHorizontal: rs(16), marginTop: rs(4),
     borderRadius: rs(20), overflow: 'hidden', elevation: 6,
     shadowColor: C.navy, shadowOffset: { width: 0, height: rs(4) },
     shadowOpacity: 0.1, shadowRadius: rs(12),

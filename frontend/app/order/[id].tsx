@@ -306,7 +306,7 @@ const OrderDetailsScreen = () => {
         {/* Order number + status pill */}
         <View style={S.hdrMeta}>
           <View style={{ flex: 1, marginRight: 15 }}>
-            <Text style={S.hdrOrderNum} numberOfLines={1}>#{order.order_number}</Text>
+            <Text style={S.hdrOrderNum}>#{order.order_number}</Text>
             <Text style={S.hdrDate}>{dateStr}</Text>
           </View>
           <View style={[S.statusPill, { backgroundColor: statusCfg.bg, flexShrink: 0 }]}>
@@ -678,7 +678,7 @@ const S = StyleSheet.create({
   retryBtnTxt: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(14) },
   // Header
   header: {
-    paddingHorizontal: rs(20), paddingBottom: rs(26),
+    paddingHorizontal: rs(20), paddingBottom: rs(14),
     position: 'relative', elevation: 12, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.22, shadowRadius: rs(16),
   },
@@ -689,7 +689,7 @@ const S = StyleSheet.create({
   },
   hdrRow: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: rs(18),
+    justifyContent: 'space-between', marginBottom: rs(4),
   },
   hdrBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
@@ -710,10 +710,10 @@ const S = StyleSheet.create({
   statusDot: { width: rs(7), height: rs(7), borderRadius: rs(4) },
   statusTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold' },
   hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(12),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(12), borderTopRightRadius: rs(12),
   },
-  scrollContent: { paddingHorizontal: rs(16), paddingTop: rs(12) },
+  scrollContent: { paddingHorizontal: rs(16), paddingTop: rs(4) },
   // Timeline
   timelineWrap: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',

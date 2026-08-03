@@ -130,8 +130,10 @@ If you are a parent or guardian and believe your child has provided us with pers
 📧 General: support@shopyos.com
 🌐 Website: www.shopyos.com
 
-Felano Technologies
-Kumasi, Ghana`,
+Shopyos E-commerce Hub.
+18 Nana Kesse Avenue,
+Ayeduase- Near KNUST,
+Kumasi.`,
   },
 ];
 

@@ -411,9 +411,9 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2,
-    alignSelf: 'center', marginBottom: 20,
+    alignSelf: 'center', marginBottom: 4,
   },
-  statusHeader: { marginBottom: 16 },
+  statusHeader: { marginBottom: 1, marginTop: 0 },
   statusTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
   statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 6 },
   etaPill: {

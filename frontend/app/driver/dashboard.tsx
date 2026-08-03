@@ -91,8 +91,8 @@ function ActiveMissionCard({ delivery, onPress }: Readonly<{ delivery: any; onPr
         </View>
         <Text style={styles.activeTitle}>Ongoing Delivery to {delivery.order?.buyer?.full_name || 'Customer'}</Text>
         <View style={styles.activeFooter}>
-          <Text style={styles.activeStatus}>{delivery.status.replace('_', ' ').toUpperCase()}</Text>
-          <Text style={styles.activeOrderNum}>#{delivery.order?.order_number}</Text>
+          <Text style={[styles.activeStatus, { marginRight: 8 }]} numberOfLines={1}>{delivery.status.replace('_', ' ').toUpperCase()}</Text>
+          <Text style={[styles.activeOrderNum, { flex: 1, textAlign: 'right' }]} numberOfLines={2}>#{delivery.order?.order_number}</Text>
         </View>
       </LinearGradient>
     </TouchableOpacity>

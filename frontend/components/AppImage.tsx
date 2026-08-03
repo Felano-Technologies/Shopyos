@@ -1,4 +1,4 @@
-import { Image, ImageContentFit, ImageSource } from 'expo-image';
+import { Image, ImageContentFit, ImageSource, ImageLoadEventData, ImageErrorEventData } from 'expo-image';
 import { StyleProp, ImageStyle } from 'react-native';
 
 interface Props {
@@ -7,9 +7,23 @@ interface Props {
   style?: StyleProp<ImageStyle>;
   contentFit?: ImageContentFit;
   placeholder?: string;
+  onLoadStart?: () => void;
+  onLoad?: (event: ImageLoadEventData) => void;
+  onLoadEnd?: () => void;
+  onError?: (event: ImageErrorEventData) => void;
 }
 
-export default function AppImage({ uri, source, style, contentFit = 'cover', placeholder }: Readonly<Props>) {
+export default function AppImage({
+  uri,
+  source,
+  style,
+  contentFit = 'cover',
+  placeholder,
+  onLoadStart,
+  onLoad,
+  onLoadEnd,
+  onError,
+}: Readonly<Props>) {
   const resolvedSource = source ?? (uri ? { uri } : null);
   const isRemote = !!uri && !source;
   return (
@@ -20,6 +34,10 @@ export default function AppImage({ uri, source, style, contentFit = 'cover', pla
       cachePolicy="disk"
       placeholder={placeholder}
       transition={200}
+      onLoadStart={onLoadStart}
+      onLoad={onLoad}
+      onLoadEnd={onLoadEnd}
+      onError={onError}
     />
   );
 }

@@ -177,6 +177,14 @@ export default function ContactUsScreen() {
                         <Feather name="clock" size={16} color="#64748B" />
                         <Text style={styles.footerText}>Support hours: Mon - Fri, 8am - 8pm</Text>
                     </View>
+                    <View style={[styles.footerInfo, { marginTop: 8 }]}>
+                        <Feather name="map-pin" size={16} color="#64748B" />
+                        <Text style={[styles.footerText, { textAlign: 'center' }]}>
+                          You can visit us at our office:{"\n"}
+                          Shopyos E-commerce Hub.{"\n"}
+                          18 Nana Kesse Avenue, Ayeduase- Near KNUST, Kumasi.
+                        </Text>
+                    </View>
 
                 </View>
             </ScrollView>

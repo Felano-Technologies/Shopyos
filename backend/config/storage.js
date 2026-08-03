@@ -2,6 +2,7 @@
 // Sevalla Object Storage (S3-compatible) configuration and helpers
 
 const { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { NodeHttpHandler } = require('@smithy/node-http-handler');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const sharp = require('sharp');
 const path = require('node:path');
@@ -28,6 +29,7 @@ const s3 = new S3Client({
   endpoint,
   forcePathStyle: true,
   credentials: { accessKeyId, secretAccessKey },
+  requestHandler: new NodeHttpHandler({ connectionTimeout: 5000, requestTimeout: 15000 }),
 });
 
 // ── Presigned URL cache ───────────────────────────────────────────────────────

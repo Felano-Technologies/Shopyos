@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, ScrollView } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -28,18 +28,28 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
   return { latitude: 0, longitude: 0 };
 }
 
-function navigateByRole(role: string | undefined) {
-  const userRole = role?.toLowerCase();
+function navigateByRole(role: string | undefined, userObj?: any) {
+  const userRole = String(role || userObj?.role || userObj?.account_type || '').toLowerCase();
+  const rolesArr = Array.isArray(userObj?.roles) ? userObj.roles : [];
+
+  const hasRole = (target: string) => {
+    if (userRole === target) return true;
+    return rolesArr.some((item: any) => {
+      if (typeof item === 'string') return item.toLowerCase() === target;
+      return String(item?.name ?? item?.role ?? '').toLowerCase() === target;
+    });
+  };
+
   console.log(`[LoginScreen] navigateByRole received role="${role}" (normalized="${userRole}")`);
-  if (userRole === 'customer' || userRole === 'buyer') {
+  if (hasRole('customer') || hasRole('buyer')) {
     resetToRoute('/home');
-  } else if (userRole === 'seller') {
+  } else if (hasRole('seller')) {
     resetToRoute('/business/dashboard');
-  } else if (userRole === 'driver') {
+  } else if (hasRole('driver')) {
     resetToRoute('/driver');
-  } else if (userRole === 'parcel_partner') {
+  } else if (hasRole('parcel_partner')) {
     resetToRoute('/parcel-partner/dashboard');
-  } else if (userRole === 'admin') {
+  } else if (hasRole('admin')) {
     resetToRoute('/admin/dashboard');
   } else {
     console.warn(`[LoginScreen] navigateByRole: unrecognized role "${role}" — no navigation will happen, user stays on login screen`);
@@ -78,7 +88,7 @@ const LoginScreen = () => {
           if (data.needsRole) {
             resetToRoute('/role');
           } else {
-            navigateByRole(data.role);
+            navigateByRole(data.role, data);
           }
         })
         .catch((err) => {
@@ -116,7 +126,7 @@ const LoginScreen = () => {
           resetToRoute('/role');
         } else {
           log(`Branch: navigateByRole(${response.role})`);
-          navigateByRole(response.role);
+          navigateByRole(response.role, response);
           log('navigateByRole() call returned — if no navigation happened, the role string did not match any known case');
         }
       } else {
@@ -148,7 +158,7 @@ const LoginScreen = () => {
         } else if (response.needsRole) {
           resetToRoute('/role');
         } else {
-          navigateByRole(response.role);
+          navigateByRole(response.role, response);
         }
       } else {
         CustomInAppToast.show({ type: 'error', title: 'Login Failed', message: response.message || 'Please try again.' });
@@ -178,7 +188,8 @@ const LoginScreen = () => {
         style={{ flex: 1 }}
       >
         <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
-          <View style={styles.innerContainer}>
+          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} bounces={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.innerContainer}>
             {/* Logo */}
             <AppImage
               source={require('../assets/images/icondark.png')}
@@ -303,7 +314,8 @@ const LoginScreen = () => {
               <AppImage source={require('../assets/images/adaptive-icon.png')} style={styles.circleLogo} contentFit="contain" />
               <AppImage source={require('../assets/images/icondark.png')} style={styles.brandLogo} contentFit="contain" />
             </View>
-          </View>
+            </View>
+          </ScrollView>
         </Pressable>
       </KeyboardAvoidingView>
     </View>
