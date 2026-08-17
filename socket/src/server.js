@@ -30,7 +30,14 @@ const io = initializeSocketServer(httpServer);
 // backend's socketBridge). Falls back to single-instance mode without Redis.
 const redis = getPubClient();
 if (redis) {
-  io.adapter(createAdapter(redis.duplicate(), redis.duplicate()));
+  // maxRetriesPerRequest: null so these long-lived pub/sub clients queue and
+  // keep retrying instead of throwing MaxRetriesPerRequestError when Redis is
+  // briefly unreachable — an uncaught throw here previously crashed the process.
+  const adapterPubClient = redis.duplicate({ maxRetriesPerRequest: null });
+  const adapterSubClient = redis.duplicate({ maxRetriesPerRequest: null });
+  adapterPubClient.on('error', (error) => logger.error('Socket.IO adapter pub client error', { error: error.message }));
+  adapterSubClient.on('error', (error) => logger.error('Socket.IO adapter sub client error', { error: error.message }));
+  io.adapter(createAdapter(adapterPubClient, adapterSubClient));
   logger.info('Socket.IO Redis adapter enabled');
 } else {
   logger.warn('REDIS_URL not set — running Socket.IO in single-instance mode');
