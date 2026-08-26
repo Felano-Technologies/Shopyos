@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiCheckCircle, FiXCircle, FiClock, FiPlus, FiZap, FiX, FiPackage } from 'react-icons/fi';
 import { getAdminSales, getSlotsList, createSlot, reviewFlashSale } from '../services/flashSales';
 import { extractErrorMessage } from '../services/client';
+import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type FlashSaleProductLine = {
   id: string;
@@ -206,7 +207,7 @@ export const FlashSales: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+            <ListRowsSkeleton rows={5} leadingIcon={false} />
           ) : view === 'slots' ? (
             slots.length === 0 ? (
               <div className="p-12 text-center text-gray-500">

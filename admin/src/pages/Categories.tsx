@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiSearch, FiEdit2, FiTrash2, FiPlus, FiTag, FiX, FiBox } from 'react-icons/fi';
 import { getAllCategories, createCategory, updateCategory, deleteCategory } from '../services/products';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 interface Category {
   id: string;
@@ -151,9 +152,7 @@ export const Categories: React.FC = () => {
             </div>
           </div>
 
-          {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading categories...</div>
-          ) : filtered.length === 0 ? (
+          {!loading && filtered.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FiTag className="w-10 h-10 mx-auto mb-3 text-gray-300" />
               <p className="text-sm">No categories found.</p>
@@ -170,7 +169,9 @@ export const Categories: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filtered.map((cat) => (
+                  {loading ? (
+                    <TableRowsSkeleton columns={4} leadingIcon />
+                  ) : filtered.map((cat) => (
                     <tr key={cat.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

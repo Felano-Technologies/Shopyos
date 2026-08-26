@@ -36,56 +36,67 @@ class AuditLogRepository extends BaseRepository {
 
   /**
    * Get audit logs with filters
-   * @param {Object} options - { userId, action, entityType, startDate, endDate, limit, offset }
-   * @returns {Promise<Array>} List of audit logs
+   * @param {Object} options - { userId, action, entityType, startDate, endDate, search, limit, offset }
+   * @returns {Promise<{logs: Array, total: number}>}
    */
   async getAuditLogs(options = {}) {
     const {
       userId, action, entityType, startDate, endDate,
-      role, status,
+      role, status, search,
       limit = 100, offset = 0,
     } = options;
     const { getPool } = require('../../config/postgres');
     const db = getPool();
     const params = [];
+    const conditions = [];
 
-    let sql = `
-      SELECT
-        al.*,
-        u.id         AS actor_id,
-        u.email      AS actor_email,
-        up.full_name AS actor_full_name,
-        r.name       AS actor_role
+    const joins = `
       FROM audit_logs al
       LEFT JOIN users         u  ON u.id  = al.user_id
       LEFT JOIN user_profiles up ON up.user_id = al.user_id
       LEFT JOIN user_roles    ur ON ur.user_id = al.user_id AND ur.is_active = TRUE
       LEFT JOIN roles         r  ON r.id  = ur.role_id
-      WHERE 1=1
     `;
 
-    if (userId)     { params.push(userId);     sql += ` AND al.user_id = $${params.length}`; }
-    if (action)     { params.push(action);     sql += ` AND al.action = $${params.length}`; }
-    if (entityType) { params.push(entityType); sql += ` AND al.entity_type = $${params.length}`; }
-    if (startDate)  { params.push(startDate);  sql += ` AND al.timestamp >= $${params.length}`; }
-    if (endDate)    { params.push(endDate);    sql += ` AND al.timestamp <= $${params.length}`; }
-    if (role)       { params.push(role);       sql += ` AND r.name = $${params.length}`; }
-    if (status)     { params.push(status);     sql += ` AND al.status = $${params.length}`; }
+    if (userId)     { params.push(userId);     conditions.push(`al.user_id = $${params.length}`); }
+    if (action)     { params.push(action);     conditions.push(`al.action = $${params.length}`); }
+    if (entityType) { params.push(entityType); conditions.push(`al.entity_type = $${params.length}`); }
+    if (startDate)  { params.push(startDate);  conditions.push(`al.timestamp >= $${params.length}`); }
+    if (endDate)    { params.push(endDate);    conditions.push(`al.timestamp <= $${params.length}`); }
+    if (role)       { params.push(role);       conditions.push(`r.name = $${params.length}`); }
+    if (status)     { params.push(status);     conditions.push(`al.status = $${params.length}`); }
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(al.action ILIKE $${params.length} OR al.entity_type ILIKE $${params.length} OR up.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length})`);
+    }
 
-    sql += ` ORDER BY al.timestamp DESC`;
-    params.push(limit);  sql += ` LIMIT $${params.length}`;
-    params.push(offset); sql += ` OFFSET $${params.length}`;
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const { rows } = await db.query(sql, params);
-    return rows.map(log => ({
-      ...log,
-      actor: {
-        id:        log.actor_id,
-        email:     log.actor_email,
-        full_name: log.actor_full_name,
-        role:      log.actor_role,
-      },
-    }));
+    const { rows: countRows } = await db.query(`SELECT COUNT(*) ${joins} ${where}`, params);
+    const total = Number.parseInt(countRows[0].count, 10);
+
+    const dataParams = [...params, limit, offset];
+    const { rows } = await db.query(
+      `SELECT al.*, u.id AS actor_id, u.email AS actor_email, up.full_name AS actor_full_name, r.name AS actor_role
+       ${joins}
+       ${where}
+       ORDER BY al.timestamp DESC
+       LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+      dataParams
+    );
+
+    return {
+      logs: rows.map(log => ({
+        ...log,
+        actor: {
+          id:        log.actor_id,
+          email:     log.actor_email,
+          full_name: log.actor_full_name,
+          role:      log.actor_role,
+        },
+      })),
+      total,
+    };
   }
 
   /**

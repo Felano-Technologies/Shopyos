@@ -4,6 +4,7 @@ import {
   FiTruck, FiMapPin, FiUser, FiClock, FiCheckCircle, FiXCircle, FiX, FiPackage,
 } from 'react-icons/fi';
 import { getAdminDeliveries, getAdminDeliveryStats } from '../services/admin';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type DeliveryStats = { total: number; unassigned: number; in_progress: number; delivered: number; cancelled: number };
 
@@ -130,7 +131,7 @@ export const Deliveries: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">Loading deliveries...</td></tr>
+                  <TableRowsSkeleton columns={6} leadingIcon />
                 ) : deliveries.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">

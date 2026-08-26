@@ -8,6 +8,7 @@ import {
   previewHolidayCampaign, triggerMarketingSweep, sendTestNotification,
 } from '../services/broadcasts';
 import { extractErrorMessage } from '../services/client';
+import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
 type CampaignType = 'manual' | 'holiday' | 'daily_engagement';
@@ -266,7 +267,7 @@ export const Broadcasts: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading broadcasts...</div>
+            <ListRowsSkeleton rows={5} leadingIcon={false} />
           ) : visible.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FiSend className="w-10 h-10 mx-auto mb-3 text-gray-300" />

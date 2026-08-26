@@ -456,21 +456,26 @@ const updateReportStatus = async (req, res, next) => {
  */
 const getAuditLogs = async (req, res, next) => {
   try {
-    const { userId, action, entityType, startDate, endDate, limit, offset } = req.query;
+    const { userId, action, entityType, startDate, endDate, search, limit, offset } = req.query;
+    const limitNum = Number.parseInt(limit) || 100;
+    const offsetNum = Number.parseInt(offset) || 0;
 
-    const logs = await repositories.auditLogs.getAuditLogs({
+    const { logs, total } = await repositories.auditLogs.getAuditLogs({
       userId,
       action,
       entityType,
       startDate,
       endDate,
-      limit: Number.parseInt(limit) || 100,
-      offset: Number.parseInt(offset) || 0
+      search,
+      limit: limitNum,
+      offset: offsetNum
     });
 
     ApiResponse.withEntity(res, 'logs', logs, null, {
-      limit: Number.parseInt(limit) || 100,
-      offset: Number.parseInt(offset) || 0
+      limit: limitNum,
+      offset: offsetNum,
+      total,
+      pages: Math.ceil(total / limitNum),
     });
   } catch (error) {
     next(error);

@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiAlertCircle, FiX, FiLock, FiCheckCircle, FiRotateCcw, FiShield } from 'react-icons/fi';
 import { getAdminEscrows, getAdminEscrowStats, refundEscrow, releaseEscrow } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type EscrowStatus = 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
 type EscrowOrder = {
@@ -139,9 +140,7 @@ export const Disputes: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
-          ) : orders.length === 0 ? (
+          {!loading && orders.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FiShield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
               <p className="text-sm">No orders in this queue.</p>
@@ -160,7 +159,9 @@ export const Disputes: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {orders.map((o) => (
+                  {loading ? (
+                    <TableRowsSkeleton columns={6} />
+                  ) : orders.map((o) => (
                     <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">#{o.order_number}</div>

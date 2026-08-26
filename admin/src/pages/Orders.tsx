@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import { getAdminOrders, getAdminOrderStats, updateOrderStatus } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type OrderStats = { total: number; pending: number; in_transit: number; delivered: number; cancelled: number };
 
@@ -154,7 +155,7 @@ export const Orders: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">Loading orders...</td></tr>
+                  <TableRowsSkeleton columns={6} />
                 ) : orders.length === 0 ? (
                   <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No orders found.</td></tr>
                 ) : (

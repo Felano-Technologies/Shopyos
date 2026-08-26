@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import { getAdminUsers, getAdminUserStats, adminUpdateUserStatus, createAdminUser } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type UserStats = {
   total: number;
@@ -177,9 +178,7 @@ export const UserManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">Loading users...</td>
-                  </tr>
+                  <TableRowsSkeleton columns={5} leadingIcon />
                 ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No users found.</td>

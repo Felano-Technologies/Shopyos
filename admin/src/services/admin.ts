@@ -35,10 +35,30 @@ export const getAdminEscrowStats = async () => { const response = await api.get(
 export const refundEscrow = async (id: string, reason?: string) => { const response = await api.put(`/admin/escrows/${id}/refund`, { reason }); return response.data; };
 export const releaseEscrow = async (id: string, reason?: string) => { const response = await api.put(`/admin/escrows/${id}/release`, { reason }); return response.data; };
 
-// Revenue & Payouts
-export const getAdminRevenue = async () => { const response = await api.get('/admin/revenue'); return response.data; };
-export const getAdminPayouts = async (params?: any) => { const response = await api.get('/admin/payouts', { params }); return response.data; };
-export const updateAdminPayoutStatus = async (id: string, status: string, notes?: string) => { const response = await api.put(`/admin/payouts/${id}/status`, { status, notes }); return response.data; };
+// Revenue
+export const getAdminRevenue = async (params?: { limit?: number; offset?: number }) => { const response = await api.get('/admin/revenue', { params }); return response.data; };
+
+// Payouts — the real seller+driver payout pipeline (Paystack transfers, balance refunds).
+// Lives under /payouts, not /admin/payouts: that legacy admin route only flips a status
+// column with no Paystack integration, so "completing" a payout there would never move money.
+export const getAdminPayoutList = async (params?: {
+  type?: 'seller' | 'driver'; status?: string; search?: string; from?: string; to?: string; page?: number; limit?: number;
+}) => {
+  const response = await api.get('/payouts/admin/all', { params });
+  return response.data;
+};
+export const getAdminPayoutSummary = async () => {
+  const response = await api.get('/payouts/admin/summary');
+  return response.data;
+};
+export const processAdminPayout = async (payoutId: string, action: 'approve' | 'reject') => {
+  const response = await api.put(`/payouts/${payoutId}/process`, { action });
+  return response.data;
+};
+export const bulkProcessPayouts = async (ids: string[], action: 'approve' | 'reject') => {
+  const response = await api.post('/payouts/admin/bulk-process', { ids, action });
+  return response.data;
+};
 
 // Riders (driver_profiles on the backend)
 export const getDriverVerifications = async () => { const response = await api.get('/admin/driver-verifications'); return response.data; };
@@ -82,6 +102,16 @@ export const updateAdminDisclaimer = async (type: string, data: { title: string;
 };
 export const getAdminDisclaimerAudit = async (type?: string, limit = 50) => {
   const response = await api.get('/admin/disclaimers/audit', { params: { type, limit } });
+  return response.data;
+};
+
+// Banner Ads (advertising/banners — NOT under /admin, lives on the advertising router)
+export const getAdminBannerCampaigns = async () => {
+  const response = await api.get('/advertising/banners/all');
+  return response.data;
+};
+export const updateAdminBannerCampaignStatus = async (id: string, status: 'Approved' | 'Rejected' | 'Active' | 'Completed', reason?: string) => {
+  const response = await api.put(`/advertising/banners/${id}/status`, { status, reason });
   return response.data;
 };
 

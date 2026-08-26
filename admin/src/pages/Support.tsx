@@ -1,188 +1,318 @@
-import React, { useState, useEffect } from 'react';
-import { FiMessageSquare, FiXCircle } from 'react-icons/fi';
-import { api } from '../services/client';
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { FiMessageSquare, FiX, FiInbox, FiClock, FiCheckCircle, FiArchive } from 'react-icons/fi';
+import { adminGetTickets, adminUpdateTicket } from '../services/support';
+import type { SupportTicket, TicketStatus } from '../services/support';
+import { extractErrorMessage } from '../services/client';
+
+const STATUS_TABS: { key: TicketStatus | 'all'; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'open', label: 'Open' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'resolved', label: 'Resolved' },
+  { key: 'closed', label: 'Closed' },
+];
+
+const STATUS_PILL: Record<TicketStatus, string> = {
+  open: 'bg-blue-50 text-blue-700',
+  in_progress: 'bg-amber-50 text-amber-700',
+  resolved: 'bg-green-50 text-green-700',
+  closed: 'bg-gray-100 text-gray-600',
+};
+
+const NEXT_STATUSES: Record<TicketStatus, TicketStatus[]> = {
+  open: ['in_progress', 'closed'],
+  in_progress: ['resolved', 'closed'],
+  resolved: ['closed'],
+  closed: [],
+};
+
+const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
+  1: { label: 'Low', color: 'bg-gray-100 text-gray-600' },
+  2: { label: 'Medium', color: 'bg-amber-50 text-amber-700' },
+  3: { label: 'High', color: 'bg-red-50 text-red-700' },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  order_issue: 'Order Issue',
+  delivery_issue: 'Delivery Issue',
+  product_issue: 'Product Issue',
+  payment_issue: 'Payment Issue',
+  driver_issue: 'Driver Issue',
+  parcel_partner_issue: 'Parcel Partner',
+  platform_issue: 'Platform Issue',
+  other: 'Other',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  buyer: 'Buyer',
+  seller: 'Seller',
+  driver: 'Driver',
+  parcel_partner: 'Parcel Partner',
+};
+
+const formatStatus = (s: string) => s.replace(/_/g, ' ');
+const formatDate = (v: string) => new Date(v).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 
 export const Support: React.FC = () => {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'open' | 'closed'>('open');
+  const [tab, setTab] = useState<TicketStatus | 'all'>('open');
+  const [page, setPage] = useState(1);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [counts, setCounts] = useState<Record<TicketStatus, number> | null>(null);
 
-  const fetchTickets = async () => {
+  const [selected, setSelected] = useState<SupportTicket | null>(null);
+  const [status, setStatus] = useState<TicketStatus>('open');
+  const [priority, setPriority] = useState<1 | 2 | 3>(1);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const fetchCounts = () => {
+    Promise.all((['open', 'in_progress', 'resolved', 'closed'] as TicketStatus[]).map((s) => adminGetTickets({ status: s, page: 1 })))
+      .then(([open, inProgress, resolved, closed]) => setCounts({ open: open.total, in_progress: inProgress.total, resolved: resolved.total, closed: closed.total }))
+      .catch(() => {});
+  };
+
+  const fetchTickets = () => {
+    setLoading(true);
+    adminGetTickets({ status: tab === 'all' ? undefined : tab, page })
+      .then((res) => {
+        setTickets(res.tickets);
+        setTotalPages(res.pages || 1);
+      })
+      .catch((err) => console.error('Failed to load support tickets', err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchCounts(); }, []);
+  useEffect(() => { setPage(1); }, [tab]);
+  useEffect(fetchTickets, [tab, page]);
+
+  const openTicket = (t: SupportTicket) => {
+    setSelected(t);
+    setStatus(t.status);
+    setPriority(t.priority);
+    setAdminNotes(t.admin_notes || '');
+    setSaveError(null);
+  };
+
+  const handleSave = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setSaveError(null);
     try {
-      setLoading(true);
-      const res = await api.get('/admin/support/tickets', { params: { status: activeTab } });
-      if (res.data?.success || res.data) setTickets(res.data?.data || res.data || []);
+      await adminUpdateTicket(selected.id, { status, priority, admin_notes: adminNotes });
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Ticket updated' } }));
+      setSelected(null);
+      fetchTickets();
+      fetchCounts();
     } catch (err) {
-      console.error(err);
+      setSaveError(extractErrorMessage(err));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  useEffect(() => {
-    fetchTickets();
-  }, [activeTab]);
-
-  const handleReply = async () => {
-    if (!selectedTicket || !replyText.trim()) return;
-    try {
-      setSubmitting(true);
-      await api.post(`/admin/support/tickets/${selectedTicket.id}/reply`, { message: replyText });
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Reply sent' } }));
-      setReplyText('');
-      setSelectedTicket(null);
-      fetchTickets();
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: err.message || 'Action failed' } }));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleClose = async (id: string) => {
-    try {
-      await api.put(`/admin/support/tickets/${id}/close`);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Ticket closed' } }));
-      fetchTickets();
-      if (selectedTicket?.id === id) setSelectedTicket(null);
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: err.message || 'Action failed' } }));
-    }
-  };
+  const statCards = [
+    { key: 'open' as const, label: 'Open', icon: <FiInbox className="w-4 h-4" />, iconBg: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
+    { key: 'in_progress' as const, label: 'In Progress', icon: <FiClock className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
+    { key: 'resolved' as const, label: 'Resolved', icon: <FiCheckCircle className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
+    { key: 'closed' as const, label: 'Closed', icon: <FiArchive className="w-4 h-4" />, iconBg: 'bg-gray-100 text-gray-500', accent: 'bg-gray-400' },
+  ];
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-navy mb-1">Support Tickets</h1>
-        <p className="text-sm text-slate-500">Manage user inquiries and support requests</p>
-      </div>
+    <>
+      <Helmet>
+        <title>Support | Shopyos Admin</title>
+      </Helmet>
 
-      <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
-        {[
-          { id: 'open', label: 'Open Tickets' },
-          { id: 'closed', label: 'Closed Tickets' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`pb-3 px-2 text-sm font-semibold transition-colors relative ${
-              activeTab === tab.id ? 'text-navy' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-t-full" />
-            )}
-          </button>
-        ))}
-      </div>
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
+          <p className="text-sm text-gray-500 mt-1">Review and resolve issues reported by buyers, sellers, drivers, and parcel partners.</p>
+        </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center p-8">
-             <div className="animate-spin w-8 h-8 border-4 border-navy border-t-transparent rounded-full" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {statCards.map((card) => (
+            <button
+              key={card.key}
+              onClick={() => setTab(card.key)}
+              className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-navy/20 hover:shadow-md transition-all overflow-hidden"
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
+              <p className="text-xl font-bold text-gray-900">{counts ? counts[card.key].toLocaleString() : '...'}</p>
+              <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+              <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === t.key ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center text-sm text-gray-500">Loading tickets...</div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center p-12 text-gray-500">
+              <FiMessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">No tickets in this category.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reporter</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {tickets.map((t) => {
+                    const pr = PRIORITY_LABELS[t.priority] || PRIORITY_LABELS[1];
+                    return (
+                      <tr key={t.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-gray-900">{t.reporter_name || 'Unknown'}</p>
+                          <p className="text-xs text-gray-400">{ROLE_LABELS[t.reporter_role] || t.reporter_role}</p>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{t.subject}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{CATEGORY_LABELS[t.category] || t.category}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${pr.color}`}>{pr.label}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${STATUS_PILL[t.status]}`}>{formatStatus(t.status)}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(t.created_at)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={() => openTicket(t)} className="text-navy hover:text-navy/70 transition-colors font-semibold text-sm">
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between text-sm text-gray-500">
+            <span>Page {page} of {totalPages}</span>
+            <div className="flex gap-2">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Previous
+              </button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Next
+              </button>
+            </div>
           </div>
-        ) : tickets.length === 0 ? (
-          <div className="text-center p-12 text-slate-500">
-            <FiMessageSquare className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>No {activeTab} tickets found</p>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Subject</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {tickets.map(t => (
-                <tr key={t.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-900">{t.user?.full_name || 'N/A'}</p>
-                    <p className="text-sm text-slate-500">{t.user?.email || 'N/A'}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-900">{t.subject}</p>
-                    <p className="text-sm text-slate-500 max-w-xs truncate">{t.last_message}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{new Date(t.created_at).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => setSelectedTicket(t)}
-                      className="text-navy hover:text-navy-mid text-sm font-semibold"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        </div>
       </div>
 
-      {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-900">Support Ticket</h2>
-              <button onClick={() => setSelectedTicket(null)} className="text-slate-400 hover:text-slate-600"><FiXCircle className="w-5 h-5"/></button>
+      {selected && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Ticket Details</h2>
+              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-5 h-5" />
+              </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <p className="text-sm font-semibold text-slate-900 mb-1">Subject: {selectedTicket.subject}</p>
-                <p className="text-sm text-slate-500">{selectedTicket.last_message}</p>
+              {saveError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{saveError}</div>
+              )}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Reporter</p>
+                  <p className="text-gray-900 font-medium mt-0.5">{selected.reporter_name || 'Unknown'}</p>
+                  <p className="text-xs text-gray-400">{ROLE_LABELS[selected.reporter_role] || selected.reporter_role}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</p>
+                  <p className="text-gray-900 mt-0.5">{CATEGORY_LABELS[selected.category] || selected.category}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Subject</p>
+                  <p className="text-gray-900 mt-0.5">{selected.subject}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</p>
+                  <p className="text-gray-700 mt-0.5 bg-gray-50 rounded-lg p-3">{selected.description}</p>
+                </div>
               </div>
 
-              {activeTab === 'open' && (
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Reply to User</label>
-                  <textarea
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                    rows={4}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
-                    placeholder="Type your response..."
-                  />
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Status</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${STATUS_PILL[status]}`}>{formatStatus(status)}</span>
+                  {NEXT_STATUSES[selected.status].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStatus(s)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border capitalize transition-colors ${status === s ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+                    >
+                      → {formatStatus(s)}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Priority</p>
+                <div className="flex gap-2">
+                  {([1, 2, 3] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPriority(p)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${priority === p ? PRIORITY_LABELS[p].color + ' border-transparent' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                    >
+                      {PRIORITY_LABELS[p].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Admin Notes</label>
+                <textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  rows={4}
+                  placeholder="Add a note about this ticket..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
+                />
+              </div>
             </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-              {activeTab === 'open' ? (
-                <>
-                  <button
-                    onClick={() => handleClose(selectedTicket.id)}
-                    className="text-sm font-semibold text-slate-500 hover:text-slate-700"
-                  >
-                    Close Ticket
-                  </button>
-                  <button
-                    onClick={handleReply}
-                    disabled={submitting || !replyText.trim()}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid disabled:opacity-50 flex items-center gap-2"
-                  >
-                    Send Reply
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setSelectedTicket(null)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-200 w-full"
-                >
-                  Close Window
-                </button>
-              )}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+              <button onClick={() => setSelected(null)} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

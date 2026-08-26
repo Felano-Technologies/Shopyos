@@ -6,6 +6,8 @@ import {
 } from 'react-icons/fi';
 import { getAdminFeeConfigs, updateAdminFeeConfig, getAdminFeeConfigAudit, getListingFees } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
+import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale' | 'loyalty';
 type TabKey = Category | 'listing';
@@ -210,7 +212,7 @@ export const FeeSettings: React.FC = () => {
               <h2 className="text-lg font-bold text-gray-900 mb-6">{activeLabel} Settings</h2>
 
               {loading ? (
-                <div className="text-center p-8 text-sm text-gray-500">Loading...</div>
+                <ListRowsSkeleton rows={4} leadingIcon={false} />
               ) : visibleConfigs.length === 0 ? (
                 <div className="text-center p-8 text-sm text-gray-500">No settings found for this category.</div>
               ) : (
@@ -278,9 +280,7 @@ export const FeeSettings: React.FC = () => {
                     <h2 className="text-lg font-bold text-gray-900">Store Listing Usage</h2>
                     <p className="text-sm text-gray-500 mt-0.5">Product counts against each store's free listing limit.</p>
                   </div>
-                  {loadingListing ? (
-                    <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
-                  ) : listingStores.length === 0 ? (
+                  {!loadingListing && listingStores.length === 0 ? (
                     <div className="p-8 text-center text-sm text-gray-500">No stores found.</div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -294,7 +294,9 @@ export const FeeSettings: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {listingStores.map((s) => {
+                          {loadingListing ? (
+                            <TableRowsSkeleton columns={4} />
+                          ) : listingStores.map((s) => {
                             const atLimit = s.listing_tier === 'free' && s.product_count >= s.free_limit;
                             const approaching = s.listing_tier === 'free' && !atLimit && s.product_count >= Math.floor(s.free_limit * 0.8);
                             return (
@@ -398,7 +400,7 @@ export const FeeSettings: React.FC = () => {
             </div>
             <div className="p-6 max-h-[60vh] overflow-y-auto">
               {loadingAudit ? (
-                <div className="text-center text-sm text-gray-500 py-8">Loading...</div>
+                <ListRowsSkeleton rows={3} leadingIcon={false} />
               ) : auditLogs.length === 0 ? (
                 <div className="text-center text-sm text-gray-500 py-8">No historical changes recorded for this setting.</div>
               ) : (

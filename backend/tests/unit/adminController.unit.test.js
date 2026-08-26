@@ -1359,7 +1359,7 @@ describe('AdminController Unit Tests', () => {
     test('test_getAuditLogs_defaultQueryParams_returnsLogsWithPagination', async () => {
       // Arrange
       const mockLogs = [{ id: 'log-1', action: 'update_user_status', entity_type: 'user' }];
-      repositories.auditLogs.getAuditLogs.mockResolvedValueOnce(mockLogs);
+      repositories.auditLogs.getAuditLogs.mockResolvedValueOnce({ logs: mockLogs, total: 1 });
 
       const req = mockReq({ query: {} });
       const res = mockRes();
@@ -1375,6 +1375,7 @@ describe('AdminController Unit Tests', () => {
         entityType: undefined,
         startDate: undefined,
         endDate: undefined,
+        search: undefined,
         limit: 100,
         offset: 0,
       });
@@ -1382,7 +1383,7 @@ describe('AdminController Unit Tests', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         logs: mockLogs,
-        pagination: { limit: 100, offset: 0 },
+        pagination: { limit: 100, offset: 0, total: 1, pages: 1 },
       });
       expect(next).not.toHaveBeenCalled();
     });
@@ -1390,7 +1391,7 @@ describe('AdminController Unit Tests', () => {
     test('test_getAuditLogs_withAllFilterParams_passesFiltersToRepository', async () => {
       // Arrange
       const mockLogs = [];
-      repositories.auditLogs.getAuditLogs.mockResolvedValueOnce(mockLogs);
+      repositories.auditLogs.getAuditLogs.mockResolvedValueOnce({ logs: mockLogs, total: 0 });
 
       const req = mockReq({
         query: {
@@ -1399,6 +1400,7 @@ describe('AdminController Unit Tests', () => {
           entityType: 'store',
           startDate: '2026-01-01',
           endDate: '2026-06-01',
+          search: 'store',
           limit: '25',
           offset: '50',
         },
@@ -1416,6 +1418,7 @@ describe('AdminController Unit Tests', () => {
         entityType: 'store',
         startDate: '2026-01-01',
         endDate: '2026-06-01',
+        search: 'store',
         limit: 25,
         offset: 50,
       });
@@ -1423,7 +1426,7 @@ describe('AdminController Unit Tests', () => {
       expect(res.json).toHaveBeenCalledWith({
         success: true,
         logs: mockLogs,
-        pagination: { limit: 25, offset: 50 },
+        pagination: { limit: 25, offset: 50, total: 0, pages: 0 },
       });
     });
 

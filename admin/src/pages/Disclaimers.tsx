@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiFileText, FiEdit2, FiX, FiInfo, FiClock } from 'react-icons/fi';
 import { getAdminDisclaimers, updateAdminDisclaimer, getAdminDisclaimerAudit } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type Disclaimer = { id: string; type: string; version: string; title: string; content: string; is_active: boolean };
 type AuditEntry = {
@@ -119,9 +120,7 @@ export const Disclaimers: React.FC = () => {
 
         {tab === 'content' ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            {loading ? (
-              <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
-            ) : disclaimers.length === 0 ? (
+            {!loading && disclaimers.length === 0 ? (
               <div className="text-center p-12 text-gray-500">
                 <FiFileText className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm">No disclaimers found.</p>
@@ -137,7 +136,9 @@ export const Disclaimers: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {disclaimers.map((d) => (
+                  {loading ? (
+                    <TableRowsSkeleton columns={4} />
+                  ) : disclaimers.map((d) => (
                     <tr key={d.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <p className="font-medium text-gray-900">{d.title}</p>
@@ -181,9 +182,7 @@ export const Disclaimers: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {loadingAudit ? (
-                <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
-              ) : auditLogs.length === 0 ? (
+              {!loadingAudit && auditLogs.length === 0 ? (
                 <div className="text-center p-12 text-gray-500">
                   <FiClock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                   <p className="text-sm">No acknowledgements found.</p>
@@ -200,7 +199,9 @@ export const Disclaimers: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {auditLogs.map((log) => (
+                    {loadingAudit ? (
+                      <TableRowsSkeleton columns={5} />
+                    ) : auditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600">{log.disclaimer_type}</span></td>
                         <td className="px-6 py-4 text-sm text-gray-700">v{log.version}</td>

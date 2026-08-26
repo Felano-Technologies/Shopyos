@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fi';
 import { getAdminStores, getAdminStoreStats, adminVerifyStore } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type StoreStats = { total: number; verified: number; pending: number; rejected: number };
 
@@ -188,7 +189,7 @@ export const StoreManagement: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">Loading stores...</td></tr>
+                  <TableRowsSkeleton columns={5} leadingIcon />
                 ) : stores.length === 0 ? (
                   <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No stores found.</td></tr>
                 ) : (

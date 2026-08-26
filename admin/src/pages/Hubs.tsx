@@ -6,6 +6,7 @@ import {
   adminGetTransitRoutes, adminUpsertTransitRoute, getAdminRegions,
 } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type Region = { id: number; name: string; code: string; capital?: string };
 type Hub = {
@@ -192,7 +193,7 @@ export const Hubs: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+            <ListRowsSkeleton rows={5} leadingIcon={false} />
           ) : activeTab === 'hubs' ? (
             hubs.length === 0 ? (
               <div className="text-center p-12 text-gray-500">
