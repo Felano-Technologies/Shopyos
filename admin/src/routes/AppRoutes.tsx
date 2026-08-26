@@ -14,7 +14,6 @@ const Categories = React.lazy(() => import('../pages/Categories').then(m => ({ d
 const FlashSales = React.lazy(() => import('../pages/FlashSales').then(m => ({ default: m.FlashSales })));
 const Broadcasts = React.lazy(() => import('../pages/Broadcasts').then(m => ({ default: m.Broadcasts })));
 const FeeSettings = React.lazy(() => import('../pages/FeeSettings').then(m => ({ default: m.FeeSettings })));
-const ListingFees = React.lazy(() => import('../pages/ListingFees').then(m => ({ default: m.ListingFees })));
 const Disputes = React.lazy(() => import('../pages/Disputes').then(m => ({ default: m.Disputes })));
 const Disclaimers = React.lazy(() => import('../pages/Disclaimers').then(m => ({ default: m.Disclaimers })));
 const Payouts = React.lazy(() => import('../pages/Payouts').then(m => ({ default: m.Payouts })));
@@ -68,7 +67,6 @@ export const AppRoutes: React.FC = () => {
           <Route path="flash-sales" element={<FlashSales />} />
           <Route path="broadcasts" element={<Broadcasts />} />
           <Route path="fee-settings" element={<FeeSettings />} />
-          <Route path="listing-fees" element={<ListingFees />} />
           <Route path="disputes" element={<Disputes />} />
           <Route path="disclaimers" element={<Disclaimers />} />
           <Route path="payouts" element={<Payouts />} />

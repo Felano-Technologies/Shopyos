@@ -1,176 +1,260 @@
-import React, { useState, useEffect } from 'react';
-import { FiFileText, FiPlus, FiEdit2, FiTrash2, FiSave } from 'react-icons/fi';
-import { getAdminDisclaimers, createDisclaimer, updateDisclaimer, deleteDisclaimer } from '../services/admin';
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { FiFileText, FiEdit2, FiX, FiInfo, FiClock } from 'react-icons/fi';
+import { getAdminDisclaimers, updateAdminDisclaimer, getAdminDisclaimerAudit } from '../services/admin';
+import { extractErrorMessage } from '../services/client';
+
+type Disclaimer = { id: string; type: string; version: string; title: string; content: string; is_active: boolean };
+type AuditEntry = {
+  id: string;
+  disclaimer_type: string;
+  version: string;
+  user_email?: string;
+  user_full_name?: string;
+  context_type?: string;
+  context_id?: string;
+  acknowledged_at: string;
+};
+
+const formatDate = (v: string) => new Date(v).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 export const Disclaimers: React.FC = () => {
-  const [disclaimers, setDisclaimers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [tab, setTab] = useState<'content' | 'audit'>('content');
+  const [disclaimers, setDisclaimers] = useState<Disclaimer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ title: '', content: '', is_active: true, target_audience: 'all' });
+  const [editing, setEditing] = useState<Disclaimer | null>(null);
+  const [form, setForm] = useState({ title: '', content: '', version: '' });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [auditFilter, setAuditFilter] = useState('');
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const fetchDisclaimers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await getAdminDisclaimers();
-      if (res.success || res.data) setDisclaimers(res.data || []);
-    } catch (err: any) {
+      setDisclaimers(Array.isArray(res?.disclaimers) ? res.disclaimers : []);
+    } catch (err) {
+      console.error('Failed to fetch disclaimers', err);
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: 'Failed to fetch disclaimers' } }));
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchAudit = () => {
+    setLoadingAudit(true);
+    getAdminDisclaimerAudit(auditFilter || undefined, 100)
+      .then((res) => setAuditLogs(Array.isArray(res?.audit) ? res.audit : []))
+      .catch((err) => {
+        console.error('Failed to load audit log', err);
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: 'Failed to load audit log' } }));
+      })
+      .finally(() => setLoadingAudit(false));
+  };
+
   useEffect(() => { fetchDisclaimers(); }, []);
+  useEffect(() => { if (tab === 'audit') fetchAudit(); }, [tab, auditFilter]);
+
+  const openEdit = (d: Disclaimer) => {
+    setEditing(d);
+    setForm({ title: d.title, content: d.content, version: d.version });
+    setFormError(null);
+  };
 
   const handleSave = async () => {
-    if (!formData.title || !formData.content) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Validation', message: 'Title and content are required' } }));
+    if (!editing) return;
+    if (!form.title.trim() || !form.content.trim() || !form.version.trim()) {
+      setFormError('Title, content, and version are required.');
       return;
     }
+    setSaving(true);
+    setFormError(null);
     try {
-      setSubmitting(true);
-      if (currentId) {
-        await updateDisclaimer(currentId, formData);
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Disclaimer updated' } }));
-      } else {
-        await createDisclaimer(formData);
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Disclaimer created' } }));
-      }
-      setIsModalOpen(false);
+      await updateAdminDisclaimer(editing.type, { title: form.title.trim(), content: form.content.trim(), version: form.version.trim() });
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: `"${form.title}" updated and cache cleared` } }));
+      setEditing(null);
       fetchDisclaimers();
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: err.message || 'Action failed' } }));
+    } catch (err) {
+      setFormError(extractErrorMessage(err));
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this disclaimer?')) return;
-    try {
-      await deleteDisclaimer(id);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Disclaimer removed' } }));
-      fetchDisclaimers();
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: err.message || 'Failed to delete' } }));
-    }
-  };
-
-  const openAdd = () => {
-    setCurrentId(null);
-    setFormData({ title: '', content: '', is_active: true, target_audience: 'all' });
-    setIsModalOpen(true);
-  };
-
-  const openEdit = (d: any) => {
-    setCurrentId(d.id);
-    setFormData({ title: d.title, content: d.content, is_active: d.is_active, target_audience: d.target_audience || 'all' });
-    setIsModalOpen(true);
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-navy mb-1">Legal & Disclaimers</h1>
-          <p className="text-sm text-slate-500">Manage terms, policies, and app-wide disclaimers</p>
-        </div>
-        <button onClick={openAdd} className="bg-navy hover:bg-navy-mid text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors">
-          <FiPlus className="w-4 h-4" /> Add Disclaimer
-        </button>
-      </div>
+    <>
+      <Helmet>
+        <title>Disclaimers | Shopyos Admin</title>
+      </Helmet>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center p-8">
-             <div className="animate-spin w-8 h-8 border-4 border-navy border-t-transparent rounded-full" />
-          </div>
-        ) : disclaimers.length === 0 ? (
-          <div className="text-center p-12 text-slate-500">
-            <FiFileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>No disclaimers or policies found</p>
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Legal & Disclaimers</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage platform policy content and review user consent.</p>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
+          <FiInfo className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-blue-800">Changes take effect immediately. Bump the version number to require users to re-acknowledge a policy.</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTab('content')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'content' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+          >
+            Disclaimer Content
+          </button>
+          <button
+            onClick={() => setTab('audit')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'audit' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+          >
+            Consent Audit
+          </button>
+        </div>
+
+        {tab === 'content' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {loading ? (
+              <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+            ) : disclaimers.length === 0 ? (
+              <div className="text-center p-12 text-gray-500">
+                <FiFileText className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No disclaimers found.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Version</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {disclaimers.map((d) => (
+                    <tr key={d.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-gray-900">{d.title}</p>
+                        <p className="text-sm text-gray-500 max-w-md truncate">{d.content}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600">{d.type}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700">v{d.version}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button onClick={() => openEdit(d)} className="text-navy hover:text-navy/70 transition-colors font-semibold text-sm inline-flex items-center gap-1.5">
+                          <FiEdit2 className="w-3.5 h-3.5" /> Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
-                <th className="px-6 py-4">Title</th>
-                <th className="px-6 py-4">Audience</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {disclaimers.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-900">{d.title}</p>
-                    <p className="text-sm text-slate-500 max-w-sm truncate">{d.content}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500 capitalize">{d.target_audience || 'All'}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${d.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {d.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(d)} className="p-2 text-slate-400 hover:text-navy hover:bg-slate-100 rounded-lg transition-colors" title="Edit">
-                        <FiEdit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(d.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setAuditFilter('')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${auditFilter === '' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+              >
+                All
+              </button>
+              {disclaimers.map((d) => (
+                <button
+                  key={d.type}
+                  onClick={() => setAuditFilter(d.type)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors font-mono ${auditFilter === d.type ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                >
+                  {d.type}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {loadingAudit ? (
+                <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center p-12 text-gray-500">
+                  <FiClock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">No acknowledgements found.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 border-b border-gray-100">
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Version</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Context</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acknowledged</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600">{log.disclaimer_type}</span></td>
+                        <td className="px-6 py-4 text-sm text-gray-700">v{log.version}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700">{log.user_full_name || log.user_email || 'Unknown'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{log.context_type ? `${log.context_type}` : '—'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(log.acknowledged_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">{currentId ? 'Edit Disclaimer' : 'New Disclaimer'}</h2>
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">{editing.title}</h2>
+              <button onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-5 h-5" />
+              </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
+              {formError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{formError}</div>
+              )}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Title</label>
-                <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+                <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Audience</label>
-                <select value={formData.target_audience} onChange={e => setFormData({ ...formData, target_audience: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy">
-                  <option value="all">Everyone</option>
-                  <option value="customers">Customers</option>
-                  <option value="stores">Stores</option>
-                  <option value="drivers">Drivers</option>
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-semibold text-gray-700">Version</label>
+                  <span className="text-xs text-amber-600">Bump this to force re-consent</span>
+                </div>
+                <input type="text" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} placeholder="e.g. 1.0 or 2.1" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Content (Markdown supported)</label>
-                <textarea rows={6} value={formData.content} onChange={e => setFormData({ ...formData, content: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="is_active" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-navy focus:ring-navy" />
-                <label htmlFor="is_active" className="text-sm font-medium text-slate-700">Active and Visible</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Content</label>
+                <textarea rows={10} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
               </div>
             </div>
-            <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
-              <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-200">Cancel</button>
-              <button onClick={handleSave} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid flex items-center gap-2">
-                {submitting ? 'Saving...' : <><FiSave className="w-4 h-4" /> Save Disclaimer</>}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+              <button onClick={() => setEditing(null)} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
+                {saving ? 'Saving...' : 'Save & Publish'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

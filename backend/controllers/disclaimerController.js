@@ -88,6 +88,18 @@ const checkAcknowledgement = async (req, res, next) => {
 };
 
 /**
+ * List all platform disclaimers (admin only)
+ */
+const getAllDisclaimers = async (req, res, next) => {
+  try {
+    const disclaimers = await repositories.disclaimers.getAllActive();
+    ApiResponse.withEntity(res, 'disclaimers', disclaimers);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Update disclaimer content (admin only)
  */
 const updateDisclaimer = async (req, res, next) => {
@@ -132,6 +144,7 @@ module.exports = {
   getDisclaimer,
   acknowledgeDisclaimer,
   checkAcknowledgement,
+  getAllDisclaimers,
   updateDisclaimer,
   getAcknowledgementsAudit,
 };

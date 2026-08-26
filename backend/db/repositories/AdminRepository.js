@@ -604,6 +604,87 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
+   * Get orders currently holding escrow funds (admin dispute/escrow queue).
+   * The PostgREST-style query builder can't reliably join buyer/store names here,
+   * so this goes through raw SQL like the rest of AdminRepository.
+   */
+  async getEscrowOrders(options = {}) {
+    const { status, limit = 50, offset = 0 } = options;
+    const db = getPool();
+    const params = [];
+
+    let sql = `
+      SELECT
+        o.id, o.order_number, o.total_amount, o.platform_fee, o.seller_payout_amount,
+        o.escrow_status, o.updated_at, o.created_at,
+        s.id          AS store_id,
+        s.store_name,
+        bup.full_name AS buyer_full_name,
+        bu.email      AS buyer_email
+      FROM orders o
+      LEFT JOIN stores        s   ON s.id = o.store_id
+      LEFT JOIN users         bu  ON bu.id = o.buyer_id
+      LEFT JOIN user_profiles bup ON bup.user_id = o.buyer_id
+      WHERE o.escrow_status != 'PENDING'
+    `;
+
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length > 1) {
+        params.push(statuses);
+        sql += ` AND o.escrow_status = ANY($${params.length})`;
+      } else {
+        params.push(statuses[0]);
+        sql += ` AND o.escrow_status = $${params.length}`;
+      }
+    }
+
+    sql += ` ORDER BY o.updated_at DESC`;
+    params.push(limit);
+    sql += ` LIMIT $${params.length}`;
+    params.push(offset);
+    sql += ` OFFSET $${params.length}`;
+
+    const { rows } = await db.query(sql, params);
+
+    return rows.map(o => ({
+      id:                   o.id,
+      order_number:         o.order_number,
+      total_amount:         o.total_amount,
+      platform_fee:         o.platform_fee,
+      seller_payout_amount: o.seller_payout_amount,
+      escrow_status:        o.escrow_status,
+      updated_at:           o.updated_at,
+      created_at:           o.created_at,
+      store: { id: o.store_id, store_name: o.store_name },
+      buyer_name: o.buyer_full_name || o.buyer_email || 'Unknown',
+    }));
+  }
+
+  /**
+   * Get escrow queue counts (platform-wide), for the disputes/escrow dashboard.
+   */
+  async getEscrowStats() {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE escrow_status = 'HELD')::int     AS held,
+        COUNT(*) FILTER (WHERE escrow_status = 'DISPUTED')::int AS disputed,
+        COUNT(*) FILTER (WHERE escrow_status = 'RELEASED')::int AS released,
+        COUNT(*) FILTER (WHERE escrow_status = 'REFUNDED')::int AS refunded
+      FROM orders
+      WHERE escrow_status != 'PENDING'
+    `);
+    const s = rows[0] || {};
+    return {
+      held:     s.held     || 0,
+      disputed: s.disputed || 0,
+      released: s.released || 0,
+      refunded: s.refunded || 0,
+    };
+  }
+
+  /**
    * Get revenue transactions (completed payments)
    */
   async getRevenueTransactions(options = {}) {

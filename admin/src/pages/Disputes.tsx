@@ -1,184 +1,243 @@
-import React, { useState, useEffect } from 'react';
-import { FiAlertCircle, FiXCircle } from 'react-icons/fi';
-import { api } from '../services/client';
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { FiAlertCircle, FiX, FiLock, FiCheckCircle, FiRotateCcw, FiShield } from 'react-icons/fi';
+import { getAdminEscrows, getAdminEscrowStats, refundEscrow, releaseEscrow } from '../services/admin';
+import { extractErrorMessage } from '../services/client';
+
+type EscrowStatus = 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
+type EscrowOrder = {
+  id: string;
+  order_number: string;
+  total_amount: number;
+  platform_fee: number;
+  seller_payout_amount: number;
+  escrow_status: EscrowStatus;
+  updated_at: string;
+  store?: { id: string; store_name: string } | null;
+  buyer_name: string;
+};
+type EscrowStats = { held: number; disputed: number; released: number; refunded: number };
+
+const STATUS_TABS: { label: string; value: EscrowStatus | null }[] = [
+  { label: 'Needs Action', value: null }, // HELD + DISPUTED, handled specially below
+  { label: 'Held', value: 'HELD' },
+  { label: 'Disputed', value: 'DISPUTED' },
+  { label: 'Released', value: 'RELEASED' },
+  { label: 'Refunded', value: 'REFUNDED' },
+];
+
+const STATUS_PILL: Record<EscrowStatus, string> = {
+  HELD: 'bg-amber-50 text-amber-700',
+  DISPUTED: 'bg-red-50 text-red-700',
+  RELEASED: 'bg-green-50 text-green-700',
+  REFUNDED: 'bg-blue-50 text-blue-700',
+};
+
+const formatCurrency = (v: number) => `₵${Number(v || 0).toFixed(2)}`;
+const formatDate = (v: string) => new Date(v).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 export const Disputes: React.FC = () => {
-  const [disputes, setDisputes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'open' | 'resolved'>('open');
-  const [selectedDispute, setSelectedDispute] = useState<any>(null);
-  const [resolutionNotes, setResolutionNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [stats, setStats] = useState<EscrowStats | null>(null);
+  const [orders, setOrders] = useState<EscrowOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<EscrowStatus | null>(null);
 
-  const fetchDisputes = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/admin/disputes', { params: { status: activeTab } });
-      if (res.data?.success) setDisputes(res.data.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const [selected, setSelected] = useState<EscrowOrder | null>(null);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const refreshStats = () => {
+    getAdminEscrowStats().then((res) => { if (res?.stats) setStats(res.stats); }).catch(() => {});
   };
 
-  useEffect(() => {
-    fetchDisputes();
-  }, [activeTab]);
+  useEffect(() => { refreshStats(); }, []);
 
-  const handleResolve = async (outcome: 'buyer_won' | 'seller_won' | 'dismissed') => {
-    if (!selectedDispute) return;
+  const fetchOrders = () => {
+    setLoading(true);
+    const params: any = { limit: 50, status: tab || 'HELD,DISPUTED' };
+    getAdminEscrows(params)
+      .then((res) => setOrders(Array.isArray(res?.escrows) ? res.escrows : []))
+      .catch((err) => console.error('Failed to load escrows', err))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(fetchOrders, [tab]);
+
+  const openReview = (order: EscrowOrder) => {
+    setSelected(order);
+    setReason('');
+    setActionError(null);
+  };
+
+  const handleAction = async (action: 'refund' | 'release') => {
+    if (!selected) return;
+    setSubmitting(true);
+    setActionError(null);
     try {
-      setSubmitting(true);
-      await api.post(`/admin/disputes/${selectedDispute.id}/resolve`, { outcome, notes: resolutionNotes });
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Dispute resolved' } }));
-      setSelectedDispute(null);
-      setResolutionNotes('');
-      fetchDisputes();
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: err.response?.data?.error || 'Action failed' } }));
+      if (action === 'refund') await refundEscrow(selected.id, reason.trim() || undefined);
+      else await releaseEscrow(selected.id, reason.trim() || undefined);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: action === 'refund' ? 'Refunded to buyer' : 'Released to seller' } }));
+      setSelected(null);
+      fetchOrders();
+      refreshStats();
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const statCards = [
+    { label: 'Held', value: stats?.held ?? 0, icon: <FiLock className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
+    { label: 'Disputed', value: stats?.disputed ?? 0, icon: <FiAlertCircle className="w-4 h-4" />, iconBg: 'bg-red-50 text-red-600', accent: 'bg-red-500' },
+    { label: 'Released', value: stats?.released ?? 0, icon: <FiCheckCircle className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
+    { label: 'Refunded', value: stats?.refunded ?? 0, icon: <FiRotateCcw className="w-4 h-4" />, iconBg: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
+  ];
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-navy mb-1">Dispute Management</h1>
-        <p className="text-sm text-slate-500">Review and resolve buyer-seller order disputes</p>
-      </div>
+    <>
+      <Helmet>
+        <title>Disputes & Escrow | Shopyos Admin</title>
+      </Helmet>
 
-      <div className="flex items-center gap-4 border-b border-slate-200 mb-6">
-        {[
-          { id: 'open', label: 'Open Disputes' },
-          { id: 'resolved', label: 'Resolved' }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`pb-3 px-2 text-sm font-semibold transition-colors relative ${
-              activeTab === tab.id ? 'text-navy' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {tab.label}
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-t-full" />
-            )}
-          </button>
-        ))}
-      </div>
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Disputes & Escrow</h1>
+          <p className="text-sm text-gray-500 mt-1">Manually resolve orders with funds held in escrow.</p>
+        </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center p-8">
-             <div className="animate-spin w-8 h-8 border-4 border-navy border-t-transparent rounded-full" />
-          </div>
-        ) : disputes.length === 0 ? (
-          <div className="text-center p-12 text-slate-500">
-            <FiAlertCircle className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>No {activeTab} disputes found</p>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
-                <th className="px-6 py-4">Order / Item</th>
-                <th className="px-6 py-4">Parties</th>
-                <th className="px-6 py-4">Reason</th>
-                <th className="px-6 py-4">Status</th>
-                {activeTab === 'open' && <th className="px-6 py-4 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {disputes.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-900">{d.order_id}</p>
-                    <p className="text-sm text-slate-500">{d.item_name}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    <span className="font-medium text-slate-700">Buyer:</span> {d.buyer_name}<br/>
-                    <span className="font-medium text-slate-700">Seller:</span> {d.store_name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{d.reason}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${
-                      d.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {d.status}
-                    </span>
-                  </td>
-                  {activeTab === 'open' && (
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setSelectedDispute(d)}
-                        className="text-navy hover:text-navy-mid text-sm font-semibold"
-                      >
-                        Review
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {selectedDispute && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-900">Resolve Dispute</h2>
-              <button onClick={() => setSelectedDispute(null)} className="text-slate-400 hover:text-slate-600"><FiXCircle className="w-5 h-5"/></button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {(stats ? statCards : Array.from({ length: 4 })).map((card: any, idx) => (
+            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {card ? (
+                <>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
+                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
+                </>
+              ) : (
+                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+              )}
             </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100">
-                <p className="text-sm font-medium text-slate-700 mb-1">Order ID: <span className="font-normal text-slate-500">{selectedDispute.order_id}</span></p>
-                <p className="text-sm font-medium text-slate-700 mb-1">Reason: <span className="font-normal text-slate-500">{selectedDispute.reason}</span></p>
-                <p className="text-sm font-medium text-slate-700">Details:</p>
-                <p className="text-sm text-slate-500 mt-1">{selectedDispute.details}</p>
-              </div>
+          ))}
+        </div>
 
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Resolution Notes</label>
-              <textarea
-                value={resolutionNotes}
-                onChange={e => setResolutionNotes(e.target.value)}
-                rows={4}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
-                placeholder="Reasoning for the resolution..."
-              />
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map((t) => (
+            <button
+              key={t.label}
+              onClick={() => setTab(t.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                tab === t.value ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+          ) : orders.length === 0 ? (
+            <div className="p-12 text-center text-gray-500">
+              <FiShield className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">No orders in this queue.</p>
             </div>
-            <div className="p-6 border-t border-slate-100 bg-slate-50">
-              <p className="text-sm font-semibold text-slate-700 mb-3">Outcome Decision</p>
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() => handleResolve('buyer_won')}
-                  disabled={submitting}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-green-700 bg-green-100 hover:bg-green-200 transition-colors"
-                >
-                  Refund Buyer
-                </button>
-                <button
-                  onClick={() => handleResolve('seller_won')}
-                  disabled={submitting}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors"
-                >
-                  Pay Seller
-                </button>
-                <button
-                  onClick={() => handleResolve('dismissed')}
-                  disabled={submitting}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-200 hover:bg-slate-300 transition-colors"
-                >
-                  Dismiss
-                </button>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Buyer</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Store</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {orders.map((o) => (
+                    <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">#{o.order_number}</div>
+                        <div className="text-xs text-gray-400">{formatDate(o.updated_at)}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{o.buyer_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700">{o.store?.store_name || 'Unknown Store'}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{formatCurrency(o.total_amount)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${STATUS_PILL[o.escrow_status]}`}>
+                          {o.escrow_status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {(o.escrow_status === 'HELD' || o.escrow_status === 'DISPUTED') ? (
+                          <button onClick={() => openReview(o)} className="text-navy hover:text-navy/70 transition-colors font-semibold text-sm">
+                            Review
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Review modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Resolve Escrow</h2>
+              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {actionError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{actionError}</div>
+              )}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-gray-500">Order</span><span className="font-semibold text-gray-900">#{selected.order_number}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Buyer</span><span className="text-gray-900">{selected.buyer_name}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Store</span><span className="text-gray-900">{selected.store?.store_name || 'Unknown'}</span></div>
+                <div className="border-t border-gray-200 my-2" />
+                <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="text-gray-900">{formatCurrency(selected.total_amount)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Platform Fee</span><span className="text-gray-900">{formatCurrency(selected.platform_fee)}</span></div>
+                <div className="flex justify-between font-semibold"><span className="text-gray-700">Seller Payout if Released</span><span className="text-gray-900">{formatCurrency(selected.seller_payout_amount)}</span></div>
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Reason (optional, logged to audit trail)</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                  placeholder="Reasoning for this decision..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+              <button onClick={() => setSelected(null)} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+              <button onClick={() => handleAction('refund')} disabled={submitting} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-60">
+                Refund Buyer
+              </button>
+              <button onClick={() => handleAction('release')} disabled={submitting} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-60">
+                Release to Seller
+              </button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

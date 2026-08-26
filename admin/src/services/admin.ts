@@ -29,6 +29,12 @@ export const updateOrderStatus = async (orderId: string, status: string) => {
 export const getAdminDeliveries = async (params?: any) => { const response = await api.get('/admin/deliveries', { params }); return response.data; };
 export const getAdminDeliveryStats = async () => { const response = await api.get('/admin/deliveries/stats'); return response.data; };
 
+// Escrow (funds held pending manual admin resolution — orders.escrow_status)
+export const getAdminEscrows = async (params?: any) => { const response = await api.get('/admin/escrows', { params }); return response.data; };
+export const getAdminEscrowStats = async () => { const response = await api.get('/admin/escrows/stats'); return response.data; };
+export const refundEscrow = async (id: string, reason?: string) => { const response = await api.put(`/admin/escrows/${id}/refund`, { reason }); return response.data; };
+export const releaseEscrow = async (id: string, reason?: string) => { const response = await api.put(`/admin/escrows/${id}/release`, { reason }); return response.data; };
+
 // Revenue & Payouts
 export const getAdminRevenue = async () => { const response = await api.get('/admin/revenue'); return response.data; };
 export const getAdminPayouts = async (params?: any) => { const response = await api.get('/admin/payouts', { params }); return response.data; };
@@ -45,45 +51,37 @@ export const adminUpdateUserStatus = async (userId: string, status: 'active' | '
   return response.data;
 };
 
-// Configs
-export const getAdminFeeConfigs = async (category: string) => {
-  const response = await api.get(`/admin/fee-configs/${category}`);
+// Configs (platform_fee_config — keyed by config_key, not id)
+export const getAdminFeeConfigs = async (category?: string) => {
+  const response = await api.get('/admin/fee-config', { params: category ? { category } : {} });
   return response.data;
 };
-export const updateAdminFeeConfig = async (id: string, updates: any) => {
-  const response = await api.put(`/admin/fee-configs/${id}`, updates);
+export const updateAdminFeeConfig = async (key: string, value: number, reason?: string) => {
+  const response = await api.put(`/admin/fee-config/${key}`, { value, reason });
   return response.data;
 };
-export const getAdminFeeConfigAudit = async (category: string) => {
-  const response = await api.get(`/admin/fee-configs/${category}/audit`);
+export const getAdminFeeConfigAudit = async (key: string) => {
+  const response = await api.get(`/admin/fee-config/audit/${key}`);
   return response.data;
 };
 
-// Listing Fees
+// Listing Fees (monitoring report — the two editable amounts live in fee-config)
 export const getListingFees = async () => {
   const response = await api.get('/admin/listing-fees');
   return response.data;
 };
-export const updateListingFee = async (id: string, updates: any) => {
-  const response = await api.put(`/admin/listing-fees/${id}`, updates);
-  return response.data;
-};
 
-// Disclaimers
+// Disclaimers — a fixed catalog of legal document types (no create/delete; content is versioned in-place)
 export const getAdminDisclaimers = async () => {
   const response = await api.get('/admin/disclaimers');
   return response.data;
 };
-export const createDisclaimer = async (data: any) => {
-  const response = await api.post('/admin/disclaimers', data);
+export const updateAdminDisclaimer = async (type: string, data: { title: string; content: string; version: string }) => {
+  const response = await api.put(`/admin/disclaimers/${type}`, data);
   return response.data;
 };
-export const updateDisclaimer = async (id: string, data: any) => {
-  const response = await api.put(`/admin/disclaimers/${id}`, data);
-  return response.data;
-};
-export const deleteDisclaimer = async (id: string) => {
-  const response = await api.delete(`/admin/disclaimers/${id}`);
+export const getAdminDisclaimerAudit = async (type?: string, limit = 50) => {
+  const response = await api.get('/admin/disclaimers/audit', { params: { type, limit } });
   return response.data;
 };
 

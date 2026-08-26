@@ -34,6 +34,7 @@ const {
   rejectDriverVerification,
   getReportDetails,
   getAllEscrows,
+  getEscrowStats,
   refundEscrow,
   releaseEscrow,
   deleteUser,
@@ -74,6 +75,7 @@ const {
   adminUpsertTransitRoute,
 } = require('../controllers/parcelPartnerController');
 const {
+  getAllDisclaimers,
   updateDisclaimer,
   getAcknowledgementsAudit,
 } = require('../controllers/disclaimerController');
@@ -153,8 +155,9 @@ router.get('/transit-routes', adminGetTransitRoutes);
 router.post('/transit-routes', adminUpsertTransitRoute);
 
 // Disclaimer Management
-router.put('/disclaimers/:type', updateDisclaimer);
+router.get('/disclaimers', getAllDisclaimers);
 router.get('/disclaimers/audit', getAcknowledgementsAudit);
+router.put('/disclaimers/:type', updateDisclaimer);
 
 /**
  * @swagger
@@ -1243,6 +1246,24 @@ router.put('/driver-verifications/:id/reject', rejectDriverVerification);
  *         description: Forbidden — admin role required
  */
 router.get('/escrows', getAllEscrows);
+
+/**
+ * @swagger
+ * /api/v1/admin/escrows/stats:
+ *   get:
+ *     summary: Get escrow queue statistics
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Escrow statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/escrows/stats', getEscrowStats);
 
 /**
  * @swagger

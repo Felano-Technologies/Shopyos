@@ -613,21 +613,25 @@ const getDeliveryStats = async (req, res, next) => {
 const getAllEscrows = async (req, res, next) => {
   try {
     const { status, limit, offset } = req.query;
-
-    let query = repositories.orders.db.from('orders')
-      .select('id, order_number, total_amount, platform_fee, seller_payout_amount, escrow_status, updated_at, buyer_id, store_id')
-      .neq('escrow_status', 'PENDING');
-
-    if (status) query = query.eq('escrow_status', status);
-
-    query = query
-      .order('updated_at', { ascending: false })
-      .range(Number.parseInt(offset) || 0, (Number.parseInt(offset) || 0) + (Number.parseInt(limit) || 50) - 1);
-
-    const { data: escrows, error } = await query;
-    if (error) throw error;
-
+    const escrows = await repositories.admin.getEscrowOrders({
+      status,
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
+    });
     ApiResponse.withEntity(res, 'escrows', escrows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get escrow queue statistics (platform-wide)
+ * @route   GET /api/admin/escrows/stats
+ */
+const getEscrowStats = async (req, res, next) => {
+  try {
+    const stats = await repositories.admin.getEscrowStats();
+    ApiResponse.withEntity(res, 'stats', stats);
   } catch (error) {
     next(error);
   }
@@ -1457,6 +1461,7 @@ module.exports = {
   approveDriverVerification,
   rejectDriverVerification,
   getAllEscrows,
+  getEscrowStats,
   refundEscrow,
   releaseEscrow,
   // New
