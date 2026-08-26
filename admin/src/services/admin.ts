@@ -87,14 +87,33 @@ export const deleteDisclaimer = async (id: string) => {
   return response.data;
 };
 
-// Hubs
-export const adminGetAllHubs = async () => { const response = await api.get('/admin/hubs'); return response.data; };
-export const adminCreateHub = async (data: any) => { const response = await api.post('/admin/hubs', data); return response.data; };
-export const adminUpdateHub = async (id: string, data: any) => { const response = await api.put(`/admin/hubs/${id}`, data); return response.data; };
-export const adminToggleHub = async (id: string, is_active: boolean) => { const response = await api.put(`/admin/hubs/${id}/toggle`, { is_active }); return response.data; };
+// Ghana Regions (lookup for hub / transit-route forms)
+export const getAdminRegions = async () => { const response = await api.get('/admin/regions'); return response.data; };
 
+// Hubs (parcel_partner_hubs — region_id, hub_name, partner_name, address, phone)
+export const adminGetAllHubs = async () => { const response = await api.get('/admin/hubs'); return response.data; };
+export const adminCreateHub = async (data: {
+  regionId: number; hubName: string; partnerName: string; address?: string; phone?: string; latitude?: number; longitude?: number;
+}) => {
+  const response = await api.post('/admin/hubs', data);
+  return response.data;
+};
+export const adminUpdateHub = async (id: string, data: {
+  hubName?: string; partnerName?: string; address?: string; phone?: string; latitude?: number; longitude?: number;
+}) => {
+  const response = await api.put(`/admin/hubs/${id}`, data);
+  return response.data;
+};
+export const adminToggleHub = async (id: string) => { const response = await api.patch(`/admin/hubs/${id}/toggle`); return response.data; };
+
+// Transit Routes (parcel_transit_config — region-to-region, not hub-to-hub)
 export const adminGetTransitRoutes = async () => { const response = await api.get('/admin/transit-routes'); return response.data; };
-export const adminUpsertTransitRoute = async (data: any) => { const response = await api.post('/admin/transit-routes', data); return response.data; };
+export const adminUpsertTransitRoute = async (data: {
+  originRegion: string; destRegion: string; transitDaysMin: number; transitDaysMax: number; transitFee: number;
+}) => {
+  const response = await api.post('/admin/transit-routes', data);
+  return response.data;
+};
 
 // Settings
 export const getAdminPlatformSettings = async () => { const response = await api.get('/admin/settings'); return response.data; };

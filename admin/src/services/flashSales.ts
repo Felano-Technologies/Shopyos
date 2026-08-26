@@ -15,28 +15,29 @@ export const submitFlashSale = async (data: any) => {
   return res.data;
 };
 
-export const getSellerSales = async (sellerId: string) => {
-  const res = await api.get(`/flash-sales/seller/${sellerId}`);
+export const getSellerSales = async (status?: string) => {
+  const res = await api.get('/flash-sales/my-sales', { params: status ? { status } : {} });
   return res.data;
 };
 
 export const cancelFlashSale = async (id: string) => {
-  const res = await api.post(`/flash-sales/${id}/cancel`);
+  const res = await api.delete(`/flash-sales/${id}/cancel`);
   return res.data;
 };
 
 export const createSlot = async (title: string, startTime: string, endTime: string, maxItems: number) => {
-  const res = await api.post('/flash-sales/slots', { title, start_time: startTime, end_time: endTime, max_items: maxItems });
+  const res = await api.post('/flash-sales/slots', { title, startTime, endTime, maxItems });
   return res.data;
 };
 
+// Admin — real routes live under /flash-sales/admin/sales and PATCH /flash-sales/:id/review
 export const getAdminSales = async (status?: string) => {
   const params = status ? { status } : {};
-  const res = await api.get('/admin/flash-sales', { params });
+  const res = await api.get('/flash-sales/admin/sales', { params });
   return res.data;
 };
 
-export const reviewFlashSale = async (id: string, status: string, adminNotes?: string) => {
-  const res = await api.post(`/admin/flash-sales/${id}/review`, { status, admin_notes: adminNotes });
+export const reviewFlashSale = async (id: string, status: 'approved' | 'rejected', adminNotes?: string) => {
+  const res = await api.patch(`/flash-sales/${id}/review`, { status, adminNotes });
   return res.data;
 };

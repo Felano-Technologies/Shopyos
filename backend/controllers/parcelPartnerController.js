@@ -285,6 +285,18 @@ async function notifyBuyerArrival(order, hub) {
 
 // ─── Admin Hub Management ──────────────────────────────────────────────────
 
+const adminGetRegions = async (req, res, next) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      `SELECT id, name, code, capital FROM ghana_regions ORDER BY name`
+    );
+    ApiResponse.success(res, rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const adminGetAllHubs = async (req, res, next) => {
   try {
     const pool = getPool();
@@ -401,6 +413,7 @@ module.exports = {
   checkInParcel,
   dispatchParcel,
   arriveParcel,
+  adminGetRegions,
   adminGetAllHubs,
   adminCreateHub,
   adminUpdateHub,

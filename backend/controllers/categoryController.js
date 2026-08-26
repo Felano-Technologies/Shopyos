@@ -45,7 +45,7 @@ class CategoryController {
 
             const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-            const { data: existing } = await this.repo.db.from('categories').select('id').eq('name', name).single();
+            const { data: existing } = await this.repo.db.from('categories').select('id').ilike('name', name).single();
             if (existing) return ApiResponse.error(res, 'Category already exists', 400);
 
             const { data: category, error } = await this.repo.db
@@ -76,6 +76,10 @@ class CategoryController {
 
             const updates = { updated_at: new Date() };
             if (name && name !== currentCategory.name) {
+                const { data: duplicate } = await this.repo.db
+                    .from('categories').select('id').ilike('name', name).neq('id', id).single();
+                if (duplicate) return ApiResponse.error(res, 'Category already exists', 400);
+
                 updates.name = name;
                 updates.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
             }

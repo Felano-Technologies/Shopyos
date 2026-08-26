@@ -65,6 +65,7 @@ const {
   getFeeConfigAudit,
 } = require('../controllers/feeConfigController');
 const {
+  adminGetRegions,
   adminGetAllHubs,
   adminCreateHub,
   adminUpdateHub,
@@ -137,6 +138,9 @@ router.get('/fee-config', getFeeConfigs);
 router.get('/fee-config/:key', getFeeConfigByKey);
 router.put('/fee-config/:key', updateFeeConfig);
 router.get('/fee-config/audit/:key', getFeeConfigAudit);
+
+// Ghana Regions (lookup for hub/transit-route forms)
+router.get('/regions', adminGetRegions);
 
 // Logistics Hub Management
 router.get('/hubs', adminGetAllHubs);
