@@ -783,10 +783,11 @@ const getRevenueBreakdown = async (req, res, next) => {
       db.query(`
         SELECT
           COALESCE(SUM(
-            bc.daily_fee * GREATEST(
-              LEAST(COALESCE(bc.end_date, NOW()), NOW()) - GREATEST(COALESCE(bc.start_date, NOW()), $1),
-              '0 days'
-            )
+            (bc.paid_amount / NULLIF(bc.duration_days, 0)) *
+            (EXTRACT(EPOCH FROM GREATEST(
+              LEAST(COALESCE(bc.end_date, NOW()), NOW()) - GREATEST(COALESCE(bc.start_date, NOW()), $1::timestamptz),
+              INTERVAL '0 days'
+            )) / 86400)
           ), 0) AS banner_revenue,
           COUNT(bc.id) FILTER (WHERE bc.status = 'Active') AS active_campaigns
         FROM banner_campaigns bc
