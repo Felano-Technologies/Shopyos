@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiDollarSign, FiCheck, FiX, FiSearch, FiClock, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 import { getAdminPayoutList, getAdminPayoutSummary, processAdminPayout, bulkProcessPayouts } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 type PayoutType = 'seller' | 'driver';
 type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
@@ -213,9 +214,7 @@ export const Payouts: React.FC = () => {
         )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading payouts...</div>
-          ) : payouts.length === 0 ? (
+          {!loading && payouts.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FiDollarSign className="w-10 h-10 mx-auto mb-3 text-gray-300" />
               <p className="text-sm">No payouts match your filters.</p>
@@ -235,7 +234,9 @@ export const Payouts: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {payouts.map((p) => {
+                  {loading ? (
+                    <TableRowsSkeleton columns={7} />
+                  ) : payouts.map((p) => {
                     const name = p.payout_type === 'seller' ? p.store_name : p.driver_name;
                     const account = p.payout_details?.account_number || p.payout_details?.phone;
                     return (

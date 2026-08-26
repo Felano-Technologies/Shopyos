@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FiSave, FiAlertTriangle } from 'react-icons/fi';
 import { getAdminPlatformSettings, updateAdminPlatformSettings } from '../services/admin';
+import { Skeleton } from '../components/common/Skeleton';
 
 export const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -60,8 +61,16 @@ export const Settings: React.FC = () => {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-2xl">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin w-8 h-8 border-4 border-navy border-t-transparent rounded-full" />
+            <div className="flex flex-col gap-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex flex-col gap-2 flex-1 pr-4">
+                    <Skeleton width={160} height={14} />
+                    <Skeleton width="70%" height={11} />
+                  </div>
+                  <Skeleton width={44} height={24} borderRadius={999} />
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col gap-6">

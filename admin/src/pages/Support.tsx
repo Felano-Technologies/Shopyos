@@ -4,6 +4,7 @@ import { FiMessageSquare, FiX, FiInbox, FiClock, FiCheckCircle, FiArchive } from
 import { adminGetTickets, adminUpdateTicket } from '../services/support';
 import type { SupportTicket, TicketStatus } from '../services/support';
 import { extractErrorMessage } from '../services/client';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
 const STATUS_TABS: { key: TicketStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -163,9 +164,7 @@ export const Support: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-sm text-gray-500">Loading tickets...</div>
-          ) : tickets.length === 0 ? (
+          {!loading && tickets.length === 0 ? (
             <div className="text-center p-12 text-gray-500">
               <FiMessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-300" />
               <p className="text-sm">No tickets in this category.</p>
@@ -185,7 +184,7 @@ export const Support: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {tickets.map((t) => {
+                  {loading ? <TableRowsSkeleton columns={7} /> : tickets.map((t) => {
                     const pr = PRIORITY_LABELS[t.priority] || PRIORITY_LABELS[1];
                     return (
                       <tr key={t.id} className="hover:bg-gray-50/50 transition-colors">

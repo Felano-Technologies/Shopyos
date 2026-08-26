@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { FiDollarSign, FiShield, FiTruck, FiTrendingUp, FiPieChart } from 'react-icons/fi';
 import { getAdminRevenueBreakdown, getAdminRevenue } from '../services/admin';
+import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
+import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type RevenueBreakdown = {
   sources: {
@@ -109,9 +111,7 @@ export const Revenue: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">Recent Transactions</h2>
             </div>
-            {loadingTx ? (
-              <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
-            ) : transactions.length === 0 ? (
+            {!loadingTx && transactions.length === 0 ? (
               <div className="p-12 text-center text-sm text-gray-500">No completed transactions yet.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -125,7 +125,9 @@ export const Revenue: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {transactions.map((t) => (
+                    {loadingTx ? (
+                      <TableRowsSkeleton columns={4} />
+                    ) : transactions.map((t) => (
                       <tr key={t.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-3 text-sm font-medium text-gray-900">#{t.order?.order_number || t.order?.id?.slice(0, 8)?.toUpperCase()}</td>
                         <td className="px-6 py-3 text-sm text-gray-700">{t.order?.store?.store_name || 'Unknown'}</td>
@@ -145,7 +147,7 @@ export const Revenue: React.FC = () => {
               <p className="text-xs text-gray-400 mt-0.5">This {period}</p>
             </div>
             {loading ? (
-              <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+              <ListRowsSkeleton rows={5} leadingIcon={false} />
             ) : !breakdown?.top_ad_spenders?.length ? (
               <div className="p-8 text-center text-sm text-gray-500">No ad spend yet.</div>
             ) : (

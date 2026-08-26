@@ -131,7 +131,7 @@ export const Deliveries: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <TableRowsSkeleton columns={6} leadingIcon />
+                  <TableRowsSkeleton columns={6} />
                 ) : deliveries.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
