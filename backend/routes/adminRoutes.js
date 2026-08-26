@@ -6,6 +6,7 @@ const router = express.Router();
 const {
   getDashboard,
   getDashboardRevenueTrend,
+  getDashboardUserGrowth,
   getAllUsers,
   getUserStats,
   updateUserStatus,
@@ -13,6 +14,7 @@ const {
   getAllStores,
   verifyStore,
   getStoreStats,
+  getTopStores,
   updateStoreStatus,
   getAuditLogs,
   getEntityHistory,
@@ -191,6 +193,30 @@ router.get('/dashboard', cacheMiddleware(() => 'shopyos:admin:dashboard', 300), 
  *         description: Forbidden — admin role required
  */
 router.get('/dashboard/revenue-trend', cacheMiddleware(() => 'shopyos:admin:dashboard:revenue-trend', 300), getDashboardRevenueTrend);
+
+/**
+ * @swagger
+ * /api/v1/admin/dashboard/user-growth:
+ *   get:
+ *     summary: Get daily new-signup counts by role for the dashboard growth chart
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *         description: Number of trailing days to include (default 14)
+ *     responses:
+ *       200:
+ *         description: User growth trend retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/dashboard/user-growth', cacheMiddleware(() => 'shopyos:admin:dashboard:user-growth', 300), getDashboardUserGrowth);
 
 // User Management
 /**
@@ -530,6 +556,29 @@ router.get('/stores', getAllStores);
  *         description: Forbidden — admin role required
  */
 router.get('/stores/stats', getStoreStats);
+
+/**
+ * @swagger
+ * /api/v1/admin/stores/top:
+ *   get:
+ *     summary: Get top-performing stores by revenue
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Top stores retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/stores/top', getTopStores);
 
 /**
  * @swagger

@@ -66,6 +66,21 @@ const getDashboardRevenueTrend = async (req, res, next) => {
 };
 
 /**
+ * Get daily new-signup counts by role for the dashboard growth chart
+ * @route   GET /api/admin/dashboard/user-growth
+ * @access  Admin
+ */
+const getDashboardUserGrowth = async (req, res, next) => {
+  try {
+    const days = Number.parseInt(req.query.days) || 14;
+    const trend = await repositories.admin.getUserGrowthTrend(days);
+    ApiResponse.withEntity(res, 'trend', trend);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get all users
  * @route   GET /api/admin/users
  * @access  Admin
@@ -206,6 +221,21 @@ const getStoreStats = async (req, res, next) => {
   try {
     const stats = await repositories.admin.getStoreStats();
     ApiResponse.withEntity(res, 'stats', stats);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get top-performing stores by revenue, for the dashboard
+ * @route   GET /api/admin/stores/top
+ * @access  Admin
+ */
+const getTopStores = async (req, res, next) => {
+  try {
+    const limit = Number.parseInt(req.query.limit) || 5;
+    const stores = await repositories.admin.getTopStores(limit);
+    ApiResponse.withEntity(res, 'stores', stores);
   } catch (error) {
     next(error);
   }
@@ -1405,6 +1435,7 @@ module.exports = {
   getAllStores,
   verifyStore,
   getStoreStats,
+  getTopStores,
   updateStoreStatus,
   getAllReports,
   getReportDetails,
@@ -1418,6 +1449,7 @@ module.exports = {
   getAllDeliveries,
   getDeliveryStats,
   getDashboardRevenueTrend,
+  getDashboardUserGrowth,
   getRevenue,
   getRevenueBreakdown,
   getDriverVerifications,

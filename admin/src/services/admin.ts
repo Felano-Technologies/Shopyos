@@ -2,6 +2,7 @@ import { api } from './client';
 
 export const getAdminDashboard = async () => { const response = await api.get('/admin/dashboard'); return response.data; };
 export const getDashboardRevenueTrend = async (days = 14) => { const response = await api.get('/admin/dashboard/revenue-trend', { params: { days } }); return response.data; };
+export const getDashboardUserGrowth = async (days = 14) => { const response = await api.get('/admin/dashboard/user-growth', { params: { days } }); return response.data; };
 export const getAdminRevenueBreakdown = async (period: 'week' | 'month' | 'year' = 'month') => { const response = await api.get('/admin/revenue-breakdown', { params: { period } }); return response.data; };
 export const getAdminUsers = async (params?: any) => { const response = await api.get('/admin/users', { params }); return response.data; };
 export const getAdminUserStats = async () => { const response = await api.get('/admin/users/stats'); return response.data; };
@@ -11,6 +12,7 @@ export const createAdminUser = async (data: { full_name: string; email: string; 
 };
 export const getAdminStores = async (params?: any) => { const response = await api.get('/admin/stores', { params }); return response.data; };
 export const getAdminStoreStats = async () => { const response = await api.get('/admin/stores/stats'); return response.data; };
+export const getAdminTopStores = async (limit = 5) => { const response = await api.get('/admin/stores/top', { params: { limit } }); return response.data; };
 export const adminVerifyStore = async (storeId: string, status: string, reason?: string) => {
   const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
   return response.data;

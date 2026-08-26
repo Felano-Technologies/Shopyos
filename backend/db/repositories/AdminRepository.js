@@ -257,6 +257,32 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
+   * Get top-performing stores by revenue (completed/delivered orders), for the dashboard.
+   */
+  async getTopStores(limit = 5) {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        s.id, s.store_name, s.logo_url,
+        COUNT(o.id)::int AS order_count,
+        COALESCE(SUM(o.total_amount) FILTER (WHERE o.status IN ('completed', 'delivered')), 0) AS revenue
+      FROM stores s
+      LEFT JOIN orders o ON o.store_id = s.id
+      GROUP BY s.id, s.store_name, s.logo_url
+      ORDER BY revenue DESC, order_count DESC
+      LIMIT $1
+    `, [limit]);
+
+    return Promise.all(rows.map(async s => ({
+      id:          s.id,
+      store_name:  s.store_name,
+      logo_url:    await resolveImageUrl(s.logo_url),
+      order_count: s.order_count || 0,
+      revenue:     Number.parseFloat(s.revenue) || 0,
+    })));
+  }
+
+  /**
    * Update store verification status
    */
   async updateStoreVerification(storeId, status, reason = null) {
@@ -540,6 +566,40 @@ class AdminRepository extends BaseRepository {
     return rows.map(r => ({
       date: r.date,
       revenue: Number.parseFloat(r.revenue) || 0,
+    }));
+  }
+
+  /**
+   * Get daily new-signup counts (last N days), split by role, for the dashboard growth chart.
+   * A user with multiple active roles is counted once per role, matching getUserStats().
+   */
+  async getUserGrowthTrend(days = 14) {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        gs.day::date AS date,
+        COALESCE(SUM(CASE WHEN r.name IN ('buyer', 'customer') THEN 1 ELSE 0 END), 0)::int AS buyers,
+        COALESCE(SUM(CASE WHEN r.name = 'seller' THEN 1 ELSE 0 END), 0)::int               AS sellers,
+        COALESCE(SUM(CASE WHEN r.name = 'driver' THEN 1 ELSE 0 END), 0)::int               AS drivers
+      FROM generate_series(
+        (CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day')::date,
+        CURRENT_DATE,
+        INTERVAL '1 day'
+      ) AS gs(day)
+      LEFT JOIN users u
+        ON DATE(u.created_at) = gs.day::date
+       AND u.deleted_at IS NULL
+      LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = TRUE
+      LEFT JOIN roles r       ON r.id = ur.role_id
+      GROUP BY gs.day
+      ORDER BY gs.day
+    `, [days]);
+
+    return rows.map(r => ({
+      date:    r.date,
+      buyers:  r.buyers  || 0,
+      sellers: r.sellers || 0,
+      drivers: r.drivers || 0,
     }));
   }
 
