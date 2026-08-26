@@ -1,16 +1,15 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiDollarSign, FiAlertCircle, FiCreditCard, FiMap, FiShield, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiCheckCircle } from 'react-icons/fi';
+import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiDollarSign, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare } from 'react-icons/fi';
 
 export const AdminSidebar: React.FC = () => {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <FiHome className="w-5 h-5" />, exact: true },
     { name: 'Users', path: '/users', icon: <FiUsers className="w-5 h-5" /> },
     { name: 'Stores', path: '/stores', icon: <FiShoppingBag className="w-5 h-5" /> },
-    { name: 'Approvals', path: '/approvals', icon: <FiCheckCircle className="w-5 h-5" /> },
     { name: 'Orders', path: '/orders', icon: <FiTruck className="w-5 h-5" /> },
     { name: 'Deliveries', path: '/deliveries', icon: <FiTruck className="w-5 h-5" /> },
-    { name: 'Driver Verifications', path: '/driver-verifications', icon: <FiShield className="w-5 h-5" /> },
+    { name: 'Riders', path: '/riders', icon: <FiTruck className="w-5 h-5" /> },
     { name: 'Hubs & Transit', path: '/hubs', icon: <FiMap className="w-5 h-5" /> },
     { name: 'Categories', path: '/categories', icon: <FiTag className="w-5 h-5" /> },
     { name: 'Flash Sales', path: '/flash-sales', icon: <FiClock className="w-5 h-5" /> },

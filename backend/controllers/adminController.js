@@ -51,6 +51,21 @@ const getDashboard = async (req, res, next) => {
 };
 
 /**
+ * Get daily revenue trend for the dashboard bar chart
+ * @route   GET /api/admin/dashboard/revenue-trend
+ * @access  Admin
+ */
+const getDashboardRevenueTrend = async (req, res, next) => {
+  try {
+    const days = Number.parseInt(req.query.days) || 14;
+    const trend = await repositories.admin.getRevenueTrend(days);
+    ApiResponse.withEntity(res, 'trend', trend);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get all users
  * @route   GET /api/admin/users
  * @access  Admin
@@ -510,6 +525,52 @@ const getAllOrders = async (req, res, next) => {
       search,
     });
     ApiResponse.withEntity(res, 'orders', orders);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get order statistics (platform-wide counts)
+ * @route   GET /api/admin/orders/stats
+ * @access  Admin
+ */
+const getOrderStats = async (req, res, next) => {
+  try {
+    const stats = await repositories.admin.getOrderStats();
+    ApiResponse.withEntity(res, 'stats', stats);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get all deliveries (admin) — dispatch/logistics records, not orders
+ * @route   GET /api/admin/deliveries
+ */
+const getAllDeliveries = async (req, res, next) => {
+  try {
+    const { status, limit, offset } = req.query;
+    const deliveries = await repositories.admin.getAllDeliveries({
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
+      status,
+    });
+    ApiResponse.withEntity(res, 'deliveries', deliveries);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get delivery statistics (platform-wide dispatch counts)
+ * @route   GET /api/admin/deliveries/stats
+ * @access  Admin
+ */
+const getDeliveryStats = async (req, res, next) => {
+  try {
+    const stats = await repositories.admin.getDeliveryStats();
+    ApiResponse.withEntity(res, 'stats', stats);
   } catch (error) {
     next(error);
   }
@@ -1353,6 +1414,10 @@ module.exports = {
   getAllPayouts,
   updatePayoutStatus,
   getAllOrders,
+  getOrderStats,
+  getAllDeliveries,
+  getDeliveryStats,
+  getDashboardRevenueTrend,
   getRevenue,
   getRevenueBreakdown,
   getDriverVerifications,

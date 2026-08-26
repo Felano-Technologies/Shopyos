@@ -1,6 +1,8 @@
 import { api } from './client';
 
 export const getAdminDashboard = async () => { const response = await api.get('/admin/dashboard'); return response.data; };
+export const getDashboardRevenueTrend = async (days = 14) => { const response = await api.get('/admin/dashboard/revenue-trend', { params: { days } }); return response.data; };
+export const getAdminRevenueBreakdown = async (period: 'week' | 'month' | 'year' = 'month') => { const response = await api.get('/admin/revenue-breakdown', { params: { period } }); return response.data; };
 export const getAdminUsers = async (params?: any) => { const response = await api.get('/admin/users', { params }); return response.data; };
 export const getAdminUserStats = async () => { const response = await api.get('/admin/users/stats'); return response.data; };
 export const createAdminUser = async (data: { full_name: string; email: string; phone?: string; password: string; role: string }) => {
@@ -15,17 +17,26 @@ export const adminVerifyStore = async (storeId: string, status: string, reason?:
 };
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
+export const getAdminOrderStats = async () => { const response = await api.get('/admin/orders/stats'); return response.data; };
+export const updateOrderStatus = async (orderId: string, status: string) => {
+  const response = await api.put(`/orders/${orderId}/status`, { status });
+  return response.data;
+};
+
+// Deliveries (dispatch/logistics — distinct from the order itself)
+export const getAdminDeliveries = async (params?: any) => { const response = await api.get('/admin/deliveries', { params }); return response.data; };
+export const getAdminDeliveryStats = async () => { const response = await api.get('/admin/deliveries/stats'); return response.data; };
 
 // Revenue & Payouts
 export const getAdminRevenue = async () => { const response = await api.get('/admin/revenue'); return response.data; };
 export const getAdminPayouts = async (params?: any) => { const response = await api.get('/admin/payouts', { params }); return response.data; };
 export const updateAdminPayoutStatus = async (id: string, status: string, notes?: string) => { const response = await api.put(`/admin/payouts/${id}/status`, { status, notes }); return response.data; };
 
-// Drivers
-export const getPendingDriverVerifications = async () => { const response = await api.get('/admin/drivers/pending'); return response.data; };
-export const getDriverVerificationDetails = async (id: string) => { const response = await api.get(`/admin/drivers/${id}`); return response.data; };
-export const approveDriverVerification = async (id: string) => { const response = await api.post(`/admin/drivers/${id}/approve`); return response.data; };
-export const rejectDriverVerification = async (id: string, reason: string) => { const response = await api.post(`/admin/drivers/${id}/reject`, { reason }); return response.data; };
+// Riders (driver_profiles on the backend)
+export const getDriverVerifications = async () => { const response = await api.get('/admin/driver-verifications'); return response.data; };
+export const getDriverVerificationDetails = async (id: string) => { const response = await api.get(`/admin/driver-verifications/${id}`); return response.data; };
+export const approveDriverVerification = async (id: string) => { const response = await api.put(`/admin/driver-verifications/${id}/approve`); return response.data; };
+export const rejectDriverVerification = async (id: string, reason: string) => { const response = await api.put(`/admin/driver-verifications/${id}/reject`, { reason }); return response.data; };
 
 export const adminUpdateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned', reason?: string) => {
   const response = await api.put(`/admin/users/${userId}/status`, { status, reason });

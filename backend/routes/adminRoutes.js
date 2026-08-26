@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getDashboard,
+  getDashboardRevenueTrend,
   getAllUsers,
   getUserStats,
   updateUserStatus,
@@ -20,6 +21,9 @@ const {
   getAllReports,
   updateReportStatus,
   getAllOrders,
+  getOrderStats,
+  getAllDeliveries,
+  getDeliveryStats,
   getRevenue,
   getRevenueBreakdown,
   getDriverVerifications,
@@ -163,6 +167,30 @@ router.get('/disclaimers/audit', getAcknowledgementsAudit);
  *         description: Forbidden — admin role required
  */
 router.get('/dashboard', cacheMiddleware(() => 'shopyos:admin:dashboard', 300), getDashboard);
+
+/**
+ * @swagger
+ * /api/v1/admin/dashboard/revenue-trend:
+ *   get:
+ *     summary: Get daily revenue totals for the dashboard trend chart
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *         description: Number of trailing days to include (default 14)
+ *     responses:
+ *       200:
+ *         description: Revenue trend retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/dashboard/revenue-trend', cacheMiddleware(() => 'shopyos:admin:dashboard:revenue-trend', 300), getDashboardRevenueTrend);
 
 // User Management
 /**
@@ -843,6 +871,75 @@ router.put('/payouts/:payoutId', updatePayoutStatus);
  *         description: Forbidden — admin role required
  */
 router.get('/orders', getAllOrders);
+
+/**
+ * @swagger
+ * /api/v1/admin/orders/stats:
+ *   get:
+ *     summary: Get aggregate order statistics
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Order statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/orders/stats', getOrderStats);
+
+// Delivery / Dispatch Management
+/**
+ * @swagger
+ * /api/v1/admin/deliveries:
+ *   get:
+ *     summary: Get all deliveries (dispatch/logistics records) with optional filtering
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter by delivery status (comma-separated for multiple)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Deliveries retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/deliveries', getAllDeliveries);
+
+/**
+ * @swagger
+ * /api/v1/admin/deliveries/stats:
+ *   get:
+ *     summary: Get aggregate delivery/dispatch statistics
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Delivery statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/deliveries/stats', getDeliveryStats);
 
 // Revenue
 /**

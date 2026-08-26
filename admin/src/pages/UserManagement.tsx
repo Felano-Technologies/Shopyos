@@ -19,7 +19,7 @@ const ROLE_TABS: { label: string; value: string | null; icon: React.ReactNode; c
   { label: 'All', value: null, icon: <FiUsers className="w-4 h-4" />, color: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
   { label: 'Buyers', value: 'buyer', icon: <FiUser className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600', accent: 'bg-purple-500' },
   { label: 'Sellers', value: 'seller', icon: <FiShoppingBag className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
-  { label: 'Drivers', value: 'driver', icon: <FiTruck className="w-4 h-4" />, color: 'bg-navy/10 text-navy', accent: 'bg-navy' },
+  { label: 'Riders', value: 'driver', icon: <FiTruck className="w-4 h-4" />, color: 'bg-navy/10 text-navy', accent: 'bg-navy' },
   { label: 'Parcel Partners', value: 'parcel_partner', icon: <FiBox className="w-4 h-4" />, color: 'bg-cyan-50 text-cyan-600', accent: 'bg-cyan-500' },
 ];
 
@@ -102,7 +102,7 @@ export const UserManagement: React.FC = () => {
     { label: 'Active', value: stats.active, icon: <FiCheckCircle className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
     { label: 'Buyers', value: stats.buyers, icon: <FiUser className="w-4 h-4" />, iconBg: 'bg-purple-50 text-purple-600', accent: 'bg-purple-500' },
     { label: 'Sellers', value: stats.sellers, icon: <FiShoppingBag className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
-    { label: 'Drivers', value: stats.drivers, icon: <FiTruck className="w-4 h-4" />, iconBg: 'bg-navy/10 text-navy', accent: 'bg-navy' },
+    { label: 'Riders', value: stats.drivers, icon: <FiTruck className="w-4 h-4" />, iconBg: 'bg-navy/10 text-navy', accent: 'bg-navy' },
     { label: 'Parcel Partners', value: stats.parcel_partners, icon: <FiBox className="w-4 h-4" />, iconBg: 'bg-cyan-50 text-cyan-600', accent: 'bg-cyan-500' },
   ] : [];
 

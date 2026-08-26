@@ -19,10 +19,9 @@ const Disputes = React.lazy(() => import('../pages/Disputes').then(m => ({ defau
 const Disclaimers = React.lazy(() => import('../pages/Disclaimers').then(m => ({ default: m.Disclaimers })));
 const Payouts = React.lazy(() => import('../pages/Payouts').then(m => ({ default: m.Payouts })));
 const Deliveries = React.lazy(() => import('../pages/Deliveries').then(m => ({ default: m.Deliveries })));
-const DriverVerifications = React.lazy(() => import('../pages/DriverVerifications').then(m => ({ default: m.DriverVerifications })));
+const RiderManagement = React.lazy(() => import('../pages/RiderManagement').then(m => ({ default: m.RiderManagement })));
 const Hubs = React.lazy(() => import('../pages/Hubs').then(m => ({ default: m.Hubs })));
 const Ads = React.lazy(() => import('../pages/Ads').then(m => ({ default: m.Ads })));
-const Approvals = React.lazy(() => import('../pages/Approvals').then(m => ({ default: m.Approvals })));
 const Notifications = React.lazy(() => import('../pages/Notifications').then(m => ({ default: m.Notifications })));
 const Revenue = React.lazy(() => import('../pages/Revenue').then(m => ({ default: m.Revenue })));
 const SupportAdmin = React.lazy(() => import('../pages/Support').then(m => ({ default: m.Support })));
@@ -74,10 +73,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="disclaimers" element={<Disclaimers />} />
           <Route path="payouts" element={<Payouts />} />
           <Route path="deliveries" element={<Deliveries />} />
-          <Route path="driver-verifications" element={<DriverVerifications />} />
+          <Route path="riders" element={<RiderManagement />} />
           <Route path="hubs" element={<Hubs />} />
           <Route path="ads" element={<Ads />} />
-          <Route path="approvals" element={<Approvals />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="revenue" element={<Revenue />} />
           <Route path="support" element={<SupportAdmin />} />

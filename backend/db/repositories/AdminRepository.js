@@ -388,6 +388,162 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
+   * Get order statistics (platform-wide counts)
+   */
+  async getOrderStats() {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(*)::int                                                     AS total,
+        COUNT(*) FILTER (WHERE status = 'pending')::int                  AS pending,
+        COUNT(*) FILTER (WHERE status = 'in_transit')::int               AS in_transit,
+        COUNT(*) FILTER (WHERE status IN ('delivered', 'completed'))::int AS delivered,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::int                AS cancelled
+      FROM orders
+    `);
+    const s = rows[0] || {};
+    return {
+      total:      s.total      || 0,
+      pending:    s.pending    || 0,
+      in_transit: s.in_transit || 0,
+      delivered:  s.delivered  || 0,
+      cancelled:  s.cancelled  || 0,
+    };
+  }
+
+  /**
+   * Get all deliveries (admin view) — the logistics/dispatch record, distinct
+   * from the order itself. Joins driver assignment, pickup/dropoff addresses,
+   * and timing so admins can monitor active dispatch, not just order status.
+   */
+  async getAllDeliveries(options = {}) {
+    const { limit = 50, offset = 0, status } = options;
+    const db = getPool();
+    const params = [];
+
+    let sql = `
+      SELECT
+        d.id, d.status, d.pickup_address, d.delivery_address,
+        d.distance_km, d.delivery_fee, d.driver_earnings,
+        d.assigned_at, d.picked_up_at, d.delivered_at, d.created_at,
+        o.id           AS order_id,
+        o.order_number,
+        o.total_amount,
+        s.id           AS store_id,
+        s.store_name,
+        bup.full_name  AS buyer_full_name,
+        bu.email       AS buyer_email,
+        d.driver_id,
+        dup.full_name  AS driver_full_name,
+        du.email       AS driver_email,
+        ddp.license_plate AS driver_plate
+      FROM deliveries d
+      LEFT JOIN orders          o   ON o.id = d.order_id
+      LEFT JOIN stores          s   ON s.id = o.store_id
+      LEFT JOIN users           bu  ON bu.id = o.buyer_id
+      LEFT JOIN user_profiles   bup ON bup.user_id = o.buyer_id
+      LEFT JOIN users           du  ON du.id = d.driver_id
+      LEFT JOIN user_profiles   dup ON dup.user_id = d.driver_id
+      LEFT JOIN driver_profiles ddp ON ddp.user_id = d.driver_id
+      WHERE 1=1
+    `;
+
+    if (status && status !== 'all') {
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length > 1) {
+        params.push(statuses);
+        sql += ` AND d.status = ANY($${params.length}::delivery_status[])`;
+      } else {
+        params.push(statuses[0]);
+        sql += ` AND d.status = $${params.length}`;
+      }
+    }
+
+    sql += ` ORDER BY d.created_at DESC`;
+    params.push(limit);
+    sql += ` LIMIT $${params.length}`;
+    params.push(offset);
+    sql += ` OFFSET $${params.length}`;
+
+    const { rows } = await db.query(sql, params);
+
+    return rows.map(d => ({
+      id:               d.id,
+      status:           d.status,
+      pickup_address:   d.pickup_address,
+      delivery_address: d.delivery_address,
+      distance_km:      d.distance_km,
+      delivery_fee:     d.delivery_fee,
+      driver_earnings:  d.driver_earnings,
+      assigned_at:      d.assigned_at,
+      picked_up_at:     d.picked_up_at,
+      delivered_at:     d.delivered_at,
+      created_at:       d.created_at,
+      order: { id: d.order_id, order_number: d.order_number, total_amount: d.total_amount },
+      store: { id: d.store_id, store_name: d.store_name },
+      buyer_name: d.buyer_full_name || d.buyer_email || 'Unknown',
+      driver: d.driver_id
+        ? { id: d.driver_id, full_name: d.driver_full_name || d.driver_email || 'Unknown', plate: d.driver_plate }
+        : null,
+    }));
+  }
+
+  /**
+   * Get delivery statistics (platform-wide dispatch counts)
+   */
+  async getDeliveryStats() {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(*)::int                                                              AS total,
+        COUNT(*) FILTER (WHERE status = 'unassigned')::int                        AS unassigned,
+        COUNT(*) FILTER (WHERE status NOT IN ('unassigned', 'delivered', 'cancelled'))::int AS in_progress,
+        COUNT(*) FILTER (WHERE status = 'delivered')::int                         AS delivered,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::int                         AS cancelled
+      FROM deliveries
+    `);
+    const s = rows[0] || {};
+    return {
+      total:       s.total       || 0,
+      unassigned:  s.unassigned  || 0,
+      in_progress: s.in_progress || 0,
+      delivered:   s.delivered   || 0,
+      cancelled:   s.cancelled   || 0,
+    };
+  }
+
+  /**
+   * Get daily revenue trend (last N days) for the dashboard bar chart.
+   * Uses completed payments, same source as the platform-wide totalRevenue figure.
+   */
+  async getRevenueTrend(days = 14) {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        gs.day::date AS date,
+        COALESCE(p.revenue, 0) AS revenue
+      FROM generate_series(
+        (CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day')::date,
+        CURRENT_DATE,
+        INTERVAL '1 day'
+      ) AS gs(day)
+      LEFT JOIN (
+        SELECT DATE(COALESCE(paid_at, created_at)) AS day, SUM(amount) AS revenue
+        FROM payments
+        WHERE status = 'completed'
+          AND COALESCE(paid_at, created_at) >= CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day'
+        GROUP BY DATE(COALESCE(paid_at, created_at))
+      ) p ON p.day = gs.day::date
+      ORDER BY gs.day
+    `, [days]);
+
+    return rows.map(r => ({
+      date: r.date,
+      revenue: Number.parseFloat(r.revenue) || 0,
+    }));
+  }
+
+  /**
    * Get revenue transactions (completed payments)
    */
   async getRevenueTransactions(options = {}) {
