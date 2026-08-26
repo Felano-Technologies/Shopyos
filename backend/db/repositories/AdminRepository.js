@@ -242,7 +242,7 @@ class AdminRepository extends BaseRepository {
         COUNT(*)::int                                                            AS total,
         COUNT(*) FILTER (WHERE verification_status = 'verified')::int           AS verified,
         COUNT(*) FILTER (WHERE verification_status = 'pending')::int            AS pending,
-        COUNT(*) FILTER (WHERE status = 'active')::int                          AS active
+        COUNT(*) FILTER (WHERE is_active = TRUE)::int                          AS active
       FROM stores
     `);
     const s = rows[0] || {};
