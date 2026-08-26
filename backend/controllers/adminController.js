@@ -183,6 +183,20 @@ const getAllStores = async (req, res, next) => {
 };
 
 /**
+ * Get store statistics (platform-wide counts)
+ * @route   GET /api/admin/stores/stats
+ * @access  Admin
+ */
+const getStoreStats = async (req, res, next) => {
+  try {
+    const stats = await repositories.admin.getStoreStats();
+    ApiResponse.withEntity(res, 'stats', stats);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Update store verification status
  * @route   PUT /api/admin/stores/:storeId/verify
  * @access  Admin
@@ -1329,6 +1343,7 @@ module.exports = {
   updateUserRole,
   getAllStores,
   verifyStore,
+  getStoreStats,
   updateStoreStatus,
   getAllReports,
   getReportDetails,

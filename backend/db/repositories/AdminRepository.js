@@ -27,6 +27,7 @@ class AdminRepository extends BaseRepository {
         up.user_id,
         up.full_name,
         up.phone,
+        up.avatar_url,
         up.created_at,
         u.email,
         u.is_active,
@@ -63,16 +64,17 @@ class AdminRepository extends BaseRepository {
 
     const { rows } = await db.query(sql, params);
 
-    return rows.map(u => ({
+    return Promise.all(rows.map(async u => ({
       id: u.id,
       user_id: u.user_id,
       full_name: u.full_name,
       phone: u.phone,
+      avatar_url: await resolveImageUrl(u.avatar_url),
       email: u.email || '—',
       role: u.role || 'buyer',
       account_status: u.is_active ? 'active' : 'suspended',
       created_at: u.created_at,
-    }));
+    })));
   }
 
   /**
@@ -214,15 +216,20 @@ class AdminRepository extends BaseRepository {
 
     const { rows } = await db.query(sql, params);
 
-    return rows.map(store => ({
+    return Promise.all(rows.map(async store => ({
       ...store,
+      logo_url:              await resolveImageUrl(store.logo_url),
+      banner_url:            await resolveImageUrl(store.banner_url),
+      business_cert_url:     await resolveImageUrl(store.business_cert_url),
+      business_license_url:  await resolveImageUrl(store.business_license_url),
+      proof_of_bank_url:     await resolveImageUrl(store.proof_of_bank_url),
       owner: {
         id:        store.owner_user_id,
         email:     store.owner_email,
         full_name: store.owner_full_name,
       },
       products: [{ count: store.product_count }],
-    }));
+    })));
   }
 
   /**

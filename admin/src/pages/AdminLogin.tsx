@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { loginUser } from '../services/auth';
 import { SEO } from '../components/SEO';
@@ -78,13 +78,11 @@ export const AdminLogin: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50/50 p-4 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden font-sans">
       <SEO title="Admin Portal Login" />
-      
-      <div className="flex flex-col md:flex-row w-full max-w-[1000px] min-h-[600px] bg-white rounded-3xl shadow-xl shadow-navy/5 border border-gray-100 overflow-hidden">
-        
-        {/* Left Branding Panel */}
-        <div className="hidden md:flex flex-col bg-gradient-to-br from-[#01217B] via-[#0C3494] to-[#0A5CA8] w-5/12 p-8 md:p-10 text-white relative overflow-hidden justify-between">
+
+      {/* Left Branding Panel */}
+      <div className="hidden md:flex flex-col bg-gradient-to-br from-[#01217B] via-[#0C3494] to-[#0A5CA8] w-5/12 h-full p-10 lg:p-14 text-white relative overflow-hidden justify-between">
           <div className="absolute -top-24 -right-16 w-[340px] h-[340px] rounded-full bg-white opacity-[0.06]"></div>
           <div className="absolute bottom-16 -left-16 w-[220px] h-[220px] rounded-full bg-white opacity-[0.08]"></div>
           
@@ -114,14 +112,14 @@ export const AdminLogin: React.FC = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-[#85CC16]"></div>
             <span className="text-xs font-semibold tracking-wider uppercase">Shopyos © 2026</span>
           </div>
+      </div>
+
+      {/* Right Form Panel */}
+      <div className="flex flex-col justify-center w-full md:w-7/12 h-full overflow-y-auto bg-white p-8 lg:p-16">
+        <div className="flex justify-center mb-6 md:hidden">
+          <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-24 h-24 object-contain rounded-2xl shadow-sm" />
         </div>
 
-        {/* Right Form Panel */}
-        <div className="flex flex-col justify-center w-full md:w-7/12 p-8 md:p-10">
-          <div className="flex justify-center mb-6 md:hidden">
-            <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-24 h-24 object-contain rounded-2xl shadow-sm" />
-          </div>
-          
           <h2 className="font-bold text-[32px] text-[#0F172A] mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Sign in</h2>
           <p className="text-[#64748B] mb-6 text-[16px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
             Admin access only
@@ -178,12 +176,6 @@ export const AdminLogin: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex justify-start mt-1">
-              <Link to="/forgot-password" className="text-sm font-semibold text-[#01217B] hover:text-[#0C3494] transition-colors">
-                Forgot password?
-              </Link>
-            </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -200,28 +192,28 @@ export const AdminLogin: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex-1 h-px bg-[#E2E8F0]"></div>
-              <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Dev quick-login</span>
-              <div className="flex-1 h-px bg-[#E2E8F0]"></div>
+          {import.meta.env.DEV && (
+            <div className="mt-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1 h-px bg-[#E2E8F0]"></div>
+                <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Dev quick-login</span>
+                <div className="flex-1 h-px bg-[#E2E8F0]"></div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {DEV_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.label}
+                    disabled={loading}
+                    onClick={(e) => handleLogin(e, acc.email, acc.password)}
+                    className="py-3 px-4 rounded-xl border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all disabled:opacity-50"
+                  >
+                    Log in as {acc.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            
-            <div className="flex flex-col gap-2">
-              {DEV_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.label}
-                  disabled={loading}
-                  onClick={(e) => handleLogin(e, acc.email, acc.password)}
-                  className="py-3 px-4 rounded-xl border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all disabled:opacity-50"
-                >
-                  Log in as {acc.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-        </div>
+          )}
       </div>
     </div>
   );

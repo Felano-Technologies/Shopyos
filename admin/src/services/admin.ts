@@ -2,9 +2,17 @@ import { api } from './client';
 
 export const getAdminDashboard = async () => { const response = await api.get('/admin/dashboard'); return response.data; };
 export const getAdminUsers = async (params?: any) => { const response = await api.get('/admin/users', { params }); return response.data; };
-export const getAdminUserStats = async () => { const response = await api.get('/admin/user-stats'); return response.data; };
+export const getAdminUserStats = async () => { const response = await api.get('/admin/users/stats'); return response.data; };
+export const createAdminUser = async (data: { full_name: string; email: string; phone?: string; password: string; role: string }) => {
+  const response = await api.post('/admin/users/create', data);
+  return response.data;
+};
 export const getAdminStores = async (params?: any) => { const response = await api.get('/admin/stores', { params }); return response.data; };
-export const adminVerifyStore = async (storeId: string, status: string) => { const response = await api.put(`/admin/stores/${storeId}/verify`, { status }); return response.data; };
+export const getAdminStoreStats = async () => { const response = await api.get('/admin/stores/stats'); return response.data; };
+export const adminVerifyStore = async (storeId: string, status: string, reason?: string) => {
+  const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
+  return response.data;
+};
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
 
@@ -19,8 +27,8 @@ export const getDriverVerificationDetails = async (id: string) => { const respon
 export const approveDriverVerification = async (id: string) => { const response = await api.post(`/admin/drivers/${id}/approve`); return response.data; };
 export const rejectDriverVerification = async (id: string, reason: string) => { const response = await api.post(`/admin/drivers/${id}/reject`, { reason }); return response.data; };
 
-export const adminUpdateUserStatus = async (userId: string, is_active: boolean) => {
-  const response = await api.put(`/admin/users/${userId}/status`, { is_active });
+export const adminUpdateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned', reason?: string) => {
+  const response = await api.put(`/admin/users/${userId}/status`, { status, reason });
   return response.data;
 };
 

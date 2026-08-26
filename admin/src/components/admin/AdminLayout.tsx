@@ -7,9 +7,9 @@ export const AdminLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar />
-      <div className="flex-1 flex flex-col ml-64">
+      <div className="flex-1 flex flex-col ml-64 min-w-0">
         <AdminHeader />
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 min-w-0 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

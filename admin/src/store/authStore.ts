@@ -10,7 +10,7 @@ interface AuthStore {
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  isAuthenticated: false,
+  isAuthenticated: !!localStorage.getItem('userToken'),
   setAuthenticated: (value) => set({ isAuthenticated: value }),
   activeMode: null,
   originalRole: null,

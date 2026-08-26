@@ -11,6 +11,7 @@ const {
   updateUserRole,
   getAllStores,
   verifyStore,
+  getStoreStats,
   updateStoreStatus,
   getAuditLogs,
   getEntityHistory,
@@ -483,6 +484,24 @@ router.post('/stores/create', createStoreAdmin);
  *         description: Forbidden — admin role required
  */
 router.get('/stores', getAllStores);
+
+/**
+ * @swagger
+ * /api/v1/admin/stores/stats:
+ *   get:
+ *     summary: Get aggregate store statistics
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Store statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ */
+router.get('/stores/stats', getStoreStats);
 
 /**
  * @swagger

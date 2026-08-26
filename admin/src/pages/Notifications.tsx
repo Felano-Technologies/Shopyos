@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiBell, FiCheckCircle } from 'react-icons/fi';
-import { api } from '../services/client';
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../services/notifications';
 
 export const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -9,8 +9,8 @@ export const Notifications: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/admin/notifications');
-      if (res.data?.success || res.data) setNotifications(res.data?.data || res.data || []);
+      const res = await getNotifications();
+      setNotifications(Array.isArray(res?.notifications) ? res.notifications : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -24,7 +24,7 @@ export const Notifications: React.FC = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      await api.put(`/admin/notifications/${id}/read`);
+      await markNotificationRead(id);
       setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
     } catch (err) {
       console.error(err);
@@ -33,7 +33,7 @@ export const Notifications: React.FC = () => {
 
   const markAllAsRead = async () => {
     try {
-      await api.put('/admin/notifications/read-all');
+      await markAllNotificationsRead();
       setNotifications(notifications.map(n => ({ ...n, is_read: true })));
     } catch (err) {
       console.error(err);
@@ -52,7 +52,7 @@ export const Notifications: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl">
         {loading ? (
           <div className="flex justify-center p-8">
              <div className="animate-spin w-8 h-8 border-4 border-navy border-t-transparent rounded-full" />

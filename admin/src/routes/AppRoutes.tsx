@@ -1,7 +1,6 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { secureStorage } from '../services/storage';
 
 const AdminLogin = React.lazy(() => import('../pages/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const AdminLayout = React.lazy(() => import('../components/admin/AdminLayout').then(m => ({ default: m.AdminLayout })));
@@ -56,17 +55,6 @@ const LoadingFallback = () => (
 );
 
 export const AppRoutes: React.FC = () => {
-  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
-
-  // Check auth on load
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = await secureStorage.getItem('userToken');
-      setAuthenticated(!!token);
-    };
-    checkAuth();
-  }, [setAuthenticated]);
-
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
