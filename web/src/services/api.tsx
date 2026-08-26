@@ -59,13 +59,6 @@ export {
 } from './payments';
 
 export {
-  getAdminDashboard, getAdminUsers, getAdminUserStats, getAdminStores, adminVerifyStore,
-  getAdminAuditLogs, getAdminOrders, getAdminRevenue, adminUpdateUserStatus,
-  getAdminPayouts, updateAdminPayoutStatus, getPendingDriverVerifications,
-  getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification,
-} from './admin';
-
-export {
   createCampaign, getMyCampaigns, updateCampaignStatus, recordAdClick,
   createBannerCampaign, getMyBannerCampaigns, getAllBannerCampaigns, updateBannerCampaignStatus,
   getActiveBanners, uploadSnapImage, createSnap, getSnapFeed, viewSnap, deleteSnap,
