@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
@@ -64,9 +64,18 @@ export const useNotifications = () => {
     gcTime: 10 * 60 * 1000,
   });
 };
+// How long to wait for more notification:new events before showing a toast.
+// Coalesces bursts (e.g. the missed-notifications replay on reconnect, which
+// can fire dozens of events back-to-back) into a single summary toast instead
+// of one popup per event, while still showing a normal single toast promptly
+// for the common case of one live notification arriving on its own.
+const NOTIFICATION_BATCH_WINDOW_MS = 600;
+
 export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const pendingToastsRef = useRef<any[]>([]);
+  const batchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Listen for real-time notification events via socket
   useEffect(() => {
     if (!enableRealtime) {
@@ -74,6 +83,40 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
     }
     let mounted = true;
     let socketRef: any = null;
+
+    const playNotificationFeedback = () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Audio.Sound.createAsync(
+        require('@/assets/sounds/notification.wav'),
+        { shouldPlay: true, volume: 0.25 } // soft chime, not full-blast
+      )
+        .then(({ sound }) => {
+          sound.setOnPlaybackStatusUpdate((status: any) => unloadOnFinish(sound, status));
+        })
+        .catch((err) => console.warn('Failed to play notification sound:', err));
+    };
+
+    const flushPendingToasts = () => {
+      batchTimerRef.current = null;
+      const batch = pendingToastsRef.current;
+      pendingToastsRef.current = [];
+      if (!mounted || batch.length === 0) return;
+
+      playNotificationFeedback();
+      if (batch.length === 1) {
+        const data = batch[0];
+        CustomInAppToast.show({ title: data.title, message: data.message, data });
+      } else {
+        // Omitting `data` here is deliberate — InAppToastHost falls back to
+        // navigating to /notification (the full list) when no orderId is
+        // present, which is the right destination for a multi-item summary.
+        CustomInAppToast.show({
+          title: 'New Notifications',
+          message: `You have ${batch.length} new notifications`,
+        });
+      }
+    };
+
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
@@ -87,21 +130,9 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       const isForActiveConversation =
         activeConversationId && notificationConversationId && activeConversationId === notificationConversationId;
       if (pathname !== '/notification' && !isForActiveConversation && data?.title && data?.message) {
-        // Play haptic feedback and notification sound
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        Audio.Sound.createAsync(
-          require('@/assets/sounds/notification.wav'),
-          { shouldPlay: true, volume: 0.25 } // soft chime, not full-blast
-        )
-          .then(({ sound }) => {
-            sound.setOnPlaybackStatusUpdate((status: any) => unloadOnFinish(sound, status));
-          })
-          .catch((err) => console.warn('Failed to play notification sound:', err));
-        CustomInAppToast.show({
-          title: data.title,
-          message: data.message,
-          data: data,
-        });
+        pendingToastsRef.current.push(data);
+        if (batchTimerRef.current) clearTimeout(batchTimerRef.current);
+        batchTimerRef.current = setTimeout(flushPendingToasts, NOTIFICATION_BATCH_WINDOW_MS);
       }
     };
     const init = async () => {
@@ -126,6 +157,11 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       if (socketRef) {
         socketRef.off('notification:new', handleNewNotification);
       }
+      if (batchTimerRef.current) {
+        clearTimeout(batchTimerRef.current);
+        batchTimerRef.current = null;
+      }
+      pendingToastsRef.current = [];
     };
   }, [enableRealtime, pathname, queryClient]);
   return useQuery({

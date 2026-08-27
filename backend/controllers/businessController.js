@@ -172,6 +172,10 @@ const createBusiness = async (req, res, next) => {
     }
 
     // Create store
+    const isAutoApproved = await repositories.adminSettings.getSettings()
+      .then((s) => !!s.auto_approve_sellers)
+      .catch(() => false);
+
     const store = await repositories.stores.create({
       owner_id: userId,
       store_name: businessName,
@@ -198,9 +202,14 @@ const createBusiness = async (req, res, next) => {
       payout_method: req.body.payoutMethod || 'bank',
       proof_of_bank_url: fileUrls.proofOfBank,
       ghana_card_url: fileUrls.ghanaCard,
-      verification_status: await repositories.adminSettings.getSettings()
-        .then((s) => (s.auto_approve_sellers ? 'verified' : 'pending'))
-        .catch(() => 'pending'),
+      // is_verified/verified_at must stay in lockstep with verification_status —
+      // product listings key off is_verified (ProductRepository._getVerifiedStoreIds),
+      // so leaving it false here while verification_status says "verified" hides
+      // every product from an auto-approved store despite it looking approved
+      // everywhere in the UI. Mirrors the sync done in adminController.verifyStore().
+      verification_status: isAutoApproved ? 'verified' : 'pending',
+      is_verified: isAutoApproved,
+      verified_at: isAutoApproved ? new Date().toISOString() : null,
       is_active: true
     });
 
