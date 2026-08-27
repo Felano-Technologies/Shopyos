@@ -6,6 +6,7 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
+const { invalidateStoreVerification } = require('../config/cacheInvalidation');
 
 /**
  * Get dashboard analytics
@@ -275,6 +276,13 @@ const verifyStore = async (req, res, next) => {
       is_verified: status === 'verified',
       is_trusted: isTrusted
     });
+
+    // Recommendations/search are cached separately from the live is_verified
+    // check — without this, a rejected store's products keep surfacing in
+    // "Recommended for you" until those caches expire on their own.
+    await invalidateStoreVerification(storeId).catch(e =>
+      logger.warn('[AdminController] invalidateStoreVerification failed:', e.message)
+    );
 
     // Notify business owner when admin approves verification
     const ownerId = store?.owner_id || currentStore?.owner_id;

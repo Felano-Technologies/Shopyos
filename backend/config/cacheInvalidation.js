@@ -57,10 +57,31 @@ const invalidateOrderProducts = async (items, storeId) => {
     logger.debug('Cache invalidated: order products', { itemCount: items.length });
 };
 
+// Invalidate everything that could still surface a store's products after its
+// verification status changes (approved <-> rejected). Product/search/store
+// lookups filter on is_verified live, but recommendations and search results
+// are cached separately and won't reflect the new status until they expire
+// on their own otherwise — a rejected store's products can keep showing in
+// "Recommended for you" for up to an hour without this.
+const invalidateStoreVerification = async (storeId) => {
+    await Promise.all([
+        cacheDel(`shopyos:stores:detail:${storeId}`),
+        cacheDelPattern('shopyos:stores:all:*'),
+        cacheDel('shopyos:stores:featured'),
+        cacheDelPattern(`shopyos:products:store:${storeId}:*`),
+        cacheDelPattern('shopyos:products:search:*'),
+        cacheDelPattern('shopyos:recommendations:user:*'),
+        cacheDelPattern('shopyos:recommendations:trending:*'),
+        cacheDelPattern('shopyos:recommendations:product:*')
+    ]);
+    logger.debug('Cache invalidated: store verification', { storeId });
+};
+
 module.exports = {
     invalidateProduct,
     invalidateStore,
     invalidateCategories,
     invalidateReviews,
-    invalidateOrderProducts
+    invalidateOrderProducts,
+    invalidateStoreVerification
 };

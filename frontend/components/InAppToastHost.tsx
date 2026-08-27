@@ -8,7 +8,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSpring,
   withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -166,7 +165,7 @@ export function InAppToastHost() {
             dismissCurrentToast();
             return;
           }
-          dragY.value = withSpring(0, { damping: 18, stiffness: 180 });
+          dragY.value = withTiming(0, { duration: 160, easing: Easing.out(Easing.cubic) });
         }
       }),
     [dismissCurrentToast, dragY]
@@ -187,16 +186,14 @@ export function InAppToastHost() {
     // Play a light pop when the pill drops in
     playSoftToastSound().catch(() => null);
 
-    // Slide + fade with just a touch of spring settle — fully rigid timing
-    // felt lifeless; damping 20 at stiffness 150 gives a slight, barely-there
-    // overshoot instead of the old under-damped (16) elastic bounce.
-    translateY.value = withSpring(0, { damping: 20, stiffness: 150 });
+    // Plain slide + fade, no spring/overshoot — a normal pop-in.
+    translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
     opacity.value = withTiming(1, { duration: 200 });
 
     // Stage 2: shortly after landing, the pill opens into the full card
     expand.value = withDelay(
       EXPAND_DELAY_MS + 160,
-      withSpring(1, { damping: 20, stiffness: 150 })
+      withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) })
     );
     progress.value = withDelay(
       EXPAND_DELAY_MS + 160,
