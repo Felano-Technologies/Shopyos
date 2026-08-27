@@ -733,6 +733,21 @@ const verifyDeliveryPin = async (req, res, next) => {
       await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
     }
 
+    // Instant payout: money left in escrow moves to seller/driver immediately.
+    const { attemptInstantPayout } = require('./payoutController');
+    if (order?.store_id && result.seller_payout > 0) {
+      await attemptInstantPayout({
+        type: 'seller', storeId: order.store_id, amount: result.seller_payout,
+        sourceNote: 'Instant payout — PIN-verified delivery'
+      });
+    }
+    if (result.driver_payout > 0) {
+      await attemptInstantPayout({
+        type: 'driver', driverId, amount: result.driver_payout,
+        sourceNote: 'Instant payout — PIN-verified delivery'
+      });
+    }
+
     ApiResponse.success(res, result);
   } catch (error) {
     next(error);

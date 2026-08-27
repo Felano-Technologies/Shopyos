@@ -364,7 +364,7 @@ const BusinessDashboard = () => {
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>
                     <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
-                    <Text style={styles.statLabel}>In Escrow</Text>
+                    <Text style={styles.statLabel}>Pending Delivery</Text>
                   </View>
                   <View style={styles.statDivider} />
                   <View style={styles.statItem}>

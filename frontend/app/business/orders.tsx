@@ -365,7 +365,7 @@ export default function OrdersScreen() {
                   </View>
                   <View style={[S.revenueCard, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)' }]}>
                     <View>
-                      <Text style={S.revLbl}>In Escrow</Text>
+                      <Text style={S.revLbl}>Pending Delivery</Text>
                       <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>₵{pendingRevenue.toFixed(2)}</Text>
                     </View>
                   </View>

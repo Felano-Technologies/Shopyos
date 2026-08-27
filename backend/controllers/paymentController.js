@@ -42,12 +42,33 @@ const fulfillPayment = async (orderId, paystackData) => {
             return false; // Already fulfilled or no payment row exists
         }
 
-        await client.query(
+        const { rows: orderRows } = await client.query(
             `UPDATE orders
              SET status = 'paid', escrow_status = 'HELD', updated_at = NOW()
-             WHERE id = $1`,
+             WHERE id = $1
+             RETURNING buyer_protection_fee`,
             [orderId]
         );
+
+        // Credit the buyer protection fee into the platform reserve now that
+        // the money has actually landed — this reserve funds post-delivery
+        // refunds instead of clawing back from the seller's paid-out balance.
+        const protectionFee = Number.parseFloat(orderRows[0]?.buyer_protection_fee || 0);
+        if (protectionFee > 0) {
+            const { rows: reserveRows } = await client.query(
+                `UPDATE platform_reserve SET balance = balance + $1, updated_at = NOW()
+                 RETURNING id, balance`,
+                [protectionFee]
+            );
+            const reserve = reserveRows[0];
+            if (reserve) {
+                await client.query(
+                    `INSERT INTO reserve_logs (amount, transaction_type, order_id, balance_after, notes)
+                     VALUES ($1, 'protection_fee_collected', $2, $3, 'Buyer protection fee collected at payment')`,
+                    [protectionFee, orderId, reserve.balance]
+                );
+            }
+        }
 
         await client.query('COMMIT');
     } catch (err) {

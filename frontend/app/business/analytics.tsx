@@ -476,9 +476,9 @@ const Analytics = () => {
                   <View style={[S.iconBox, { backgroundColor: '#FEF3C7' }]}>
                     <MaterialCommunityIcons name="timer-sand" size={rs(20)} color="#B45309" />
                   </View>
-                  <Text style={S.statLbl}>In Escrow</Text>
+                  <Text style={S.statLbl}>Pending Delivery</Text>
                   <Text style={S.statVal}>₵{analytics.stats.pending.toLocaleString()}</Text>
-                  <Text style={S.statSubTxt}>Awaiting release</Text>
+                  <Text style={S.statSubTxt}>Paid out on delivery</Text>
                 </View>
 
                 <View style={S.statCard}>

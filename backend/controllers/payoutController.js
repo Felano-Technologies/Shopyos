@@ -413,6 +413,126 @@ async function _initiatePayoutTransfer(payout) {
     });
 }
 
+// ── Instant payout on delivery ──────────────────────────────────────────
+// Called right after confirm_delivery_atomic credits a seller/driver's
+// ledger balance. If they have a payout method on file, immediately move
+// that amount into a real payout + Paystack transfer instead of waiting for
+// a manual request or the nightly/weekly scheduler sweep. If no payout
+// method is set, this is a no-op — the balance just sits (the scheduler
+// picks it up later once they add one).
+async function attemptInstantPayout({ type, storeId, driverId, amount, sourceNote }) {
+    try {
+        amount = Number.parseFloat(amount);
+        if (!amount || amount <= 0) return { attempted: false };
+
+        let payoutMethod, payoutDetails, recipientName;
+        if (type === 'seller') {
+            const store = await repositories.stores.findById(storeId);
+            if (!store) return { attempted: false };
+            payoutMethod = store.payout_method;
+            payoutDetails = store.payout_details;
+            recipientName = store.store_name;
+        } else {
+            const profile = await repositories.userProfiles.findByUserId(driverId);
+            if (!profile) return { attempted: false };
+            payoutMethod = profile.payout_method;
+            payoutDetails = profile.payout_details;
+            recipientName = profile.full_name;
+        }
+
+        if (!payoutMethod || !payoutDetails) {
+            return { attempted: false }; // falls back to sitting balance, per confirmed product decision
+        }
+
+        const pool = require('../config/postgres').getPool();
+        const client = await pool.connect();
+        let payout;
+        try {
+            await client.query('BEGIN');
+
+            if (type === 'seller') {
+                const { rows } = await client.query(
+                    `UPDATE stores SET current_balance = current_balance - $2, updated_at = NOW()
+                     WHERE id = $1 AND current_balance >= $2
+                     RETURNING current_balance`,
+                    [storeId, amount]
+                );
+                if (!rows[0]) { await client.query('ROLLBACK'); return { attempted: false, reason: 'insufficient_balance' }; }
+
+                const { rows: payoutRows } = await client.query(
+                    `INSERT INTO payouts (store_id, payout_type, amount, payout_method, payout_details, status)
+                     VALUES ($1, 'seller', $2, $3, $4, 'pending') RETURNING *`,
+                    [storeId, amount, payoutMethod, JSON.stringify(payoutDetails)]
+                );
+                payout = payoutRows[0];
+
+                await client.query(
+                    `INSERT INTO balance_logs (store_id, amount, transaction_type, payout_id, balance_after, notes)
+                     VALUES ($1, $2, 'withdrawal', $3, $4, $5)`,
+                    [storeId, -amount, payout.id, rows[0].current_balance, sourceNote || 'Instant auto-payout']
+                );
+            } else {
+                const { rows } = await client.query(
+                    `UPDATE user_profiles SET wallet_balance = wallet_balance - $2, updated_at = NOW()
+                     WHERE user_id = $1 AND wallet_balance >= $2
+                     RETURNING wallet_balance`,
+                    [driverId, amount]
+                );
+                if (!rows[0]) { await client.query('ROLLBACK'); return { attempted: false, reason: 'insufficient_balance' }; }
+
+                const { rows: payoutRows } = await client.query(
+                    `INSERT INTO payouts (driver_id, payout_type, amount, payout_method, payout_details, status)
+                     VALUES ($1, 'driver', $2, $3, $4, 'pending') RETURNING *`,
+                    [driverId, amount, payoutMethod, JSON.stringify(payoutDetails)]
+                );
+                payout = payoutRows[0];
+
+                await client.query(
+                    `INSERT INTO wallet_logs (user_id, amount, transaction_type, payout_id, balance_after)
+                     VALUES ($1, $2, 'withdrawal', $3, $4)`,
+                    [driverId, -amount, payout.id, rows[0].wallet_balance]
+                );
+            }
+
+            await client.query('COMMIT');
+        } catch (txErr) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw txErr;
+        } finally {
+            client.release();
+        }
+
+        if (!payout.payout_details?.name && !payout.payout_details?.account_number && !payout.payout_details?.phone) {
+            payout.payout_details = { ...(payout.payout_details || {}), name: recipientName };
+        }
+
+        try {
+            const transfer = await _initiatePayoutTransfer(payout);
+            const stuckOnOtp = transfer?.status === 'otp';
+            await repositories.payouts.updatePayoutStatus(payout.id, 'processing', {
+                transactionReference: transfer.reference,
+                notes: stuckOnOtp
+                    ? 'Stuck pending OTP finalization — check the Paystack dashboard "OTP for transfers" setting'
+                    : `${sourceNote || 'Instant auto-payout'}. Ref: ${transfer.reference}`
+            });
+            if (stuckOnOtp) {
+                logger.warn(`[InstantPayout] Transfer for payout ${payout.id} stuck pending OTP finalization`);
+            }
+            return { attempted: true, payout, transfer, stuckOnOtp };
+        } catch (transferErr) {
+            logger.error(`[InstantPayout] Transfer failed for payout ${payout.id}:`, transferErr.message);
+            await repositories.payouts.updatePayoutStatus(payout.id, 'failed', {
+                notes: `Auto-payout transfer failed: ${transferErr.message}`
+            }).catch(e => logger.error('[InstantPayout] Failed to mark payout failed:', e.message));
+            await _refundPayoutBalance(payout);
+            return { attempted: true, failed: true, payout };
+        }
+    } catch (err) {
+        logger.error('[InstantPayout] attemptInstantPayout error:', err.message);
+        return { attempted: false, error: err.message };
+    }
+}
+
 async function _refundPayoutBalance(payout) {
     try {
         if (payout.store_id) {
@@ -456,5 +576,6 @@ module.exports = {
     bulkProcessPayouts,
     // exposed for scheduler & webhook
     _initiatePayoutTransfer,
-    _refundPayoutBalance
+    _refundPayoutBalance,
+    attemptInstantPayout
 };

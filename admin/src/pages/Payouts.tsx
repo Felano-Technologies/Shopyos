@@ -145,6 +145,10 @@ export const Payouts: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Approve and monitor seller and driver withdrawal requests.</p>
         </div>
 
+        <div className="bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-xl px-4 py-3">
+          Most payouts now happen automatically the instant a delivery is confirmed. This list mostly shows exceptions — failed transfers, transfers stuck pending Paystack OTP finalization, or balances waiting because a payout method hasn't been set up yet.
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {statCards.map((card) => {
             const s = sum(card.key);

@@ -236,7 +236,8 @@ class OrderRepository extends BaseRepository {
       p_delivery_phone: orderData.delivery_phone,
       p_delivery_notes: orderData.delivery_notes || null,
       p_payment_method: paymentMethod,
-      p_items: orderItems
+      p_items: orderItems,
+      p_buyer_protection_fee: orderData.buyer_protection_fee ?? 0
     });
 
     if (error) {

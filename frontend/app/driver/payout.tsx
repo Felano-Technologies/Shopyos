@@ -159,7 +159,7 @@ export default function DriverPayoutScreen() {
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceLabel}>Wallet Balance</Text>
             <Text style={styles.balanceValue}>₵{walletBalance.toFixed(2)}</Text>
-            <Text style={styles.autoPayoutNote}>Paid out automatically every morning by 8 AM</Text>
+            <Text style={styles.autoPayoutNote}>Paid out instantly after each delivery</Text>
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={[styles.earlyPayoutBtn, isRequesting && { opacity: 0.6 }]}
@@ -169,7 +169,7 @@ export default function DriverPayoutScreen() {
                 {isRequesting ? (
                   <ActivityIndicator size="small" color="#0C1559" />
                 ) : (
-                  <Text style={styles.earlyPayoutBtnText}>Request Early Payout</Text>
+                  <Text style={styles.earlyPayoutBtnText}>Request Payout</Text>
                 )}
                 {!isRequesting && <Feather name="chevron-right" size={16} color="#0C1559" />}
               </TouchableOpacity>

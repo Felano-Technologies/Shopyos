@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiDollarSign, FiShield, FiTruck, FiTrendingUp, FiPieChart } from 'react-icons/fi';
+import { FiDollarSign, FiShield, FiTruck, FiTrendingUp, FiPieChart, FiLock } from 'react-icons/fi';
 import { getAdminRevenueBreakdown, getAdminRevenue } from '../services/admin';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type RevenueBreakdown = {
+  reserve_balance: number;
   sources: {
     platform_commission: { total: number };
     buyer_protection_fees: { total: number; order_count: number };
@@ -62,6 +63,7 @@ export const Revenue: React.FC = () => {
     { label: 'Buyer Protection Fees', value: breakdown.sources.buyer_protection_fees.total, icon: <FiShield className="w-4 h-4" />, iconBg: 'bg-purple-50 text-purple-600', accent: 'bg-purple-500' },
     { label: 'Delivery Fees Retained', value: breakdown.sources.delivery_fees_retained.total, icon: <FiTruck className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
     { label: 'Ad Revenue', value: breakdown.sources.ad_revenue.total, icon: <FiTrendingUp className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
+    { label: 'Platform Reserve', value: breakdown.reserve_balance, icon: <FiLock className="w-4 h-4" />, iconBg: 'bg-rose-50 text-rose-600', accent: 'bg-rose-500' },
   ] : [];
 
   return (
@@ -89,8 +91,8 @@ export const Revenue: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {(loading ? Array.from({ length: 5 }) : cards).map((card: any, idx) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {(loading ? Array.from({ length: 6 }) : cards).map((card: any, idx) => (
             <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               {card ? (
                 <>

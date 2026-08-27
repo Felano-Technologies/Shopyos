@@ -218,7 +218,7 @@ export default function ActiveOrderScreen() {
         CustomInAppToast.show({
           type: 'success',
           title: 'Order Completed',
-          message: 'Great job! Your earnings have been updated.'
+          message: 'Great job! Your earnings have been paid out.'
         });
         router.replace('/driver/dashboard');
         return;

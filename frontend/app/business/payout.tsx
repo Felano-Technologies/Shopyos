@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
-  getPayoutHistory, requestPayout, getSellerLockedBalance
+  getPayoutHistory, requestPayout
 } from '@/services/payments';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
@@ -19,15 +19,6 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
-
-function nextMondayLabel() {
-  const now = new Date();
-  const day = now.getDay();
-  const daysUntilMonday = day === 0 ? 1 : 8 - day;
-  const next = new Date(now);
-  next.setDate(now.getDate() + daysUntilMonday);
-  return next.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-}
 
 function statusColor(status: string) {
   switch (status) {
@@ -45,9 +36,6 @@ export default function PayoutScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [lockedBalance, setLockedBalance] = useState(0);
-  const [lockedEntries, setLockedEntries] = useState<any[]>([]);
-  const [showLocked, setShowLocked] = useState(false);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -67,7 +55,6 @@ export default function PayoutScreen() {
       setBalance(Number.parseFloat(activeBusiness.current_balance || 0));
       setHasPayoutMethod(!!activeBusiness.payout_method);
       fetchHistory(activeBusiness._id);
-      fetchLockedBalance(activeBusiness._id);
     }
   }, [activeBusiness]);
 
@@ -97,22 +84,12 @@ export default function PayoutScreen() {
     finally { setLoading(false); }
   };
 
-  const fetchLockedBalance = async (storeId: string) => {
-    try {
-      const resp = await getSellerLockedBalance(storeId);
-      if (resp.success) {
-        setLockedEntries(resp.data || []);
-        setLockedBalance(Number.parseFloat(resp.lockedTotal || 0));
-      }
-    } catch { /* no-op */ }
-  };
-
   const onRefresh = useCallback(async () => {
     if (!activeBusiness) return;
     setRefreshing(true);
     setBalance(Number.parseFloat(activeBusiness.current_balance || 0));
     setHasPayoutMethod(!!activeBusiness.payout_method);
-    await Promise.all([fetchHistory(activeBusiness._id), fetchLockedBalance(activeBusiness._id)]);
+    await fetchHistory(activeBusiness._id);
     setRefreshing(false);
   }, [activeBusiness]);
 
@@ -231,21 +208,23 @@ export default function PayoutScreen() {
               {/* Balance Card */}
               <View style={styles.balanceCard}>
                 <View>
-                  <Text style={styles.balanceLabel}>Available Balance</Text>
-                  <Text style={styles.balanceAmount}>₵{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
-                  {lockedBalance > 0 && (
-                    <Text style={styles.lockedHint}>
-                      + ₵{lockedBalance.toFixed(2)} locked (return window)
-                    </Text>
+                  <Text style={styles.balanceLabel}>{balance < 0 ? 'Balance Owed' : 'Available Balance'}</Text>
+                  <Text style={[styles.balanceAmount, balance < 0 && styles.balanceAmountNegative]}>
+                    {balance < 0 ? '-' : ''}₵{Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </Text>
+                  {balance < 0 && (
+                    <Text style={styles.lockedHint}>Deducted from a recent refund — offset automatically by future sales</Text>
                   )}
                 </View>
-                <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} disabled={isWithdrawing}>
-                  {isWithdrawing ? (
-                    <ActivityIndicator size="small" color="#0C1559" />
-                  ) : (
-                    <Text style={styles.withdrawText}>Request Early{'\n'}Payout</Text>
-                  )}
-                </TouchableOpacity>
+                {balance > 0 && (
+                  <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} disabled={isWithdrawing}>
+                    {isWithdrawing ? (
+                      <ActivityIndicator size="small" color="#0C1559" />
+                    ) : (
+                      <Text style={styles.withdrawText}>Request{'\n'}Payout</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Amount input when requesting */}
@@ -293,9 +272,9 @@ export default function PayoutScreen() {
 
               {/* Schedule Info */}
               <View style={styles.scheduleCard}>
-                <Feather name="calendar" size={16} color="#0C1559" style={{ marginRight: 8 }} />
+                <Feather name="zap" size={16} color="#0C1559" style={{ marginRight: 8 }} />
                 <Text style={styles.scheduleText}>
-                  Next auto-payout: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{nextMondayLabel()}</Text>
+                  Payouts happen automatically as soon as each order is delivered.
                 </Text>
               </View>
 
@@ -358,49 +337,10 @@ export default function PayoutScreen() {
                   <View style={styles.emptyHistory}>
                     <Feather name="inbox" size={32} color="#CBD5E1" />
                     <Text style={styles.emptyHistoryText}>No payouts match your filter</Text>
-                    <Text style={styles.emptyHistorySubText}>Auto-payouts run every Monday</Text>
+                    <Text style={styles.emptyHistorySubText}>Payouts happen instantly on delivery</Text>
                   </View>
                 }
               />
-
-              {/* Locked Earnings */}
-              {lockedEntries.length > 0 && (
-                <View style={styles.lockedSection}>
-                  <TouchableOpacity
-                    style={styles.lockedHeader}
-                    onPress={() => setShowLocked(!showLocked)}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Feather name="lock" size={14} color="#D97706" />
-                      <Text style={styles.lockedTitle}>
-                        Locked Earnings — ₵{lockedBalance.toFixed(2)}
-                      </Text>
-                    </View>
-                    <Ionicons name={showLocked ? 'chevron-up' : 'chevron-down'} size={16} color="#64748B" />
-                  </TouchableOpacity>
-                  {showLocked && (
-                    <View>
-                      {lockedEntries.map((entry) => (
-                        <View key={entry.id} style={styles.lockedItem}>
-                          <View>
-                            <Text style={styles.lockedOrderNum}>
-                              {entry.order_number ? `Order #${entry.order_number}` : 'Order'}
-                            </Text>
-                            <Text style={styles.lockedReason}>
-                              {entry.has_open_return
-                                ? 'Return pending'
-                                : entry.payout_eligible_at
-                                ? `Unlocks ${new Date(entry.payout_eligible_at).toLocaleDateString()}`
-                                : 'Locked'}
-                            </Text>
-                          </View>
-                          <Text style={styles.lockedAmount}>₵{Number.parseFloat(entry.amount).toFixed(2)}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
             </View>
           ) : (
             <View style={styles.emptyStateContainer}>
@@ -409,7 +349,7 @@ export default function PayoutScreen() {
               </View>
               <Text style={styles.emptyTitle}>No Payout Method Set</Text>
               <Text style={styles.emptyText}>
-                Update your business details to start receiving earnings automatically every Monday.
+                Update your business details to start receiving instant payouts as orders are delivered.
               </Text>
               <TouchableOpacity
                 style={styles.actionBtn}
@@ -458,6 +398,7 @@ const styles = StyleSheet.create({
   },
   balanceLabel: { color: '#94A3B8', fontSize: 12, fontFamily: 'Montserrat-Medium', marginBottom: 4 },
   balanceAmount: { color: '#FFF', fontSize: 28, fontFamily: 'Montserrat-Bold' },
+  balanceAmountNegative: { color: '#F87171' },
   lockedHint: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 4 },
   withdrawBtn: { backgroundColor: '#A3E635', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
   withdrawText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 11, textAlign: 'center' },
@@ -501,13 +442,6 @@ const styles = StyleSheet.create({
   emptyHistory: { alignItems: 'center', paddingVertical: 30 },
   emptyHistoryText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 10 },
   emptyHistorySubText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#CBD5E1', marginTop: 4 },
-  lockedSection: { marginTop: 20, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#FEF3C7', overflow: 'hidden' },
-  lockedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: '#FFFBEB' },
-  lockedTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#B45309' },
-  lockedItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderTopWidth: 1, borderTopColor: '#FEF3C7' },
-  lockedOrderNum: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#1E293B' },
-  lockedReason: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
-  lockedAmount: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#B45309' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, marginTop: 60 },
   emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
   emptyTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 12, textAlign: 'center' },

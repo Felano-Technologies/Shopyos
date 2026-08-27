@@ -713,6 +713,29 @@ const releaseEscrow = async (req, res, next) => {
       return ApiResponse.error(res, rpcResult.message || rpcResult.error || 'Failed to release escrow', 400);
     }
 
+    // Instant payout: manual release now pays out immediately too, same as the automatic path.
+    const { attemptInstantPayout } = require('./payoutController');
+    if (order.store_id && rpcResult.seller_payout > 0) {
+      await attemptInstantPayout({
+        type: 'seller', storeId: order.store_id, amount: rpcResult.seller_payout,
+        sourceNote: 'Instant payout — admin released escrow'
+      });
+    }
+    if (rpcResult.driver_payout > 0) {
+      const db = require('../config/postgres').getPool();
+      const { rows: deliveryRows } = await db.query(
+        `SELECT driver_id FROM deliveries WHERE order_id = $1 AND leg <> 'first_mile' ORDER BY created_at DESC LIMIT 1`,
+        [id]
+      );
+      const driverId = deliveryRows[0]?.driver_id;
+      if (driverId) {
+        await attemptInstantPayout({
+          type: 'driver', driverId, amount: rpcResult.driver_payout,
+          sourceNote: 'Instant payout — admin released escrow'
+        });
+      }
+    }
+
     // Fetch updated order for response
     const updatedOrder = await repositories.orders.getOrderDetails(id);
 
@@ -763,7 +786,7 @@ const getRevenueBreakdown = async (req, res, next) => {
     }
 
     const [
-      feeConfigResult,
+      reserveResult,
       ordersResult,
       bannerResult,
       promotedResult,
@@ -771,11 +794,12 @@ const getRevenueBreakdown = async (req, res, next) => {
       chartResult,
       topSpendersResult,
     ] = await Promise.all([
-      db.query(`SELECT config_key, config_value FROM platform_fee_config WHERE config_key IN ('buyer_protection_fee', 'buyer_protection_enabled')`),
+      db.query(`SELECT balance FROM platform_reserve LIMIT 1`),
       db.query(`
         SELECT
           COUNT(o.id) AS order_count,
-          COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee
+          COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee,
+          COALESCE(SUM(o.buyer_protection_fee), 0) AS total_buyer_protection
         FROM orders o
         WHERE o.status IN ('completed', 'delivered')
           AND o.created_at >= $1
@@ -831,18 +855,16 @@ const getRevenueBreakdown = async (req, res, next) => {
       `, [startDate]),
     ]);
 
-    const feeConfig = Object.fromEntries(
-      (feeConfigResult.rows || []).map(r => [r.config_key, parseFloat(r.config_value)])
-    );
-    const buyerProtectionFee = feeConfig['buyer_protection_fee'] || 2.00;
     const orderCount = parseInt(ordersResult.rows[0]?.order_count || 0, 10);
     const totalPlatformFee = parseFloat(ordersResult.rows[0]?.total_platform_fee || 0);
+    const reserveBalance = parseFloat(reserveResult.rows[0]?.balance || 0);
     const bannerRevenue = parseFloat(bannerResult.rows[0]?.banner_revenue || 0);
     const activeCampaigns = parseInt(bannerResult.rows[0]?.active_campaigns || 0, 10);
     const promotedSpend = parseFloat(promotedResult.rows[0]?.promoted_product_spend || 0);
     const deliveryRetained = parseFloat(deliveryResult.rows[0]?.delivery_retained || 0);
 
-    const buyerProtectionTotal = buyerProtectionFee * orderCount;
+    // Real, tracked figure now (orders.buyer_protection_fee), not an estimate.
+    const buyerProtectionTotal = parseFloat(ordersResult.rows[0]?.total_buyer_protection || 0);
     const platformCommission = totalPlatformFee - buyerProtectionTotal;
     const adRevenue = bannerRevenue + promotedSpend;
 
@@ -862,6 +884,7 @@ const getRevenueBreakdown = async (req, res, next) => {
     });
 
     ApiResponse.success(res, {
+      reserve_balance: Math.round(reserveBalance * 100) / 100,
       sources: {
         buyer_protection_fees: { total: buyerProtectionTotal, order_count: orderCount },
         ad_revenue: {

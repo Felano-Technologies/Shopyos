@@ -70,7 +70,11 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     return { product_id: item.product_id, product_title: item.products.title, quantity: item.quantity, price, subtotal: itemSubtotal };
   });
 
-  const tax = Number(await feeConfigService.get('default_tax_amount', 1));
+  // "tax" here is really the buyer protection fee shown at checkout
+  // (frontend/app/checkout.tsx) — must read the same config it does so the
+  // total the buyer saw matches what's actually charged.
+  const protectionEnabled = await feeConfigService.get('buyer_protection_enabled', 1);
+  const tax = protectionEnabled ? Number(await feeConfigService.get('buyer_protection_fee', 2)) : 0;
   const store = await repositories.stores.findById(storeId);
 
   // Store pickup: the buyer collects from the store — no delivery fee, no
@@ -155,6 +159,7 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     status: 'pending',
     subtotal,
     tax,
+    buyer_protection_fee: tax,
     delivery_fee: deliveryFee,
     discount_amount: discountAmount,
     promo_code_id: validatedPromo?.id ?? null,
@@ -899,6 +904,29 @@ const confirmDelivery = async (req, res, next) => {
 
     // Fetch updated order for response and notifications
     const updatedOrder = await repositories.orders.getOrderDetails(orderId);
+
+    // Instant payout: money left in escrow moves to seller/driver immediately.
+    const { attemptInstantPayout } = require('./payoutController');
+    if (order.store_id && rpcResult.seller_payout > 0) {
+      await attemptInstantPayout({
+        type: 'seller', storeId: order.store_id, amount: rpcResult.seller_payout,
+        sourceNote: 'Instant payout — buyer confirmed delivery'
+      });
+    }
+    if (rpcResult.driver_payout > 0) {
+      const db = require('../config/postgres').getPool();
+      const { rows: deliveryRows } = await db.query(
+        `SELECT driver_id FROM deliveries WHERE order_id = $1 AND leg <> 'first_mile' ORDER BY created_at DESC LIMIT 1`,
+        [orderId]
+      );
+      const driverId = deliveryRows[0]?.driver_id;
+      if (driverId) {
+        await attemptInstantPayout({
+          type: 'driver', driverId, amount: rpcResult.driver_payout,
+          sourceNote: 'Instant payout — buyer confirmed delivery'
+        });
+      }
+    }
 
     // Notify seller
     if (updatedOrder?.store?.owner_id) {

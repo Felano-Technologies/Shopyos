@@ -252,21 +252,57 @@ const adminActOnReturn = async (req, res, next) => {
     });
 
     if (newStatus === 'refund_issued') {
-      // Deduct refund from seller balance and cancel the balance_log entry
+      const amount = Number.parseFloat(refundAmount);
       const db = require('../config/postgres').getPool();
+
+      // Cancel the balance_log entry — payout is no longer pending release for this order.
       await db.query(
           `UPDATE balance_logs SET payout_eligible_at = NULL, notes = 'Refund issued — balance cancelled'
            WHERE order_id = $1 AND transaction_type = 'sale'`,
           [returnReq.order_id]
       ).catch(e => logger.warn('[Return] cancel balance_log failed:', e.message));
 
-      // Deduct from store balance
-      const store = await repositories.stores.findById(updated.order?.store_id || null).catch(() => null);
-      if (store) {
-          const newBal = Math.max(0, Number.parseFloat(store.current_balance || 0) - Number.parseFloat(refundAmount));
-          await repositories.stores.update(store.id, { current_balance: newBal }).catch(e =>
-              logger.warn('[Return] deduct store balance failed:', e.message)
+      // Draw from the buyer protection reserve first — the fee collected at
+      // checkout exists to fund exactly this, so the seller's own payout is
+      // left untouched whenever the reserve can cover it. Only the shortfall
+      // (if the reserve can't fully cover it) is clawed back from the seller.
+      try {
+        const { rows: reserveRows } = await db.query(`SELECT id, balance FROM platform_reserve LIMIT 1`);
+        const reserve = reserveRows[0];
+        const reserveBalance = Number.parseFloat(reserve?.balance || 0);
+        const fromReserve = Number.parseFloat(Math.min(reserveBalance, amount).toFixed(2));
+        const fromSeller = Number.parseFloat((amount - fromReserve).toFixed(2));
+
+        if (fromReserve > 0 && reserve) {
+          const newReserveBalance = Number.parseFloat((reserveBalance - fromReserve).toFixed(2));
+          await db.query(
+            `UPDATE platform_reserve SET balance = $1, updated_at = NOW() WHERE id = $2`,
+            [newReserveBalance, reserve.id]
           );
+          await db.query(
+            `INSERT INTO reserve_logs (amount, transaction_type, order_id, return_request_id, balance_after, notes)
+             VALUES ($1, 'refund_payout', $2, $3, $4, 'Refund drawn from buyer protection reserve')`,
+            [-fromReserve, returnReq.order_id, returnId, newReserveBalance]
+          );
+        }
+
+        if (fromSeller > 0) {
+          const order = await repositories.orders.findById(returnReq.order_id).catch(() => null);
+          const store = order?.store_id ? await repositories.stores.findById(order.store_id).catch(() => null) : null;
+          if (store) {
+            const newBal = Number.parseFloat((Number.parseFloat(store.current_balance || 0) - fromSeller).toFixed(2));
+            await repositories.stores.update(store.id, { current_balance: newBal }).catch(e =>
+                logger.warn('[Return] deduct store balance failed:', e.message)
+            );
+            await db.query(
+              `INSERT INTO balance_logs (store_id, amount, transaction_type, order_id, balance_after, notes)
+               VALUES ($1, $2, 'refund', $3, $4, 'Refund shortfall clawed back — reserve depleted')`,
+              [store.id, -fromSeller, returnReq.order_id, newBal]
+            ).catch(e => logger.warn('[Return] refund balance_log failed:', e.message));
+          }
+        }
+      } catch (e) {
+        logger.error('[Return] reserve/clawback refund failed:', e.message);
       }
 
       await notificationService.sendNotification({
@@ -282,6 +318,8 @@ const adminActOnReturn = async (req, res, next) => {
       // Return closed without refund — unlock seller balance immediately
       await setBalanceLogEligibility(returnReq.order_id, new Date().toISOString());
     }
+
+    ApiResponse.success(res, updated);
   } catch (err) {
     next(err);
   }
