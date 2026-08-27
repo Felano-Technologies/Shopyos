@@ -126,6 +126,7 @@ export const StoreManagement: React.FC = () => {
     { label: 'Business Certificate', url: selectedStore.business_cert_url },
     { label: 'Business License', url: selectedStore.business_license_url },
     { label: 'Proof of Bank', url: selectedStore.proof_of_bank_url },
+    { label: "Owner's Ghana Card", url: selectedStore.ghana_card_url },
   ].filter((d) => d.url) : [];
 
   return (

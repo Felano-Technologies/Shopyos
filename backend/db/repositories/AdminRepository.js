@@ -223,6 +223,7 @@ class AdminRepository extends BaseRepository {
       business_cert_url:     await resolveImageUrl(store.business_cert_url),
       business_license_url:  await resolveImageUrl(store.business_license_url),
       proof_of_bank_url:     await resolveImageUrl(store.proof_of_bank_url),
+      ghana_card_url:        await resolveImageUrl(store.ghana_card_url),
       owner: {
         id:        store.owner_user_id,
         email:     store.owner_email,

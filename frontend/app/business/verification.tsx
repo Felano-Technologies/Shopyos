@@ -36,6 +36,7 @@ type BusinessDetails = {
   businessCert?: string;
   businessLicense?: string;
   proofOfBank?: string;
+  ghanaCard?: string;
   logo?: string;
 };
 // --- KEYBOARD FIX: Component defined outside main function ---
@@ -73,7 +74,7 @@ const BusinessVerification = () => {
     website: '',
     description: '',
   });
-  const handleUploadDocument = async (type: 'businessCert' | 'businessLicense' | 'proofOfBank') => {
+  const handleUploadDocument = async (type: 'businessCert' | 'businessLicense' | 'proofOfBank' | 'ghanaCard') => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'] });
       if (!result.canceled && result.assets) {
@@ -97,6 +98,10 @@ const BusinessVerification = () => {
     }
     if (!details.businessCert && !details.businessLicense) {
       CustomInAppToast.show({ type: 'error', title: 'Docs Required', message: 'Upload at least one verification document' });
+      return;
+    }
+    if (!details.ghanaCard) {
+      CustomInAppToast.show({ type: 'error', title: 'Ghana Card Required', message: "Upload the owner's Ghana Card to continue" });
       return;
     }
     try {
@@ -210,6 +215,21 @@ const BusinessVerification = () => {
                 {details.proofOfBank ? "Proof of Bank Uploaded" : "Upload Proof of Bank"}
               </Text>
               {details.proofOfBank ? (
+                <Feather name="check-circle" size={16} color="#84cc16" />
+              ) : (
+                <Feather name="upload" size={16} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
+            {/* Ghana Card */}
+            <TouchableOpacity
+              style={[styles.docItem, details.ghanaCard && { borderColor: '#0C1559', borderWidth: 1 }]}
+              onPress={() => handleUploadDocument('ghanaCard')}
+            >
+              <MaterialCommunityIcons name={details.ghanaCard ? "file-check" : "file-outline"} size={20} color="#0C1559" />
+              <Text style={styles.docName} numberOfLines={1}>
+                {details.ghanaCard ? "Owner's Ghana Card Uploaded" : "Upload Owner's Ghana Card"}
+              </Text>
+              {details.ghanaCard ? (
                 <Feather name="check-circle" size={16} color="#84cc16" />
               ) : (
                 <Feather name="upload" size={16} color="#94A3B8" />

@@ -25,7 +25,8 @@ const createUploadFields = upload.fields([
   { name: 'banner_url', maxCount: 1 },
   { name: 'businessCert', maxCount: 1 },
   { name: 'businessLicense', maxCount: 1 },
-  { name: 'proofOfBank', maxCount: 1 }
+  { name: 'proofOfBank', maxCount: 1 },
+  { name: 'ghanaCard', maxCount: 1 }
 ]);
 
 /**

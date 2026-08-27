@@ -34,7 +34,8 @@ const _uploadBusinessFiles = async (req, fileUrls) => {
     processFile('banner_url', 'shopyos/store-banners'),
     processFile('businessCert', 'shopyos/store-documents'),
     processFile('businessLicense', 'shopyos/store-documents'),
-    processFile('proofOfBank', 'shopyos/store-documents')
+    processFile('proofOfBank', 'shopyos/store-documents'),
+    processFile('ghanaCard', 'shopyos/store-documents')
   ]);
 
   if (fileUrls.logo_url && !fileUrls.logo) fileUrls.logo = fileUrls.logo_url;
@@ -157,7 +158,8 @@ const createBusiness = async (req, res, next) => {
       coverImage: coverImage || null,
       businessCert: null,
       businessLicense: null,
-      proofOfBank: null
+      proofOfBank: null,
+      ghanaCard: null
     };
 
     if (req.files) {
@@ -195,6 +197,7 @@ const createBusiness = async (req, res, next) => {
       account_number: accountNumber || null,
       payout_method: req.body.payoutMethod || 'bank',
       proof_of_bank_url: fileUrls.proofOfBank,
+      ghana_card_url: fileUrls.ghanaCard,
       verification_status: await repositories.adminSettings.getSettings()
         .then((s) => (s.auto_approve_sellers ? 'verified' : 'pending'))
         .catch(() => 'pending'),
@@ -205,7 +208,7 @@ const createBusiness = async (req, res, next) => {
     await _ensureSellerRole(userId);
 
     // Notify admins if verification documents were submitted
-    const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
+    const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank || fileUrls.ghanaCard;
     if (hasVerificationDocs) {
       await _notifyVerificationSubmitted(store, user, userId);
     }
@@ -409,7 +412,8 @@ const _uploadUpdateFiles = async (req, mappedData) => {
     processFile('banner_url', 'shopyos/store-banners'),
     processFile('businessCert', 'shopyos/store-documents'),
     processFile('businessLicense', 'shopyos/store-documents'),
-    processFile('proofOfBank', 'shopyos/store-documents')
+    processFile('proofOfBank', 'shopyos/store-documents'),
+    processFile('ghanaCard', 'shopyos/store-documents')
   ]);
 
   // Map resulting URLs to the database column names if they were uploaded
@@ -419,6 +423,7 @@ const _uploadUpdateFiles = async (req, mappedData) => {
   if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
   if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
   if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
+  if (mappedData.ghanaCard) mappedData.ghana_card_url = mappedData.ghanaCard;
 
   // Clean up temporary mapped fields before database update
   delete mappedData.logo;
@@ -429,6 +434,7 @@ const _uploadUpdateFiles = async (req, mappedData) => {
   delete mappedData.businessCert;
   delete mappedData.businessLicense;
   delete mappedData.proofOfBank;
+  delete mappedData.ghanaCard;
 };
 
 const _mapUpdateFields = (updateData, mappedData) => {
@@ -456,6 +462,7 @@ const _mapUpdateFields = (updateData, mappedData) => {
   if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
   if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
   if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;
+  if (updateData.ghanaCard && !mappedData.ghana_card_url) mappedData.ghana_card_url = updateData.ghanaCard;
 
   // Legal & Verification Fields
   if (updateData.registrationNumber) mappedData.registration_number = updateData.registrationNumber;
@@ -554,7 +561,7 @@ const updateBusiness = async (req, res, next) => {
     const updatedStore = await repositories.stores.update(businessId, mappedData);
 
     // If verification documents were uploaded, notify admins
-    const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url;
+    const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url || mappedData.ghana_card_url;
     if (hasNewDocs) {
       await _notifyUpdateVerificationDocs(updatedStore, userId);
     }
