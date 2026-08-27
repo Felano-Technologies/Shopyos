@@ -9,6 +9,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
+import { requestCameraPermissionWithDisclosure, requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 
 export default function CreateSnapScreen() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function CreateSnapScreen() {
         {
           text: 'Take Photo/Video',
           onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            const { status } = await requestCameraPermissionWithDisclosure();
             if (status !== 'granted') {
               CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Camera access is needed to take photos or videos.' });
               return;
@@ -50,7 +51,7 @@ export default function CreateSnapScreen() {
         {
           text: 'Choose from Gallery',
           onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            const { status } = await requestMediaLibraryPermissionWithDisclosure();
             if (status !== 'granted') {
               CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Gallery access is needed to select photos or videos.' });
               return;

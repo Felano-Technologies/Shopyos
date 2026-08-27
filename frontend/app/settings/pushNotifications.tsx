@@ -14,6 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -63,8 +64,15 @@ export default function PushNotificationsScreen() {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+        const consented = await requestPermissionDisclosure({
+          icon: 'notifications',
+          title: 'Notifications',
+          description: 'Shopyos sends notifications for order updates, delivery status, chat messages, and deals. You can turn these off anytime.',
+        });
+        if (consented) {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
       }
       if (finalStatus !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission required', message: 'Enable notifications to receive alerts.' });
@@ -102,7 +110,12 @@ export default function PushNotificationsScreen() {
       if (newValue) {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
+          const consented = await requestPermissionDisclosure({
+            icon: 'notifications',
+            title: 'Notifications',
+            description: 'Shopyos sends notifications for order updates, delivery status, chat messages, and deals. You can turn these off anytime.',
+          });
+          const status = consented ? (await Notifications.requestPermissionsAsync()).status : 'denied';
           if (status !== 'granted') {
             CustomInAppToast.show({ type: 'error', title: 'Permission denied', message: 'Cannot enable notifications without permission.' });
             setPushEnabled(false);

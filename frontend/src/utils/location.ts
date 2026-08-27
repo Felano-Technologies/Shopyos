@@ -6,13 +6,33 @@
 import * as Location from 'expo-location';
 import { updateUserLocation } from '../../services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
+
+/**
+ * Request foreground location permission, showing an in-app disclosure of
+ * what it's used for first (Prominent Disclosure requirement) unless the
+ * permission is already granted.
+ */
+export const requestForegroundLocationWithDisclosure = async (): Promise<{ status: Location.PermissionStatus }> => {
+  const existing = await Location.getForegroundPermissionsAsync();
+  if (existing.status === Location.PermissionStatus.GRANTED) return existing;
+
+  const consented = await requestPermissionDisclosure({
+    icon: 'location',
+    title: 'Location Access',
+    description: 'Shopyos uses your location to show nearby stores, calculate accurate delivery fees, and provide delivery tracking. You can change this anytime in Settings.',
+  });
+  if (!consented) return { status: Location.PermissionStatus.DENIED };
+
+  return await Location.requestForegroundPermissionsAsync();
+};
 
 /**
  * Request foreground location permission
  */
 export const requestForegroundPermission = async (): Promise<boolean> => {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    const { status } = await requestForegroundLocationWithDisclosure();
     return status === 'granted';
   } catch (error) {
     if (__DEV__) console.error('[Location] Error requesting foreground permission:', error);

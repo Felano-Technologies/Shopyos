@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Truck } from 'lucide-react';
 
 export const DriverDashboard: React.FC = () => {
   return (
@@ -12,7 +13,7 @@ export const DriverDashboard: React.FC = () => {
         <p className="text-subtle text-lg">Manage deliveries, track routes, and update order statuses.</p>
         
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mt-10">
-          <div className="text-6xl mb-4">🚚</div>
+          <Truck size={64} className="mx-auto mb-4 text-subtle" strokeWidth={1.5} />
           <h2 className="text-2xl font-bold text-navy mb-2">Delivery Management</h2>
           <p className="text-subtle">You must be registered as a driver to access active routes.</p>
         </div>

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { storage, secureStorage } from './storage';
+import { useAuthStore } from '../store/authStore';
 
 const getBaseURL = () => {
   const isDev = import.meta.env.EXPO_PUBLIC_DEV_MODE === 'true';
@@ -161,6 +162,10 @@ async function handleTokenExpired(_error: any, originalRequest: any): Promise<an
     } catch (e) {
       console.error('Error clearing tokens:', e);
     }
+    // The refresh token itself is dead — the session is genuinely over.
+    // Without this, the navbar keeps showing the logged-in state (stale
+    // Zustand flag) even though every API call will now 401.
+    useAuthStore.getState().setAuthenticated(false);
     throw refreshError;
   } finally {
     isRefreshing = false;
@@ -173,6 +178,7 @@ async function handleUnauthorized(): Promise<void> {
     await secureStorage.removeItem('userToken');
     await secureStorage.removeItem('refreshToken');
     await storage.removeItem('userId');
+    useAuthStore.getState().setAuthenticated(false);
     if (existingToken) {
       window.location.href = '/login';
     }

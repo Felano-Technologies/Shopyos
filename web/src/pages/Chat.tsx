@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getConversations, getMessages, sendMessage } from '../services/messaging';
 import { socketService } from '../services/socket';
 import { SEO } from '../components/SEO';
+import { Skeleton } from '../components/common/Skeleton';
 
 const getOtherParticipant = (conv: any, currentUserId: string | null) => {
   if (!conv) return null;
@@ -170,7 +171,12 @@ export const Chat: React.FC = () => {
             {/* Message Area */}
             <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-gray-50/30">
               {loadingMsg ? (
-                <div className="text-center text-sm text-subtle animate-pulse">Loading conversation history...</div>
+                <>
+                  <Skeleton width="55%" height={40} borderRadius={16} className="self-start" />
+                  <Skeleton width="45%" height={32} borderRadius={16} className="self-end" />
+                  <Skeleton width="60%" height={48} borderRadius={16} className="self-start" />
+                  <Skeleton width="35%" height={32} borderRadius={16} className="self-end" />
+                </>
               ) : (
                 messages.map((msg, idx) => {
                   const isMe = currentUserId ? msg.sender_id === currentUserId : (msg.sender_id !== conversations.find(c => c.id === activeConvId)?.participant?.id);

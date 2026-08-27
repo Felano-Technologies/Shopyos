@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import * as ImagePicker from 'expo-image-picker';
+import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import { getStickerPacks, createCustomSticker } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -65,7 +66,7 @@ export default function StickerPicker({ onSelectSticker, onClose }: Readonly<Sti
 
   const handleCreateSticker = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission = await requestMediaLibraryPermissionWithDisclosure();
       if (permission.status !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Photos permissions are required to create custom stickers.' });
         return;

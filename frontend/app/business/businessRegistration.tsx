@@ -26,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import MapView, { UrlTile } from '@/components/MapView';
 const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
@@ -257,7 +258,7 @@ export default function BusinessRegistrationScreen() {
     }
   };
   const pickImage = async (field: keyof BusinessFormData, isArray: boolean = false) => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await requestMediaLibraryPermissionWithDisclosure();
     if (status !== 'granted') return;
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

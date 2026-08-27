@@ -1,5 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { Headphones } from 'lucide-react';
 
 export const Support: React.FC = () => {
   return (
@@ -12,7 +13,7 @@ export const Support: React.FC = () => {
         <p className="text-subtle text-lg">We are here to help you with your orders and account.</p>
         
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mt-10">
-          <div className="text-6xl mb-4">🎧</div>
+          <Headphones size={64} className="mx-auto mb-4 text-subtle" strokeWidth={1.5} />
           <h2 className="text-2xl font-bold text-navy mb-2">Support Center</h2>
           <p className="text-subtle">FAQ and Contact forms will be available here.</p>
         </div>

@@ -10,10 +10,11 @@ import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/servi
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { resetToRoute } from '@/utils/navigation';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 
 async function getDeviceLocation(): Promise<{ latitude: number; longitude: number }> {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    const { status } = await requestForegroundLocationWithDisclosure();
     if (status === 'granted') {
       const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3000));

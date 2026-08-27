@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { requestMicrophonePermissionWithDisclosure } from '@/src/utils/permissions';
 
 interface VoiceRecorderProps {
   onSend: (uri: string, durationMs: number) => void;
@@ -68,7 +69,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   // Start recording
   const startRecording = async () => {
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestMicrophonePermissionWithDisclosure();
       if (permission.status !== 'granted') {
         CustomInAppToast.show({
           type: 'error',

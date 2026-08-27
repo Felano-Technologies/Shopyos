@@ -6,6 +6,33 @@ import { useCart } from '../store/cartStore';
 import { Skeleton } from '../components/common/Skeleton';
 import { SEO } from '../components/SEO';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import {
+  Shirt, Home as HomeIcon, Sparkles, Dumbbell, Cpu, BookOpen, Gamepad2,
+  HeartPulse, Car, ShoppingBasket, Palette, Tag,
+} from 'lucide-react';
+
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  'Fashion': Shirt,
+  'Home & Kitchen': HomeIcon,
+  'Beauty': Sparkles,
+  'Sports': Dumbbell,
+  'Electronics': Cpu,
+  'Books': BookOpen,
+  'Toys': Gamepad2,
+  'Health': HeartPulse,
+  'Automotive': Car,
+  'Grocery': ShoppingBasket,
+  'Art': Palette,
+};
+
+const CATEGORY_COLORS = [
+  'from-navy to-navy-mid',
+  'from-purple-600 to-purple-800',
+  'from-rose-500 to-rose-700',
+  'from-amber-500 to-amber-700',
+  'from-emerald-600 to-emerald-800',
+  'from-sky-600 to-sky-800',
+];
 
 export const Search: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,6 +67,8 @@ export const Search: React.FC = () => {
     isLoading: isFetchingNextPage,
     onLoadMore: fetchNextPage,
   });
+
+  const isDiscovery = !query && !categoryId;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,28 +108,51 @@ export const Search: React.FC = () => {
           placeholder="Search products..."
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          className="flex-1 px-4 py-3 rounded-[16px] bg-white focus:outline-none focus:ring-2 focus:ring-navy shadow-sm text-sm text-body placeholder:text-subtle"
+          className="flex-1 px-4 py-3 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-navy shadow-sm text-sm text-body placeholder:text-subtle"
           aria-label="Search products"
         />
         <button
           type="submit"
-          className="bg-navy hover:bg-navy-mid text-white font-bold px-6 py-3 rounded-[16px] text-sm transition-colors shadow-sm"
+          className="bg-navy hover:bg-navy-mid text-white font-bold px-6 py-3 rounded-md text-sm transition-colors shadow-sm"
           aria-label="Submit search"
         >
           Search
         </button>
       </form>
 
-      {/* Main split grid */}
+      {isDiscovery ? (
+        /* Discovery: browse by category (no query/category selected yet) */
+        <div className="flex flex-col gap-4">
+          <h3 className="text-lg md:text-xl font-bold text-body px-2">Browse categories</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {categories?.map((cat: any, idx: number) => {
+              const Icon = CATEGORY_ICONS[cat.name] || Tag;
+              const gradient = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategorySelect(cat.id)}
+                  className={`relative h-28 rounded-lg overflow-hidden bg-gradient-to-br ${gradient} flex flex-col items-start justify-end p-3 text-left shadow-sm hover:-translate-y-0.5 transition-transform duration-200`}
+                  aria-label={`Browse ${cat.name}`}
+                >
+                  <Icon size={22} className="absolute top-3 right-3 text-white/40" />
+                  <span className="text-white font-bold text-sm leading-tight">{cat.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+      /* Main split grid */
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 items-start min-h-[600px]">
         {/* Sidebar Filters */}
-        <div className="bg-white p-5 rounded-[22px] flex flex-col gap-6 shadow-sm border border-gray-100">
+        <div className="bg-white p-5 rounded-lg flex flex-col gap-6 shadow-sm border border-gray-100">
           <div>
             <h4 className="font-bold mb-3 text-xs text-subtle uppercase tracking-wider">Sort By</h4>
             <select
               value={sortBy}
               onChange={(e) => handleSortSelect(e.target.value)}
-              className="w-full p-2.5 rounded-[12px] bg-gray-50 border border-gray-200 text-sm text-body focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy transition-all"
+              className="w-full p-2.5 rounded-md bg-gray-50 border border-gray-200 text-sm text-body focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy transition-all"
             >
               <option value="">Default</option>
               <option value="price_asc">Price: Low to High</option>
@@ -116,7 +168,7 @@ export const Search: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
-                    className={`text-left px-3 py-2 rounded-[12px] text-sm font-semibold transition-all ${
+                    className={`text-left px-3 py-2 rounded-md text-sm font-semibold transition-all ${
                       cat.id === categoryId
                         ? 'bg-navy/10 text-navy'
                         : 'text-subtle hover:bg-gray-50'
@@ -134,10 +186,10 @@ export const Search: React.FC = () => {
         <div>
           <h3 className="text-xl font-bold text-body mb-4 px-2">Results</h3>
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <div key={idx} className="bg-white rounded-[22px] p-3 shadow-sm border border-gray-100">
-                  <Skeleton width="100%" height={140} borderRadius={16} className="mb-3" />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div key={idx} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+                  <Skeleton width="100%" height={140} borderRadius={8} className="mb-3" />
                   <Skeleton width="60%" height={14} className="mb-2" />
                   <Skeleton width="80%" height={16} className="mb-3" />
                   <div className="flex justify-between items-center">
@@ -148,19 +200,19 @@ export const Search: React.FC = () => {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-20 text-subtle bg-white rounded-[22px] border border-gray-100 shadow-sm">
+            <div className="text-center py-20 text-subtle bg-white rounded-lg border border-gray-100 shadow-sm">
               <p className="font-medium text-lg mb-2">No products found</p>
               <p className="text-sm">Try editing your keywords or selecting another category filter.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
               {products.map((prod: any) => (
                 <div
                   key={prod.id}
                   onClick={() => navigate(`/product/${prod.id}`)}
-                  className="bg-card rounded-[22px] overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-300 flex flex-col h-full border border-gray-100 shadow-[0_2px_8px_rgba(12,21,89,0.08)] p-2.5"
+                  className="bg-card rounded-lg overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-300 flex flex-col h-full border border-gray-100 shadow-[0_2px_8px_rgba(12,21,89,0.08)] p-2.5"
                 >
-                  <div className="relative w-full h-36 bg-gray-50 rounded-[14px] overflow-hidden mb-3">
+                  <div className="relative w-full h-36 bg-gray-50 rounded-md overflow-hidden mb-3">
                     <img
                       src={prod.images?.[0] || 'https://via.placeholder.com/300x150'}
                       alt={prod.name}
@@ -212,6 +264,7 @@ export const Search: React.FC = () => {
           <div ref={sentinelRef} />
         </div>
       </div>
+      )}
     </div>
   );
 };

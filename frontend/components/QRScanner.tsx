@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { CameraView, Camera } from 'expo-camera'; // Modern Expo Camera
 import { Ionicons } from '@expo/vector-icons';
+import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 
 interface QRScannerProps {
   visible: boolean;
@@ -15,6 +16,20 @@ export default function QRScanner({ visible, onClose, onScanned }: Readonly<QRSc
 
   useEffect(() => {
     const getPermissions = async () => {
+      const existing = await Camera.getCameraPermissionsAsync();
+      if (existing.status === 'granted') {
+        setHasPermission(true);
+        return;
+      }
+      const consented = await requestPermissionDisclosure({
+        icon: 'camera',
+        title: 'Camera Access',
+        description: 'Shopyos needs camera access to scan QR codes for quick check-in and order verification.',
+      });
+      if (!consented) {
+        setHasPermission(false);
+        return;
+      }
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     };

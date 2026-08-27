@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { requestCameraPermissionWithDisclosure, requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import { getUserData, submitDriverVerification, getDriverProfile, CustomInAppToast, logoutUser } from '@/services/api';
 
 
@@ -123,13 +124,13 @@ export default function DriverVerification() {
   const pickImage = async (source: 'camera' | 'gallery', target: string) => {
     // 1. Request Permissions
     if (source === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status } = await requestCameraPermissionWithDisclosure();
       if (status !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'We need camera access to verify your identity.' });
         return;
       }
     } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await requestMediaLibraryPermissionWithDisclosure();
       if (status !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'We need gallery access to upload photos.' });
         return;

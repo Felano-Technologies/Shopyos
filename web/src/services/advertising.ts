@@ -20,7 +20,10 @@ export const createBannerCampaign = async () => ({});
 export const getMyBannerCampaigns = async () => ({});
 export const getAllBannerCampaigns = async () => ({});
 export const updateBannerCampaignStatus = async () => ({});
-export const getActiveBanners = async () => ({});
+export const getActiveBanners = async () => {
+  const res = await api.get('/advertising/banners/active');
+  return res.data?.banners || [];
+};
 export const uploadSnapImage = async () => ({});
 export const createSnap = async () => ({});
 export const getSnapFeed = async () => ({});

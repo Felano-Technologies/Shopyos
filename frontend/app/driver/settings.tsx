@@ -4,6 +4,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
+import * as Location from 'expo-location';
 import {
   getLocationSharingPreference,
   setLocationSharingPreference,
@@ -14,6 +15,7 @@ import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDr
 import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
+import LocationDisclosure from '@/components/ui/LocationDisclosure';
 // removed useCloudinaryUpload import
 function SettingRow({ icon, label, value, onPress }: Readonly<{ icon: any; label: string; value?: string; onPress?: () => void }>) {
   return (
@@ -65,6 +67,7 @@ export default function DriverSettings() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [showLocationDisclosure, setShowLocationDisclosure] = useState(false);
   // Load profile and preferences on mount
   useEffect(() => {
     loadData();
@@ -106,42 +109,70 @@ export default function DriverSettings() {
       setSaving(false);
     }
   };
-  const handleLocationToggle = async (value: boolean) => {
+  const finishEnablingLocationSharing = async () => {
     try {
-      // If enabling, request permissions first
-      if (value) {
-        const permissions = await requestLocationPermissions();
-        if (!permissions.foreground) {
-          CustomInAppToast.show({
-            type: 'error',
-            title: 'Permission Required',
-            message: 'Location permission is required to share your live location during deliveries.'
-          });
-          return;
-        }
-        if (!permissions.background) {
-          CustomInAppToast.show({
-            type: 'error',
-            title: 'Background Permission Required',
-            message: 'Background location permission is needed to track your location while delivering. Please enable it in your device settings.'
-          });
-          return;
-        }
+      const permissions = await requestLocationPermissions();
+      if (!permissions.foreground) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Permission Required',
+          message: 'Location permission is required to share your live location during deliveries.'
+        });
+        return;
       }
-      // Save preference
-      await setLocationSharingPreference(value);
-      setShareLiveLocation(value);
-      // Invalidate queries to trigger useBackgroundTasks to re-evaluate
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      CustomInAppToast.show({
-        type: 'success',
-        title: value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
-        message: value ? 'Your location will be shared during active deliveries.' : 'Your location will no longer be shared.'
-      });
+      if (!permissions.background) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Background Permission Required',
+          message: 'Background location permission is needed to track your location while delivering. Please enable it in your device settings.'
+        });
+        return;
+      }
+      await savePreference(true);
     } catch (error) {
       console.error('Error toggling location sharing:', error);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update location sharing preference.' });
     }
+  };
+
+  const savePreference = async (value: boolean) => {
+    await setLocationSharingPreference(value);
+    setShareLiveLocation(value);
+    // Invalidate queries to trigger useBackgroundTasks to re-evaluate
+    queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    CustomInAppToast.show({
+      type: 'success',
+      title: value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
+      message: value ? 'Your location will be shared during active deliveries.' : 'Your location will no longer be shared.'
+    });
+  };
+
+  const handleLocationToggle = async (value: boolean) => {
+    try {
+      if (!value) {
+        await savePreference(false);
+        return;
+      }
+      // Already granted — no need to show the disclosure again
+      const [fg, bg] = await Promise.all([
+        Location.getForegroundPermissionsAsync(),
+        Location.getBackgroundPermissionsAsync(),
+      ]);
+      if (fg.status === 'granted' && bg.status === 'granted') {
+        await finishEnablingLocationSharing();
+        return;
+      }
+      // Show the Prominent Disclosure before requesting background location
+      setShowLocationDisclosure(true);
+    } catch (error) {
+      console.error('Error toggling location sharing:', error);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update location sharing preference.' });
+    }
+  };
+
+  const handleDisclosureAccept = async () => {
+    setShowLocationDisclosure(false);
+    await finishEnablingLocationSharing();
   };
 
   const handleLogout = async () => {
@@ -256,6 +287,12 @@ export default function DriverSettings() {
         {/* Extra Space at bottom for safe scrolling */}
         <View style={{ height: 40 }} />
       </ScrollView>
+      <LocationDisclosure
+        visible={showLocationDisclosure}
+        context="driver"
+        onAccept={handleDisclosureAccept}
+        onDecline={() => setShowLocationDisclosure(false)}
+      />
     </View>
   );
 }

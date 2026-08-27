@@ -5,6 +5,8 @@ import { socketService } from '../services/socket';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { SEO } from '../components/SEO';
+import { Skeleton } from '../components/common/Skeleton';
+import { Radio, Map as MapIcon } from 'lucide-react';
 
 // Fix Leaflet broken default marker icon image asset references in Vite builds
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -80,7 +82,25 @@ export const OrderTracking: React.FC = () => {
   }, [order]);
 
   if (isLoading) {
-    return <div className="text-center py-20 text-subtle font-semibold animate-pulse">Loading tracking details...</div>;
+    return (
+      <div className="flex flex-col gap-8 mt-4">
+        <div className="flex justify-between items-center bg-white p-4 rounded-[16px] shadow-sm border border-gray-100">
+          <Skeleton width={160} height={24} />
+          <Skeleton width={100} height={16} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col gap-4">
+            <Skeleton width={120} height={12} />
+            <div className="flex justify-between items-center">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} width={36} height={36} circle />
+              ))}
+            </div>
+          </div>
+          <Skeleton height={280} borderRadius={24} />
+        </div>
+      </div>
+    );
   }
 
   if (error || !order) {
@@ -198,8 +218,9 @@ export const OrderTracking: React.FC = () => {
 
         {/* Right pane: Leaflet interactive OpenStreetMap */}
         <div className="flex flex-col gap-4 bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm">
-          <h4 className="font-bold text-xs text-subtle uppercase tracking-wider">
-            {isTrackingAvailable ? '📡 Live Delivery Route' : '🗺️ Delivery Address Map'}
+          <h4 className="font-bold text-xs text-subtle uppercase tracking-wider flex items-center gap-1.5">
+            {isTrackingAvailable ? <Radio size={14} /> : <MapIcon size={14} />}
+            {isTrackingAvailable ? 'Live Delivery Route' : 'Delivery Address Map'}
           </h4>
           <div className="h-[420px] w-full rounded-[16px] overflow-hidden border border-gray-200 relative shadow-inner z-0">
             <MapContainer center={buyerCoords} zoom={13} style={{ height: '100%', width: '100%', zIndex: 0 }}>

@@ -8,6 +8,7 @@ import * as TaskManager from 'expo-task-manager';
 import { storage } from '../../services/api';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
 import { flushQueue } from './queue';
+import { requestForegroundLocationWithDisclosure } from '../utils/location';
 
 export interface UserState {
   role?: string;
@@ -34,9 +35,11 @@ export const startDriverLocationTracking = async (
     const { status: fg } = await Location.getForegroundPermissionsAsync();
     if (fg !== 'granted') return { success: false, message: 'Foreground permission not granted' };
 
-    // Request background permission as a best-effort progressive enhancement
+    // Request background permission as a best-effort progressive enhancement —
+    // only if the driver already consented via the disclosed location-sharing
+    // flow (dashboard "go online" or settings toggle); never re-prompt silently.
     const { status: bg } = await Location.getBackgroundPermissionsAsync();
-    if (bg !== 'granted') {
+    if (bg !== 'granted' && (await getLocationSharingPreference())) {
       await Location.requestBackgroundPermissionsAsync().catch(() => {});
     }
 
@@ -108,7 +111,7 @@ export const isGeofenceRunning = async (): Promise<boolean> => {
  */
 export const startGeofenceTracking = async (): Promise<{ success: boolean; message: string; isExpoGo?: boolean }> => {
   try {
-    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    const { status: fg } = await requestForegroundLocationWithDisclosure();
     if (fg !== 'granted') return { success: false, message: 'Foreground location permission denied' };
 
     const storeRaw = await storage.getItem('CACHED_STORES');

@@ -1,14 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteProducts } from '../hooks/useProducts';
-import { useCategories } from '../hooks/useCategories';
+import { useFlashSale } from '../hooks/useFlashSale';
 import { useCart } from '../store/cartStore';
 import { Skeleton } from '../components/common/Skeleton';
 import { SEO } from '../components/SEO';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { ArrowRight, Zap } from 'lucide-react';
+import { AdCarousel } from '../components/home/AdCarousel';
 
 export const Home: React.FC = () => {
-  const { data: categories, isLoading: catsLoading } = useCategories();
+  const { data: flashSaleData } = useFlashSale();
   const {
     data: productsData,
     isLoading: prodsLoading,
@@ -18,6 +20,8 @@ export const Home: React.FC = () => {
   } = useInfiniteProducts();
   const addToCart = useCart((s) => s.addToCart);
   const navigate = useNavigate();
+
+  const flashSale = flashSaleData?.active ? flashSaleData : null;
 
   const products = productsData?.pages?.flatMap(p => p.products ?? p.data ?? []) || [];
 
@@ -49,8 +53,8 @@ export const Home: React.FC = () => {
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
       <SEO title="Home" />
-      {/* Premium Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy to-navy-mid text-white py-12 md:py-16 px-6 md:px-8 rounded-2xl text-center shadow-[0_10px_30px_rgba(12,21,89,0.15)] mt-4 md:mt-0">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-navy to-navy-mid text-white py-10 md:py-14 px-6 md:px-10 rounded-lg text-center shadow-[0_10px_30px_rgba(12,21,89,0.15)] mt-4 md:mt-0">
         <div className="relative z-10 max-w-xl mx-auto">
           <div className="inline-block bg-lime rounded-full px-3 py-1 mb-4">
             <span className="text-[10px] font-bold text-lime-text tracking-wider uppercase">Welcome to Shopyos</span>
@@ -64,10 +68,10 @@ export const Home: React.FC = () => {
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => navigate('/search')}
-              className="bg-lime text-lime-text font-bold px-6 py-3 rounded-full text-sm transition-transform hover:scale-105 shadow-md flex items-center gap-2"
+              className="bg-lime text-lime-text font-bold px-6 py-3 rounded-md text-sm transition-transform hover:scale-105 shadow-md flex items-center gap-2"
               aria-label="Start shopping"
             >
-              Start Shopping <span className="text-lg">→</span>
+              Start Shopping <ArrowRight size={16} />
             </button>
           </div>
         </div>
@@ -75,71 +79,52 @@ export const Home: React.FC = () => {
         <div className="absolute left-[-5%] bottom-[-20%] w-[250px] h-[250px] rounded-full bg-white/5 blur-[50px]" />
       </section>
 
-      {/* Quick Actions */}
-      <section className="grid grid-cols-4 md:grid-cols-8 gap-4 px-2">
-        {[
-          { label: 'Deals', icon: '🎁', route: '/deals' },
-          { label: 'Stores', icon: '🏪', route: '/stores' },
-          { label: 'Chat', icon: '💬', route: '/chat' },
-          { label: 'Orders', icon: '📦', route: '/orders' },
-        ].map((action, idx) => (
-          <div key={idx} onClick={() => navigate(action.route)} className="flex flex-col items-center gap-2 cursor-pointer group">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-2xl shadow-sm border border-gray-100 group-hover:bg-navy group-hover:text-white transition-all duration-300">
-              {action.icon}
+      <AdCarousel />
+
+      {/* Flash Sales — only shown when a sale is actually active */}
+      {flashSale && flashSale.products?.length > 0 && (
+        <section className="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-xl font-black text-navy flex items-center gap-1.5">
+                <Zap size={20} className="text-sale fill-sale" />
+                {flashSale.sale?.title || 'Flash Sale'}
+              </h3>
+              <div className="bg-sale text-white text-xs font-bold px-2 py-1 rounded-md animate-pulse">Ending Soon</div>
             </div>
-            <span className="text-xs font-semibold text-body text-center">{action.label}</span>
+            <button
+              onClick={() => navigate('/deals')}
+              className="text-sm font-bold text-navy hover:underline"
+              aria-label="See all flash sale items"
+            >
+              See All
+            </button>
           </div>
-        ))}
-      </section>
-
-      {/* Flash Sales */}
-      <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-             <h3 className="text-xl font-black text-navy">Flash Sale</h3>
-             <div className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md animate-pulse">Ending Soon</div>
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+            {flashSale.products.slice(0, 8).map((prod: any) => {
+              const discount = prod.compare_at_price > prod.price
+                ? Math.round(((prod.compare_at_price - prod.price) / prod.compare_at_price) * 100)
+                : 0;
+              return (
+                <div
+                  key={prod._id}
+                  onClick={() => navigate(`/product/${prod._id}`)}
+                  className="w-32 shrink-0 flex flex-col gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-full h-32 bg-gray-100 rounded-md relative overflow-hidden">
+                    <img src={prod.images?.[0] || 'https://via.placeholder.com/150'} alt={prod.name} className="w-full h-full object-cover" />
+                    {discount > 0 && (
+                      <div className="absolute bottom-0 w-full bg-sale text-white text-center text-xs font-bold py-0.5">-{discount}%</div>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-body truncate">{prod.name}</span>
+                  <span className="text-sm font-bold text-sale">₵{Number(prod.price).toFixed(2)}</span>
+                </div>
+              );
+            })}
           </div>
-          <button className="text-sm font-bold text-navy hover:underline" aria-label="See all flash sales">See All</button>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-           {[1, 2, 3].map((prod) => (
-             <div key={prod} className="w-32 shrink-0 flex flex-col gap-2 cursor-pointer hover:opacity-80 transition-opacity">
-               <div className="w-full h-32 bg-gray-100 rounded-xl relative overflow-hidden">
-                  <div className="absolute bottom-0 w-full bg-red-500 text-white text-center text-xs font-bold py-0.5">-50%</div>
-               </div>
-               <span className="text-sm font-bold text-sale">₵99.99</span>
-             </div>
-           ))}
-        </div>
-      </section>
-
-      {/* Categories Horizontal Scroller */}
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg md:text-xl font-bold text-body">Shop by Category</h3>
-          <button className="text-sm font-bold text-navy hover:underline" aria-label="See all categories">SEE ALL</button>
-        </div>
-        
-        {catsLoading ? (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} width={100} height={40} borderRadius={20} className="shrink-0" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin">
-            {categories?.map((cat: any) => (
-              <div
-                key={cat.id}
-                onClick={() => navigate(`/search?category=${encodeURIComponent(cat.id)}`)}
-                className="px-5 py-2.5 rounded-full cursor-pointer whitespace-nowrap font-semibold border border-gray-200 hover:border-navy hover:text-navy transition-all bg-white text-body shadow-sm"
-              >
-                {cat.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Featured Products Grid */}
       <section>
@@ -148,10 +133,10 @@ export const Home: React.FC = () => {
         </div>
 
         {prodsLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="bg-white rounded-[22px] p-3 shadow-sm border border-gray-100">
-                <Skeleton width="100%" height={160} borderRadius={16} className="mb-3" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
+            {Array.from({ length: 12 }).map((_, idx) => (
+              <div key={idx} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+                <Skeleton width="100%" height={160} borderRadius={8} className="mb-3" />
                 <Skeleton width="60%" height={14} className="mb-2" />
                 <Skeleton width="80%" height={16} className="mb-3" />
                 <Skeleton width="40%" height={18} />
@@ -163,15 +148,15 @@ export const Home: React.FC = () => {
             No products found in the marketplace. Please sign in or verify server connection.
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
             {products.map((prod: any) => (
               <div
                 key={prod.id}
                 onClick={() => handleProductClick(prod.id)}
-                className="bg-card rounded-[22px] overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-300 flex flex-col h-full border border-gray-100 shadow-[0_2px_8px_rgba(12,21,89,0.08)] p-2.5"
+                className="bg-card rounded-lg overflow-hidden cursor-pointer hover:-translate-y-1 transition-transform duration-300 flex flex-col h-full border border-gray-100 shadow-[0_2px_8px_rgba(12,21,89,0.08)] p-2.5"
               >
                 {/* Image Wrap */}
-                <div className="relative w-full h-40 bg-gray-50 rounded-[14px] overflow-hidden mb-3">
+                <div className="relative w-full h-40 bg-gray-50 rounded-md overflow-hidden mb-3">
                   <img
                     src={prod.images?.[0] || 'https://via.placeholder.com/300x180'}
                     alt={prod.name}

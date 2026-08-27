@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { loginUser } from '../services/auth';
 import { SEO } from '../components/SEO';
@@ -12,6 +12,8 @@ export const Login: React.FC = () => {
 
   const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +53,7 @@ export const Login: React.FC = () => {
       if (isAdmin) {
         navigate('/admin');
       } else {
-        navigate('/');
+        navigate(from && from !== '/login' ? from : '/');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.');

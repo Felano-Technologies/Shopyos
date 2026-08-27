@@ -8,6 +8,7 @@ import AppImage from '@/components/AppImage';
 import MapView, { Marker, UrlTile } from '@/components/MapView';
 import Circle from '@/components/MapCircle';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -112,7 +113,7 @@ export default function StoresMap() {
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await requestForegroundLocationWithDisclosure();
         let coords = { latitude: 6.6745, longitude: -1.5716 }; // Kumasi fallback
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({

@@ -16,6 +16,7 @@ import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useSocketSetup } from '../hooks/useSocketSetup';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
+import { PermissionDisclosureHost } from '../components/PermissionDisclosureHost';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -309,6 +310,7 @@ function AppContent() {
             <StatusBar style="auto" />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
             <InAppToastHost />
+            <PermissionDisclosureHost />
             {activeMode === 'buyer' && (
               <TouchableOpacity
                 accessibilityLabel="Return to original dashboard"

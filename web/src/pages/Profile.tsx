@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProfile, useUpdateProfile } from '../hooks/useProfile';
 import { SEO } from '../components/SEO';
+import { Skeleton } from '../components/common/Skeleton';
+import { useAuthStore } from '../store/authStore';
+import { logoutUser } from '../services/auth';
+import { LogOut } from 'lucide-react';
 
 export const Profile: React.FC = () => {
   const { data: profile, isLoading } = useProfile();
   const updateProfileMutation = useUpdateProfile();
+  const navigate = useNavigate();
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setAuthenticated(false);
+    navigate('/');
+  };
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -34,7 +47,21 @@ export const Profile: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div className="text-center py-20 text-subtle font-semibold animate-pulse">Loading profile...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[70vh] p-4">
+        <div className="bg-white w-full max-w-[500px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
+          <Skeleton width="60%" height={28} className="mx-auto mb-6" />
+          <div className="flex flex-col gap-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <Skeleton width={90} height={11} />
+                <Skeleton width="100%" height={44} borderRadius={12} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -104,6 +131,14 @@ export const Profile: React.FC = () => {
             {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
           </button>
         </form>
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 text-sale hover:bg-red-50 font-bold py-3.5 rounded-[16px] text-sm transition-colors mt-6 border-t border-gray-100 pt-6"
+        >
+          <LogOut size={18} />
+          Log Out
+        </button>
       </div>
     </div>
   );

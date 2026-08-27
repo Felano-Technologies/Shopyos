@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 import { useOrderDetail } from '@/hooks/useOrders';
@@ -97,7 +98,7 @@ export default function ReturnSubmitScreen() {
 
   const handlePickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await requestMediaLibraryPermissionWithDisclosure();
       if (status !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Permission to access gallery is required to attach photos.' });
         return;

@@ -21,6 +21,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { loginUser, logoutUser } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 
 const DEV_ACCOUNTS = [
   { label: 'Admin', email: 'shoyosecommercehub@gmail.com', password: 'Shopyos@2026' },
@@ -35,7 +36,7 @@ const FEATURES = [
 
 async function getLocation() {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
+    const { status } = await requestForegroundLocationWithDisclosure();
     if (status === 'granted') {
       const loc: any = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),

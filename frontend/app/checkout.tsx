@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
 import { useCart } from '@/store/cartStore';
@@ -125,7 +126,7 @@ export default function CheckoutScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await requestForegroundLocationWithDisclosure();
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };

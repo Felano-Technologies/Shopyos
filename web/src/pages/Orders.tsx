@@ -2,6 +2,21 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrders } from '../hooks/useOrders';
 import { SEO } from '../components/SEO';
+import { Skeleton } from '../components/common/Skeleton';
+
+const OrderRowSkeleton: React.FC = () => (
+  <div className="bg-white flex justify-between items-center p-5 rounded-[20px] border border-gray-100 shadow-sm">
+    <div className="flex flex-col gap-2">
+      <Skeleton width={140} height={16} />
+      <Skeleton width={100} height={12} />
+      <Skeleton width={90} height={14} className="mt-1" />
+    </div>
+    <div className="flex flex-col items-end gap-2">
+      <Skeleton width={70} height={22} borderRadius={999} />
+      <Skeleton width={60} height={18} />
+    </div>
+  </div>
+);
 
 export const Orders: React.FC = () => {
   const { data: ordersData, isLoading, error } = useOrders();
@@ -10,7 +25,14 @@ export const Orders: React.FC = () => {
   const orders = ordersData?.orders || [];
 
   if (isLoading) {
-    return <div className="text-center py-20 text-subtle font-semibold animate-pulse">Loading orders...</div>;
+    return (
+      <div className="flex flex-col gap-8 mt-4">
+        <h2 className="text-2xl md:text-3xl font-bold text-body">My Orders</h2>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <OrderRowSkeleton key={i} />)}
+        </div>
+      </div>
+    );
   }
 
   if (error) {

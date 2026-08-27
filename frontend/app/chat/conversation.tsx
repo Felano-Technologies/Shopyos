@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import {
   sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
@@ -412,7 +413,7 @@ export default function ConversationScreen() {
 
   const handlePickMedia = async (type: 'image' | 'video') => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission = await requestMediaLibraryPermissionWithDisclosure();
       if (permission.status !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Photos permissions are required to upload media.' });
         return;

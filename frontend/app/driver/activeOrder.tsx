@@ -18,6 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { useDeliveryDetails, useUpdateDeliveryStatus, useVerifyDeliveryPin, useVerifyHubDropoff } from '@/hooks/useDelivery';
 import { startConversation, CustomInAppToast } from '@/services/api';
 import {
@@ -111,7 +112,7 @@ export default function ActiveOrderScreen() {
     let watcher: Location.LocationSubscription | null = null;
 
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await requestForegroundLocationWithDisclosure();
       if (status !== 'granted') return;
 
       watcher = await Location.watchPositionAsync(

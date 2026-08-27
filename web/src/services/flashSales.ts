@@ -2,7 +2,7 @@ import { api } from './client';
 
 export const getActiveFlashSale = async () => {
   const res = await api.get('/flash-sales/active');
-  return res.data;
+  return res.data?.data ?? { active: false, sale: null, products: [] };
 };
 
 export const getSlotsList = async () => {

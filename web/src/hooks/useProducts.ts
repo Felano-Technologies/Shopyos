@@ -4,14 +4,11 @@ import { productsApi } from '../lib/query/api';
 import type { Product } from '../lib/query/api';
 import { queryKeys } from '../lib/query/keys';
 import type { ProductFilters } from '../lib/query/keys';
-import { useAuthStore } from '../store/authStore';
 
 export const useProducts = (filters?: ProductFilters, limit = 20) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.products.list(filters),
     queryFn: () => productsApi.search(undefined, filters, limit, 0),
-    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -19,7 +16,6 @@ export const useProducts = (filters?: ProductFilters, limit = 20) => {
 };
 
 export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useInfiniteQuery({
     queryKey: queryKeys.products.infinite(filters),
     queryFn: ({ pageParam = 0 }) =>
@@ -31,7 +27,6 @@ export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
       return allPages.length * limit;
     },
     initialPageParam: 0,
-    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -65,11 +60,12 @@ export const useProductSearch = (
 };
 
 export const useInfiniteProductSearch = (query: string, filters?: ProductFilters, limit = 20) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasQuery = query.trim().length >= 2;
+  const hasCategory = !!filters?.category;
   return useInfiniteQuery({
     queryKey: [...queryKeys.products.search(query, filters), 'infinite'],
     queryFn: ({ pageParam = 0 }) =>
-      productsApi.search(query || undefined, filters, limit, pageParam),
+      productsApi.search(hasQuery ? query : undefined, filters, limit, pageParam),
     getNextPageParam: (lastPage, allPages) => {
       if (!lastPage.success || !lastPage.products || lastPage.products.length < limit) {
         return undefined;
@@ -77,7 +73,7 @@ export const useInfiniteProductSearch = (query: string, filters?: ProductFilters
       return allPages.length * limit;
     },
     initialPageParam: 0,
-    enabled: isAuthenticated && query.length >= 2,
+    enabled: hasQuery || hasCategory,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     placeholderData: keepPreviousData,

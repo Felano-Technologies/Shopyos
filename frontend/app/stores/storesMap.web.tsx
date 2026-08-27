@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -46,7 +47,7 @@ export default function StoresMapWeb() {
     (async () => {
       try {
         let coords = { latitude: 6.6745, longitude: -1.5716 };
-        const permission = await Location.requestForegroundPermissionsAsync().catch(() => null);
+        const permission = await requestForegroundLocationWithDisclosure().catch(() => null);
         if (permission?.status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,

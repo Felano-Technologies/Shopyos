@@ -9,6 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import * as Location from 'expo-location';
+import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -73,7 +74,7 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
   if (cachedTxt) setLocation(cachedTxt);
 
   let liveCoords: { latitude: number; longitude: number } | null = null;
-  const { status } = await Location.requestForegroundPermissionsAsync();
+  const { status } = await requestForegroundLocationWithDisclosure();
   if (status === 'granted') {
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });

@@ -74,6 +74,11 @@ export const queryKeys = {
     search: (query: string) => ['stores', 'search', query] as const,
   },
 
+  flashSales: {
+    all: ['flash-sales'] as const,
+    active: () => ['flash-sales', 'active'] as const,
+  },
+
   banners: {
     all: ['banners'] as const,
     active: () => ['banners', 'active'] as const,

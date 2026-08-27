@@ -3,18 +3,36 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useProduct } from '../hooks/useProducts';
 import { useCart } from '../store/cartStore';
 import { SEO } from '../components/SEO';
+import { Skeleton } from '../components/common/Skeleton';
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: product, isLoading, error } = useProduct(id || '');
   const addToCart = useCart((s) => s.addToCart);
-  
+
   const [qty, setQty] = useState(1);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   if (isLoading) {
-    return <div className="text-center py-20 text-subtle font-semibold animate-pulse">Loading product details...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mt-4">
+        <div className="flex flex-col gap-4 bg-white p-4 rounded-[24px] shadow-sm border border-gray-100">
+          <Skeleton height={380} borderRadius={16} />
+          <div className="flex gap-3">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} width={64} height={64} borderRadius={12} />)}
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 bg-white p-6 rounded-[24px] shadow-sm border border-gray-100">
+          <Skeleton width="70%" height={24} />
+          <Skeleton width="30%" height={28} />
+          <Skeleton width="100%" height={14} />
+          <Skeleton width="100%" height={14} />
+          <Skeleton width="60%" height={14} />
+          <Skeleton width="100%" height={48} borderRadius={999} className="mt-4" />
+        </div>
+      </div>
+    );
   }
 
   if (error || !product) {
