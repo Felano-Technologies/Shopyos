@@ -157,6 +157,9 @@ app.get('/', (req, res) => res.status(200).send('Shopyos API is live.'));
 // Public, no-login page for Play Store / App Store account-deletion policy requirements.
 app.get('/delete-account', (req, res) => res.sendFile(path.join(__dirname, 'public', 'delete-account.html')));
 
+// Public, no-login privacy policy page for Play Store / App Store data safety requirements.
+app.get('/privacy-policy', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy-policy.html')));
+
 app.get('/health', async (req, res) => {
   // Run database and Redis health checks in parallel
   const [databaseResult, redisResult, appMetrics] = await Promise.all([
