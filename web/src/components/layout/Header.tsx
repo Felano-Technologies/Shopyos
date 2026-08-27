@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Search, ShoppingCart, User, LogOut, MessageCircle } from 'lucide-react';
+import { Search, ShoppingCart, User, LogOut, MessageCircle, Gift } from 'lucide-react';
 
 const NAV_LINKS = [
   { name: 'Marketplace', route: '/' },
@@ -51,6 +51,10 @@ export const Header: React.FC = () => {
       <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
         <Link to="/search" className="p-2 text-navy hover:bg-gray-100 rounded-full transition-colors" aria-label="Search">
           <Search size={20} />
+        </Link>
+
+        <Link to="/deals" className="md:hidden p-2 text-navy hover:bg-gray-100 rounded-full transition-colors" aria-label="Deals">
+          <Gift size={20} />
         </Link>
 
         {isAuthenticated && (
