@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   const isDev = env.EXPO_PUBLIC_DEV_MODE === 'true';
   const devApiUrl = env.EXPO_PUBLIC_DEV_API_URL || 'https://2f58-154-161-238-136.ngrok-free.app';
   const devSocketUrl = env.EXPO_PUBLIC_DEV_SOCKET_URL || 'https://2f58-154-161-238-136.ngrok-free.app';
-  const prodApiUrl = env.EXPO_PUBLIC_API_URL || 'https://shopyos-production.up.railway.app';
-  const prodSocketUrl = env.EXPO_PUBLIC_SOCKET_URL || 'https://shopyos-production.up.railway.app';
+  const prodApiUrl = env.EXPO_PUBLIC_API_URL || 'https://api.shopyosgh.com';
+  const prodSocketUrl = env.EXPO_PUBLIC_SOCKET_URL || 'https://socket.shopyosgh.com';
 
   const targetApiUrl = isDev ? devApiUrl : prodApiUrl;
   const targetSocketUrl = isDev ? devSocketUrl : prodSocketUrl;
