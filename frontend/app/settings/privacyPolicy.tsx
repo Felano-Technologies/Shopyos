@@ -92,7 +92,7 @@ You may request deletion of your account and associated data at any time through
 • Withdraw Consent: Revoke permissions for location tracking, notifications, or marketing communications at any time.
 • Object: Object to certain processing activities, such as personalised advertising.
 
-To exercise any of these rights, navigate to Settings → Privacy & Security in the app, or contact us at privacy@shopyos.com.`,
+To exercise any of these rights, navigate to Settings → Privacy & Security in the app, or contact us at shopyosecommercehub@gmail.com.`,
   },
   {
     title: '7. Cookies & Tracking',
@@ -108,7 +108,7 @@ You can manage notification preferences in Settings → Push Notifications.`,
     title: '8. Children\'s Privacy',
     content: `Shopyos is not intended for use by children under the age of 16. We do not knowingly collect personal information from children. If we discover that a child under 16 has provided us with personal data, we will promptly delete it.
 
-If you are a parent or guardian and believe your child has provided us with personal information, please contact us at privacy@shopyos.com.`,
+If you are a parent or guardian and believe your child has provided us with personal information, please contact us at shopyosecommercehub@gmail.com.`,
   },
   {
     title: '9. Third-Party Links',
@@ -126,7 +126,7 @@ If you are a parent or guardian and believe your child has provided us with pers
     title: '11. Contact Us',
     content: `If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
-📧 Email: privacy@shopyos.com
+📧 Email: shopyosecommercehub@gmail.com
 📧 General: support@shopyos.com
 🌐 Website: www.shopyos.com
 
