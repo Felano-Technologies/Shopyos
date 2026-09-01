@@ -78,7 +78,7 @@ router.use(paymentLimiter);
  *                 type: string
  *                 format: uri
  *                 description: URL Paystack redirects to after payment
- *                 example: "https://shopyos.app/payment/verify"
+ *                 example: "https://shopyosgh.com/payment/verify"
  *     responses:
  *       200:
  *         description: Payment initialized successfully

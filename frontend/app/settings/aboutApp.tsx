@@ -211,7 +211,7 @@ export default function AboutAppScreen() {
           <View style={styles.linkDivider} />
           <TouchableOpacity
             style={styles.linkRow}
-            onPress={() => Linking.openURL('https://www.shopyos.com').catch(() => {})}
+            onPress={() => Linking.openURL('https://shopyosgh.com').catch(() => {})}
           >
             <Feather name="globe" size={18} color="#0C1559" />
             <Text style={styles.linkText}>Visit Website</Text>
