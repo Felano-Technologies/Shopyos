@@ -18,6 +18,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.eugeneanokye99.shopyos",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track deliveries in real-time for better customer experience.",
         "NSLocationWhenInUseUsageDescription": "We need your location to provide accurate delivery services.",
@@ -25,9 +27,9 @@
         "UIBackgroundModes": [
           "location",
           "audio",
-          "location",
-          "audio"
-        ]
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bitcode": false
     },
@@ -125,6 +127,26 @@
         {
           "icon": "./assets/images/logo - blue.png",
           "color": "#7CCB13"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Shopyos to access your photos to upload product images and documents.",
+          "cameraPermission": "Allow Shopyos to access your camera to take photos for uploads."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Shopyos to access your photos to attach and save media.",
+          "savePhotosPermission": "Allow Shopyos to save photos and videos to your library."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Shopyos to use Face ID to secure your account."
         }
       ],
       "expo-font",

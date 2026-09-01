@@ -29,6 +29,11 @@
       "android": {
         "track": "production",
         "releaseStatus": "completed"
+      },
+      "ios": {
+        "appleId": "eugeneanokye99@icloud.com",
+        "ascAppId": "6807581845",
+        "appleTeamId": "4KUB5424PW"
       }
     }
   }
