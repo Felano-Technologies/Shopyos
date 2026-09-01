@@ -160,6 +160,9 @@ app.get('/delete-account', (req, res) => res.sendFile(path.join(__dirname, 'publ
 // Public, no-login privacy policy page for Play Store / App Store data safety requirements.
 app.get('/privacy-policy', (req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy-policy.html')));
 
+// Public, no-login support page for App Store "Support URL" requirement.
+app.get('/support', (req, res) => res.sendFile(path.join(__dirname, 'public', 'support.html')));
+
 // Root-level favicon for the pages above (they link to "/adaptive-icon.png", not "/public/adaptive-icon.png").
 app.get('/adaptive-icon.png', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adaptive-icon.png')));
 
