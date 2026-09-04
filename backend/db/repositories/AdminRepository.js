@@ -135,6 +135,27 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
+   * Resolve an id that may be either users.id or user_profiles.id to a real
+   * users.id. Several admin/users/:userId/* callers (mobile and web alike)
+   * pass the id straight from the GET /admin/users list row, whose `id`
+   * field is actually user_profiles.id (see getAllUsers above) — while
+   * other callers (e.g. rider deletion, which already has the real user id
+   * from the driver-verifications join) pass a genuine users.id. Accept
+   * both so the same admin action works regardless of which list it was
+   * triggered from, instead of silently matching zero rows.
+   */
+  async resolveUserId(id) {
+    const db = getPool();
+    const { rows: direct } = await db.query('SELECT id FROM users WHERE id = $1', [id]);
+    if (direct.length) return direct[0].id;
+
+    const { rows: viaProfile } = await db.query('SELECT user_id FROM user_profiles WHERE id = $1', [id]);
+    if (viaProfile.length) return viaProfile[0].user_id;
+
+    return null;
+  }
+
+  /**
    * Update user role by profile primary key ID
    */
   async updateUserRole(profileId, roleName) {

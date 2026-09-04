@@ -164,11 +164,14 @@ const updateUserRole = async (req, res, next) => {
     const { userId } = req.params;
     const { role } = req.body;
 
-    if (!['buyer', 'seller', 'driver', 'admin'].includes(role)) {
+    if (!['buyer', 'seller', 'driver', 'parcel_partner', 'admin'].includes(role)) {
       return ApiResponse.error(res, 'Invalid role', 400);
     }
 
-    const user = await repositories.admin.updateUserRole(userId, role);
+    const realUserId = await repositories.admin.resolveUserId(userId);
+    if (!realUserId) return ApiResponse.error(res, 'User not found', 404);
+
+    const user = await repositories.admin.setUserRoleByUserId(realUserId, role);
 
     // Create audit log
     await repositories.auditLogs.createLog({
@@ -1067,9 +1070,12 @@ const rejectDriverVerification = async (req, res, next) => {
 // ─── User: soft-delete ────────────────────────────────────────────────────────
 const deleteUser = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const { userId: rawId } = req.params;
     const { getPool } = require('../config/postgres');
     const db = getPool();
+
+    const userId = await repositories.admin.resolveUserId(rawId);
+    if (!userId) return ApiResponse.error(res, 'User not found', 404);
 
     await db.query(
       `UPDATE users SET is_active = FALSE, deleted_at = NOW() WHERE id = $1`,
@@ -1140,7 +1146,9 @@ const deleteStore = async (req, res, next) => {
 // ─── User: reset session (revoke tokens, force re-login) ──────────────────────
 const resetUserSession = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const { userId: rawId } = req.params;
+    const userId = await repositories.admin.resolveUserId(rawId);
+    if (!userId) return ApiResponse.error(res, 'User not found', 404);
 
     await repositories.users.db
       .from('refresh_tokens')
@@ -1170,9 +1178,12 @@ const resetUserSession = async (req, res, next) => {
 // ─── User: disable session (reset + deactivate) ───────────────────────────────
 const disableUserSession = async (req, res, next) => {
   try {
-    const { userId } = req.params;
+    const { userId: rawId } = req.params;
     const { getPool } = require('../config/postgres');
     const db = getPool();
+
+    const userId = await repositories.admin.resolveUserId(rawId);
+    if (!userId) return ApiResponse.error(res, 'User not found', 404);
 
     await db.query(`UPDATE users SET is_active = FALSE WHERE id = $1`, [userId]);
 

@@ -78,6 +78,10 @@ export const adminDeleteUser = async (userId: string) => {
   const response = await api.delete(`/admin/users/${userId}`);
   return response.data;
 };
+export const adminUpdateUserRole = async (userId: string, role: 'buyer' | 'seller' | 'driver' | 'parcel_partner' | 'admin') => {
+  const response = await api.put(`/admin/users/${userId}/role`, { role });
+  return response.data;
+};
 
 // Configs (platform_fee_config — keyed by config_key, not id)
 export const getAdminFeeConfigs = async (category?: string) => {

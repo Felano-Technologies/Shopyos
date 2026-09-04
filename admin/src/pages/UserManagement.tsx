@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   FiUsers, FiCheckCircle, FiUser, FiShoppingBag, FiTruck, FiBox, FiX, FiUserPlus, FiSearch, FiTrash2,
 } from 'react-icons/fi';
-import { getAdminUsers, getAdminUserStats, adminUpdateUserStatus, adminDeleteUser, createAdminUser } from '../services/admin';
+import { getAdminUsers, getAdminUserStats, adminUpdateUserStatus, adminDeleteUser, adminUpdateUserRole, createAdminUser } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
@@ -23,6 +23,8 @@ const ROLE_TABS: { label: string; value: string | null; icon: React.ReactNode; c
   { label: 'Riders', value: 'driver', icon: <FiTruck className="w-4 h-4" />, color: 'bg-navy/10 text-navy', accent: 'bg-navy' },
   { label: 'Parcel Partners', value: 'parcel_partner', icon: <FiBox className="w-4 h-4" />, color: 'bg-cyan-50 text-cyan-600', accent: 'bg-cyan-500' },
 ];
+
+const ROLE_OPTIONS = ['buyer', 'seller', 'driver', 'parcel_partner', 'admin'] as const;
 
 const PAGE_SIZE = 20;
 
@@ -101,6 +103,24 @@ export const UserManagement: React.FC = () => {
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, account_status: newStatus } : u)));
     } catch (err) {
       console.error('Failed to update user status', err);
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const handleRoleChange = async (user: any, newRole: string) => {
+    if (newRole === user.role) return;
+    if (!window.confirm(`Change ${user.full_name || user.email}'s role from ${user.role || 'buyer'} to ${newRole}?`)) {
+      return;
+    }
+    setBusyUserId(user.id);
+    try {
+      await adminUpdateUserRole(user.id, newRole as any);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: newRole } : u)));
+      getAdminUserStats().then((res) => { if (res?.stats) setStats(res.stats); }).catch(() => {});
+    } catch (err) {
+      console.error('Failed to update user role', err);
+      window.alert(extractErrorMessage(err));
     } finally {
       setBusyUserId(null);
     }
@@ -236,9 +256,16 @@ export const UserManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 capitalize">
-                          {user.role || 'buyer'}
-                        </span>
+                        <select
+                          value={user.role || 'buyer'}
+                          onChange={(e) => handleRoleChange(user, e.target.value)}
+                          disabled={busyUserId === user.id}
+                          className="px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 capitalize border-0 focus:outline-none focus:ring-1 focus:ring-navy disabled:opacity-50 cursor-pointer"
+                        >
+                          {ROLE_OPTIONS.map((r) => (
+                            <option key={r} value={r} className="bg-card text-body">{r.replace('_', ' ')}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
