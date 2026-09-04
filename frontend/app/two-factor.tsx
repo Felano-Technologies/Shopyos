@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,34 @@ import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { verifyTwoFactorLogin } from '@/services/auth';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  body: string;
+  muted: string;
+  badgeBg: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  lime: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    body: colors.text,
+    muted: colors.textSecondary,
+    badgeBg: colors.backgroundAlt,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    lime: colors.accent,
+  };
+}
 
 const CODE_LENGTH = 6;
 
@@ -33,6 +61,9 @@ function navigateByRole(role: string | undefined) {
 export default function TwoFactorScreen() {
   const { token, target } = useLocalSearchParams<{ token: string; target?: string }>();
   const { refresh } = useOnboarding();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -70,9 +101,9 @@ export default function TwoFactorScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
+        <LinearGradient colors={themeColors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -84,7 +115,7 @@ export default function TwoFactorScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.body}>
           <View style={styles.iconCircle}>
-            <MaterialCommunityIcons name="shield-lock" size={40} color="#0C1559" />
+            <MaterialCommunityIcons name="shield-lock" size={40} color={C.navy} />
           </View>
           <Text style={styles.title}>Enter your verification code</Text>
           <Text style={styles.sub}>
@@ -114,7 +145,7 @@ export default function TwoFactorScreen() {
             onPress={() => handleVerify()}
             disabled={code.length !== CODE_LENGTH || verifying}
           >
-            {verifying ? <ActivityIndicator color="#0C1559" /> : <Text style={styles.verifyTxt}>Verify & Sign In</Text>}
+            {verifying ? <ActivityIndicator color={C.navy} /> : <Text style={styles.verifyTxt}>Verify & Sign In</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.replace('/login')} style={{ marginTop: 20 }}>
@@ -126,31 +157,31 @@ export default function TwoFactorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
   backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
   headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   body: { flex: 1, alignItems: 'center', paddingHorizontal: 28, paddingTop: 48 },
   iconCircle: {
-    width: 84, height: 84, borderRadius: 42, backgroundColor: '#EEF2FF',
+    width: 84, height: 84, borderRadius: 42, backgroundColor: C.badgeBg,
     alignItems: 'center', justifyContent: 'center', marginBottom: 22,
   },
-  title: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
-  sub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20, marginBottom: 28 },
+  title: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8, textAlign: 'center' },
+  sub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', lineHeight: 20, marginBottom: 28 },
   codeRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   codeBox: {
-    width: 46, height: 54, borderRadius: 12, borderWidth: 1.5, borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center',
+    width: 46, height: 54, borderRadius: 12, borderWidth: 1.5, borderColor: C.borderStrong,
+    backgroundColor: C.surfaceElevated, alignItems: 'center', justifyContent: 'center',
   },
-  codeBoxActive: { borderColor: '#84cc16' },
-  codeDigit: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  codeBoxActive: { borderColor: C.lime },
+  codeDigit: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: C.navy },
   hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
   verifyBtn: {
     marginTop: 24, width: '100%', height: 52, borderRadius: 14,
-    backgroundColor: '#84cc16', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center',
   },
   verifyBtnDisabled: { backgroundColor: '#E2E8F0' },
   verifyTxt: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  backToLogin: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+  backToLogin: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted },
 });

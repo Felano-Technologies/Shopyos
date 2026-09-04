@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  useColorScheme,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -20,6 +19,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
 import TappableAvatar from '@/components/TappableAvatar';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 
 interface User {
@@ -31,8 +31,8 @@ interface User {
 }
 
 export default function UserProfile() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const isDark = resolvedTheme === 'dark';
   const router = useRouter();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);

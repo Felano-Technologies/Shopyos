@@ -23,7 +23,7 @@ export {
 export {
   getStoreProducts, searchProducts, getProductFilterOptions, getAllCategories, createCategory, updateCategory,
   deleteCategory, getProductById, createProduct, deleteProduct, updateProduct,
-  uploadProductImages, getPromotedProducts,
+  uploadProductImages, deleteProductImage, setPrimaryProductImage, getPromotedProducts,
 } from './products';
 
 export {

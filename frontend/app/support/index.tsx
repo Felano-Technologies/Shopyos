@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,36 @@ import { useRouter } from 'expo-router';
 import { getCachedUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { createSupportTicket, TicketCategory, ReporterRole } from '@/services/support';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  borderStrong: string;
+  badgeBg: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    borderStrong: colors.borderStrong,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
+}
 
 type CategoryOption = { key: TicketCategory; label: string; icon: string; roles: ReporterRole[] };
 
@@ -42,6 +72,9 @@ function roleFromUser(user: any): ReporterRole {
 
 export default function RaiseReportScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [reporterRole, setReporterRole] = useState<ReporterRole>('buyer');
 
   React.useEffect(() => {
@@ -99,9 +132,9 @@ export default function RaiseReportScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
+        <LinearGradient colors={themeColors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -131,7 +164,7 @@ export default function RaiseReportScreen() {
                 <Ionicons
                   name={c.icon as any}
                   size={16}
-                  color={category === c.key ? '#FFF' : '#0C1559'}
+                  color={category === c.key ? C.textInverse : C.navy}
                 />
                 <Text style={[styles.categoryLabel, category === c.key && styles.categoryLabelActive]}>
                   {c.label}
@@ -145,7 +178,7 @@ export default function RaiseReportScreen() {
           <TextInput
             style={styles.input}
             placeholder="Brief summary of the issue"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.subtle}
             value={subject}
             onChangeText={setSubject}
             maxLength={200}
@@ -156,7 +189,7 @@ export default function RaiseReportScreen() {
           <TextInput
             style={[styles.input, styles.textarea]}
             placeholder="Describe your issue in detail (minimum 20 characters)..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.subtle}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -170,7 +203,7 @@ export default function RaiseReportScreen() {
           <TextInput
             style={styles.input}
             placeholder="Order number, product ID, etc."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.subtle}
             value={referenceId}
             onChangeText={setReferenceId}
           />
@@ -192,13 +225,13 @@ export default function RaiseReportScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#FFFFFF' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,8 +246,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   headerSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   scroll: { padding: 20, paddingBottom: 48 },
-  sectionLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 20 },
-  optional: { fontFamily: 'Montserrat-Medium', color: '#94A3B8', textTransform: 'none' },
+  sectionLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.navy, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, marginTop: 20 },
+  optional: { fontFamily: 'Montserrat-Medium', color: C.subtle, textTransform: 'none' },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryChip: {
     flexDirection: 'row',
@@ -224,25 +257,25 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 50,
     borderWidth: 1.5,
-    borderColor: '#0C1559',
-    backgroundColor: '#EEF2FF',
+    borderColor: C.navy,
+    backgroundColor: C.badgeBg,
   },
-  categoryChipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  categoryLabel: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
-  categoryLabelActive: { color: '#FFF' },
+  categoryChipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  categoryLabel: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.navy },
+  categoryLabelActive: { color: C.textInverse },
   input: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.body,
   },
   textarea: { height: 140, textAlignVertical: 'top', paddingTop: 14 },
-  charCount: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textAlign: 'right', marginTop: 5 },
+  charCount: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'right', marginTop: 5 },
   submitWrapper: { marginTop: 28, borderRadius: 18, overflow: 'hidden' },
   submitBtn: { paddingVertical: 18, alignItems: 'center' },
   submitText: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },

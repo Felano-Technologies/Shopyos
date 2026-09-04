@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,34 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useCategories } from '@/hooks/useCategories';
 import { searchProducts } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  lime: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    lime: colors.accent,
+  };
+}
+
 const CATEGORY_IMAGES: Record<string, any> = {
   'Grocery':         require('../../assets/images/search/fooddrinks.png'),
   'Footwear':        require('../../assets/images/search/slipper1.png'),
@@ -53,6 +81,10 @@ const getCategoryImage = (name: string, index: number) =>
   CATEGORY_IMAGES[name] ?? FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 export default function CategoryScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -148,7 +180,7 @@ export default function CategoryScreen() {
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.mainContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
           {/* 🟢 Header */}
           <View style={styles.headerContainer}>
@@ -160,17 +192,17 @@ export default function CategoryScreen() {
           {/* 🔍 Search Bar */}
           <View style={styles.searchWrapper}>
             <View style={styles.searchBar}>
-              <Feather name="search" size={20} color="#0C1559" />
+              <Feather name="search" size={20} color={C.navy} />
               <TextInput
                 placeholder="Search products & categories..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.subtle}
                 style={styles.searchInput}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={20} color={C.subtle} />
                 </TouchableOpacity>
               )}
             </View>
@@ -187,10 +219,10 @@ export default function CategoryScreen() {
             }
             ListEmptyComponent={
               loadingCats || isSearching ? (
-                <View style={styles.emptyState}><ActivityIndicator size="large" color="#0C1559" /></View>
+                <View style={styles.emptyState}><ActivityIndicator size="large" color={C.navy} /></View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="search-outline" size={48} color="#CBD5E1" />
+                  <Ionicons name="search-outline" size={48} color={C.subtle} />
                   <Text style={styles.emptyText}>No items found matching &quot;{searchQuery}&quot;</Text>
                 </View>
               )
@@ -202,10 +234,10 @@ export default function CategoryScreen() {
     </Pressable>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#F0F4FC',
+    backgroundColor: C.bg,
   },
   safeContainer: {
     flex: 1,
@@ -219,12 +251,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
   },
   headerSubtitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: 2,
   },
   // Search
@@ -235,24 +267,24 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 30,
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
   },
   searchInput: {
     flex: 1,
     marginLeft: 12,
     fontSize: 15,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.body,
   },
   // Grid
   gridContent: {
@@ -265,7 +297,7 @@ const styles = StyleSheet.create({
     margin: 8,
     height: 160,
     borderRadius: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -305,7 +337,7 @@ const styles = StyleSheet.create({
     margin: 8,
     height: 180,
     borderRadius: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -318,7 +350,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 12,
     resizeMode: 'cover',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.border,
   },
   productInfo: {
     marginTop: 8,
@@ -328,26 +360,26 @@ const styles = StyleSheet.create({
   productTitle: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 4,
   },
   productPrice: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#84cc16', // Lime Green
+    color: C.lime,
   },
   productTag: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: C.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   productTagText: {
     fontSize: 10,
-    color: '#64748B',
+    color: C.muted,
     fontFamily: 'Montserrat-Medium',
   },
   // Empty State
@@ -359,7 +391,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#64748B',
+    color: C.muted,
     fontFamily: 'Montserrat-Medium',
     textAlign: 'center',
     paddingHorizontal: 40,

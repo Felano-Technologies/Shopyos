@@ -14,6 +14,33 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getAllStores } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  badgeBg: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
+}
 
 type StoreItem = {
   id: string;
@@ -37,6 +64,11 @@ const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Grocery', 'Art', 'Home', '
 
 export default function StoresMapWeb() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const statusBarStyle = resolvedTheme === 'dark' ? 'light' : 'dark';
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,8 +141,8 @@ export default function StoresMapWeb() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <StatusBar style="dark" />
-        <ActivityIndicator size="large" color="#0C1559" />
+        <StatusBar style={statusBarStyle} />
+        <ActivityIndicator size="large" color={C.navy} />
         <Text style={styles.loadingText}>Finding stores near you…</Text>
       </View>
     );
@@ -118,18 +150,18 @@ export default function StoresMapWeb() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style={statusBarStyle} />
       <View style={styles.hero}>
         <View style={styles.topRow}>
           <TouchableOpacity style={styles.iconPill} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color="#0C1559" />
+            <Ionicons name="chevron-back" size={20} color={C.navy} />
           </TouchableOpacity>
           <View style={styles.searchPill}>
-            <Feather name="search" size={15} color="#94A3B8" />
+            <Feather name="search" size={15} color={C.subtle} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search nearby stores…"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={C.subtle}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -142,7 +174,7 @@ export default function StoresMapWeb() {
         </Text>
 
         <View style={styles.infoCard}>
-          <MaterialCommunityIcons name="map-search-outline" size={24} color="#4568F0" />
+          <MaterialCommunityIcons name="map-search-outline" size={24} color={C.navy} />
           <View style={{ flex: 1 }}>
             <Text style={styles.infoTitle}>Map view is mobile-only</Text>
             <Text style={styles.infoText}>
@@ -201,7 +233,7 @@ export default function StoresMapWeb() {
             }
           >
             <View style={styles.storeIcon}>
-              <MaterialCommunityIcons name="storefront-outline" size={22} color="#0C1559" />
+              <MaterialCommunityIcons name="storefront-outline" size={22} color={C.navy} />
             </View>
             <View style={styles.storeInfo}>
               <View style={styles.storeTitleRow}>
@@ -215,7 +247,7 @@ export default function StoresMapWeb() {
               <Text style={styles.storeMeta}>{item.category}</Text>
               <View style={styles.metaRow}>
                 <View style={styles.pill}>
-                  <MaterialCommunityIcons name="map-marker" size={11} color="#0C1559" />
+                  <MaterialCommunityIcons name="map-marker" size={11} color={C.navy} />
                   <Text style={styles.pillText}>{formatDistance(item.distanceKm)}</Text>
                 </View>
                 <View style={styles.pill}>
@@ -226,13 +258,13 @@ export default function StoresMapWeb() {
               </View>
             </View>
             <View style={styles.arrowBox}>
-              <Ionicons name="chevron-forward" size={16} color="#0C1559" />
+              <Ionicons name="chevron-forward" size={16} color={C.navy} />
             </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="store-search-outline" size={40} color="#94A3B8" />
+            <MaterialCommunityIcons name="store-search-outline" size={40} color={C.subtle} />
             <Text style={styles.emptyTitle}>No stores found</Text>
             <Text style={styles.emptyText}>Try expanding the radius or clearing your filters.</Text>
           </View>
@@ -260,24 +292,24 @@ function formatDistance(km: number) {
   return `${km.toFixed(1)} km`;
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
   loadingWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
   },
   loadingText: {
     marginTop: 12,
-    color: '#64748B',
+    color: C.muted,
     fontFamily: 'Montserrat-Regular',
   },
   hero: {
     paddingTop: 16,
     paddingHorizontal: 18,
     paddingBottom: 18,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
   },
   topRow: {
     flexDirection: 'row',
@@ -288,7 +320,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -296,7 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -304,18 +336,18 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#0F172A',
+    color: C.body,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
   },
   heroTitle: {
-    color: '#0C1559',
+    color: C.navy,
     fontSize: 28,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 8,
   },
   heroSubtitle: {
-    color: '#64748B',
+    color: C.muted,
     fontSize: 14,
     lineHeight: 21,
     fontFamily: 'Montserrat-Regular',
@@ -324,18 +356,18 @@ const styles = StyleSheet.create({
   infoCard: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderRadius: 18,
     padding: 16,
   },
   infoTitle: {
-    color: '#0F172A',
+    color: C.body,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 4,
   },
   infoText: {
-    color: '#64748B',
+    color: C.muted,
     fontSize: 12,
     lineHeight: 18,
     fontFamily: 'Montserrat-Regular',
@@ -354,18 +386,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
   },
   chipActive: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
   },
   chipText: {
-    color: '#64748B',
+    color: C.muted,
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: C.textInverse,
   },
   radiusRow: {
     flexDirection: 'row',
@@ -376,13 +408,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
   },
   radiusChipActive: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: C.badgeBg,
   },
   radiusText: {
-    color: '#0C1559',
+    color: C.navy,
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -397,7 +429,7 @@ const styles = StyleSheet.create({
   storeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 14,
     marginBottom: 12,
@@ -406,7 +438,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -422,7 +454,7 @@ const styles = StyleSheet.create({
   },
   storeName: {
     flex: 1,
-    color: '#0F172A',
+    color: C.body,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
   },
@@ -435,7 +467,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   storeMeta: {
-    color: '#64748B',
+    color: C.muted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     marginBottom: 8,
@@ -453,15 +485,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
   },
   pillText: {
-    color: '#0C1559',
+    color: C.navy,
     fontSize: 10,
     fontFamily: 'Montserrat-Bold',
   },
   catalogueText: {
-    color: '#94A3B8',
+    color: C.subtle,
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -469,7 +501,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -479,13 +511,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     marginTop: 12,
-    color: '#0F172A',
+    color: C.body,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
   },
   emptyText: {
     marginTop: 6,
-    color: '#64748B',
+    color: C.muted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
   },

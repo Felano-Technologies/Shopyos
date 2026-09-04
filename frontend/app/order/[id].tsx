@@ -316,7 +316,7 @@ const OrderDetailsScreen = () => {
     <View style={S.root}>
       <StatusBar style="light" />
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <LinearGradient colors={[Cx.navy, Cx.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+      <LinearGradient colors={themeColors.headerGradient} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
         <View style={S.hdrGlow} pointerEvents="none" />
         <View style={S.hdrRow}>
           <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>

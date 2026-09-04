@@ -195,8 +195,8 @@ export default function SettingsScreen() {
         setRoles((user?.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name)));
       } catch {}
 
-      CustomInAppToast.show({ type: 'success', title: 'Success! 🎉', message: 'You are now a Driver!' });
-      setTimeout(() => router.replace('/driver/dashboard'), 800);
+      CustomInAppToast.show({ type: 'success', title: 'Almost there!', message: 'Complete your driver verification to start earning.' });
+      setTimeout(() => router.replace('/driver/verification'), 800);
     } catch (error: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: error?.message || 'Failed to become a driver.' });
     } finally {

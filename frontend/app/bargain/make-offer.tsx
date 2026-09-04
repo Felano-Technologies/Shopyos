@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,31 +21,59 @@ import { getProductById, createBargainOffer } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  card: '#FFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.07)',
-  red: '#EF4444',
-  green: '#16A34A',
-  greenBg: '#F0FDF4',
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  textInverse: string;
+  red: string;
+  green: string;
+  greenBg: string;
 };
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    textInverse: colors.textInverse,
+    red: '#EF4444',
+    green: '#16A34A',
+    greenBg: '#F0FDF4',
+  };
+}
 
 export default function MakeOfferScreen() {
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const [product, setProduct] = useState<any>(null);
   const [productLoading, setProductLoading] = useState(true);
@@ -176,7 +204,7 @@ export default function MakeOfferScreen() {
       style={styles.container}
     >
       {/* Header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+      <LinearGradient colors={themeColors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
@@ -297,10 +325,10 @@ export default function MakeOfferScreen() {
             end={{ x: 1, y: 0 }}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={C.textInverse} />
             ) : (
               <>
-                <Feather name="send" size={18} color="#FFF" style={styles.btnIcon} />
+                <Feather name="send" size={18} color={C.textInverse} style={styles.btnIcon} />
                 <Text style={styles.submitBtnTxt}>Send Offer to Seller</Text>
               </>
             )}
@@ -321,7 +349,7 @@ export default function MakeOfferScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.bg,
@@ -352,7 +380,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   backBtnTxt: {
-    color: '#FFF',
+    color: C.textInverse,
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
   },
@@ -384,7 +412,7 @@ const styles = StyleSheet.create({
   },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
@@ -395,7 +423,7 @@ const styles = StyleSheet.create({
     width: rs(80),
     height: rs(80),
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceElevated,
   },
   productInfo: {
     flex: 1,
@@ -437,7 +465,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 12,
@@ -462,7 +490,7 @@ const styles = StyleSheet.create({
     color: C.navy,
   },
   formCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -479,10 +507,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     marginBottom: 20,
   },
   currencyPrefix: {
@@ -500,11 +528,11 @@ const styles = StyleSheet.create({
   },
   messageInput: {
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     height: 90,
     fontSize: rf(13),
     fontFamily: 'Montserrat-Regular',
@@ -512,7 +540,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   consentCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
@@ -528,7 +556,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#94A3B8',
+    borderColor: C.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -553,7 +581,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderTopWidth: 1,
     borderTopColor: C.border,
     padding: 16,
@@ -575,7 +603,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   submitBtnTxt: {
-    color: '#FFF',
+    color: C.textInverse,
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
   },

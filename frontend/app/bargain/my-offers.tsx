@@ -219,6 +219,8 @@ export default function MyOffersScreen() {
             image: (offer as any).product_image_url ?? offer.product?.images?.[0] ?? null,
             category: '',
             storeId: offer.store_id,
+            storeName: (offer as any).store_name,
+            storeLogo: (offer as any).store_logo_url,
             bargain_discount: Number(offer.bargain_discount),
             bargain_offer_id: offer.id,
           });

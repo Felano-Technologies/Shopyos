@@ -13,9 +13,45 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Swiper from 'react-native-swiper';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { resetToRoute } from '@/utils/navigation';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navyMid: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  badgeBg: string;
+  border: string;
+  borderStrong: string;
+  card: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.background,
+    navyMid: colors.primaryMid,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    badgeBg: colors.backgroundAlt,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    card: colors.surface,
+    textInverse: colors.textInverse,
+  };
+}
+
 const { width } = Dimensions.get('window');
 
 const RegisterScreen = () => {
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -172,13 +208,13 @@ const RegisterScreen = () => {
         {/* 🧾 Input fields */}
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
-            <Ionicons name="person" size={20} color="#1b1b1b" style={styles.inputIcon} />
+            <Ionicons name="person" size={20} color={C.body} style={styles.inputIcon} />
             <TextInput
               accessibilityLabel="Full name"
               accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your name"
-              placeholderTextColor="#666"
+              placeholderTextColor={C.subtle}
               autoCorrect={false}
               value={name}
               onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: '' })); }}
@@ -186,13 +222,13 @@ const RegisterScreen = () => {
           </View>
           {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
+            <Ionicons name="mail" size={20} color={C.body} style={styles.inputIcon} />
             <TextInput
               accessibilityLabel="Email address"
               accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your email"
-              placeholderTextColor="#666"
+              placeholderTextColor={C.subtle}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -209,14 +245,14 @@ const RegisterScreen = () => {
               onPress={() => setShowCountryPicker(true)}
             >
               <Text style={styles.callingCode}>{callingCode}</Text>
-              <Ionicons name="chevron-down-sharp" size={16} color="#444" />
+              <Ionicons name="chevron-down-sharp" size={16} color={C.muted} />
             </TouchableOpacity>
             <TextInput
               accessibilityLabel="Phone number"
               accessibilityRole="none"
               style={[styles.input, styles.phoneInput]}
               placeholder="Phone number"
-              placeholderTextColor="#666"
+              placeholderTextColor={C.subtle}
               keyboardType="phone-pad"
               value={phoneNumber}
               onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: '' })); }}
@@ -231,13 +267,13 @@ const RegisterScreen = () => {
           </View>
           {errors.phoneNumber ? <Text style={styles.fieldError}>{errors.phoneNumber}</Text> : null}
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
+            <Ionicons name="lock-closed" size={20} color={C.body} style={styles.inputIcon} />
             <TextInput
               accessibilityLabel="Password"
               accessibilityRole="none"
               style={[styles.input, styles.passwordInput]}
               placeholder="Password"
-              placeholderTextColor="#666"
+              placeholderTextColor={C.subtle}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
@@ -248,19 +284,19 @@ const RegisterScreen = () => {
               <Ionicons
                 name={showPassword ? 'eye' : 'eye-off'}
                 size={20}
-                color="#666"
+                color={C.subtle}
               />
             </TouchableOpacity>
           </View>
           {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
           <View style={styles.inputContainer}>
-            <Ionicons name="gift" size={20} color="#1b1b1b" style={styles.inputIcon} />
+            <Ionicons name="gift" size={20} color={C.body} style={styles.inputIcon} />
             <TextInput
               accessibilityLabel="Referral code"
               accessibilityRole="none"
               style={styles.input}
               placeholder="Referral Code (Optional)"
-              placeholderTextColor="#666"
+              placeholderTextColor={C.subtle}
               autoCapitalize="characters"
               autoCorrect={false}
               value={referralCode}
@@ -301,7 +337,7 @@ const RegisterScreen = () => {
           {/* Sign Up Button */}
           <TouchableOpacity accessibilityLabel="Create account" accessibilityRole="button" style={[styles.button, !isFormValid && styles.buttonDisabled]} onPress={handleRegister} disabled={loading || !isFormValid}>
             {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
+              <ActivityIndicator size="small" color={C.textInverse} />
             ) : (
               <Text style={styles.buttonText}>Sign Up</Text>
             )}
@@ -320,7 +356,7 @@ const RegisterScreen = () => {
             onPress={handleGoogleSignUp}
             disabled={loading || (googleAuthConfigured && !request)}
           >
-            <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
+            <Ionicons name="logo-google" size={18} color={C.muted} style={{ marginRight: 8 }} />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
           {/* Already registered */}
@@ -359,10 +395,10 @@ const RegisterScreen = () => {
 
   return (
     <LinearGradient
-      colors={['#fff', '#fff']}
+      colors={[C.bg, C.bg]}
       style={{ flex: 1 }}
     >
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* ✅ KeyboardAvoidingView only on iOS; on Android just render content directly */}
         {Platform.OS === 'ios' ? (
@@ -379,29 +415,29 @@ const RegisterScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   scrollContent: { alignItems: 'center', paddingTop: 16, paddingBottom: 15 },
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
-  dot: { backgroundColor: '#CBD5E1', width: 6, height: 6, borderRadius: 3, margin: 3 },
-  activeDot: { backgroundColor: '#1e3a8a', width: 6, height: 6, borderRadius: 3, margin: 3 },
-  formTitle: { fontSize: 20, fontWeight: '700', color: '#1e3a8a', textAlign: 'center', marginTop: 4, marginBottom: 4 },
-  formSubtitle: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 16, paddingHorizontal: 24 },
+  dot: { backgroundColor: C.borderStrong, width: 6, height: 6, borderRadius: 3, margin: 3 },
+  activeDot: { backgroundColor: C.navyMid, width: 6, height: 6, borderRadius: 3, margin: 3 },
+  formTitle: { fontSize: 20, fontWeight: '700', color: C.navyMid, textAlign: 'center', marginTop: 4, marginBottom: 4 },
+  formSubtitle: { fontSize: 13, color: C.muted, textAlign: 'center', marginBottom: 16, paddingHorizontal: 24 },
   formContainer: { width: '100%', alignItems: 'center', paddingHorizontal: 24 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     borderRadius: 14,
     borderWidth: 0,
     marginVertical: 7,
     paddingHorizontal: 16,
     height: 50,
   },
-  input: { flex: 1, fontSize: 16, color: '#000' },
+  input: { flex: 1, fontSize: 16, color: C.body },
   inputIcon: { marginRight: 10 },
   passwordInput: { paddingRight: 35 },
   eyeIcon: { position: 'absolute', right: 16, padding: 4 },
@@ -410,22 +446,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
     borderRightWidth: 1,
-    borderRightColor: '#ddd',
+    borderRightColor: C.borderStrong,
     paddingRight: 8,
   },
-  callingCode: { fontSize: 16, color: '#000', fontWeight: '500' },
+  callingCode: { fontSize: 16, color: C.body, fontWeight: '500' },
   phoneInput: { marginLeft: 4 },
   button: {
     width: '90%',
     height: 50,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: C.navyMid,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
   },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  roleText: { marginTop: 8, fontSize: 12, color: '#94A3B8', textAlign: 'center' },
+  buttonText: { color: C.textInverse, fontSize: 17, fontWeight: '600' },
+  roleText: { marginTop: 8, fontSize: 12, color: C.subtle, textAlign: 'center' },
   bottomLogos: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -449,41 +485,41 @@ const styles = StyleSheet.create({
     width: '90%',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#1e3a8a',
+    borderColor: C.navyMid,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
   },
   loginText: {
-    color: '#1e3a8a',
+    color: C.navyMid,
     fontSize: 15,
   },
   loginBold: {
-    color: '#1e3a8a',
+    color: C.navyMid,
     fontWeight: '700',
   },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 8, paddingHorizontal: 4 },
-  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#1e3a8a', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  disclaimerBoxChecked: { backgroundColor: '#1e3a8a' },
-  disclaimerText: { flex: 1, fontSize: 13, color: '#475569', lineHeight: 18 },
-  disclaimerLink: { color: '#1e3a8a', fontWeight: '700', textDecorationLine: 'underline' },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navyMid, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: C.navyMid },
+  disclaimerText: { flex: 1, fontSize: 13, color: C.muted, lineHeight: 18 },
+  disclaimerLink: { color: C.navyMid, fontWeight: '700', textDecorationLine: 'underline' },
   divider: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { marginHorizontal: 10, color: '#9ca3af', fontSize: 13 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: C.border },
+  dividerText: { marginHorizontal: 10, color: C.subtle, fontSize: 13 },
   googleButton: {
     width: '100%',
     height: 45,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: C.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: C.borderStrong,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
-  googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  googleButtonText: { color: C.body, fontSize: 16, fontWeight: '600' },
   fieldError: { color: '#DC2626', fontSize: 12, marginTop: -8, marginBottom: 8, paddingHorizontal: 16 },
   buttonDisabled: { opacity: 0.5 },
 });

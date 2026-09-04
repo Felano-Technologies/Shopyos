@@ -80,6 +80,7 @@ export default function ProductsScreen() {
         setProducts(data.products.map((p: any) => ({
           id: p._id, name: p.name, price: p.price.toString(),
           stock: p.stockQuantity?.toString() || '0', image: p.images?.[0] || null,
+          images: p.productImages || (p.images || []).map((url: string) => ({ url, isPrimary: false })),
           isActive: p.isActive ?? p.is_active ?? true, description: p.description || '',
           category: p.category || '', gender: p.gender || 'Unisex',
           compareAtPrice: p.compareAtPrice == null ? '' : p.compareAtPrice.toString(),

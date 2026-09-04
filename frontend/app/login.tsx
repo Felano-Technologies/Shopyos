@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, ScrollView } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,37 @@ import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { resetToRoute } from '@/utils/navigation';
 import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navyMid: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  badgeBg: string;
+  border: string;
+  borderStrong: string;
+  card: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.background,
+    navyMid: colors.primaryMid,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    badgeBg: colors.backgroundAlt,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    card: colors.surface,
+    textInverse: colors.textInverse,
+  };
+}
 
 async function getDeviceLocation(): Promise<{ latitude: number; longitude: number }> {
   try {
@@ -67,6 +98,10 @@ const DEV_ACCOUNTS = [
 
 const LoginScreen = () => {
   const { refresh } = useOnboarding();
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -183,7 +218,7 @@ const LoginScreen = () => {
   };
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -204,13 +239,13 @@ const LoginScreen = () => {
             </Text>
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Ionicons name="mail" size={20} color="#333" />
+              <Ionicons name="mail" size={20} color={C.body} />
               <TextInput
                 accessibilityLabel="Email address"
                 accessibilityRole="none"
                 style={styles.input}
                 placeholder="Enter your email"
-                placeholderTextColor="#888"
+                placeholderTextColor={C.subtle}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -219,13 +254,13 @@ const LoginScreen = () => {
             </View>
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#333" />
+              <Ionicons name="lock-closed" size={20} color={C.body} />
               <TextInput
                 accessibilityLabel="Password"
                 accessibilityRole="none"
                 style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#888"
+                placeholderTextColor={C.subtle}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 value={password}
@@ -240,7 +275,7 @@ const LoginScreen = () => {
                 <Ionicons
                   name={showPassword ? 'eye' : 'eye-off'}
                   size={20}
-                  color="#111827"
+                  color={C.body}
                 />
               </TouchableOpacity>
             </View>
@@ -257,7 +292,7 @@ const LoginScreen = () => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={C.textInverse} />
               ) : (
                 <Text style={styles.signInText}>Sign in</Text>
               )}
@@ -276,7 +311,7 @@ const LoginScreen = () => {
               onPress={handleGoogleSignIn}
               disabled={loading || (googleAuthConfigured && !request)}
             >
-              <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
+              <Ionicons name="logo-google" size={18} color={C.muted} style={{ marginRight: 8 }} />
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
             {/* Register (outlined pill) */}
@@ -322,10 +357,10 @@ const LoginScreen = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -354,14 +389,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    color: '#1e3a8a', // deep blue heading
+    color: C.navyMid,
     fontWeight: '700',
     textAlign: 'center',
     marginTop: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: '#444',
+    color: C.muted,
     textAlign: 'center',
     marginBottom: 28,
     opacity: 0.9,
@@ -370,7 +405,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     borderRadius: 14,
     borderWidth: 0,
     paddingHorizontal: 16,
@@ -380,7 +415,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#000',
+    color: C.body,
     marginLeft: 8,
   },
   eyeIcon: {
@@ -388,7 +423,7 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    color: '#1e3a8a',
+    color: C.navyMid,
     fontSize: 14,
     marginTop: 6,
     marginBottom: 12,
@@ -396,7 +431,7 @@ const styles = StyleSheet.create({
   signInButton: {
     width: '100%',
     height: 50,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: C.navyMid,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -406,7 +441,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   signInText: {
-    color: '#fff',
+    color: C.textInverse,
     fontSize: 18,
     fontWeight: '700',
     textTransform: 'none',
@@ -420,27 +455,27 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: C.border,
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#9ca3af',
+    color: C.subtle,
     fontSize: 13,
   },
   googleButton: {
     width: '100%',
     height: 45,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: C.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: C.borderStrong,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   googleButtonText: {
-    color: '#374151',
+    color: C.body,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -449,18 +484,18 @@ const styles = StyleSheet.create({
     minHeight: 45,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#1e3a8a',
+    borderColor: C.navyMid,
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
   },
   registerText: {
-    color: '#1e3a8a',
+    color: C.navyMid,
     fontSize: 15,
   },
   registerBold: {
-    color: '#1e3a8a',
+    color: C.navyMid,
     fontWeight: '700',
   },
   bottomLogos: {
@@ -493,7 +528,7 @@ const styles = StyleSheet.create({
   },
   devLabel: {
     fontSize: 10,
-    color: '#9ca3af',
+    color: C.subtle,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 6,
@@ -504,16 +539,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   devButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: C.borderStrong,
     borderRadius: 8,
     paddingVertical: 5,
     paddingHorizontal: 10,
   },
   devButtonText: {
     fontSize: 11,
-    color: '#374151',
+    color: C.body,
     fontWeight: '600',
   },
 });

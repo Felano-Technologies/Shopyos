@@ -206,6 +206,8 @@ export default function FavoritesScreen() {
         price: Number.parseFloat(item.price) || 0,
         image: item.images?.[0] || 'https://via.placeholder.com/300',
         storeId: item.store_id || item.business_id || item.store?._id || item.store?.id || item.businessId,
+        storeName: item.store?.name || item.store?.store_name,
+        storeLogo: item.store?.logo || item.store?.logo_url,
       });
       CustomInAppToast.show({
         type: 'success',

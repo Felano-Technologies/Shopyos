@@ -10,6 +10,16 @@ const { logger } = require('../config/logger');
 const { invalidateProduct } = require('../config/cacheInvalidation');
 const feeConfigService = require('../services/feeConfigService');
 
+// The seller's chosen "primary" image should always be the one shown first —
+// on the product card thumbnail and as the first slide of the details-page
+// carousel — regardless of upload order or DB row order.
+function sortProductImages(images) {
+  return [...(images || [])].sort((a, b) => {
+    if (!!b.is_primary !== !!a.is_primary) return (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0);
+    return (a.display_order ?? 0) - (b.display_order ?? 0);
+  });
+}
+
 async function persistProductVariants(productId, variants, variantOptions) {
   if (!Array.isArray(variants) || !variants.length) return [[], []];
   const createdVariants = await repositories.productVariants.replaceVariants(productId, variants);
@@ -186,17 +196,23 @@ const getStoreProducts = async (req, res, next) => {
       limit: limitNum,
       offset: offsetNum,
       includeInactive: includeInactive === 'true',
-      select: '*, inventory(quantity), product_images(image_url)'
+      select: '*, inventory(quantity), product_images(id, image_url, is_primary, display_order)'
     });
 
     // Format for backward compatibility with batch image resolution
-    const formattedProducts = await Promise.all(rawProducts.map(async p => ({
+    const formattedProducts = await Promise.all(rawProducts.map(async p => {
+      const sortedImages = sortProductImages(p.product_images);
+      const resolvedUrls = await resolveImageUrls(sortedImages.map(img => img.image_url));
+      return {
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
       description: p.description,
       price: p.price,
-      images: await resolveImageUrls((p.product_images || []).map(img => img.image_url)),
+      images: resolvedUrls,
+      // Per-image id + primary flag, for the seller's own edit screen only
+      // (public product listings only need the plain `images` array above).
+      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedUrls[i], isPrimary: !!img.is_primary })),
       category: p.category,
       gender: p.gender,
       sku: p.sku,
@@ -204,7 +220,8 @@ const getStoreProducts = async (req, res, next) => {
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       isActive: p.is_active
-    })));
+      };
+    }));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
@@ -271,13 +288,16 @@ const getProductById = async (req, res, next) => {
     ]);
 
     // Format response
+    const sortedImages = sortProductImages(product.product_images);
+    const resolvedImageUrls = await resolveImageUrls(sortedImages.map(img => img.image_url));
     const formattedProduct = {
       _id: product.id,
       businessId: product.store_id,
       name: product.title,
       description: product.description,
       price: product.price,
-      images: await resolveImageUrls((product.product_images || []).map(img => img.image_url)),
+      images: resolvedImageUrls,
+      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedImageUrls[i], isPrimary: !!img.is_primary })),
       category: product.category,
       gender: product.gender,
       brand: product.brand,
@@ -567,12 +587,6 @@ const uploadProductImages = async (req, res, next) => {
       return ApiResponse.error(res, 'Maximum 5 images allowed per product', 400);
     }
 
-    // Upload images to Cloudinary
-    const uploadResults = await uploadMultipleFilesToCloudinary(
-      req.files,
-      'shopyos/products'
-    );
-
     // Get current image count
     const { data: existingImages } = await repositories.products.db
       .from('product_images')
@@ -580,6 +594,15 @@ const uploadProductImages = async (req, res, next) => {
       .eq('product_id', id);
 
     const currentCount = existingImages?.length || 0;
+    if (currentCount + req.files.length > 5) {
+      return ApiResponse.error(res, `Maximum 5 images allowed per product (${currentCount} already uploaded)`, 400);
+    }
+
+    // Upload images to Cloudinary
+    const uploadResults = await uploadMultipleFilesToCloudinary(
+      req.files,
+      'shopyos/products'
+    );
 
     // Insert image records
     const imageInserts = uploadResults.map((result, index) => ({
@@ -590,12 +613,69 @@ const uploadProductImages = async (req, res, next) => {
       is_primary: currentCount === 0 && index === 0
     }));
 
+    const { data: insertedImages, error: insertError } = await repositories.products.db
+      .from('product_images')
+      .insert(imageInserts)
+      .select();
+
+    if (insertError) throw insertError;
+
+    const createdImages = await Promise.all((insertedImages || []).map(async (img) => ({
+      id: img.id,
+      url: await resolveImageUrl(img.image_url),
+      isPrimary: !!img.is_primary
+    })));
+
+    ApiResponse.withEntity(res, 'images', createdImages, `${createdImages.length} images uploaded successfully`);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Set which of a product's images is the primary (shown on the
+//          product card and as the first details-page slide)
+// @route   PATCH /api/products/:id/images/:imageId/primary
+// @access  Private (Seller)
+const setPrimaryProductImage = async (req, res, next) => {
+  try {
+    const { id, imageId } = req.params;
+    const userId = req.user.id;
+
+    const product = await repositories.products.findById(id);
+    if (!product) {
+      return ApiResponse.error(res, 'Product not found', 404);
+    }
+
+    const store = await repositories.stores.findById(product.store_id);
+    if (store.owner_id !== userId) {
+      return ApiResponse.error(res, 'Not authorized', 403);
+    }
+
+    const { data: image } = await repositories.products.db
+      .from('product_images')
+      .select('*')
+      .eq('id', imageId)
+      .eq('product_id', id)
+      .single();
+
+    if (!image) {
+      return ApiResponse.error(res, 'Image not found', 404);
+    }
+
     await repositories.products.db
       .from('product_images')
-      .insert(imageInserts);
+      .update({ is_primary: false })
+      .eq('product_id', id);
 
-    ApiResponse.withEntity(res, 'images', await Promise.all(uploadResults.map(r => resolveImageUrl(r.url))), `${uploadResults.length} images uploaded successfully`);
+    await repositories.products.db
+      .from('product_images')
+      .update({ is_primary: true })
+      .eq('id', imageId);
 
+    await invalidateProduct(id, product.store_id);
+
+    ApiResponse.success(res, null, 'Primary image updated');
   } catch (error) {
     next(error);
   }
@@ -644,6 +724,25 @@ const deleteProductImage = async (req, res, next) => {
       .from('product_images')
       .delete()
       .eq('id', imageId);
+
+    // Deleting the primary image leaves the product with none — promote
+    // whichever image comes next so a product card is never left blank.
+    if (image.is_primary) {
+      const { data: remaining } = await repositories.products.db
+        .from('product_images')
+        .select('id')
+        .eq('product_id', id)
+        .order('display_order', { ascending: true })
+        .limit(1);
+      if (remaining?.[0]) {
+        await repositories.products.db
+          .from('product_images')
+          .update({ is_primary: true })
+          .eq('id', remaining[0].id);
+      }
+    }
+
+    await invalidateProduct(id, product.store_id);
 
     ApiResponse.success(res, null, 'Image deleted successfully');
 
@@ -725,7 +824,7 @@ const searchProducts = async (req, res, next) => {
       description: p.description,
       price: p.price,
       compareAtPrice: p.compare_at_price,
-      images: await resolveImageUrls((p.product_images || []).map(img => img.image_url)),
+      images: await resolveImageUrls(sortProductImages(p.product_images).map(img => img.image_url)),
       category: p.category,
       gender: p.gender,
       salesCount: p.total_sales || p.sales_count || 0,
@@ -781,6 +880,7 @@ module.exports = {
   deleteProduct,
   uploadProductImages,
   deleteProductImage,
+  setPrimaryProductImage,
   getFilterOptions,
   searchProducts,
   getCategories

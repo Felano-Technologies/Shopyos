@@ -99,6 +99,7 @@ const {
   deleteProduct,
   uploadProductImages,
   deleteProductImage,
+  setPrimaryProductImage,
   getCategories,
 } = require('../../controllers/productController');
 
@@ -536,6 +537,39 @@ describe('ProductController Unit Tests', () => {
       );
     });
 
+    test('test_searchProducts_primaryImageNotFirstInDb_stillReturnedFirst', async () => {
+      // Arrange — the seller's chosen primary image is the SECOND row returned
+      // by the DB; the response must still show it first (product card thumbnail).
+      repositories.products.search.mockResolvedValueOnce({
+        data: [
+          {
+            id: 'p1',
+            title: 'Shoes',
+            price: 50,
+            store_id: 'store-1',
+            stores: null,
+            product_images: [
+              { image_url: 'https://cdn/second.jpg', is_primary: false, display_order: 1 },
+              { image_url: 'https://cdn/primary.jpg', is_primary: true, display_order: 0 },
+            ],
+          },
+        ],
+        count: 1,
+      });
+      const req = mockReq({ query: { limit: '10', offset: '0' } });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [expect.objectContaining({ images: ['https://cdn/primary.jpg', 'https://cdn/second.jpg'] })],
+        }),
+      );
+    });
+
     test('test_searchProducts_onSaleTrue_passesMinDiscountPctFromConfigToRepository', async () => {
       // Arrange
       feeConfigService.get.mockResolvedValueOnce(15);
@@ -706,8 +740,13 @@ describe('ProductController Unit Tests', () => {
       // Reset eq so this test controls exactly what each call returns.
       mockDbChain.eq.mockReset();
       mockDbChain.eq.mockReturnThis(); // default: every eq returns this for chaining
-      // insert image records: .from('product_images').insert(imageInserts) — terminal
-      mockDbChain.insert.mockResolvedValueOnce({ data: {}, error: null });
+      // insert image records: .from('product_images').insert(imageInserts).select() — terminal
+      mockDbChain.insert.mockReturnValueOnce({
+        select: () => Promise.resolve({
+          data: [{ id: 'img-1', image_url: 'https://res.cloudinary.com/img1.jpg', is_primary: true }],
+          error: null,
+        }),
+      });
       // existingImages falls back to mockDbChain (no .data), so currentCount = 0 — that's fine
 
       const req = mockReq({
@@ -807,6 +846,70 @@ describe('ProductController Unit Tests', () => {
       expect(uploadHelpers.deleteImage).toHaveBeenCalledWith('shopyos/products/img1');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Image deleted successfully' });
+    });
+  });
+
+  // ── setPrimaryProductImage ────────────────────────────────────────
+  describe('setPrimaryProductImage', () => {
+    test('test_setPrimaryProductImage_productNotFound_returns404', async () => {
+      repositories.products.findById.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'prod-ghost', imageId: 'img-1' } });
+      const res = mockRes();
+
+      await setPrimaryProductImage(req, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Product not found' });
+    });
+
+    test('test_setPrimaryProductImage_notAuthorizedOwner_returns403', async () => {
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'other-user' });
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-1' } });
+      const res = mockRes();
+
+      await setPrimaryProductImage(req, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Not authorized' });
+    });
+
+    test('test_setPrimaryProductImage_imageNotFound_returns404', async () => {
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      mockDbChain.eq.mockReset();
+      mockDbChain.eq.mockReturnThis();
+      mockDbChain.single.mockResolvedValueOnce({ data: null, error: null });
+
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-missing' } });
+      const res = mockRes();
+
+      await setPrimaryProductImage(req, res, jest.fn());
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Image not found' });
+    });
+
+    test('test_setPrimaryProductImage_authorizedOwner_updatesFlagsAndReturns200', async () => {
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      mockDbChain.eq.mockReset();
+      mockDbChain.eq.mockReturnThis();
+      mockDbChain.single.mockResolvedValueOnce({
+        data: { id: 'img-2', product_id: 'prod-1', is_primary: false },
+        error: null,
+      });
+      mockDbChain.update.mockReturnThis();
+
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-2' } });
+      const res = mockRes();
+
+      await setPrimaryProductImage(req, res, jest.fn());
+
+      expect(mockDbChain.update).toHaveBeenCalledWith({ is_primary: false });
+      expect(mockDbChain.update).toHaveBeenCalledWith({ is_primary: true });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: null, message: 'Primary image updated' });
     });
   });
 

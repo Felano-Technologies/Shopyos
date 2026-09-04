@@ -20,6 +20,12 @@ async function formatProducts(rawProducts) {
     averageRating:  p.average_rating,
     salesCount:     p.total_sales,
     images:         [await resolveImageUrl(p.image_url)].filter(Boolean),
+    store_id:       p.store_id,
+    store: p.store_id ? {
+      id: p.store_id,
+      store_name: p.store_name,
+      logo_url: await resolveImageUrl(p.store_logo_url),
+    } : null,
   })));
 }
 

@@ -9,7 +9,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createProduct, uploadProductImages, updateProduct, getAllCategories, initializeListingFee } from '@/services/api';
+import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProductImage, updateProduct, getAllCategories, initializeListingFee } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import * as WebBrowser from 'expo-web-browser';
@@ -29,6 +29,15 @@ const C = {
   body:    '#0F172A',
   muted:   '#64748B',
   subtle:  '#94A3B8',
+};
+
+const MAX_PRODUCT_IMAGES = 5;
+
+type ProductImage = {
+  id?: string;      // present once uploaded/persisted server-side
+  uri: string;       // local file uri (new) or remote url (existing)
+  isPrimary: boolean;
+  isNew: boolean;    // picked this session, not yet uploaded
 };
 
 const isFashionCategory = (cat: string) => String(cat || '').toLowerCase().match(/fashion|footwear|sneaker|accessory|clothing/);
@@ -72,7 +81,9 @@ export default function ManageProductScreen() {
   const [compareAtPrice, setCompareAtPrice] = useState('');
   const [stock, setStock] = useState('');
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
+  const [originalPrimaryId, setOriginalPrimaryId] = useState<string | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
   const [category, setCategory] = useState('');
   const [gender, setGender] = useState('Unisex');
@@ -95,7 +106,17 @@ export default function ManageProductScreen() {
         const item = JSON.parse(productData);
         setEditingId(item.id); setName(item.name); setPrice(item.price);
         setCompareAtPrice(item.compareAtPrice || ''); setStock(item.stock);
-        setDescription(item.description); setImage(item.image);
+        setDescription(item.description);
+        const existingImages: any[] = Array.isArray(item.images) && item.images.length
+          ? item.images
+          : (item.image ? [{ url: item.image, isPrimary: true }] : []);
+        setImages(existingImages.map((img) => ({
+          id: img.id,
+          uri: img.url,
+          isPrimary: !!img.isPrimary,
+          isNew: false,
+        })));
+        setOriginalPrimaryId(existingImages.find((img) => img.isPrimary)?.id);
         setIsActive(item.isActive); setCategory(item.category);
         setGender(item.gender || 'Unisex'); setAttrColor(item.attrColor || '');
         setAttrSize(item.attrSize || ''); setAttrMaterial(item.attrMaterial || '');
@@ -126,14 +147,44 @@ export default function ManageProductScreen() {
       if (attrColor.trim()) payload.variantOptions.push({ option_name: 'color', option_values: attrColor.split(',').map(v => v.trim()) });
       if (attrSize.trim()) payload.variantOptions.push({ option_name: 'size', option_values: attrSize.split(',').map(v => v.trim()) });
 
+      if (!images.length) {
+        CustomInAppToast.show({ type: 'error', title: 'Missing Image', message: 'Please add at least one photo.' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      let productId = editingId;
       if (editingId) {
         await updateProduct(editingId, { ...payload, bargainingEnabled });
-        if (image && !image.startsWith('http')) await uploadProductImages(editingId, [image]);
+        await Promise.all(removedImageIds.map((imgId) => deleteProductImage(editingId, imgId)));
       } else {
-        if (!image) { CustomInAppToast.show({ type: 'error', title: 'Missing Image', message: 'Please add an image.' }); setIsSubmitting(false); return; }
         const res = await createProduct(payload);
-        if (res.success && res.product) await uploadProductImages(res.product._id, [image]);
+        if (!res.success || !res.product) throw new Error(res.message || 'Failed to create product');
+        productId = res.product._id;
       }
+
+      const newImages = images.filter((img) => img.isNew);
+      let uploadedRecords: { id: string; url: string; isPrimary: boolean }[] = [];
+      if (newImages.length && productId) {
+        const uploadRes = await uploadProductImages(productId, newImages.map((img) => img.uri));
+        uploadedRecords = uploadRes.images || uploadRes.data || [];
+      }
+
+      // Reconcile the seller's chosen primary — only call the API when it
+      // actually differs from what the server already has, so a routine
+      // edit that didn't touch photos doesn't fire an extra request.
+      const desiredPrimary = images.find((img) => img.isPrimary);
+      if (desiredPrimary && productId) {
+        if (desiredPrimary.isNew) {
+          const uploadedRecord = uploadedRecords[newImages.indexOf(desiredPrimary)];
+          if (uploadedRecord && !uploadedRecord.isPrimary) {
+            await setPrimaryProductImage(productId, uploadedRecord.id).catch(() => {});
+          }
+        } else if (desiredPrimary.id && desiredPrimary.id !== originalPrimaryId) {
+          await setPrimaryProductImage(productId, desiredPrimary.id).catch(() => {});
+        }
+      }
+
       router.back();
     } catch (e: any) {
       if (e.code === 'LISTING_FEE_REQUIRED') {
@@ -148,6 +199,32 @@ export default function ManageProductScreen() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAddImage = async () => {
+    if (images.length >= MAX_PRODUCT_IMAGES) {
+      CustomInAppToast.show({ type: 'error', title: 'Limit Reached', message: `You can add up to ${MAX_PRODUCT_IMAGES} photos.` });
+      return;
+    }
+    const uri = await showImagePicker({ allowsEditing: true, quality: 0.8 });
+    if (!uri) return;
+    setImages((prev) => [...prev, { uri, isPrimary: prev.length === 0, isNew: true }]);
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => {
+      const removed = prev[index];
+      const next = prev.filter((_, i) => i !== index);
+      if (!removed.isNew && removed.id) setRemovedImageIds((ids) => [...ids, removed.id!]);
+      // Removing the primary photo promotes the next one so a save never
+      // leaves the product with no primary image.
+      if (removed.isPrimary && next.length) next[0] = { ...next[0], isPrimary: true };
+      return next;
+    });
+  };
+
+  const handleSetPrimaryImage = (index: number) => {
+    setImages((prev) => prev.map((img, i) => ({ ...img, isPrimary: i === index })));
   };
 
 return (
@@ -185,12 +262,40 @@ return (
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={S.screen}>
           
           <View style={S.cardSection}>
-            <CardActionRow
-              icon={image ? <AppImage uri={image} style={S.mediaThumb} /> : <View style={S.mediaIconBg}><MaterialCommunityIcons name="image-plus" size={rs(24)} color={C.navy} /></View>}
-              title="Product Media" subtitle={image ? 'Tap to change photo' : 'Upload main display image'}
-              onPress={async () => { const uri = await showImagePicker({ allowsEditing: true, quality: 0.8 }); if (uri) setImage(uri); }}
-              disabled={isSubmitting}
-            />
+            <Text style={S.sectionLabel}>Product Media</Text>
+            <Text style={S.mediaHint}>Add up to {MAX_PRODUCT_IMAGES} photos. Tap the star to choose which one shows on your product card.</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.mediaRow}>
+              {images.map((img, index) => (
+                <View key={img.id || img.uri} style={S.mediaTile}>
+                  <AppImage uri={img.uri} style={S.mediaTileImg} />
+                  <TouchableOpacity
+                    accessibilityLabel={img.isPrimary ? 'Primary photo' : 'Set as primary photo'}
+                    style={[S.mediaStarBadge, img.isPrimary && S.mediaStarBadgeOn]}
+                    onPress={() => handleSetPrimaryImage(index)}
+                    disabled={isSubmitting || img.isPrimary}
+                  >
+                    <Ionicons name={img.isPrimary ? 'star' : 'star-outline'} size={rs(13)} color={img.isPrimary ? '#FFF' : C.navy} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityLabel="Remove photo"
+                    style={S.mediaRemoveBadge}
+                    onPress={() => handleRemoveImage(index)}
+                    disabled={isSubmitting}
+                  >
+                    <Ionicons name="close" size={rs(13)} color="#FFF" />
+                  </TouchableOpacity>
+                  {img.isPrimary && (
+                    <View style={S.mediaPrimaryTag}><Text style={S.mediaPrimaryTagTxt}>Card photo</Text></View>
+                  )}
+                </View>
+              ))}
+              {images.length < MAX_PRODUCT_IMAGES && (
+                <TouchableOpacity style={S.mediaAddTile} onPress={handleAddImage} disabled={isSubmitting}>
+                  <MaterialCommunityIcons name="image-plus" size={rs(22)} color={C.navy} />
+                  <Text style={S.mediaAddTileTxt}>Add</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
             <View style={S.divider} />
             <View style={S.inputBlock}>
               <Text style={S.inputLabel}>Product Title</Text>
@@ -491,9 +596,31 @@ header: {
   cardRowSub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
   cardRowRight: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
   
-  mediaThumb: { width: rs(44), height: rs(44), borderRadius: rs(10) },
-  mediaIconBg: { width: rs(44), height: rs(44), borderRadius: rs(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
   iconBg: { width: rs(36), height: rs(36), borderRadius: rs(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+
+  mediaHint: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: rs(12) },
+  mediaRow: { gap: rs(10), paddingRight: rs(4) },
+  mediaTile: { width: rs(84), height: rs(84), borderRadius: rs(14), overflow: 'hidden', backgroundColor: '#F1F5F9' },
+  mediaTileImg: { width: '100%', height: '100%' },
+  mediaStarBadge: {
+    position: 'absolute', top: rs(4), left: rs(4), width: rs(22), height: rs(22), borderRadius: rs(11),
+    backgroundColor: 'rgba(255,255,255,0.92)', justifyContent: 'center', alignItems: 'center',
+  },
+  mediaStarBadgeOn: { backgroundColor: C.navy },
+  mediaRemoveBadge: {
+    position: 'absolute', top: rs(4), right: rs(4), width: rs(20), height: rs(20), borderRadius: rs(10),
+    backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', alignItems: 'center',
+  },
+  mediaPrimaryTag: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: rs(3),
+    backgroundColor: 'rgba(12,21,89,0.85)', alignItems: 'center',
+  },
+  mediaPrimaryTagTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  mediaAddTile: {
+    width: rs(84), height: rs(84), borderRadius: rs(14), borderWidth: 1.5, borderColor: '#CBD5E1', borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC', gap: rs(4),
+  },
+  mediaAddTileTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.navy },
 
   inputBlock: { width: '100%' },
   inputLabel: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: rs(6) },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -40,7 +40,45 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { ReportModal } from '../../components/ReportModal';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  badgeBg: string;
+  overlay: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    badgeBg: colors.backgroundAlt,
+    overlay: colors.overlay,
+    textInverse: colors.textInverse,
+  };
+}
 const DEFAULT_LATITUDE = 6.6745;
 const DEFAULT_LONGITUDE = -1.5716;
 
@@ -194,6 +232,9 @@ const formatStoreAge = (createdAtString?: string) => {
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [activeTab, setActiveTab] = useState('Catalogue');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -382,7 +423,7 @@ export default function StoreDetailsScreen() {
           <View style={styles.catalogueContainer}>
             <View style={styles.catalogueHeader}>
               <Text style={styles.sectionTitle}>Featured Items</Text>
-              <TouchableOpacity accessibilityLabel="Filter products" accessibilityRole="button" style={styles.filterBtn}><Feather name="sliders" size={16} color="#0F172A" /></TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Filter products" accessibilityRole="button" style={styles.filterBtn}><Feather name="sliders" size={16} color={C.body} /></TouchableOpacity>
             </View>
             <FlatList
               data={products}
@@ -397,7 +438,7 @@ export default function StoreDetailsScreen() {
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
                   </View>
-                  <View style={styles.addBtn}><Ionicons name="add" size={20} color="#FFF" /></View>
+                  <View style={styles.addBtn}><Ionicons name="add" size={20} color={C.textInverse} /></View>
                 </TouchableOpacity>
               )}
             />
@@ -423,21 +464,21 @@ export default function StoreDetailsScreen() {
             </View>
             <View style={styles.infoList}>
               <View style={styles.infoItem}>
-                <Ionicons name="calendar-outline" size={22} color="#0C1559" />
+                <Ionicons name="calendar-outline" size={22} color={C.navy} />
                 <View style={styles.infoTextCol}>
                    <Text style={styles.infoLabelText}>Store Age</Text>
                    <Text style={styles.infoValueText}>{formatStoreAge(store.createdAt)}</Text>
                 </View>
               </View>
               <View style={styles.infoItem}>
-                <Ionicons name="time-outline" size={22} color="#0C1559" />
+                <Ionicons name="time-outline" size={22} color={C.navy} />
                 <View style={styles.infoTextCol}>
                    <Text style={styles.infoLabelText}>Opening Hours</Text>
                    <Text style={styles.infoValueText}>{store.hours}</Text>
                 </View>
               </View>
               <View style={[styles.infoItem, { marginBottom: 0 }]}>
-                <Ionicons name="location-outline" size={22} color="#0C1559" />
+                <Ionicons name="location-outline" size={22} color={C.navy} />
                 <View style={styles.infoTextCol}>
                    <Text style={styles.infoLabelText}>Store Address</Text>
                    <Text style={styles.infoValueText}>{store.address}</Text>
@@ -472,9 +513,9 @@ export default function StoreDetailsScreen() {
                 </Marker>
               </MapView>
               <TouchableOpacity accessibilityLabel="Get directions to store" accessibilityRole="button" style={styles.mapOverlayBtn} onPress={handleDirections}>
-                 <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.dirBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                 <LinearGradient colors={[C.navy, C.navyMid]} style={styles.dirBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                     <Text style={styles.dirBtnText}>Get Directions</Text>
-                    <Feather name="navigation" size={14} color="#FFF" style={{ marginLeft: 8 }} />
+                    <Feather name="navigation" size={14} color={C.textInverse} style={{ marginLeft: 8 }} />
                  </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -488,7 +529,7 @@ export default function StoreDetailsScreen() {
               <View>
                 <View style={{ flexDirection: 'row' }}>
                   {[...new Array(5)].map((_, i) => {
-                    const starColor = i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0";
+                    const starColor = i < Math.round(store.rating) ? "#FACC15" : C.border;
                     return <FontAwesome key={`star-${i}`} name="star" size={16} color={starColor} />;
                   })}
                 </View>
@@ -500,12 +541,12 @@ export default function StoreDetailsScreen() {
             </View>
             {(() => {
               if (reviewsLoading) {
-                return <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 30 }} />;
+                return <ActivityIndicator size="large" color={C.navy} style={{ marginTop: 30 }} />;
               }
               if (reviews.length === 0) {
                 return (
                   <View style={styles.emptyReviews}>
-                    <MaterialCommunityIcons name="star-outline" size={60} color="#CBD5E1" />
+                    <MaterialCommunityIcons name="star-outline" size={60} color={C.subtle} />
                     <Text style={styles.emptyReviewsTitle}>No Reviews Yet</Text>
                   </View>
                 );
@@ -526,7 +567,7 @@ export default function StoreDetailsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.navy]} tintColor={C.navy} />
         }
       >
         
@@ -559,7 +600,7 @@ export default function StoreDetailsScreen() {
         </View>
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
-            {store.logo ? <AppImage source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color="#94A3B8" /></View>}
+            {store.logo ? <AppImage source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: C.surfaceElevated, justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color={C.subtle} /></View>}
             {store.isTrusted && (
               <View style={styles.verifiedBadge}><MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" /></View>
             )}
@@ -576,26 +617,26 @@ export default function StoreDetailsScreen() {
             {store.category ? <Text style={styles.storeCat} numberOfLines={1}>{store.category}</Text> : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
               <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)} ({reviews.length} Reviews)</Text></View>
-              <View style={[styles.ratingRow, { backgroundColor: '#EEF2FF', borderColor: '#E2E8F0', borderWidth: 0.5 }]}><Feather name="users" size={12} color="#0C1559" /><Text style={[styles.ratingText, { color: '#0C1559' }]}>{store.followers || 0} Followers</Text></View>
+              <View style={[styles.ratingRow, { backgroundColor: C.badgeBg, borderColor: C.borderStrong, borderWidth: 0.5 }]}><Feather name="users" size={12} color={C.navy} /><Text style={[styles.ratingText, { color: C.navy }]}>{store.followers || 0} Followers</Text></View>
             </View>
           </View>
         </View>
         <View style={styles.actionRow}>
           <TouchableOpacity accessibilityLabel="Chat with store" accessibilityRole="button" style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
-            {chatLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" /><Text style={styles.primaryActionText}>Chat</Text></>}
+            {chatLoading ? <ActivityIndicator size="small" color={C.textInverse} /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color={C.textInverse} /><Text style={styles.primaryActionText}>Chat</Text></>}
           </TouchableOpacity>
           {store.phone ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               accessibilityLabel="Call store"
               accessibilityRole="button"
-              style={styles.callActionButton} 
+              style={styles.callActionButton}
               onPress={() => Linking.openURL(`tel:${store.phone}`)}
             >
-              <Ionicons name="call" size={22} color="#0C1559" />
+              <Ionicons name="call" size={22} color={C.navy} />
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity accessibilityLabel={isFollowing ? 'Unfollow store' : 'Follow store'} accessibilityRole="button" style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]} onPress={handleFollow}>
-            <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? "#FFF" : "#0C1559"} />
+            <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? C.textInverse : C.navy} />
             <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
@@ -607,7 +648,7 @@ export default function StoreDetailsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {loading ? <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 50 }} /> : renderContent()}
+        {loading ? <ActivityIndicator size="large" color={C.navy} style={{ marginTop: 50 }} /> : renderContent()}
       </ScrollView>
       {/* --- MAP PICKER ACTION SHEET --- */}
       <Modal visible={mapPickerVisible} animationType="slide" transparent onRequestClose={() => setMapPickerVisible(false)}>
@@ -626,7 +667,7 @@ export default function StoreDetailsScreen() {
                 </TouchableOpacity>
                 {Platform.OS === 'ios' && (
                   <TouchableOpacity accessibilityLabel="Open in Apple Maps" accessibilityRole="button" style={styles.pickerOption} onPress={() => openExternalMap('apple')}>
-                    <View style={styles.pickerIconBg}><Ionicons name="map-outline" size={24} color="#000" /></View>
+                    <View style={styles.pickerIconBg}><Ionicons name="map-outline" size={24} color={C.body} /></View>
                     <Text style={styles.pickerText}>Apple Maps</Text>
                   </TouchableOpacity>
                 )}
@@ -647,7 +688,7 @@ export default function StoreDetailsScreen() {
                 <Text style={styles.modalSubtitle}>Share your experience with the community</Text>
               </View>
               <TouchableOpacity accessibilityLabel="Close review form" accessibilityRole="button" onPress={() => setReviewModalVisible(false)} style={styles.closeCircle}>
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={20} color={C.muted} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
@@ -656,7 +697,7 @@ export default function StoreDetailsScreen() {
                 <View style={styles.starPickerRow}>
                   {[1, 2, 3, 4, 5].map((s) => {
                     const starName = s <= userRating ? "star" : "star-o";
-                    const starColor = s <= userRating ? "#FACC15" : "#E2E8F0";
+                    const starColor = s <= userRating ? "#FACC15" : C.border;
                     return (
                       <TouchableOpacity accessibilityLabel={`Rate ${s} star${s > 1 ? 's' : ''}`} accessibilityRole="button" key={s} onPress={() => setUserRating(s)}>
                         <FontAwesome name={starName} size={38} color={starColor} style={{ marginHorizontal: 6 }} />
@@ -685,7 +726,7 @@ export default function StoreDetailsScreen() {
                   accessibilityRole="none"
                   style={styles.modalInput}
                   placeholder="What did you like or dislike? How was the service?"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.subtle}
                   multiline
                   maxLength={500}
                   value={userComment}
@@ -699,8 +740,8 @@ export default function StoreDetailsScreen() {
                 onPress={handleSubmitReview} 
                 disabled={isSubmittingReview || userRating === 0}
               >
-                <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
-                  {isSubmittingReview ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitReviewText}>Submit Review</Text>}
+                <LinearGradient colors={[C.navy, C.navyMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
+                  {isSubmittingReview ? <ActivityIndicator color={C.textInverse} /> : <Text style={styles.submitReviewText}>Submit Review</Text>}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -716,7 +757,7 @@ export default function StoreDetailsScreen() {
         <View style={styles.eligibilityOverlay}>
           <View style={styles.eligibilityCard}>
             <View style={styles.eligibilityIcon}>
-              <Ionicons name="bag-check-outline" size={28} color="#0C1559" />
+              <Ionicons name="bag-check-outline" size={28} color={C.navy} />
             </View>
             <Text style={styles.eligibilityTitle}>Purchase Required</Text>
             <Text style={styles.eligibilityText}>
@@ -755,8 +796,8 @@ export default function StoreDetailsScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   headerContainer: { height: 180, width: '100%', position: 'relative' },
   coverImage: { width: '100%', height: '100%' },
   coverOverlay: { ...StyleSheet.absoluteFillObject },
@@ -767,102 +808,102 @@ const styles = StyleSheet.create({
   headerStoreMeta: { marginTop: 2, fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#E2E8F0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   profileSection: { flexDirection: 'row', paddingHorizontal: 20, marginTop: -40, alignItems: 'flex-start', marginBottom: 16 },
   logoWrapper: { position: 'relative' },
-  storeLogo: { width: 80, height: 80, borderRadius: 20, borderWidth: 4, borderColor: '#FFF', backgroundColor: '#FFF' },
-  verifiedBadge: { position: 'absolute', bottom: -6, right: -6, backgroundColor: '#3B82F6', borderRadius: 12, padding: 2, borderWidth: 2, borderColor: '#FFF' },
+  storeLogo: { width: 80, height: 80, borderRadius: 20, borderWidth: 4, borderColor: C.card, backgroundColor: C.card },
+  verifiedBadge: { position: 'absolute', bottom: -6, right: -6, backgroundColor: '#3B82F6', borderRadius: 12, padding: 2, borderWidth: 2, borderColor: C.card },
   infoContent: { flex: 1, marginLeft: 12, paddingTop: 44, paddingBottom: 4 },
-  storeName: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
-  storeCat: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginBottom: 4 },
+  storeName: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 4 },
+  storeCat: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: 4 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  ratingText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginLeft: 4 },
+  ratingText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.body, marginLeft: 4 },
   actionRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 20 },
-  primaryActionBtn: { flex: 1, height: 44, backgroundColor: '#0C1559', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  primaryActionText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
-  callActionButton: { width: 44, height: 44, backgroundColor: '#FFF', borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-  secondaryActionBtn: { flex: 1, height: 44, backgroundColor: '#FFF', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  secondaryActionText: { color: '#0C1559', fontFamily: 'Montserrat-SemiBold', fontSize: 14 },
-  tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingHorizontal: 20, marginBottom: 20 },
+  primaryActionBtn: { flex: 1, height: 44, backgroundColor: C.navy, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  primaryActionText: { color: C.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 14 },
+  callActionButton: { width: 44, height: 44, backgroundColor: C.card, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.borderStrong, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  secondaryActionBtn: { flex: 1, height: 44, backgroundColor: C.card, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: C.borderStrong },
+  secondaryActionText: { color: C.navy, fontFamily: 'Montserrat-SemiBold', fontSize: 14 },
+  tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 20, marginBottom: 20 },
   tabItem: { paddingVertical: 12, marginRight: 24, position: 'relative' },
-  tabText: { fontSize: 14, color: '#94A3B8', fontFamily: 'Montserrat-SemiBold' },
-  activeTabText: { color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  activeIndicator: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, backgroundColor: '#84cc16', borderRadius: 3 },
+  tabText: { fontSize: 14, color: C.subtle, fontFamily: 'Montserrat-SemiBold' },
+  activeTabText: { color: C.navy, fontFamily: 'Montserrat-Bold' },
+  activeIndicator: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, backgroundColor: C.lime, borderRadius: 3 },
   catalogueContainer: { paddingHorizontal: 20 },
   catalogueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
-  filterBtn: { padding: 8, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  productCard: { width: (width - 52) / 2, backgroundColor: '#FFF', borderRadius: 16, marginBottom: 16, padding: 8, elevation: 2 },
+  sectionTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 15 },
+  filterBtn: { padding: 8, backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.borderStrong },
+  productCard: { width: (width - 52) / 2, backgroundColor: C.card, borderRadius: 16, marginBottom: 16, padding: 8, elevation: 2 },
   productImage: { width: '100%', height: 120, borderRadius: 12, resizeMode: 'cover' },
   productInfo: { marginTop: 8, paddingHorizontal: 4 },
-  productTitle: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 4 },
-  productPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
-  addBtn: { position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
-  
+  productTitle: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.body, marginBottom: 4 },
+  productPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
+  addBtn: { position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
+
   // --- About Styles ---
   aboutContainer: { paddingHorizontal: 20 },
   contactGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
-  contactCard: { width: '30%', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 16, elevation: 2 },
+  contactCard: { width: '30%', alignItems: 'center', backgroundColor: C.card, padding: 12, borderRadius: 16, elevation: 2 },
   contactIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  contactLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#475569' },
-  infoList: { backgroundColor: '#FFF', borderRadius: 20, padding: 15, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9' },
+  contactLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.muted },
+  infoList: { backgroundColor: C.card, borderRadius: 20, padding: 15, marginBottom: 25, borderWidth: 1, borderColor: C.border },
   infoItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   infoTextCol: { marginLeft: 15 },
-  infoLabelText: { fontSize: 11, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-  infoValueText: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-SemiBold' },
-  mapWrapper: { height: 220, borderRadius: 24, overflow: 'hidden', marginBottom: 30, borderWidth: 1, borderColor: '#E2E8F0' },
+  infoLabelText: { fontSize: 11, color: C.subtle, fontFamily: 'Montserrat-Medium' },
+  infoValueText: { fontSize: 14, color: C.body, fontFamily: 'Montserrat-SemiBold' },
+  mapWrapper: { height: 220, borderRadius: 24, overflow: 'hidden', marginBottom: 30, borderWidth: 1, borderColor: C.borderStrong },
   map: { ...StyleSheet.absoluteFillObject },
-  customMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0C1559', borderWidth: 2, borderColor: '#FFF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  customMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.navy, borderWidth: 2, borderColor: '#FFF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   markerLogo: { width: '100%', height: '100%' },
   mapOverlayBtn: { position: 'absolute', bottom: 15, left: 15, right: 15, borderRadius: 12, overflow: 'hidden' },
   dirBtnGradient: { paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
-  dirBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  dirBtnText: { color: C.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 13 },
   // --- Picker Modal Styles ---
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  pickerContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40 },
+  pickerOverlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
+  pickerContent: { backgroundColor: C.card, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40 },
   pickerHeader: { alignItems: 'center', marginBottom: 25 },
-  dragHandle: { width: 40, height: 5, backgroundColor: '#E2E8F0', borderRadius: 5, marginBottom: 15 },
-  pickerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  dragHandle: { width: 40, height: 5, backgroundColor: C.borderStrong, borderRadius: 5, marginBottom: 15 },
+  pickerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navy },
   pickerOptions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 30 },
   pickerOption: { alignItems: 'center', gap: 10 },
-  pickerIconBg: { width: 60, height: 60, backgroundColor: '#F8FAFC', borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  pickerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#334155' },
-  pickerCancel: { backgroundColor: '#F1F5F9', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  pickerCancelText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  pickerIconBg: { width: 60, height: 60, backgroundColor: C.surfaceElevated, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.borderStrong },
+  pickerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.body },
+  pickerCancel: { backgroundColor: C.surfaceElevated, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  pickerCancelText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.muted },
   // Reviews Tab
   reviewsContainer: { paddingHorizontal: 20 },
-  reviewSummary: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: '#FFF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' },
-  bigRating: { fontSize: 32, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginRight: 15 },
-  totalReviews: { fontSize: 12, color: '#64748B', marginTop: 4 },
-  writeBtn: { marginLeft: 'auto', backgroundColor: '#84cc16', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  writeBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 12 },
-  followingBtn: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  followingText: { color: '#FFF' },
+  reviewSummary: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: C.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: C.borderStrong },
+  bigRating: { fontSize: 32, fontFamily: 'Montserrat-Bold', color: C.body, marginRight: 15 },
+  totalReviews: { fontSize: 12, color: C.muted, marginTop: 4 },
+  writeBtn: { marginLeft: 'auto', backgroundColor: C.lime, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  writeBtnText: { color: C.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 12 },
+  followingBtn: { backgroundColor: C.navy, borderColor: C.navy },
+  followingText: { color: C.textInverse },
   emptyReviews: { alignItems: 'center', paddingVertical: 40 },
-  emptyReviewsTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#CBD5E1', marginTop: 12 },
+  emptyReviewsTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.subtle, marginTop: 12 },
   // Review Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 35, borderTopRightRadius: 35, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  modalSubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 2 },
-  closeCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: C.card, borderTopLeftRadius: 35, borderTopRightRadius: 35, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: C.border },
+  modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: C.navy },
+  modalSubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: 2 },
+  closeCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceElevated, justifyContent: 'center', alignItems: 'center' },
   modalBody: { paddingHorizontal: 24, paddingTop: 20 },
-  ratingCard: { backgroundColor: '#F8FAFC', borderRadius: 20, padding: 20, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#F1F5F9' },
-  modalLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#334155', marginBottom: 12 },
+  ratingCard: { backgroundColor: C.surfaceElevated, borderRadius: 20, padding: 20, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: C.border },
+  modalLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 12 },
   starPickerRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 10 },
-  ratingHint: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#84cc16', marginTop: 8 },
+  ratingHint: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.lime, marginTop: 8 },
   inputSection: { marginBottom: 25 },
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  charCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
-  modalInput: { width: '100%', backgroundColor: '#FFF', borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontFamily: 'Montserrat-Medium', fontSize: 15, color: '#0F172A', borderWidth: 1.5, borderColor: '#E2E8F0', marginTop: 8 },
+  charCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.subtle },
+  modalInput: { width: '100%', backgroundColor: C.surfaceElevated, borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontFamily: 'Montserrat-Medium', fontSize: 15, color: C.body, borderWidth: 1.5, borderColor: C.borderStrong, marginTop: 8 },
   submitReviewBtn: { width: '100%', borderRadius: 18, overflow: 'hidden' },
   submitGradient: { paddingVertical: 18, justifyContent: 'center', alignItems: 'center' },
-  submitReviewText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
-  eligibilityOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.45)', justifyContent: 'center', paddingHorizontal: 24 },
-  eligibilityCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 22, alignItems: 'center' },
-  eligibilityIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  eligibilityTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
-  eligibilityText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 21, textAlign: 'center', marginBottom: 18 },
-  eligibilityButton: { backgroundColor: '#0C1559', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, minWidth: 140, alignItems: 'center' },
-  eligibilityButtonText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  submitReviewText: { color: C.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  eligibilityOverlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'center', paddingHorizontal: 24 },
+  eligibilityCard: { backgroundColor: C.card, borderRadius: 20, padding: 22, alignItems: 'center' },
+  eligibilityIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.badgeBg, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  eligibilityTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8, textAlign: 'center' },
+  eligibilityText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted, lineHeight: 21, textAlign: 'center', marginBottom: 18 },
+  eligibilityButton: { backgroundColor: C.navy, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, minWidth: 140, alignItems: 'center' },
+  eligibilityButtonText: { color: C.textInverse, fontSize: 14, fontFamily: 'Montserrat-Bold' },
   eligibilityDismiss: { marginTop: 10, paddingVertical: 8 },
-  eligibilityDismissText: { color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
+  eligibilityDismissText: { color: C.subtle, fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
 });

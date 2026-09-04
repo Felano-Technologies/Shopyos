@@ -140,6 +140,8 @@ export default function ForYouScreen() {
     addToCart({
       id: item._id, title: item.name, price: item.price, image: { uri: item.images?.[0] },
       storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
+      storeName: item.store?.store_name || item.store?.name,
+      storeLogo: item.store?.logo_url || item.store?.logo,
     });
     showToast(`${item.name} added to cart!`);
   }, [addToCart, showToast]);

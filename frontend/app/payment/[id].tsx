@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,6 +6,33 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { initializePayment, verifyPayment } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  lime: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    lime: colors.accent,
+    textInverse: colors.textInverse,
+  };
+}
 
 const { width } = Dimensions.get('window');
 
@@ -14,6 +41,10 @@ type PaymentStatus = 'initializing' | 'waiting' | 'verifying' | 'success' | 'fai
 export default function PaymentProcessingScreen() {
     const { id, method } = useLocalSearchParams<{ id: string; method: string }>();
     const router = useRouter();
+    const themeColors = useThemeColors();
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const C = useMemo(() => buildC(themeColors), [themeColors]);
+    const styles = useMemo(() => getStyles(C), [C]);
     const [status, setStatus] = useState<PaymentStatus>('initializing');
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [progress] = useState(new Animated.Value(0));
@@ -231,13 +262,13 @@ export default function PaymentProcessingScreen() {
                     {errorMessage || "We couldn't verify your payment. If you were debited, please contact support."}
                 </Text>
                 <TouchableOpacity
-                    style={[styles.doneBtn, { backgroundColor: '#0C1559', marginBottom: 12 }]}
+                    style={[styles.doneBtn, { backgroundColor: C.navy, marginBottom: 12 }]}
                     onPress={() => handleInitialize()}
                 >
                     <Text style={styles.doneBtnText}>Try Again</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.doneBtn, { backgroundColor: '#64748B' }]}
+                    style={[styles.doneBtn, { backgroundColor: C.muted }]}
                     onPress={() => router.back()}
                 >
                     <Text style={styles.doneBtnText}>Return to Cart</Text>
@@ -251,7 +282,7 @@ export default function PaymentProcessingScreen() {
                     <MaterialCommunityIcons
                         name={getIcon()}
                         size={50}
-                        color="#0C1559"
+                        color={C.navy}
                     />
                 </View>
                 <Text style={styles.statusText}>{getProcessingText()}</Text>
@@ -270,7 +301,7 @@ export default function PaymentProcessingScreen() {
 
     return (
         <View style={styles.container}>
-            <StatusBar style="dark" />
+            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
 
             <View style={styles.card}>
                 {statusView}
@@ -279,21 +310,21 @@ export default function PaymentProcessingScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
-    card: { width: width * 0.85, backgroundColor: '#FFF', borderRadius: 30, padding: 30, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center' },
+    card: { width: width * 0.85, backgroundColor: C.card, borderRadius: 30, padding: 30, shadowColor: C.navy, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
     center: { alignItems: 'center' },
-    iconContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-    statusText: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559', textAlign: 'center', marginBottom: 30 },
-    progressBarBg: { width: '100%', height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden', marginBottom: 20 },
-    progressBarFill: { height: '100%', backgroundColor: '#0C1559' },
-    info: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textAlign: 'center' },
+    iconContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
+    statusText: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navy, textAlign: 'center', marginBottom: 30 },
+    progressBarBg: { width: '100%', height: 8, backgroundColor: C.border, borderRadius: 4, overflow: 'hidden', marginBottom: 20 },
+    progressBarFill: { height: '100%', backgroundColor: C.navy },
+    info: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'center' },
 
-    successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#84cc16', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-    title: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 10 },
-    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 30, lineHeight: 20 },
-    doneBtn: { backgroundColor: '#84cc16', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 20, width: '100%', alignItems: 'center' },
-    doneBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-    retryBtn: { marginTop: 10, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#F1F5F9', borderRadius: 10, marginBottom: 20 },
-    retryText: { color: '#0C1559', fontSize: 13, fontFamily: 'Montserrat-Bold' }
+    successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
+    title: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: 10 },
+    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginBottom: 30, lineHeight: 20 },
+    doneBtn: { backgroundColor: C.lime, paddingVertical: 16, paddingHorizontal: 40, borderRadius: 20, width: '100%', alignItems: 'center' },
+    doneBtnText: { color: C.textInverse, fontSize: 16, fontFamily: 'Montserrat-Bold' },
+    retryBtn: { marginTop: 10, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: C.border, borderRadius: 10, marginBottom: 20 },
+    retryText: { color: C.navy, fontSize: 13, fontFamily: 'Montserrat-Bold' }
 });

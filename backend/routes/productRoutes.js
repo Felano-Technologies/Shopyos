@@ -6,7 +6,7 @@ const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
   createProduct, getStoreProducts, getProductById,
   updateProduct, deleteProduct, uploadProductImages,
-  deleteProductImage, searchProducts, getFilterOptions
+  deleteProductImage, setPrimaryProductImage, searchProducts, getFilterOptions
 } = require('../controllers/productController');
 const { getSimilar } = require('../controllers/recommendationController');
 const { validateSearch, validateCreateProduct } = require('../middleware/validators');
@@ -445,5 +445,34 @@ router.post('/:id/images', protect, hasAnyRole('seller', 'admin'), upload.multip
  *         description: Product or image not found
  */
 router.delete('/:id/images/:imageId', protect, hasAnyRole('seller', 'admin'), deleteProductImage);
+
+/**
+ * @swagger
+ * /api/v1/products/{id}/images/{imageId}/primary:
+ *   patch:
+ *     summary: Set which image is the product's primary (product card / first carousel slide)
+ *     tags: [Products]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: imageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Primary image updated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Product or image not found
+ */
+router.patch('/:id/images/:imageId/primary', protect, hasAnyRole('seller', 'admin'), setPrimaryProductImage);
 
 module.exports = router;

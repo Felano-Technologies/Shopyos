@@ -16,6 +16,9 @@ const SIMILAR_PRODUCTS_SQL = `
     p.brand,
     p.average_rating,
     p.total_sales,
+    p.store_id,
+    s.store_name,
+    s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
      ORDER BY display_order ASC, is_primary DESC
@@ -28,6 +31,7 @@ const SIMILAR_PRODUCTS_SQL = `
       + CASE WHEN p.average_rating >= 4.0 THEN 1 ELSE 0 END
       AS score
   FROM products p
+  JOIN stores s ON s.id = p.store_id
   CROSS JOIN (
     SELECT category, brand, price
     FROM products
@@ -71,11 +75,15 @@ const PERSONALIZED_SQL = `
     p.brand,
     p.average_rating,
     p.total_sales,
+    p.store_id,
+    s.store_name,
+    s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
      ORDER BY display_order ASC, is_primary DESC
      LIMIT 1)            AS image_url
   FROM products p
+  JOIN stores s ON s.id = p.store_id
   JOIN user_categories uc ON uc.category = p.category
   WHERE p.is_active = true
     AND p.is_in_stock = true
@@ -96,11 +104,15 @@ const TRENDING_SQL = `
     p.brand,
     p.average_rating,
     p.total_sales,
+    p.store_id,
+    s.store_name,
+    s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
      ORDER BY display_order ASC, is_primary DESC
      LIMIT 1)            AS image_url
   FROM products p
+  JOIN stores s ON s.id = p.store_id
   WHERE p.is_active = true
     AND p.is_in_stock = true
     AND p.deleted_at IS NULL

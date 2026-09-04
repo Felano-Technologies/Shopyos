@@ -142,7 +142,7 @@ class ProductRepository extends BaseRepository {
     }
 
     let dbQuery = this.db.from(this.tableName)
-      .select('*, stores:store_id (id, store_name, slug), product_images (image_url, is_primary)')
+      .select('*, stores:store_id (id, store_name, slug), product_images (image_url, is_primary, display_order)')
       .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter);
 
     if (searchProductIds) dbQuery = dbQuery.in('id', searchProductIds);

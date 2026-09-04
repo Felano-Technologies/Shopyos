@@ -28,9 +28,11 @@ class BargainRepository extends BaseRepository {
     const db = getPool();
     let query = `
       SELECT b.*, p.title as product_name, p.price as product_price,
-             (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as product_image_url
+             (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as product_image_url,
+             s.store_name, s.logo_url as store_logo_url
       FROM bargain_offers b
       JOIN products p ON b.product_id = p.id
+      LEFT JOIN stores s ON s.id = b.store_id
       WHERE b.buyer_id = $1
     `;
     const params = [buyerId];

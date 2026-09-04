@@ -19,6 +19,36 @@ import { socketService } from '@/services/socket';
 import { getLatestLocation } from '@/services/delivery';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    textInverse: colors.textInverse,
+  };
+}
 
 type Coord = { latitude: number; longitude: number };
 
@@ -36,6 +66,9 @@ const { width: SW } = Dimensions.get('window');
 export default function TransitTrackerScreen() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
@@ -231,7 +264,7 @@ export default function TransitTrackerScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <ActivityIndicator size="large" color={C.navy} />
         <Text style={styles.loadingText}>Fetching tracking history...</Text>
       </View>
     );
@@ -251,8 +284,8 @@ export default function TransitTrackerScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <LinearGradient colors={themeColors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -416,7 +449,7 @@ export default function TransitTrackerScreen() {
               disabled={requesting}
             >
               {requesting ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator size="small" color={C.textInverse} />
               ) : (
                 <Text style={styles.lastMileBtnText}>Request Home Delivery</Text>
               )}
@@ -441,7 +474,7 @@ export default function TransitTrackerScreen() {
           <Text style={styles.cardTitle}>Tracking Timeline</Text>
           {!data.history || data.history.length === 0 ? (
             <View style={styles.emptyTimeline}>
-              <Feather name="clock" size={28} color="#94A3B8" />
+              <Feather name="clock" size={28} color={C.subtle} />
               <Text style={styles.emptyTimelineText}>Pending vendor shipment dispatch.</Text>
             </View>
           ) : (
@@ -486,10 +519,10 @@ export default function TransitTrackerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
   },
   header: {
     flexDirection: 'row',
@@ -513,41 +546,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: C.bg,
     padding: 30,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
+    color: C.navy,
   },
   errorText: {
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: 12,
     textAlign: 'center',
   },
   backButton: {
     marginTop: 20,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
   backButtonText: {
-    color: '#FFF',
+    color: C.textInverse,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   mapCard: {
     height: 220,
@@ -555,7 +588,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   map: {
     ...StyleSheet.absoluteFillObject,
@@ -595,27 +628,27 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
     paddingBottom: 8,
   },
   label: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: C.subtle,
     textTransform: 'uppercase',
   },
   trackingNumber: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginTop: 4,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.border,
     marginVertical: 12,
   },
   row: {
@@ -626,7 +659,7 @@ const styles = StyleSheet.create({
   subLabel: {
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: C.subtle,
     textTransform: 'uppercase',
   },
   statusVal: {
@@ -638,7 +671,7 @@ const styles = StyleSheet.create({
   estArrivalVal: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginTop: 2,
   },
   routeBox: {
@@ -657,18 +690,18 @@ const styles = StyleSheet.create({
   routeRegion: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#1E293B',
+    color: C.body,
   },
   routeHubName: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: 1,
   },
   routeLine: {
     width: 2,
     height: 24,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: C.borderStrong,
     marginLeft: 3,
     marginVertical: 4,
   },
@@ -743,7 +776,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   lastMileBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
@@ -751,7 +784,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   lastMileBtnText: {
-    color: '#FFF',
+    color: C.textInverse,
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
   },
@@ -780,7 +813,7 @@ const styles = StyleSheet.create({
   emptyTimelineText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: C.subtle,
     marginTop: 8,
   },
   timelineItem: {
@@ -795,13 +828,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     marginTop: 4,
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: C.borderStrong,
     marginVertical: 4,
   },
   timelineContent: {
@@ -810,25 +843,25 @@ const styles = StyleSheet.create({
   timelineStatus: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
   },
   timelineLocation: {
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: C.muted,
     marginTop: 2,
   },
   timelineNotes: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#475569',
+    color: C.muted,
     fontStyle: 'italic',
     marginTop: 2,
   },
   timelineDate: {
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: C.subtle,
     marginTop: 4,
   },
 });

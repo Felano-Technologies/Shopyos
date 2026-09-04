@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -39,7 +39,56 @@ import { getAcceptedBargainForProduct, addBargainToCart } from '@/services/barga
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { SimilarProductsRow } from '../../components/product/SimilarProductsRow';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width, height } = Dimensions.get('window');
+
+type LegacyPalette = {
+    bg: string;
+    navy: string;
+    navyMid: string;
+    lime: string;
+    card: string;
+    body: string;
+    muted: string;
+    subtle: string;
+    border: string;
+    borderStrong: string;
+    surfaceElevated: string;
+    badgeBg: string;
+    overlay: string;
+    textInverse: string;
+    cardFadeMid: string;
+    cardFadeStrong: string;
+};
+
+function hexToRgb(hex: string): string {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex);
+    if (!m) return '0,0,0';
+    return `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}`;
+}
+
+function buildC(colors: ThemeColors): LegacyPalette {
+    const cardRgb = hexToRgb(colors.surface);
+    return {
+        bg: colors.backgroundAlt,
+        navy: colors.primary,
+        navyMid: colors.primaryMid,
+        lime: colors.accent,
+        card: colors.surface,
+        body: colors.text,
+        muted: colors.textSecondary,
+        subtle: colors.textMuted,
+        border: colors.border,
+        borderStrong: colors.borderStrong,
+        surfaceElevated: colors.surfaceElevated,
+        badgeBg: colors.backgroundAlt,
+        overlay: colors.overlay,
+        textInverse: colors.textInverse,
+        cardFadeMid: `rgba(${cardRgb},0.18)`,
+        cardFadeStrong: `rgba(${cardRgb},0.72)`,
+    };
+}
 
 function StockIndicator({ qty }: Readonly<{ qty: number | null }>) {
     if (qty === null) return null;
@@ -97,6 +146,9 @@ function resolveVariant(variants: any[], attrs: Record<string, string>): any {
 export default function ProductDetails() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const themeColors = useThemeColors();
+    const C = useMemo(() => buildC(themeColors), [themeColors]);
+    const styles = useMemo(() => getStyles(C), [C]);
     const addToCart = useCart((s) => s.addToCart);
     const [isLiked, setIsLiked] = useState(false);
     const [successModalVisible, setSuccessModalVisible] = useState(false);
@@ -330,7 +382,7 @@ export default function ProductDetails() {
     }
     let reviewContent: React.ReactNode;
     if (reviewsLoading) {
-        reviewContent = <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />;
+        reviewContent = <ActivityIndicator color={C.navy} style={{ marginTop: 20 }} />;
     } else if (reviews.length > 0) {
         reviewContent = reviews.map((item) => (
             <ReviewCard
@@ -343,7 +395,7 @@ export default function ProductDetails() {
     } else {
         reviewContent = (
             <View style={styles.emptyReviews}>
-                <Feather name="message-square" size={32} color="#CBD5E1" />
+                <Feather name="message-square" size={32} color={C.subtle} />
                 <Text style={styles.emptyReviewsText}>No reviews yet. Be the first to share your experience!</Text>
             </View>
         );
@@ -356,10 +408,10 @@ export default function ProductDetails() {
             <SafeAreaView edges={['top']} style={styles.floatingHeader} pointerEvents="box-none">
                 <View style={styles.headerOverlay}>
                     <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.iconBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#0C1559" />
+                        <Ionicons name="arrow-back" size={24} color={C.navy} />
                     </TouchableOpacity>
                     <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" onPress={toggleFavorite} style={styles.iconBtn}>
-                        <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
+                        <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : C.navy} />
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -370,7 +422,7 @@ export default function ProductDetails() {
                 contentContainerStyle={styles.detailsScrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.navy]} tintColor={C.navy} />
                 }
             >
                 {/* Product image carousel — scrolls away as user pulls up */}
@@ -396,7 +448,7 @@ export default function ProductDetails() {
                     />
                     {/* Gradient fade into the white card below */}
                     <LinearGradient
-                        colors={['transparent', 'rgba(255,255,255,0.18)', 'rgba(255,255,255,0.72)']}
+                        colors={['transparent', C.cardFadeMid, C.cardFadeStrong]}
                         style={styles.imageFade}
                         pointerEvents="none"
                     />
@@ -490,7 +542,7 @@ export default function ProductDetails() {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                                         <Text style={styles.sellerName} numberOfLines={2}>{product.sellerName}</Text>
                                         {product.isTrusted && (
-                                            <Ionicons name="checkmark-circle" size={14} color="#84cc16" />
+                                            <Ionicons name="checkmark-circle" size={14} color={C.lime} />
                                         )}
                                     </View>
                                 </View>
@@ -528,18 +580,18 @@ export default function ProductDetails() {
                             activeOpacity={0.85}
                         >
                             <LinearGradient
-                                colors={['#0C1559', '#1e3a8a']}
+                                colors={[C.navy, C.navyMid]}
                                 style={styles.cartGradient}
                                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                             >
-                                <Feather name="shopping-cart" size={20} color="#FFF" />
+                                <Feather name="shopping-cart" size={20} color={C.textInverse} />
                                 <Text style={styles.cartText}>{cartBtnText}</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                         {/* Row 2: Chat icon + Make Offer */}
                         <View style={styles.bottomRow2}>
                             <TouchableOpacity accessibilityLabel="Chat with seller" accessibilityRole="button" style={styles.chatBtn} onPress={handleChat}>
-                                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+                                <Ionicons name="chatbubble-ellipses-outline" size={22} color={C.navy} />
                                 <Text style={styles.chatText}>Chat</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -564,16 +616,16 @@ export default function ProductDetails() {
                     /* ── Single-row layout (no bargaining) ── */
                     <>
                         <TouchableOpacity accessibilityLabel="Chat with seller" accessibilityRole="button" style={styles.chatBtn} onPress={handleChat}>
-                            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
+                            <Ionicons name="chatbubble-ellipses-outline" size={24} color={C.navy} />
                             <Text style={styles.chatText}>Chat</Text>
                         </TouchableOpacity>
                         <TouchableOpacity accessibilityLabel={cartBtnText} accessibilityRole="button" style={styles.cartBtn} onPress={handleAddToCart} disabled={isOutOfStock} activeOpacity={isOutOfStock ? 1 : 0.8}>
                             <LinearGradient
-                                colors={isOutOfStock ? ['#94A3B8', '#94A3B8'] : ['#0C1559', '#1e3a8a']}
+                                colors={isOutOfStock ? ['#94A3B8', '#94A3B8'] : [C.navy, C.navyMid]}
                                 style={styles.cartGradient}
                                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                             >
-                                <Feather name={isOutOfStock ? 'x-circle' : 'shopping-cart'} size={20} color="#FFF" />
+                                <Feather name={isOutOfStock ? 'x-circle' : 'shopping-cart'} size={20} color={C.textInverse} />
                                 <Text style={styles.cartText}>{cartBtnText}</Text>
                             </LinearGradient>
                         </TouchableOpacity>
@@ -601,9 +653,9 @@ export default function ProductDetails() {
                                 <Text style={styles.continueText}>Continue Shopping</Text>
                             </TouchableOpacity>
                             <TouchableOpacity accessibilityLabel="View cart" accessibilityRole="button" style={styles.viewCartBtn} onPress={() => { setSuccessModalVisible(false); router.push('/cart'); }}>
-                                <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.viewCartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                                <LinearGradient colors={[C.navy, C.navyMid]} style={styles.viewCartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                                     <Text style={styles.viewCartText}>View Cart</Text>
-                                    <Feather name="arrow-right" size={16} color="#FFF" />
+                                    <Feather name="arrow-right" size={16} color={C.textInverse} />
                                 </LinearGradient>
                             </TouchableOpacity>
                         </View>
@@ -613,12 +665,12 @@ export default function ProductDetails() {
         </View>
     );
 }
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
     floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'box-none' },
     detailsScroll: { flex: 1 },
     detailsScrollContent: { paddingBottom: 200 },
-    imageHeaderContainer: { height: height * 0.46, width: '100%', backgroundColor: '#F8FAFC' },
+    imageHeaderContainer: { height: height * 0.46, width: '100%', backgroundColor: C.surfaceElevated },
     productImage: { width, height: height * 0.46, resizeMode: 'cover' },
     imageFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
     dotRow: { position: 'absolute', bottom: 48, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
@@ -627,64 +679,64 @@ const styles = StyleSheet.create({
     imageCounter: { position: 'absolute', bottom: 44, right: 16, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
     imageCounterText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold' },
     headerOverlay: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
-    iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    detailsCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.65, marginTop: -30 },
-    handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+    iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    detailsCard: { backgroundColor: C.card, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.65, marginTop: -30 },
+    handleBar: { width: 40, height: 4, backgroundColor: C.borderStrong, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
     metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    categoryBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-    categoryText: { color: '#1e3a8a', fontSize: 12, fontFamily: 'Montserrat-Bold' },
+    categoryBadge: { backgroundColor: C.badgeBg, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+    categoryText: { color: C.navy, fontSize: 12, fontFamily: 'Montserrat-Bold' },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    ratingText: { color: '#64748B', fontSize: 13, fontFamily: 'Montserrat-Medium' },
-    title: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+    ratingText: { color: C.muted, fontSize: 13, fontFamily: 'Montserrat-Medium' },
+    title: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8 },
     priceRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 24 },
-    price: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
-    oldPrice: { fontSize: 16, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textDecorationLine: 'line-through', marginLeft: 12, marginBottom: 4 },
-    sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-    description: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 22, marginBottom: 24 },
-    sellerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 12, borderRadius: 16, marginBottom: 30, borderWidth: 1, borderColor: '#E2E8F0' },
+    price: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: C.lime },
+    oldPrice: { fontSize: 16, fontFamily: 'Montserrat-Regular', color: C.subtle, textDecorationLine: 'line-through', marginLeft: 12, marginBottom: 4 },
+    sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8 },
+    description: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: C.muted, lineHeight: 22, marginBottom: 24 },
+    sellerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.card, padding: 12, borderRadius: 16, marginBottom: 30, borderWidth: 1, borderColor: C.borderStrong },
     sellerInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
     sellerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-    sellerLabel: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-    sellerName: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
-    visitBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F1F5F9', borderRadius: 8 },
-    visitText: { fontSize: 12, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
+    sellerLabel: { fontSize: 10, color: C.subtle, fontFamily: 'Montserrat-Medium' },
+    sellerName: { fontSize: 14, color: C.body, fontFamily: 'Montserrat-Bold' },
+    visitBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: C.surfaceElevated, borderRadius: 8 },
+    visitText: { fontSize: 12, color: C.navy, fontFamily: 'Montserrat-Bold' },
     // --- Reviews Styles ---
     reviewsSection: { marginTop: 10, marginBottom: 20 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    writeReviewText: { color: '#84cc16', fontFamily: 'Montserrat-Bold', fontSize: 13 },
-    emptyReviews: { alignItems: 'center', padding: 30, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
-    emptyReviewsText: { textAlign: 'center', color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Medium', marginTop: 10 },
+    writeReviewText: { color: C.lime, fontFamily: 'Montserrat-Bold', fontSize: 13 },
+    emptyReviews: { alignItems: 'center', padding: 30, backgroundColor: C.surfaceElevated, borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: C.borderStrong },
+    emptyReviewsText: { textAlign: 'center', color: C.subtle, fontSize: 13, fontFamily: 'Montserrat-Medium', marginTop: 10 },
     attrSection: { marginBottom: 24 },
-    attrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    attrKey: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
-    attrVal: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
+    attrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+    attrKey: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+    attrVal: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, flexShrink: 1, textAlign: 'right', marginLeft: 12 },
     variantSection: { marginBottom: 16 },
-    variantLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+    variantLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8 },
     variantChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    variantChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#CBD5E1', backgroundColor: '#FFF' },
-    variantChipActive: { borderColor: '#0C1559', backgroundColor: '#EEF2FF' },
-    variantChipText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-    variantChipTextActive: { color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', flexDirection: 'column', paddingHorizontal: 16, paddingTop: 14, paddingBottom: Platform.OS === 'ios' ? 30 : 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 12, gap: 10 },
+    variantChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: C.borderStrong, backgroundColor: C.card },
+    variantChipActive: { borderColor: C.navy, backgroundColor: C.badgeBg },
+    variantChipText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+    variantChipTextActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
+    bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.card, flexDirection: 'column', paddingHorizontal: 16, paddingTop: 14, paddingBottom: Platform.OS === 'ios' ? 30 : 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 12, gap: 10 },
     bottomRow2: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    chatBtn: { width: 58, height: 54, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 16 },
-    chatText: { fontSize: 10, color: '#0C1559', marginTop: 2, fontFamily: 'Montserrat-Bold' },
+    chatBtn: { width: 58, height: 54, justifyContent: 'center', alignItems: 'center', backgroundColor: C.surfaceElevated, borderRadius: 16 },
+    chatText: { fontSize: 10, color: C.navy, marginTop: 2, fontFamily: 'Montserrat-Bold' },
     cartBtn: { flex: 1, height: 54, borderRadius: 16, overflow: 'hidden' },
     cartBtnFull: { width: '100%', height: 54, borderRadius: 16, overflow: 'hidden' },
     offerBtn: { flex: 1, height: 54, borderRadius: 16, overflow: 'hidden' },
     cartGradient: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-    cartText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-    modalContent: { width: '80%', backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.2, elevation: 10 },
-    successIconContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#84cc16', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-    modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 8 },
-    modalMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 24 },
+    cartText: { color: C.textInverse, fontSize: 15, fontFamily: 'Montserrat-Bold' },
+    modalOverlay: { flex: 1, backgroundColor: C.overlay, justifyContent: 'center', alignItems: 'center' },
+    modalContent: { width: '80%', backgroundColor: C.card, borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.2, elevation: 10 },
+    successIconContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+    modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: 8 },
+    modalMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: C.muted, textAlign: 'center', marginBottom: 24 },
     modalActions: { width: '100%', gap: 12 },
-    continueBtn: { width: '100%', paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
-    continueText: { color: '#64748B', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+    continueBtn: { width: '100%', paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: C.borderStrong, alignItems: 'center' },
+    continueText: { color: C.muted, fontSize: 14, fontFamily: 'Montserrat-Bold' },
     viewCartBtn: { width: '100%', borderRadius: 14, overflow: 'hidden' },
     viewCartGradient: { paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-    viewCartText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+    viewCartText: { color: C.textInverse, fontSize: 14, fontFamily: 'Montserrat-Bold' },
     bottomLogos: { position: 'absolute', bottom: 120, left: -20 },
     fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.03 },
 });

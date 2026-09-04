@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { requestPasswordResetOTP } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navyMid: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  badgeBg: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.background,
+    navyMid: colors.primaryMid,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    badgeBg: colors.backgroundAlt,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    textInverse: colors.textInverse,
+  };
+}
 
 const { width } = Dimensions.get('window');
 
 type Method = 'email' | 'sms';
 
 const ForgotPasswordScreen = () => {
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [email, setEmail] = useState('');
   const [method, setMethod] = useState<Method>('email');
   const [sending, setSending] = useState(false);
@@ -45,13 +78,13 @@ const ForgotPasswordScreen = () => {
   };
 
   return (
-    <ScrollView 
-      style={{ flex: 1, backgroundColor: '#fff' }} 
+    <ScrollView
+      style={{ flex: 1, backgroundColor: C.bg }}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
       bounces={false}
     >
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
 
       <AppImage
         source={require('../assets/images/forgotpassword.png')}
@@ -65,11 +98,11 @@ const ForgotPasswordScreen = () => {
 
       {/* Email input */}
       <View style={styles.inputContainer}>
-        <Ionicons name="mail-sharp" size={20} color="#000" style={styles.icon} />
+        <Ionicons name="mail-sharp" size={20} color={C.body} style={styles.icon} />
         <TextInput
           style={styles.input}
           placeholder="Enter your email address"
-          placeholderTextColor="#555"
+          placeholderTextColor={C.subtle}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -88,7 +121,7 @@ const ForgotPasswordScreen = () => {
           <Ionicons
             name="mail-outline"
             size={22}
-            color={method === 'email' ? '#1e3a8a' : '#64748b'}
+            color={method === 'email' ? C.navyMid : C.muted}
           />
           <Text style={[styles.methodText, method === 'email' && styles.methodTextActive]}>
             Email
@@ -103,7 +136,7 @@ const ForgotPasswordScreen = () => {
           <Ionicons
             name="chatbubble-outline"
             size={22}
-            color={method === 'sms' ? '#1e3a8a' : '#64748b'}
+            color={method === 'sms' ? C.navyMid : C.muted}
           />
           <Text style={[styles.methodText, method === 'sms' && styles.methodTextActive]}>
             SMS
@@ -119,7 +152,7 @@ const ForgotPasswordScreen = () => {
         activeOpacity={0.8}
       >
         {sending ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={C.textInverse} />
         ) : (
           <Text style={styles.sendText}>Send Code</Text>
         )}
@@ -141,10 +174,10 @@ const ForgotPasswordScreen = () => {
 
 export default ForgotPasswordScreen;
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
@@ -158,13 +191,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
+    color: C.body,
     textAlign: 'center',
     marginTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: '#333',
+    color: C.muted,
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 20,
@@ -172,7 +205,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     borderRadius: 14,
     width: '90%',
     marginTop: 24,
@@ -184,7 +217,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#000',
+    color: C.body,
     fontSize: 14,
   },
   methodLabel: {
@@ -193,7 +226,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 13,
     fontWeight: '600',
-    color: '#334155',
+    color: C.body,
   },
   methodRow: {
     flexDirection: 'row',
@@ -208,29 +241,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
+    borderColor: C.borderStrong,
+    backgroundColor: C.surfaceElevated,
     gap: 4,
   },
   methodCardActive: {
-    borderColor: '#1e3a8a',
-    backgroundColor: '#EEF2FF',
+    borderColor: C.navyMid,
+    backgroundColor: C.badgeBg,
   },
   methodText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: C.muted,
   },
   methodTextActive: {
-    color: '#1e3a8a',
+    color: C.navyMid,
   },
   methodHint: {
     fontSize: 10,
-    color: '#94a3b8',
+    color: C.subtle,
     textAlign: 'center',
   },
   sendButton: {
-    backgroundColor: '#1e3a8a',
+    backgroundColor: C.navyMid,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -238,7 +271,7 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   sendText: {
-    color: '#fff',
+    color: C.textInverse,
     fontSize: 17,
     fontWeight: '700',
   },

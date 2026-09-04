@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Dimensions, Share, Alert,
@@ -14,6 +14,43 @@ import * as Sharing from 'expo-sharing';
 import  { captureRef } from 'react-native-view-shot';
 import { getOrderDetails } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+// The receipt card itself (headBand/body/barcode strip below) is a
+// screenshotted "paper receipt" for PDF export/sharing — it intentionally
+// keeps this fixed light palette regardless of app theme, the same way a
+// printed receipt doesn't change color with your phone's dark mode.
+// Only the surrounding screen chrome (top bar, buttons, loading/empty
+// states) uses the dynamic theme palette below (see `T`/`buildT`).
+
+type ChromePalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  badgeBg: string;
+  textInverse: string;
+};
+
+function buildT(colors: ThemeColors): ChromePalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Install before use:
@@ -59,6 +96,9 @@ export default function ReceiptScreen() {
   const { id }  = useLocalSearchParams();
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const T = useMemo(() => buildT(themeColors), [themeColors]);
+  const S = useMemo(() => getStyles(T), [T]);
 
   // Ref that points at the receipt card View we want to screenshot
   const receiptRef = useRef<View>(null);
@@ -195,7 +235,7 @@ export default function ReceiptScreen() {
   if (loading) {
     return (
       <View style={S.centred}>
-        <ActivityIndicator size="large" color={C.navy} />
+        <ActivityIndicator size="large" color={T.navy} />
       </View>
     );
   }
@@ -204,7 +244,7 @@ export default function ReceiptScreen() {
     return (
       <View style={S.centred}>
         <View style={S.emptyCircle}>
-          <Ionicons name="receipt-outline" size={rs(34)} color={C.navy} />
+          <Ionicons name="receipt-outline" size={rs(34)} color={T.navy} />
         </View>
         <Text style={S.emptyTitle}>Receipt not found</Text>
         <TouchableOpacity style={S.retryBtn} onPress={() => router.back()}>
@@ -225,11 +265,11 @@ export default function ReceiptScreen() {
         {/* ── Top bar ───────────────────────────────────────────────────── */}
         <View style={S.topBar}>
           <TouchableOpacity style={S.topBarBtn} onPress={() => router.back()}>
-            <Ionicons name="close" size={rs(18)} color={C.navy} />
+            <Ionicons name="close" size={rs(18)} color={T.navy} />
           </TouchableOpacity>
           <Text style={S.topBarTitle}>Digital Receipt</Text>
           <TouchableOpacity style={S.topBarBtn} onPress={handleShare}>
-            <Ionicons name="share-outline" size={rs(18)} color={C.navy} />
+            <Ionicons name="share-outline" size={rs(18)} color={T.navy} />
           </TouchableOpacity>
         </View>
 
@@ -392,7 +432,7 @@ export default function ReceiptScreen() {
           {/* ── Action buttons ─────────────────────────────────────────── */}
           <View style={S.actionRow}>
             <TouchableOpacity style={S.shareBtn} onPress={handleShare} activeOpacity={0.85}>
-              <Ionicons name="share-social-outline" size={rs(17)} color={C.navy} />
+              <Ionicons name="share-social-outline" size={rs(17)} color={T.navy} />
               <Text style={S.shareBtnTxt}>Share</Text>
             </TouchableOpacity>
 
@@ -404,12 +444,12 @@ export default function ReceiptScreen() {
             >
               {downloading ? (
                 <>
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={T.textInverse} />
                   <Text style={S.downloadBtnTxt}>Generating…</Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name="download-outline" size={rs(18)} color="#fff" />
+                  <Ionicons name="download-outline" size={rs(18)} color={T.textInverse} />
                   <Text style={S.downloadBtnTxt}>Download PDF</Text>
                 </>
               )}
@@ -422,29 +462,29 @@ export default function ReceiptScreen() {
   );
 }
 
-const S = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: C.bg },
-  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+const getStyles = (T: ChromePalette) => StyleSheet.create({
+  root:    { flex: 1, backgroundColor: T.bg },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: T.bg },
 
   emptyCircle: {
     width: rs(88), height: rs(88), borderRadius: rs(44),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14),
+    backgroundColor: T.badgeBg, justifyContent: 'center', alignItems: 'center', marginBottom: rs(14),
   },
-  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(14) },
-  retryBtn:   { backgroundColor: C.navy, paddingVertical: rs(12), paddingHorizontal: rs(28), borderRadius: rs(14) },
-  retryTxt:   { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) },
+  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: T.body, marginBottom: rs(14) },
+  retryBtn:   { backgroundColor: T.navy, paddingVertical: rs(12), paddingHorizontal: rs(28), borderRadius: rs(14) },
+  retryTxt:   { color: T.textInverse, fontFamily: 'Montserrat-Bold', fontSize: rf(13) },
 
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: rs(16), paddingVertical: rs(12),
-    backgroundColor: C.card, borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0',
+    backgroundColor: T.card, borderBottomWidth: 0.5, borderBottomColor: T.borderStrong,
   },
   topBarBtn: {
     width: rs(34), height: rs(34), borderRadius: rs(10),
-    backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 0.5, borderColor: '#E2E8F0',
+    backgroundColor: T.surfaceElevated, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 0.5, borderColor: T.borderStrong,
   },
-  topBarTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
+  topBarTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: T.navy },
 
   scroll: { padding: rs(16) },
 
@@ -520,7 +560,7 @@ const S = StyleSheet.create({
   bar:             { backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: rs(1) },
 
   footNote: {
-    fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle,
+    fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: T.subtle,
     textAlign: 'center', marginTop: rs(16), lineHeight: rf(16),
   },
 
@@ -528,15 +568,15 @@ const S = StyleSheet.create({
   shareBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: rs(8), paddingVertical: rs(14), borderRadius: rs(16),
-    borderWidth: 1.5, borderColor: C.navy, backgroundColor: C.card,
+    borderWidth: 1.5, borderColor: T.navy, backgroundColor: T.card,
   },
-  shareBtnTxt:  { color: C.navy, fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
+  shareBtnTxt:  { color: T.navy, fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
   downloadBtn: {
     flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: rs(8), paddingVertical: rs(14), borderRadius: rs(16),
-    backgroundColor: C.navy,
-    elevation: 4, shadowColor: C.navy,
+    backgroundColor: T.navy,
+    elevation: 4, shadowColor: T.navy,
     shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.22, shadowRadius: rs(10),
   },
-  downloadBtnTxt: { color: '#fff', fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
+  downloadBtnTxt: { color: T.textInverse, fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
 });

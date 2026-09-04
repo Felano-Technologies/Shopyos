@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,32 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { APP_VERSION } from '@/constants/appVersion';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  badgeBg: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    badgeBg: colors.backgroundAlt,
+  };
+}
 
 const FEATURES = [
   {
@@ -57,6 +83,9 @@ const TEAM_INFO = {
 
 export default function AboutAppScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   return (
     <View style={styles.mainContainer}>
@@ -75,7 +104,7 @@ export default function AboutAppScreen() {
       {/* Header */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={themeColors.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -128,7 +157,7 @@ export default function AboutAppScreen() {
         {FEATURES.map((feature, index) => (
           <View key={index} style={styles.featureCard}>
             <View style={styles.featureIconWrap}>
-              <Ionicons name={feature.icon} size={24} color="#0C1559" />
+              <Ionicons name={feature.icon} size={24} color={C.navy} />
             </View>
             <View style={styles.featureContent}>
               <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -162,19 +191,19 @@ export default function AboutAppScreen() {
         <Text style={styles.sectionHeader}>Built By</Text>
         <View style={styles.teamCard}>
           <Text style={styles.companyName}>{TEAM_INFO.company}</Text>
-          <Text style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 12, marginTop: -8 }}>
+          <Text style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: 12, marginTop: -8 }}>
             In collaboration with <Text style={{ fontFamily: 'ciguatera', fontWeight: 'bold' }}>Felano Technologies</Text>
           </Text>
           <View style={styles.teamInfoRow}>
-            <Ionicons name="location-outline" size={16} color="#64748B" />
+            <Ionicons name="location-outline" size={16} color={C.muted} />
             <Text style={styles.teamInfoText}>{TEAM_INFO.location}</Text>
           </View>
           <View style={styles.teamInfoRow}>
-            <Ionicons name="mail-outline" size={16} color="#64748B" />
+            <Ionicons name="mail-outline" size={16} color={C.muted} />
             <Text style={styles.teamInfoText}>{TEAM_INFO.email}</Text>
           </View>
           <View style={styles.teamInfoRow}>
-            <Ionicons name="globe-outline" size={16} color="#64748B" />
+            <Ionicons name="globe-outline" size={16} color={C.muted} />
             <Text style={styles.teamInfoText}>{TEAM_INFO.website}</Text>
           </View>
         </View>
@@ -186,36 +215,36 @@ export default function AboutAppScreen() {
             style={styles.linkRow}
             onPress={() => router.push('/settings/privacyPolicy')}
           >
-            <Feather name="shield" size={18} color="#0C1559" />
+            <Feather name="shield" size={18} color={C.navy} />
             <Text style={styles.linkText}>Privacy Policy</Text>
-            <Feather name="chevron-right" size={18} color="#CBD5E1" />
+            <Feather name="chevron-right" size={18} color={C.subtle} />
           </TouchableOpacity>
           <View style={styles.linkDivider} />
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => router.push('/settings/helpCenter')}
           >
-            <Feather name="help-circle" size={18} color="#0C1559" />
+            <Feather name="help-circle" size={18} color={C.navy} />
             <Text style={styles.linkText}>Help Center</Text>
-            <Feather name="chevron-right" size={18} color="#CBD5E1" />
+            <Feather name="chevron-right" size={18} color={C.subtle} />
           </TouchableOpacity>
           <View style={styles.linkDivider} />
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => router.push('/settings/contactUs')}
           >
-            <Feather name="mail" size={18} color="#0C1559" />
+            <Feather name="mail" size={18} color={C.navy} />
             <Text style={styles.linkText}>Contact Us</Text>
-            <Feather name="chevron-right" size={18} color="#CBD5E1" />
+            <Feather name="chevron-right" size={18} color={C.subtle} />
           </TouchableOpacity>
           <View style={styles.linkDivider} />
           <TouchableOpacity
             style={styles.linkRow}
             onPress={() => Linking.openURL('https://shopyosgh.com').catch(() => {})}
           >
-            <Feather name="globe" size={18} color="#0C1559" />
+            <Feather name="globe" size={18} color={C.navy} />
             <Text style={styles.linkText}>Visit Website</Text>
-            <Feather name="external-link" size={16} color="#CBD5E1" />
+            <Feather name="external-link" size={16} color={C.subtle} />
           </TouchableOpacity>
         </View>
 
@@ -235,8 +264,8 @@ export default function AboutAppScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: C.bg },
 
   // Background Watermark
   bottomLogos: {
@@ -295,12 +324,12 @@ const styles = StyleSheet.create({
   missionText: { fontSize: 13.5, fontFamily: 'Montserrat-Medium', color: '#1E3A5F', lineHeight: 22, textAlign: 'center' },
 
   // Section Headers
-  sectionHeader: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 14, marginTop: 6 },
+  sectionHeader: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 14, marginTop: 6 },
 
   // Feature Cards
   featureCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -315,18 +344,18 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   featureContent: { flex: 1 },
-  featureTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
-  featureDescription: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 20 },
+  featureTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 4 },
+  featureDescription: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: C.muted, lineHeight: 20 },
 
   // Steps Card
   stepsCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
@@ -341,19 +370,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   stepNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#A3E635' },
   stepContent: { flex: 1, paddingTop: 2 },
-  stepLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 2 },
-  stepDesc: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 20 },
+  stepLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 2 },
+  stepDesc: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: C.muted, lineHeight: 20 },
 
   // Team Card
   teamCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
@@ -363,13 +392,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  companyName: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 12 },
+  companyName: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: 12 },
   teamInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  teamInfoText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569' },
+  teamInfoText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted },
 
   // Links Card
   linksCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 6,
     marginBottom: 24,
@@ -380,11 +409,11 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   linkRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14 },
-  linkText: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginLeft: 12 },
-  linkDivider: { height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 14 },
+  linkText: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: C.body, marginLeft: 12 },
+  linkDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 14 },
 
   // Footer
   footer: { alignItems: 'center', marginTop: 10, marginBottom: 20 },
   footerLogo: { width: 100, height: 30, marginBottom: 8 },
-  footerText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textAlign: 'center' },
+  footerText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'center' },
 });

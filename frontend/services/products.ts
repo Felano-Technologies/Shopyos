@@ -160,6 +160,26 @@ export const uploadProductImages = async (productId: string, imageUris: string[]
   }
 };
 
+export const deleteProductImage = async (productId: string, imageId: string) => {
+  try {
+    const response = await api.delete(`/products/${productId}/images/${imageId}`);
+    queryClient.invalidateQueries({ queryKey: ['products', 'detail', productId] });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const setPrimaryProductImage = async (productId: string, imageId: string) => {
+  try {
+    const response = await api.patch(`/products/${productId}/images/${imageId}/primary`);
+    queryClient.invalidateQueries({ queryKey: ['products', 'detail', productId] });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getPromotedProducts = async (category?: string) => {
   try {
     const response = await api.get('/advertising/promoted', { params: { category } });

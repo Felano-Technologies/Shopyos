@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,27 +26,55 @@ import { useOrderDetail } from '@/hooks/useOrders';
 import { createReturnRequest } from '@/services/orders';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  card: '#FFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.07)',
-  red: '#EF4444',
-  redBg: '#FEF2F2',
-  green: '#16A34A',
-  greenBg: '#F0FDF4',
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  badgeBg: string;
+  textInverse: string;
+  red: string;
+  redBg: string;
+  green: string;
+  greenBg: string;
 };
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+    red: '#EF4444',
+    redBg: '#FEF2F2',
+    green: '#16A34A',
+    greenBg: '#F0FDF4',
+  };
+}
 
 const CATEGORIES = [
   { id: 'defective', label: 'Item Defective / Damaged' },
@@ -60,6 +88,9 @@ export default function ReturnSubmitScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const { data: orderRaw, isLoading: orderLoading } = useOrderDetail(orderId || '');
   const order = orderRaw?.order ?? orderRaw ?? null;
@@ -219,7 +250,7 @@ export default function ReturnSubmitScreen() {
     >
       <StatusBar style="light" />
       <LinearGradient
-        colors={[C.navy, C.navyMid]}
+        colors={themeColors.headerGradient}
         style={[styles.header, { paddingTop: insets.top + rs(12) }]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -255,7 +286,7 @@ export default function ReturnSubmitScreen() {
             <Text style={styles.breakdownLabel}>Delivery Fee (Non-Refundable)</Text>
             <Text style={[styles.breakdownValue, { color: C.muted }]}>₵{deliveryFee.toFixed(2)}</Text>
           </View>
-          <View style={[styles.breakdownRow, { marginTop: rs(8), paddingTop: rs(8), borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
+          <View style={[styles.breakdownRow, { marginTop: rs(8), paddingTop: rs(8), borderTopWidth: 1, borderTopColor: C.border }]}>
             <Text style={[styles.breakdownLabel, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Max Refundable Amount</Text>
             <Text style={[styles.breakdownValue, { fontFamily: 'Montserrat-Bold', color: C.green }]}>₵{maxRefundable.toFixed(2)}</Text>
           </View>
@@ -358,7 +389,7 @@ export default function ReturnSubmitScreen() {
           <LinearGradient colors={[C.navy, C.navyMid]} style={styles.submitGradient}>
             {isSubmitting ? (
               <View style={styles.submitLoaderContainer}>
-                <ActivityIndicator color="#FFF" style={{ marginRight: rs(10) }} />
+                <ActivityIndicator color={C.textInverse} style={{ marginRight: rs(10) }} />
                 <Text style={styles.submitBtnTxt}>
                   {uploadingImage ? 'Uploading Photos...' : 'Submitting...'}
                 </Text>
@@ -386,7 +417,7 @@ export default function ReturnSubmitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
@@ -408,7 +439,7 @@ const styles = StyleSheet.create({
   loaderTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.navy },
   emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(15) },
   backBtn: { backgroundColor: C.navy, paddingVertical: rs(12), paddingHorizontal: rs(24), borderRadius: rs(10) },
-  backBtnTxt: { color: '#FFF', fontSize: rf(14), fontFamily: 'Montserrat-Bold' },
+  backBtnTxt: { color: C.textInverse, fontSize: rf(14), fontFamily: 'Montserrat-Bold' },
 
   scrollContent: { padding: rs(16) },
   card: {
@@ -424,7 +455,7 @@ const styles = StyleSheet.create({
   cardHeaderTitle: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.navy },
   orderNum: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body, marginBottom: rs(4) },
   orderStore: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
+  divider: { height: 1, backgroundColor: C.border, marginVertical: rs(12) },
 
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(6) },
   breakdownLabel: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
@@ -436,22 +467,22 @@ const styles = StyleSheet.create({
     paddingVertical: rs(12),
     paddingHorizontal: rs(16),
     borderRadius: rs(12),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   categoryChipActive: {
-    backgroundColor: 'rgba(12,21,89,0.06)',
+    backgroundColor: C.badgeBg,
     borderColor: C.navy,
   },
   categoryChipTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
   categoryChipTxtActive: { color: C.navy, fontFamily: 'Montserrat-SemiBold' },
 
   reasonInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     borderRadius: rs(12),
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     padding: rs(14),
     fontSize: rf(13),
     fontFamily: 'Montserrat-Medium',
@@ -468,7 +499,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: C.navy,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     gap: rs(4),
@@ -476,7 +507,7 @@ const styles = StyleSheet.create({
   imagePickerBtnTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.navy },
   imagePreviewWrapper: { width: rs(80), height: rs(80), position: 'relative' },
   imagePreview: { width: '100%', height: '100%', borderRadius: rs(12) },
-  imageRemoveBtn: { position: 'absolute', top: -rs(6), right: -rs(6), backgroundColor: '#FFF', borderRadius: 10 },
+  imageRemoveBtn: { position: 'absolute', top: -rs(6), right: -rs(6), backgroundColor: C.card, borderRadius: 10 },
 
   disclaimerRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: rs(5), paddingHorizontal: rs(4), gap: rs(8), marginBottom: rs(20) },
   disclaimerCheckbox: { paddingTop: rs(2) },
@@ -488,6 +519,6 @@ const styles = StyleSheet.create({
 
   submitBtn: { borderRadius: rs(18), overflow: 'hidden', marginTop: rs(10) },
   submitGradient: { paddingVertical: rs(16), alignItems: 'center', justifyContent: 'center' },
-  submitBtnTxt: { color: '#FFF', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  submitBtnTxt: { color: C.textInverse, fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
   submitLoaderContainer: { flexDirection: 'row', alignItems: 'center' },
 });

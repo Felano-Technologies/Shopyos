@@ -16,6 +16,28 @@ import { useRouter, Stack } from 'expo-router';
 import { getMyOrders } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+  };
+}
 // --- Types ---
 interface Transaction {
   id: string;
@@ -28,6 +50,9 @@ interface Transaction {
 }
 export default function SettingsTransactionsScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,7 +146,7 @@ export default function SettingsTransactionsScreen() {
         <View style={styles.rightContainer}>
           <Text style={[
             styles.amountText,
-            { color: isCredit ? '#16A34A' : '#0F172A' }
+            { color: isCredit ? '#16A34A' : C.body }
           ]}>
             {isCredit ? '+' : '-'} {formatCurrency(item.amount)}
           </Text>
@@ -144,7 +169,7 @@ export default function SettingsTransactionsScreen() {
   };
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
+      <StatusBar barStyle="light-content" backgroundColor={C.headerBg} />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Header --- */}
       <View style={styles.header}>
@@ -162,7 +187,7 @@ export default function SettingsTransactionsScreen() {
       <View style={styles.contentContainer}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0C1559" />
+            <ActivityIndicator size="large" color={C.navy} />
             <Text style={styles.loadingText}>Loading history...</Text>
           </View>
         ) : (
@@ -173,7 +198,7 @@ export default function SettingsTransactionsScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.navy]} tintColor={C.navy} />
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -191,14 +216,14 @@ export default function SettingsTransactionsScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
   },
   // Header
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.headerBg,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     paddingBottom: 20,
@@ -235,7 +260,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
@@ -260,13 +285,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 4,
   },
   cardDate: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
   },
   rightContainer: {
     alignItems: 'flex-end',
@@ -297,7 +322,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: '#64748B',
+    color: C.muted,
     fontFamily: 'Montserrat-Medium',
   },
   emptyContainer: {
@@ -306,7 +331,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#94A3B8',
+    color: C.subtle,
     fontFamily: 'Montserrat-Medium',
   },
 });

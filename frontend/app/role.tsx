@@ -1,5 +1,5 @@
 // app/role-selection.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,29 @@ import { router } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { updateUserRole, getUserData } from '@/services/api';
 import { cacheUserProfile } from '@/services/storage';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  lime: string;
+  muted: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    lime: colors.accent,
+    muted: colors.textSecondary,
+    textInverse: colors.textInverse,
+  };
+}
 // 1. Define the Role Type
 type Role = {
   id: string;
@@ -32,31 +55,40 @@ const RoleCard = ({
   role: Role;
   isSelected: boolean;
   onSelect: (id: string) => void;
-}) => (
-  <TouchableOpacity
-    style={[
-      styles.roleCard,
-      {
-        borderColor: isSelected ? '#84cc16' : 'transparent',
-        borderWidth: isSelected ? 3 : 0,
-      },
-    ]}
-    onPress={() => onSelect(role.id)}
-    activeOpacity={0.9} // Increased opacity so it doesn't fade too much on press
-  >
-    {role.image ? (
-      <AppImage source={role.image} style={styles.roleImage} />
-    ) : (
-      <View style={styles.iconCard}>
-        <Ionicons name={role.icon!} size={48} color="#84cc16" />
-        <Text style={styles.iconCardLabel}>{role.label}</Text>
-      </View>
-    )}
-    {/* Optional: Add an overlay to highlight the image itself slightly */}
-    {isSelected && <View style={styles.selectedOverlay} />}
-  </TouchableOpacity>
-);
+}) => {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
+  return (
+    <TouchableOpacity
+      style={[
+        styles.roleCard,
+        {
+          borderColor: isSelected ? C.lime : 'transparent',
+          borderWidth: isSelected ? 3 : 0,
+        },
+      ]}
+      onPress={() => onSelect(role.id)}
+      activeOpacity={0.9} // Increased opacity so it doesn't fade too much on press
+    >
+      {role.image ? (
+        <AppImage source={role.image} style={styles.roleImage} />
+      ) : (
+        <View style={styles.iconCard}>
+          <Ionicons name={role.icon!} size={48} color="#84cc16" />
+          <Text style={styles.iconCardLabel}>{role.label}</Text>
+        </View>
+      )}
+      {/* Optional: Add an overlay to highlight the image itself slightly */}
+      {isSelected && <View style={styles.selectedOverlay} />}
+    </TouchableOpacity>
+  );
+};
 const RoleSelectionScreen = () => {
+  const themeColors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const roles: Role[] = [
@@ -137,7 +169,7 @@ const RoleSelectionScreen = () => {
   };
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
       <SafeAreaView style={{ flex: 1, width: '100%' }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -168,7 +200,7 @@ const RoleSelectionScreen = () => {
             style={[
               styles.continueButton,
               {
-                backgroundColor: selectedRole ? '#84cc16' : '#9CA3AF',
+                backgroundColor: selectedRole ? C.lime : '#9CA3AF',
                 opacity: selectedRole ? 1 : 0.6,
               },
             ]}
@@ -176,7 +208,7 @@ const RoleSelectionScreen = () => {
             disabled={!selectedRole || loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={C.textInverse} />
             ) : (
               <Text style={styles.continueText}>Continue</Text>
             )}
@@ -197,10 +229,10 @@ const RoleSelectionScreen = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff',
+    backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -225,7 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 22,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -245,11 +277,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     gap: 8,
   },
   iconCardLabel: {
-    color: '#fff',
+    color: C.textInverse,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -260,7 +292,7 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 14,
-    color: '#4B5563',
+    color: C.muted,
     textAlign: 'center',
     marginTop: 5,
     marginBottom: 15,
@@ -279,7 +311,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   continueText: {
-    color: '#fff',
+    color: C.textInverse,
     fontSize: 18,
     fontWeight: '700',
   },

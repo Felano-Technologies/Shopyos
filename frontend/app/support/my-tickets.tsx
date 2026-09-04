@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,41 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { getMyTickets, SupportTicket, TicketStatus } from '@/services/support';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  badgeBg: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
 }
 
 const STATUS_COLORS: Record<TicketStatus, { bg: string; text: string; label: string }> = {
@@ -42,6 +74,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function TicketCard({ ticket }: { ticket: SupportTicket }) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [expanded, setExpanded] = useState(false);
   const status = STATUS_COLORS[ticket.status];
   const date = new Date(ticket.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -60,13 +95,13 @@ function TicketCard({ ticket }: { ticket: SupportTicket }) {
           <Text style={styles.cardDate}>{date}</Text>
           {ticket.assigned_to_name ? (
             <View style={styles.assigneeRow}>
-              <Ionicons name="person-circle-outline" size={13} color="#0C1559" />
+              <Ionicons name="person-circle-outline" size={13} color={C.navy} />
               <Text style={styles.assigneeText}>Handled by {ticket.assigned_to_name}</Text>
             </View>
           ) : ticket.status === 'open' ? (
             <View style={styles.assigneeRow}>
-              <Ionicons name="time-outline" size={13} color="#94A3B8" />
-              <Text style={[styles.assigneeText, { color: '#94A3B8' }]}>Awaiting assignment</Text>
+              <Ionicons name="time-outline" size={13} color={C.subtle} />
+              <Text style={[styles.assigneeText, { color: C.subtle }]}>Awaiting assignment</Text>
             </View>
           ) : null}
         </View>
@@ -74,7 +109,7 @@ function TicketCard({ ticket }: { ticket: SupportTicket }) {
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
             <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
           </View>
-          <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" style={{ marginTop: 8 }} />
+          <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={C.subtle} style={{ marginTop: 8 }} />
         </View>
       </View>
 
@@ -86,7 +121,7 @@ function TicketCard({ ticket }: { ticket: SupportTicket }) {
           {ticket.admin_notes ? (
             <View style={styles.adminNoteBox}>
               <View style={styles.adminNoteHeader}>
-                <Ionicons name="shield-checkmark-outline" size={14} color="#0C1559" />
+                <Ionicons name="shield-checkmark-outline" size={14} color={C.navy} />
                 <Text style={styles.adminNoteTitle}>Admin Response</Text>
               </View>
               <Text style={styles.adminNoteText}>{ticket.admin_notes}</Text>
@@ -100,6 +135,9 @@ function TicketCard({ ticket }: { ticket: SupportTicket }) {
 
 export default function MyTicketsScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -115,9 +153,9 @@ export default function MyTicketsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
+        <LinearGradient colors={themeColors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -130,11 +168,11 @@ export default function MyTicketsScreen() {
 
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={C.navy} />
         </View>
       ) : tickets.length === 0 ? (
         <View style={styles.center}>
-          <Feather name="inbox" size={52} color="#CBD5E1" />
+          <Feather name="inbox" size={52} color={C.subtle} />
           <Text style={styles.emptyTitle}>No reports yet</Text>
           <Text style={styles.emptySub}>Raise a report if you need help with an order, payment, or anything else.</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/support')}>
@@ -147,41 +185,41 @@ export default function MyTicketsScreen() {
           keyExtractor={t => t.id}
           renderItem={({ item }) => <TicketCard ticket={item} />}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={isFetching && page === 1} onRefresh={onRefresh} tintColor="#0C1559" />}
+          refreshControl={<RefreshControl refreshing={isFetching && page === 1} onRefresh={onRefresh} tintColor={C.navy} />}
           ListFooterComponent={
             hasMore ? (
               <TouchableOpacity style={styles.loadMore} onPress={() => setPage(p => p + 1)} disabled={isFetching}>
-                {isFetching ? <ActivityIndicator color="#0C1559" /> : <Text style={styles.loadMoreText}>Load more</Text>}
+                {isFetching ? <ActivityIndicator color={C.navy} /> : <Text style={styles.loadMoreText}>Load more</Text>}
               </TouchableOpacity>
             ) : null
           }
         />
       )}
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#FFFFFF' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
   newBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
   headerTitle: { flex: 1, fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#FFF', textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginTop: 16 },
-  emptySub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 20 },
-  emptyBtn: { marginTop: 20, backgroundColor: '#0C1559', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
-  emptyBtnText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body, marginTop: 16 },
+  emptySub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emptyBtn: { marginTop: 20, backgroundColor: C.navy, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  emptyBtnText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.textInverse },
   list: { padding: 16, paddingBottom: 40 },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0C1559',
+    borderColor: C.borderStrong,
+    shadowColor: C.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -190,21 +228,21 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row', gap: 12 },
   cardLeft: { flex: 1 },
   cardRight: { alignItems: 'flex-end' },
-  cardCategory: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
-  cardSubject: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', lineHeight: 20 },
-  cardDate: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 4 },
+  cardCategory: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navy, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
+  cardSubject: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.body, lineHeight: 20 },
+  cardDate: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: 4 },
   assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  assigneeText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
+  assigneeText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.navy },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
   expandedBody: { marginTop: 12 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 12 },
-  expandLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  expandText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', lineHeight: 20 },
-  adminNoteBox: { marginTop: 14, backgroundColor: '#EEF2FF', borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: '#0C1559' },
+  divider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
+  expandLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  expandText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, lineHeight: 20 },
+  adminNoteBox: { marginTop: 14, backgroundColor: C.badgeBg, borderRadius: 12, padding: 12, borderLeftWidth: 3, borderLeftColor: C.navy },
   adminNoteHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  adminNoteTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  adminNoteText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', lineHeight: 19 },
+  adminNoteTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.navy },
+  adminNoteText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, lineHeight: 19 },
   loadMore: { alignItems: 'center', paddingVertical: 16 },
-  loadMoreText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
+  loadMoreText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.navy },
 });
