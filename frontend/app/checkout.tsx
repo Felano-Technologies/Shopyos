@@ -143,7 +143,6 @@ export default function CheckoutScreen() {
   const [requestLastMile, setRequestLastMile] = useState(false);
   // Per-store delivery method: true = buyer collects from the store (free)
   const [pickupStores, setPickupStores] = useState<Record<string, boolean>>({});
-  const [lastMileFee, setLastMileFee] = useState(15);
 
   // Get buyer location once on mount
   useEffect(() => {
@@ -231,8 +230,9 @@ export default function CheckoutScreen() {
   // Pickup stores contribute no delivery/transit fees and don't need range checks
   const quoteEntries = Object.entries(storeQuotes);
   const storeQuoteList = Object.values(storeQuotes);
-  const totalDeliveryFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.deliveryFee), 0);
-  const totalTransitFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.parcelTransitFee), 0);
+  // Combined delivery cost shown to the buyer as one line (store→hub +
+  // hub→hub already summed server-side for inter-regional stores).
+  const totalDeliveryFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.combinedDeliveryFee), 0);
   const isAnyInterRegional = quoteEntries.some(([id, q]) => q.isInterRegional && !pickupStores[id]);
   const isWithinRange = storeQuoteList.length > 0 && quoteEntries.every(([id, q]) => q.withinRange || pickupStores[id]);
   const deliveryNote = quoteEntries.find(([id, q]) => !q.withinRange && !pickupStores[id])?.[1].note ?? null;
@@ -240,6 +240,10 @@ export default function CheckoutScreen() {
   const storeRegionName = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.storeRegion ?? null) : null;
   const estimatedTransitDays = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDays ?? 0), 0) || null;
   const estimatedTransitDaysMax = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDaysMax ?? 0), 0) || null;
+  // Distance-based last-mile estimate from the first inter-regional store's
+  // quote (mirrors how storeRegionName/estimatedTransitDays are derived) —
+  // falls back to 15 only if no quote has resolved yet.
+  const lastMileFee = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.lastMileFee ?? 15) : 15;
 
   const tax = buyerProtectionFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
@@ -247,7 +251,7 @@ export default function CheckoutScreen() {
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
   const totalBargainDiscount = cartItems.reduce((sum, item) => sum + (Number(item.bargain_discount) || 0) * item.quantity, 0);
   const lastMileCharge = isAnyInterRegional && requestLastMile ? lastMileFee : 0;
-  const total = Number.parseFloat((subtotal + tax + totalDeliveryFee + totalTransitFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
+  const total = Number.parseFloat((subtotal + tax + totalDeliveryFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
@@ -273,9 +277,6 @@ export default function CheckoutScreen() {
             setBuyerProtectionFee(Number(Math.min(Math.max(raw, min), max).toFixed(2)));
           } else {
             setBuyerProtectionFee(0);
-          }
-          if (feeConfigs['last_mile_default_fee']) {
-            setLastMileFee(Number(feeConfigs['last_mile_default_fee']));
           }
         }
 
@@ -579,12 +580,6 @@ export default function CheckoutScreen() {
                   {isFetchingFee ? '...' : `₵${totalDeliveryFee.toFixed(2)}`}
                 </Text>
               </View>
-              {isAnyInterRegional && totalTransitFee > 0 && (
-                <View style={S.summaryRow}>
-                  <Text style={S.summaryItemName}>Cross-Region Courier Fee</Text>
-                  <Text style={S.summaryItemPrice}>₵{totalTransitFee.toFixed(2)}</Text>
-                </View>
-              )}
               {isAnyInterRegional && requestLastMile && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryItemName}>Last-Mile Home Delivery</Text>
@@ -841,15 +836,6 @@ export default function CheckoutScreen() {
                     <Text style={S.interRegionalTransit}>
                       Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDaysMax && estimatedTransitDaysMax > estimatedTransitDays ? `${estimatedTransitDays}–${estimatedTransitDaysMax}` : estimatedTransitDays} days</Text> to destination hub.
                     </Text>
-                  )}
-                  {totalTransitFee > 0 && (
-                    <View style={S.interRegionalBreakdown}>
-                      <Text style={S.breakdownTitle}>Cross-Region Fees:</Text>
-                      <View style={S.breakdownRow}>
-                        <Text style={S.breakdownLabel}>Inter-Hub Transit Fee:</Text>
-                        <Text style={S.breakdownValue}>₵{totalTransitFee.toFixed(2)}</Text>
-                      </View>
-                    </View>
                   )}
                 </View>
               )}
