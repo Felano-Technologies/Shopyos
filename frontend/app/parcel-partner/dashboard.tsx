@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,20 +21,24 @@ import { useAllUnreadCount } from '@/hooks/useChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import WelcomeCard from '@/components/WelcomeCard';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
 
 export default function ParcelPartnerDashboard() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const { data: chatUnreadCount = 0 } = useAllUnreadCount();
-  
+
   const [hubs, setHubs] = useState<any[]>([]);
   const [selectedHub, setSelectedHub] = useState<any | null>(null);
   const [stats, setStats] = useState({ awaitingCheckIn: 0, checkedIn: 0, inTransit: 0, arrived: 0 });
   const [pendingParcels, setPendingParcels] = useState<any[]>([]);
-  
+
   const [loadingHubs, setLoadingHubs] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,7 +51,7 @@ export default function ParcelPartnerDashboard() {
       const res = await getHubs();
       if (res.success && res.data.length > 0) {
         setHubs(res.data);
-        
+
         // Check if there was a previously saved hub selection
         const savedHubId = await AsyncStorage.getItem(SELECTED_HUB_KEY);
         const match = res.data.find(h => h.id === savedHubId);
@@ -84,7 +88,7 @@ export default function ParcelPartnerDashboard() {
         getDashboardStats(hubId),
         getHubParcels(hubId, 'ready_for_pickup') // Pending check-ins
       ]);
-      
+
       if (statsRes.success) {
         setStats(statsRes.data);
       }
@@ -132,7 +136,7 @@ export default function ParcelPartnerDashboard() {
   if (loadingHubs) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading Hub Details...</Text>
       </View>
     );
@@ -140,8 +144,8 @@ export default function ParcelPartnerDashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View>
@@ -162,13 +166,13 @@ export default function ParcelPartnerDashboard() {
       </SafeAreaView>
       </LinearGradient>
 
-      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{ flex: 1, backgroundColor: colors.backgroundAlt }}>
       {showHubPicker && (
         <View style={styles.pickerDropdown}>
           <Text style={styles.pickerTitle}>Switch Hub</Text>
           {hubs.map((hub) => (
-            <TouchableOpacity 
-              key={hub.id} 
+            <TouchableOpacity
+              key={hub.id}
               style={[styles.pickerItem, selectedHub?.id === hub.id && styles.pickerItemActive]}
               onPress={() => changeHub(hub)}
             >
@@ -187,7 +191,7 @@ export default function ParcelPartnerDashboard() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0C1559']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
         }
       >
         {/* Hub balance — credited when a parcel arrives at this hub (its share
@@ -214,12 +218,12 @@ export default function ParcelPartnerDashboard() {
         <Text style={styles.sectionTitle}>Hub Statistics</Text>
         {loadingData ? (
           <View style={styles.loaderContainer}>
-            <ActivityIndicator size="small" color="#0C1559" />
+            <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : (
           <View style={styles.statsGrid}>
-            <TouchableOpacity 
-              style={styles.statCard} 
+            <TouchableOpacity
+              style={styles.statCard}
               onPress={() => router.push({ pathname: '/parcel-partner/parcels', params: { filter: 'ready_for_pickup' } })}
             >
               <View style={[styles.statIconWrapper, { backgroundColor: '#EFF6FF' }]}>
@@ -229,8 +233,8 @@ export default function ParcelPartnerDashboard() {
               <Text style={styles.statLabel}>Awaiting Check-in</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.statCard} 
+            <TouchableOpacity
+              style={styles.statCard}
               onPress={() => router.push({ pathname: '/parcel-partner/parcels', params: { filter: 'at_origin_hub' } })}
             >
               <View style={[styles.statIconWrapper, { backgroundColor: '#F0FDF4' }]}>
@@ -240,8 +244,8 @@ export default function ParcelPartnerDashboard() {
               <Text style={styles.statLabel}>Checked In</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.statCard} 
+            <TouchableOpacity
+              style={styles.statCard}
               onPress={() => router.push({ pathname: '/parcel-partner/parcels', params: { filter: 'in_transit_regional' } })}
             >
               <View style={[styles.statIconWrapper, { backgroundColor: '#FEF3C7' }]}>
@@ -251,8 +255,8 @@ export default function ParcelPartnerDashboard() {
               <Text style={styles.statLabel}>In Transit</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.statCard} 
+            <TouchableOpacity
+              style={styles.statCard}
               onPress={() => router.push({ pathname: '/parcel-partner/parcels', params: { filter: 'at_destination_hub' } })}
             >
               <View style={[styles.statIconWrapper, { backgroundColor: '#FAF5FF' }]}>
@@ -266,14 +270,14 @@ export default function ParcelPartnerDashboard() {
 
         {/* Action Quick Bar */}
         <View style={styles.quickBar}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickBtn}
             onPress={() => router.push('/parcel-partner/scan')}
           >
-            <LinearGradient 
-              colors={['#0C1559', '#1e3a8a']} 
-              start={{ x: 0, y: 0 }} 
-              end={{ x: 1, y: 0 }} 
+            <LinearGradient
+              colors={colors.headerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.quickGradient}
             >
               <Feather name="camera" size={20} color="#FFF" style={{ marginRight: 8 }} />
@@ -291,16 +295,16 @@ export default function ParcelPartnerDashboard() {
         </View>
 
         {loadingData ? (
-          <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 20 }} />
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
         ) : pendingParcels.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Feather name="package" size={40} color="#94A3B8" />
+            <Feather name="package" size={40} color={colors.textMuted} />
             <Text style={styles.emptyText}>No packages pending check-in.</Text>
           </View>
         ) : (
           pendingParcels.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
+            <TouchableOpacity
+              key={item.id}
               style={styles.parcelCard}
               onPress={() => router.push({ pathname: '/parcel-partner/parcel-detail', params: { orderId: item.id } })}
             >
@@ -314,12 +318,12 @@ export default function ParcelPartnerDashboard() {
                 </Text>
               </View>
               <View style={styles.parcelActions}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.actionBtn}
                   onPress={() => router.push({ pathname: '/parcel-partner/parcel-detail', params: { orderId: item.id } })}
                 >
                   <Text style={styles.actionBtnText}>Check In</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#FFF" />
+                  <Ionicons name="chevron-forward" size={14} color={colors.textInverse} />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -332,7 +336,7 @@ export default function ParcelPartnerDashboard() {
         activeOpacity={0.85}
         onPress={() => router.push('/chat' as any)}
       >
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+        <LinearGradient colors={colors.headerGradient} style={styles.chatFabGrad}>
           <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
         </LinearGradient>
         {chatUnreadCount > 0 && (
@@ -341,28 +345,28 @@ export default function ParcelPartnerDashboard() {
           </View>
         )}
       </TouchableOpacity>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.backgroundAlt }} />
       <WelcomeCard />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   header: {
     flexDirection: 'row',
@@ -402,7 +406,7 @@ const styles = StyleSheet.create({
   chatFab: {
     position: 'absolute', bottom: 110, right: 18,
     width: 58, height: 58, borderRadius: 29,
-    elevation: 8, shadowColor: '#0C1559',
+    elevation: 8, shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
     zIndex: 100, overflow: 'visible',
   },
@@ -413,14 +417,14 @@ const styles = StyleSheet.create({
   chatFabBadge: {
     position: 'absolute', top: -2, right: -2,
     minWidth: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: colors.headerGradient[0],
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
   },
   chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   pickerDropdown: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.borderStrong,
     paddingHorizontal: 20,
     paddingBottom: 15,
     shadowColor: '#000',
@@ -433,7 +437,7 @@ const styles = StyleSheet.create({
   pickerTitle: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#94A3B8',
+    color: colors.textMuted,
     marginBottom: 8,
     marginTop: 5,
   },
@@ -443,19 +447,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: colors.border,
   },
   pickerItemActive: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
   },
   pickerItemText: {
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#334155',
+    color: colors.text,
   },
   pickerItemTextActive: {
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -464,24 +468,24 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     marginTop: 20,
     marginBottom: 12,
   },
   balanceCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
-  balanceLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  balanceValue: { fontSize: 26, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginTop: 4 },
+  balanceLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary },
+  balanceValue: { fontSize: 26, fontFamily: 'Montserrat-Bold', color: colors.primary, marginTop: 4 },
   codeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 18,
@@ -508,13 +512,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     width: (SW - 50) / 2,
     borderRadius: 16,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
@@ -532,12 +536,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   loaderContainer: {
@@ -563,22 +567,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   emptyContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingVertical: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   emptyText: {
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: colors.textMuted,
     marginTop: 10,
   },
   parcelCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
@@ -586,13 +590,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
   },
   parcelInfo: {
     flex: 1,
   },
   storeBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -602,24 +606,24 @@ const styles = StyleSheet.create({
   storeText: {
     fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   orderNumber: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   routeText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   parcelActions: {
     marginLeft: 10,
   },
   actionBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
@@ -627,7 +631,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   actionBtnText: {
-    color: '#FFF',
+    color: colors.textInverse,
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
     marginRight: 4,

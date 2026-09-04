@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/auth';
 
 function hasAdminRole(user: any): boolean {
@@ -15,6 +15,8 @@ function hasAdminRole(user: any): boolean {
 
 export default function AdminLayout() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function AdminLayout() {
   if (isCheckingAccess) {
     return (
       <View style={styles.accessCheck}>
-        <ActivityIndicator size="large" color={adminColors.navy} />
+        <ActivityIndicator size="large" color={C.navy} />
       </View>
     );
   }
@@ -61,11 +63,11 @@ export default function AdminLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   accessCheck: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: adminColors.surface,
+    backgroundColor: C.surface,
   },
 });

@@ -28,7 +28,10 @@ import {
 } from '@/src/background/controller';
 import { fetchDrivingRoute, haversineMetres } from '@/services/delivery';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -54,6 +57,9 @@ export default function ActiveOrderScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
   const [pinCode, setPinCode] = useState('');
@@ -225,10 +231,10 @@ export default function ActiveOrderScreen() {
         return;
       }
     } catch (e: any) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Error', 
-        message: e.message || 'Failed to update status' 
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Error',
+        message: e.message || 'Failed to update status'
       });
     }
   };
@@ -236,7 +242,7 @@ export default function ActiveOrderScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -245,7 +251,7 @@ export default function ActiveOrderScreen() {
       <View style={styles.centerContainer}>
         <Text>Order not found</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-          <Text style={{ color: '#0C1559', fontWeight: 'bold' }}>Go Back</Text>
+          <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -274,7 +280,7 @@ export default function ActiveOrderScreen() {
   }
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       {/* Map */}
       <View style={styles.mapContainer}>
         <MapView
@@ -321,7 +327,7 @@ export default function ActiveOrderScreen() {
         </MapView>
         <View style={[styles.safeMapOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -336,7 +342,7 @@ export default function ActiveOrderScreen() {
           {/* Address Info */}
           <View style={styles.locationCard}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color="#0C1559" />
+              <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color={colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 15 }}>
               <Text style={styles.locationLabel}>
@@ -353,8 +359,8 @@ export default function ActiveOrderScreen() {
                 {step <= 1 ? (delivery.pickup_address) : (delivery.delivery_address)}
               </Text>
             </View>
-            <TouchableOpacity 
-              style={styles.navBtn} 
+            <TouchableOpacity
+              style={styles.navBtn}
               onPress={() => {
                 const addr = step <= 1 ? delivery.pickup_address : delivery.delivery_address;
                 const url = Platform.select({
@@ -364,12 +370,12 @@ export default function ActiveOrderScreen() {
                 if (url) Linking.openURL(url);
               }}
             >
-              <FontAwesome5 name="location-arrow" size={18} color="#FFF" />
+              <FontAwesome5 name="location-arrow" size={18} color={colors.textInverse} />
             </TouchableOpacity>
           </View>
           {/* Contact Section - Showing both for convenience */}
           <Text style={styles.summaryTitle}>Contacts</Text>
-          
+
           {/* Store contact — the pickup party for local & first-mile legs
               (a last-mile parcel is collected from the hub, not the store). */}
           {leg !== 'last_mile' && (
@@ -395,13 +401,13 @@ export default function ActiveOrderScreen() {
                     storeDetails?._id || storeDetails?.id
                   )}
                 >
-                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
                   onPress={() => handleCall(storeDetails?.phone)}
                 >
-                  <Ionicons name="call-outline" size={22} color="#0C1559" />
+                  <Ionicons name="call-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -451,13 +457,13 @@ export default function ActiveOrderScreen() {
                     'seller' // Driver chatting with customer -> reporting should be 'user'
                   )}
                 >
-                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
                   onPress={() => handleCall(buyerProfile?.phone)}
                 >
-                  <Ionicons name="call-outline" size={22} color="#0C1559" />
+                  <Ionicons name="call-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -465,7 +471,7 @@ export default function ActiveOrderScreen() {
           {step === 3 && leg !== 'first_mile' && (
             <View style={styles.pinCard}>
               <View style={styles.pinHeader}>
-                <Ionicons name="shield-checkmark-outline" size={24} color="#0C1559" />
+                <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
                 <Text style={styles.pinTitle}>Verify Customer PIN</Text>
               </View>
               <Text style={styles.pinSub}>
@@ -477,7 +483,7 @@ export default function ActiveOrderScreen() {
                   value={pinCode}
                   onChangeText={(val) => setPinCode(val.replace(/\D/g, ''))}
                   placeholder="• • • • • •"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textMuted}
                   maxLength={6}
                   keyboardType="number-pad"
                 />
@@ -487,7 +493,7 @@ export default function ActiveOrderScreen() {
           {step === 3 && leg === 'first_mile' && (
             <View style={styles.pinCard}>
               <View style={styles.pinHeader}>
-                <MaterialIcons name="warehouse" size={22} color="#0C1559" />
+                <MaterialIcons name="warehouse" size={22} color={colors.primary} />
                 <Text style={styles.pinTitle}>Confirm Drop-off at Hub</Text>
               </View>
               <Text style={styles.pinSub}>
@@ -499,7 +505,7 @@ export default function ActiveOrderScreen() {
                   value={hubCode}
                   onChangeText={(val) => setHubCode(val.replace(/[^0-9A-Za-z]/g, '').toUpperCase())}
                   placeholder="HUB CODE"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textMuted}
                   maxLength={8}
                   autoCapitalize="characters"
                 />
@@ -547,13 +553,13 @@ export default function ActiveOrderScreen() {
             disabled={updateStatusMutation.isPending || verifyPinMutation.isPending || verifyHubMutation.isPending}
           >
             {updateStatusMutation.isPending || verifyPinMutation.isPending || verifyHubMutation.isPending ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={step === 3 ? colors.textInverse : colors.accentText} />
             ) : (
               <>
-                <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
+                <Text style={[styles.mainBtnText, step === 3 && { color: colors.textInverse }]}>
                   {getButtonText()}
                 </Text>
-                <Feather name="arrow-right" size={20} color={step === 3 ? "#FFF" : "#0C1559"} />
+                <Feather name="arrow-right" size={20} color={step === 3 ? colors.textInverse : colors.accentText} />
               </>
             )}
           </TouchableOpacity>
@@ -562,11 +568,11 @@ export default function ActiveOrderScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Map Section
-  mapContainer: { height: height * 0.45, width: '100%', backgroundColor: '#E2E8F0' },
+  mapContainer: { height: height * 0.45, width: '100%', backgroundColor: colors.border },
   mapImage: { width: '100%', height: '100%' },
   driverPin: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: '#0C1559',
@@ -585,53 +591,53 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
   },
   safeMapOverlay: { position: 'absolute', left: 16, zIndex: 20 },
-  backBtn: { backgroundColor: '#FFF', padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
+  backBtn: { backgroundColor: colors.surface, padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
   // Bottom Sheet
   bottomSheet: {
-    flex: 1, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30,
+    flex: 1, backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30,
     marginTop: -30, paddingHorizontal: 24, paddingTop: 10
   },
-  handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  handleBar: { width: 40, height: 4, backgroundColor: colors.borderStrong, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: colors.text },
   timeRemaining: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#16A34A', backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   // Location Card
   locationCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
-    padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#F1F5F9'
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.backgroundAlt,
+    padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border
   },
-  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center' },
-  locationLabel: { fontSize: 11, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 2, textTransform: 'uppercase' },
-  locationName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  locationAddress: { fontSize: 13, color: '#475569', fontFamily: 'Montserrat-Regular' },
-  navBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
+  iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
+  locationLabel: { fontSize: 11, color: colors.textSecondary, fontFamily: 'Montserrat-Bold', marginBottom: 2, textTransform: 'uppercase' },
+  locationName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text },
+  locationAddress: { fontSize: 13, color: colors.textSecondary, fontFamily: 'Montserrat-Regular' },
+  navBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
   // Contact Row
   contactRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   customerInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   customerNameWrap: { flex: 1, minWidth: 0 },
-  customerImg: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: '#F1F5F9' },
+  customerImg: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: colors.border },
   hubIconCircle: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
-  customerName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  customerRole: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
+  customerName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: colors.text },
+  customerRole: { fontSize: 12, color: colors.textSecondary, fontFamily: 'Montserrat-Medium' },
   actionButtons: { flexDirection: 'row', gap: 12 },
-  circleBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 20 },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.borderStrong, justifyContent: 'center', alignItems: 'center' },
+  divider: { height: 1, backgroundColor: colors.border, marginBottom: 20 },
   // Order Summary
   orderSummary: { marginBottom: 20 },
-  summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 15, textTransform: 'uppercase' },
+  summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.textSecondary, marginBottom: 15, textTransform: 'uppercase' },
   orderItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  qty: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#A3E635', marginRight: 12, backgroundColor: '#0C1559', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  itemName: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', flex: 1 },
-  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  noItems: { fontSize: 14, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  totalLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
-  totalValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  qty: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: colors.accent, marginRight: 12, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  itemName: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.text, flex: 1 },
+  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text },
+  noItems: { fontSize: 14, color: colors.textMuted, fontFamily: 'Montserrat-Medium' },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colors.border },
+  totalLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.textSecondary },
+  totalValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.primary },
   // PIN Verification styles
   pinCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     borderRadius: 16,
     padding: 18,
     marginBottom: 20,
@@ -645,19 +651,19 @@ const styles = StyleSheet.create({
   pinTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: colors.text,
   },
   pinSub: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 12,
   },
   pinInputContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -665,35 +671,35 @@ const styles = StyleSheet.create({
   pinInput: {
     fontSize: 22,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     textAlign: 'center',
     letterSpacing: 8,
   },
   // Footer
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFF', padding: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9'
+    backgroundColor: colors.surface, padding: 20, borderTopWidth: 1, borderTopColor: colors.border
   },
   mainBtn: {
-    backgroundColor: '#A3E635', flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 18, borderRadius: 16, shadowColor: "#A3E635", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, elevation: 5, gap: 10
+    backgroundColor: colors.accent, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    paddingVertical: 18, borderRadius: 16, shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, elevation: 5, gap: 10
   },
-  completeBtn: { backgroundColor: '#0C1559' },
-  mainBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-  summaryRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginTop: 8 
+  completeBtn: { backgroundColor: colors.primary },
+  mainBtnText: { color: colors.accentText, fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8
   },
-  summaryLabel: { 
-    fontSize: 13, 
-    fontFamily: 'Montserrat-Medium', 
-    color: '#64748B' 
+  summaryLabel: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: colors.textSecondary
   },
-  summaryValue: { 
-    fontSize: 14, 
-    fontFamily: 'Montserrat-Bold', 
-    color: '#0F172A' 
+  summaryValue: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: colors.text
   }
 });

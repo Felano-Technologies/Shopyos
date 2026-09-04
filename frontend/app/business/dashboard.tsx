@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,20 +26,11 @@ import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
 import { useActiveBusiness, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width, height } = Dimensions.get('window');
-
-// --- Tokens ---
-const C = {
-  pageBg:  '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  blue:    '#3b82f6',
-  white:   '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-};
 
 // --- Interfaces ---
 interface Order {
@@ -55,10 +46,14 @@ const BusinessDashboard = () => {
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
   const { isChecking, isVerified } = useSellerGuard();
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const isDark = resolvedTheme === 'dark';
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   // --- TanStack Query Hooks ---
   const { activeBusiness: selectedBusiness, businesses, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses, selectBusiness } = useActiveBusiness();
-  
+
   const { data: dashboardData, isLoading: isLoadingDashboard, refetch: refetchDashboard, isRefetching: isRefetchingDashboard } = useBusinessDashboard(selectedBusiness?._id);
   const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
@@ -124,19 +119,19 @@ const BusinessDashboard = () => {
 
   const renderHeaderContent = () => {
     const headerBg = selectedBusiness?.banner_url || selectedBusiness?.coverImage;
-    
+
     return (
       <View style={styles.headerContainer} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
         {headerBg ? (
           <AppImage uri={headerBg} style={StyleSheet.absoluteFillObject} />
         ) : (
-          <LinearGradient colors={[C.navy, C.navyMid]} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={colors.headerGradient} style={StyleSheet.absoluteFillObject} />
         )}
         <LinearGradient
           colors={['rgba(12, 21, 89, 0.7)', 'rgba(12, 21, 89, 0.9)']}
           style={StyleSheet.absoluteFillObject}
         />
-        
+
         <View style={styles.headerContentWrapper}>
           <View style={styles.topBar}>
             <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} contentFit="contain" />
@@ -217,7 +212,7 @@ const BusinessDashboard = () => {
         setShowNoBusinessModal(true);
       }
     };
-    
+
     checkAuthAndShowModal();
   }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
 
@@ -255,7 +250,7 @@ const BusinessDashboard = () => {
   if (isChecking || !isVerified) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000000" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.noBizText, { marginTop: 15 }]}>Loading Store...</Text>
       </View>
     );
@@ -264,7 +259,7 @@ const BusinessDashboard = () => {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      
+
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.bottomLogos}>
@@ -280,11 +275,11 @@ const BusinessDashboard = () => {
               style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
               contentContainerStyle={{ flexGrow: 1 }}
               refreshControl={
-                <RefreshControl 
-                  refreshing={refreshing} 
-                  onRefresh={onRefresh} 
-                  tintColor="#000000" 
-                  progressViewOffset={260} // Dropped lower so it displays over the white background
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.primary}
+                  progressViewOffset={260} // Dropped lower so it displays over the background
                 />
               }
               showsVerticalScrollIndicator={false}
@@ -294,7 +289,7 @@ const BusinessDashboard = () => {
 
               {/* Solid body that gracefully covers the header when scrolling up */}
               <View style={styles.scrollBody}>
-                
+
                 {/* Background Watermark properly inside the scrolling area */}
                 <View style={styles.bottomLogos} pointerEvents="none">
                   <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
@@ -311,11 +306,11 @@ const BusinessDashboard = () => {
                   if (ls.tier === 'paid') {
                     bg = ['#16A34A', '#15803D'];
                     icon = 'check-circle';
-                    label = 'Unlimited Listing \u2713';
+                    label = 'Unlimited Listing ✓';
                   } else if (usage >= 1) {
                     bg = ['#DC2626', '#B91C1C'];
                     icon = 'alert-circle';
-                    label = `Listing fee required \u2022 \u20B5${ls.listing_fee}`;
+                    label = `Listing fee required • ₵${ls.listing_fee}`;
                   } else if (usage >= 0.8) {
                     bg = ['#D97706', '#B45309'];
                     icon = 'alert-triangle';
@@ -440,17 +435,17 @@ const BusinessDashboard = () => {
                         width={width - 64}
                         height={190}
                         chartConfig={{
-                          backgroundGradientFrom: '#FFFFFF',
+                          backgroundGradientFrom: colors.surface,
                           backgroundGradientFromOpacity: 0,
-                          backgroundGradientTo: '#FFFFFF',
+                          backgroundGradientTo: colors.surface,
                           backgroundGradientToOpacity: 0,
-                          fillShadowGradient: '#0C1559',
+                          fillShadowGradient: colors.primary,
                           fillShadowGradientOpacity: 0.12,
                           decimalPlaces: 0,
-                          color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
-                          labelColor: () => '#94A3B8',
-                          propsForDots: { r: '5', strokeWidth: '2', stroke: '#0C1559', fill: '#FFFFFF' },
-                          propsForBackgroundLines: { stroke: '#F1F5F9', strokeWidth: 1, strokeDasharray: '' },
+                          color: (opacity = 1) => isDark ? `rgba(140, 165, 255, ${opacity})` : `rgba(12, 21, 89, ${opacity})`,
+                          labelColor: () => colors.textMuted,
+                          propsForDots: { r: '5', strokeWidth: '2', stroke: colors.primary, fill: colors.surface },
+                          propsForBackgroundLines: { stroke: colors.border, strokeWidth: 1, strokeDasharray: '' },
                           propsForLabels: { fontSize: 9 },
                         }}
                         bezier
@@ -486,7 +481,7 @@ const BusinessDashboard = () => {
                     ))
                   ) : (
                     <View style={styles.emptyOrdersCard}>
-                      <Feather name="shopping-cart" size={24} color={C.subtle} />
+                      <Feather name="shopping-cart" size={24} color={colors.textMuted} />
                       <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
                     </View>
                   )}
@@ -510,7 +505,7 @@ const BusinessDashboard = () => {
           </>
         ) : (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#000000" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.noBizText, { marginTop: 15 }]}>
               {isLoadingBusinesses ? "Fetching your business..." : "Preparing Dashboard..."}
             </Text>
@@ -522,12 +517,12 @@ const BusinessDashboard = () => {
       <Modal animationType="fade" transparent visible={showNoBusinessModal}>
         <View style={styles.alertOverlay}>
           <View style={styles.alertContent}>
-            <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" /></View>
+            <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color={colors.primary} /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
             <Text style={styles.alertMessage}>You have not set up a store yet. Create your business profile to start selling.</Text>
             <TouchableOpacity accessibilityLabel="Create business profile" accessibilityRole="button" style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.push('/business/register'); }}>
               <Text style={styles.alertButtonText}>Create Business</Text>
-              <Feather name="arrow-right" size={18} color="#FFF" />
+              <Feather name="arrow-right" size={18} color={colors.textInverse} />
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
@@ -561,10 +556,10 @@ const BusinessDashboard = () => {
             <View style={styles.switcherHeader}>
               <Text style={styles.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.switcherList}>
               {businesses.map((biz: any) => {
                 const active = biz._id === selectedBusiness?._id;
@@ -593,14 +588,14 @@ const BusinessDashboard = () => {
                       <Text style={styles.switcherCat}>{biz.category}</Text>
                     </View>
                     {active ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                      <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                      <Ionicons name="ellipse-outline" size={22} color={colors.borderStrong} />
                     )}
                   </TouchableOpacity>
                 );
               })}
-              
+
               {businesses.length < 3 && (
                 <TouchableOpacity
                   accessibilityLabel="Register another store"
@@ -612,7 +607,7 @@ const BusinessDashboard = () => {
                   }}
                 >
                   <View style={styles.switcherAddIcon}>
-                    <Ionicons name="add" size={22} color="#0C1559" />
+                    <Ionicons name="add" size={22} color={colors.primary} />
                   </View>
                   <Text style={styles.switcherAddText}>Register Another Store</Text>
                 </TouchableOpacity>
@@ -629,11 +624,11 @@ const BusinessDashboard = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollBody: { flex: 1, backgroundColor: '#FFFFFF', minHeight: height, paddingBottom: 120 },
+  scrollBody: { flex: 1, backgroundColor: colors.backgroundAlt, minHeight: height, paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 140, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
@@ -641,7 +636,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 35,
     borderBottomRightRadius: 35,
     overflow: 'hidden',
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
   },
   headerContentWrapper: {
     flex: 1,
@@ -654,14 +649,14 @@ const styles = StyleSheet.create({
   appLogo: { width: 100, height: 35 },
   topIcons: { flexDirection: 'row', gap: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  badgeContainer: { position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#0C1559' },
+  badgeContainer: { position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: colors.headerGradient[0] },
   badgeText: { color: '#FFF', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   businessProfile: { flexDirection: 'row', alignItems: 'center' },
   logoWrapper: { position: 'relative', marginRight: 15 },
   businessLogo: { width: 56, height: 56, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
   logoPlaceholder: { width: 56, height: 56, borderRadius: 20, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
   logoInitial: { fontSize: 24, color: '#FFF', fontFamily: 'Montserrat-Bold' },
-  verifiedBadge: { position: 'absolute', bottom: -4, right: -4, backgroundColor: '#10B981', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#0C1559' },
+  verifiedBadge: { position: 'absolute', bottom: -4, right: -4, backgroundColor: '#10B981', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.headerGradient[0] },
   businessTexts: { flex: 1 },
   welcomeLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontFamily: 'Montserrat-Medium', textTransform: 'uppercase', letterSpacing: 1 },
   businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold' },
@@ -669,86 +664,86 @@ const styles = StyleSheet.create({
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
   listingBanner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 8, marginBottom: 4, borderRadius: 12, padding: 14, gap: 10 },
   listingBannerText: { flex: 1, color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
-  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -5, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
+  floatingStatsContainer: { flexDirection: 'row', backgroundColor: colors.surface, marginHorizontal: 20, marginTop: -5, borderRadius: 16, padding: 20, elevation: 10, shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
   statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
   statItem: { alignItems: 'center', flex: 1, zIndex: 1 },
-  statNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  statLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
+  statNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  statLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 2 },
+  statDivider: { width: 1, height: 30, backgroundColor: colors.border },
   sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 15 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionPill: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 14, gap: 12, borderLeftWidth: 3, elevation: 3, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
+  actionPill: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 14, gap: 12, borderLeftWidth: 3, elevation: 3, shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
   actionPillIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
   actionPillText: { justifyContent: 'center' },
-  actionPillLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  actionPillSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 1 },
-  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 25, borderRadius: 24, padding: 20, elevation: 3, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+  actionPillLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text },
+  actionPillSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 1 },
+  chartCard: { backgroundColor: colors.surface, marginHorizontal: 20, marginTop: 25, borderRadius: 24, padding: 20, elevation: 3, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  cardTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  cardSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginBottom: 4 },
-  chartRevenue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  timeframeTabs: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 3, gap: 2 },
+  cardTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: colors.text },
+  cardSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginBottom: 4 },
+  chartRevenue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  timeframeTabs: { flexDirection: 'row', backgroundColor: colors.border, borderRadius: 12, padding: 3, gap: 2 },
   timeframeTab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  timeframeTabActive: { backgroundColor: '#0C1559' },
-  timeframeTabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#94A3B8' },
-  timeframeTabTextActive: { color: '#FFFFFF' },
+  timeframeTabActive: { backgroundColor: colors.primary },
+  timeframeTabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: colors.textMuted },
+  timeframeTabTextActive: { color: colors.textInverse },
   chartStyle: { marginLeft: -8, borderRadius: 16 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  seeAllText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 16, marginBottom: 10, elevation: 1 },
+  seeAllText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, padding: 14, borderRadius: 16, marginBottom: 10, elevation: 1 },
   orderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   orderIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  orderNumber: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  orderStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', textTransform: 'capitalize' },
-  orderAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  orderNumber: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: colors.text },
+  orderStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, textTransform: 'capitalize' },
+  orderAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.primary },
   tipCard: { marginHorizontal: 20, marginTop: 20, borderRadius: 18, padding: 20 },
   tipHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   tipTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   tipText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  noBizText: { color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  alertOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 25 },
-  alertContent: { backgroundColor: '#FFF', width: '100%', borderRadius: 30, padding: 30, alignItems: 'center', elevation: 10 },
-  alertIconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F0F4FC', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
-  alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
-  alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, width: '100%', gap: 8 },
-  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', marginRight: 8 },
+  noBizText: { color: colors.textSecondary, fontFamily: 'Montserrat-Medium' },
+  alertOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 25 },
+  alertContent: { backgroundColor: colors.surface, width: '100%', borderRadius: 30, padding: 30, alignItems: 'center', elevation: 10 },
+  alertIconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 10 },
+  alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, textAlign: 'center', marginBottom: 25, lineHeight: 22 },
+  alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, width: '100%', gap: 8 },
+  alertButtonText: { color: colors.textInverse, fontSize: 16, fontFamily: 'Montserrat-Bold', marginRight: 8 },
   outlineButton: {
     height: 50,
     borderRadius: 15,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
   },
   outlineButtonText: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
-  emptyOrdersCard: { backgroundColor: '#FFF', padding: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
-  emptyOrdersText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  
-  switcherOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundAlt },
+  emptyOrdersCard: { backgroundColor: colors.surface, padding: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderStrong },
+  emptyOrdersText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textMuted },
+
+  switcherOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   switcherDismiss: { flex: 1 },
-  switcherSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40, elevation: 12 },
+  switcherSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40, elevation: 12 },
   switcherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  switcherTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  switcherTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.text },
   switcherList: { gap: 12 },
-  switcherCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#E2E8F0' },
-  switcherCardActive: { backgroundColor: '#EEF2FF', borderColor: '#3b82f6' },
-  switcherLogoWrapper: { width: 44, height: 44, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF', elevation: 2 },
+  switcherCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: colors.backgroundAlt, borderWidth: 1.5, borderColor: colors.borderStrong },
+  switcherCardActive: { backgroundColor: colors.border, borderColor: '#3b82f6' },
+  switcherLogoWrapper: { width: 44, height: 44, borderRadius: 14, overflow: 'hidden', backgroundColor: colors.surface, elevation: 2 },
   switcherLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
   switcherLogoPlaceholder: { backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
   switcherLogoInitial: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  switcherName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  switcherCat: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  switcherAddCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#3b82f6', backgroundColor: '#EFF6FF' },
-  switcherAddIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
-  switcherAddText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginLeft: 12 },
+  switcherName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.text },
+  switcherCat: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 2 },
+  switcherAddCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#3b82f6', backgroundColor: colors.border },
+  switcherAddIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
+  switcherAddText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.primary, marginLeft: 12 },
 });
 
 export default BusinessDashboard;

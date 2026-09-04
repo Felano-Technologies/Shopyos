@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,10 +26,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 import { useProfile } from '@/hooks/useProfile';
-const styles = StyleSheet.create({
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.backgroundAlt,
   },
   safeArea: {
     flex: 1,
@@ -77,7 +80,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sectionCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 16,
@@ -91,15 +94,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: colors.text,
     marginBottom: 16,
   },
   coverUpload: {
     height: 140,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -116,7 +119,7 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 14,
-    color: '#64748B',
+    color: colors.textSecondary,
     fontFamily: 'Montserrat-Medium',
   },
   editBadge: {
@@ -139,12 +142,12 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   uploadedLogo: {
     width: 60,
@@ -159,14 +162,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     width: 20,
     height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: colors.surface,
   },
   logoTextContainer: {
     marginLeft: 15,
@@ -174,12 +177,12 @@ const styles = StyleSheet.create({
   logoLabel: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: colors.text,
   },
   logoSub: {
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   inputContainer: {
     marginBottom: 16,
@@ -187,16 +190,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#334155',
+    color: colors.text,
     marginBottom: 8,
     marginLeft: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    color: colors.text,
     fontFamily: 'Montserrat-Medium',
   },
   row: {
@@ -219,80 +222,80 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   catActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   catText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   catTextActive: {
-    color: '#FFF',
+    color: colors.textInverse,
   },
   payoutOption: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingVertical: 12,
     marginBottom: 15,
     marginHorizontal: 4,
   },
   payoutOptionActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   payoutLabel: {
     marginLeft: 8,
     fontFamily: 'Montserrat-Bold',
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   payoutTextActive: {
-    color: '#FFF',
+    color: colors.textInverse,
   },
   docItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     padding: 14,
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   docItemActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F0F4FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.border,
   },
   docName: {
     flex: 1,
     marginLeft: 10,
     fontSize: 13,
-    color: '#334155',
+    color: colors.text,
     fontFamily: 'Montserrat-Medium',
   },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 4 },
   disclaimerCheckbox: { padding: 4 },
-  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  disclaimerBoxChecked: { backgroundColor: '#0C1559' },
-  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
-  disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: colors.primary },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, lineHeight: 18 },
+  disclaimerLink: { color: colors.primary, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   submitBtn: {
     marginHorizontal: 20,
     marginBottom: 30,
     borderRadius: 16,
-    shadowColor: '#0C1559',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -312,24 +315,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
 });
-const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => (
-  <View style={styles.inputContainer}>
-    <Text style={styles.label}>{label}</Text>
-    <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
-      <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />
-      <TextInput
-        style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
-        multiline={multiline}
-        textAlignVertical={multiline ? 'top' : 'center'}
-        keyboardType={keyboardType}
-      />
+const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  return (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
+        <Feather name={icon} size={18} color={colors.textSecondary} style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />
+        <TextInput
+          style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          keyboardType={keyboardType}
+        />
+      </View>
     </View>
-  </View>
-);
+  );
+};
 async function submitBusinessRegistration(params: {
   formData: Record<string, any>;
   logo: string | null;
@@ -352,6 +359,8 @@ async function submitBusinessRegistration(params: {
 
 const BusinessSetupScreen = () => {
   const queryClient = useQueryClient();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [loading, setLoading] = useState(false);
   const [commissionTerms, setCommissionTerms] = useState<Disclaimer | null>(null);
   const [isTermsChecked, setIsTermsChecked] = useState(false);
@@ -467,20 +476,20 @@ const BusinessSetupScreen = () => {
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* --- Header --- */}
             <LinearGradient
-              colors={['#0C1559', '#1e3a8a']}
+              colors={colors.headerGradient}
               style={styles.headerContainer}
             >
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => {
                   if (router.canGoBack()) router.back();
@@ -504,7 +513,7 @@ const BusinessSetupScreen = () => {
                   <AppImage uri={coverImage} style={styles.uploadedCover} />
                 ) : (
                   <View style={styles.uploadPlaceholder}>
-                    <Feather name="image" size={32} color="#94A3B8" />
+                    <Feather name="image" size={32} color={colors.textMuted} />
                     <Text style={styles.uploadText}>Add Cover Photo (16:9)</Text>
                   </View>
                 )}
@@ -517,10 +526,10 @@ const BusinessSetupScreen = () => {
                     <AppImage uri={logo} style={styles.uploadedLogo} />
                   ) : (
                     <View style={styles.logoPlaceholder}>
-                      <Feather name="camera" size={24} color="#94A3B8" />
+                      <Feather name="camera" size={24} color={colors.textMuted} />
                     </View>
                   )}
-                  <View style={styles.addLogoBadge}><Feather name="plus" size={10} color="#FFF" /></View>
+                  <View style={styles.addLogoBadge}><Feather name="plus" size={10} color={colors.textInverse} /></View>
                 </TouchableOpacity>
                 <View style={styles.logoTextContainer}>
                   <Text style={styles.logoLabel}>Business Logo</Text>
@@ -629,17 +638,17 @@ const BusinessSetupScreen = () => {
                 style={[styles.docItem, businessCert && styles.docItemActive]}
                 onPress={() => pickDocument('cert')}
               >
-                <Feather name="file" size={20} color={businessCert ? '#0C1559' : '#94A3B8'} />
+                <Feather name="file" size={20} color={businessCert ? colors.primary : colors.textMuted} />
                 <Text style={styles.docName}>{businessCert ? 'Registration Certificate Added' : 'Registration Certificate (PDF/Image)'}</Text>
-                {businessCert && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
+                {businessCert && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.docItem, businessLicense && styles.docItemActive]}
                 onPress={() => pickDocument('license')}
               >
-                <Feather name="shield" size={20} color={businessLicense ? '#0C1559' : '#94A3B8'} />
+                <Feather name="shield" size={20} color={businessLicense ? colors.primary : colors.textMuted} />
                 <Text style={styles.docName}>{businessLicense ? 'Business License Added' : 'Operating License (PDF/Image)'}</Text>
-                {businessLicense && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
+                {businessLicense && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
               </TouchableOpacity>
             </View>
             {/* --- Banking & Payouts --- */}
@@ -651,14 +660,14 @@ const BusinessSetupScreen = () => {
                   style={[styles.payoutOption, formData.payoutMethod === 'bank' && styles.payoutOptionActive]}
                   onPress={() => handleInputChange('payoutMethod', 'bank')}
                 >
-                  <MaterialCommunityIcons name="bank" size={22} color={formData.payoutMethod === 'bank' ? '#FFF' : '#64748B'} />
+                  <MaterialCommunityIcons name="bank" size={22} color={formData.payoutMethod === 'bank' ? colors.textInverse : colors.textSecondary} />
                   <Text style={[styles.payoutLabel, formData.payoutMethod === 'bank' && styles.payoutTextActive]}>Bank</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.payoutOption, formData.payoutMethod === 'momo' && styles.payoutOptionActive]}
                   onPress={() => handleInputChange('payoutMethod', 'momo')}
                 >
-                  <MaterialCommunityIcons name="cellphone-text" size={22} color={formData.payoutMethod === 'momo' ? '#FFF' : '#64748B'} />
+                  <MaterialCommunityIcons name="cellphone-text" size={22} color={formData.payoutMethod === 'momo' ? colors.textInverse : colors.textSecondary} />
                   <Text style={[styles.payoutLabel, formData.payoutMethod === 'momo' && styles.payoutTextActive]}>MoMo</Text>
                 </TouchableOpacity>
               </View>
@@ -688,9 +697,9 @@ const BusinessSetupScreen = () => {
                 style={[styles.docItem, proofOfBank && styles.docItemActive, { marginTop: 10 }]}
                 onPress={() => pickDocument('bank')}
               >
-                <Feather name="credit-card" size={20} color={proofOfBank ? '#0C1559' : '#94A3B8'} />
+                <Feather name="credit-card" size={20} color={proofOfBank ? colors.primary : colors.textMuted} />
                 <Text style={styles.docName}>{proofOfBank ? 'Proof of Account Added' : 'Proof of Account (Statement/Screenshot)'}</Text>
-                {proofOfBank && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
+                {proofOfBank && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
               </TouchableOpacity>
             </View>
             {/* --- Social Links --- */}
@@ -733,7 +742,7 @@ const BusinessSetupScreen = () => {
                   catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
                 }}>
                   <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
-                    {isTermsChecked && <Feather name="check" size={13} color="#FFF" />}
+                    {isTermsChecked && <Feather name="check" size={13} color={colors.textInverse} />}
                   </View>
                 </TouchableOpacity>
                 <Text style={styles.disclaimerText}>
@@ -757,7 +766,7 @@ const BusinessSetupScreen = () => {
               disabled={loading}
             >
               <LinearGradient
-                colors={['#0C1559', '#1e3a8a']}
+                colors={colors.headerGradient}
                 style={styles.submitGradient}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               >

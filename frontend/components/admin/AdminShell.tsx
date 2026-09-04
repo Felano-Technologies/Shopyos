@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { adminCardStyle, adminColors } from './adminTheme';
+import { useAdminCardStyle, useAdminColors } from './adminTheme';
 
 type AdminPanelProps = {
   children: React.ReactNode;
@@ -8,7 +8,8 @@ type AdminPanelProps = {
 };
 
 export function AdminPanel({ children, style }: Readonly<AdminPanelProps>) {
-  return <View style={[styles.panel, style]}>{children}</View>;
+  const cardStyle = useAdminCardStyle();
+  return <View style={[cardStyle, styles.panel, style]}>{children}</View>;
 }
 
 export function AdminSectionHeader({
@@ -18,6 +19,8 @@ export function AdminSectionHeader({
   title: string;
   action?: React.ReactNode;
 }>) {
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -32,9 +35,11 @@ export default function AdminShell({ children }: Readonly<{ children: React.Reac
 
 const styles = StyleSheet.create({
   panel: {
-    ...adminCardStyle,
     padding: 16,
   },
+});
+
+const getStyles = (C: ReturnType<typeof useAdminColors>) => StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -43,7 +48,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionTitle: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
   },

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Animated, PanResponder,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { ConfirmModal } from '@/components/ConfirmModal';
@@ -30,7 +29,7 @@ type CartItem = {
   bargain_offer_id?: string;
 };
 
-type SwipeableProps = {
+type CartItemRowProps = {
   item: CartItem;
   index: number;
   refQty: React.RefObject<View>;
@@ -39,34 +38,14 @@ type SwipeableProps = {
   updateQuantity: (id: string, delta: number) => void;
 };
 
-const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
+const CartItemRow = React.memo(function CartItemRow({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<CartItemRowProps>) {
+  const router = useRouter();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const SWIPE_THRESHOLD = -60;
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
-        Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8,
-      onPanResponderMove: (_, { dx }) => {
-        if (dx < 0) translateX.setValue(Math.max(dx, -90));
-      },
-      onPanResponderRelease: (_, { dx }) => {
-        if (dx < SWIPE_THRESHOLD) {
-          Animated.spring(translateX, { toValue: -90, useNativeDriver: true }).start();
-        } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
-        }
-      },
-    })
-  ).current;
-
-  const handleDelete = () => {
-    Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true }).start(() => {
-      removeFromCart(item.id);
-    });
+  const goToDetails = () => {
+    router.push({ pathname: '/product/details', params: { id: item.id } } as any);
   };
 
   const handleDecrement = () => {
@@ -83,30 +62,23 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
 
   return (
     <View style={styles.swipeContainer}>
-      <View style={styles.deleteBackground}>
-        <TouchableOpacity accessibilityLabel="Remove item from cart" accessibilityRole="button" onPress={handleDelete} style={styles.deleteAction}>
-          <Feather name="trash-2" size={22} color="#FFF" />{/* white icon on the fixed error-colored delete background */}
-          <Text style={styles.deleteActionText}>Remove</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Animated.View
-        style={[styles.cartItem, { transform: [{ translateX }] }]}
-        {...panResponder.panHandlers}
-      >
-        <AppImage
-          uri={typeof item.image === 'number' ? undefined : item.image}
-          style={styles.itemImage}
-        />
-        <View style={styles.itemDetails}>
-          <View style={styles.titleRow}>
-            <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-            <TouchableOpacity accessibilityLabel="Delete item" accessibilityRole="button" onPress={handleDelete} style={styles.deleteBtn}>
-              <Feather name="trash-2" size={16} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.itemCategory}>{item.category}</Text>
-          <View style={styles.priceControlRow}>
+      <View style={styles.cartItem}>
+        <TouchableOpacity
+          accessibilityLabel={`View ${item.title} details`}
+          accessibilityRole="button"
+          activeOpacity={0.85}
+          style={styles.itemTapArea}
+          onPress={goToDetails}
+        >
+          <AppImage
+            uri={typeof item.image === 'number' ? undefined : item.image}
+            style={styles.itemImage}
+          />
+          <View style={styles.itemDetails}>
+            <View style={styles.titleRow}>
+              <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+            </View>
+            <Text style={styles.itemCategory}>{item.category}</Text>
             <View>
               {discount > 0 ? (
                 <>
@@ -120,34 +92,39 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
                 <Text style={styles.itemSubtotal}>× {item.quantity} = ₵{lineTotal.toFixed(2)}</Text>
               )}
             </View>
-            <View
-              style={styles.qtyContainer}
-              ref={index === 0 ? refQty : undefined}
-              onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
+          </View>
+        </TouchableOpacity>
+        <View style={styles.itemSideControls}>
+          <TouchableOpacity accessibilityLabel="Delete item" accessibilityRole="button" onPress={() => setShowRemoveConfirm(true)} style={styles.deleteBtn}>
+            <Feather name="trash-2" size={16} color={colors.error} />
+          </TouchableOpacity>
+          <View
+            style={styles.qtyContainer}
+            ref={index === 0 ? refQty : undefined}
+            onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
+          >
+            <TouchableOpacity
+              accessibilityLabel="Decrease quantity"
+              accessibilityRole="button"
+              style={[styles.qtyBtn, item.quantity === 1 && styles.qtyBtnDanger]}
+              onPress={handleDecrement}
             >
-<TouchableOpacity
-                                                accessibilityLabel="Decrease quantity"
-                                                accessibilityRole="button"
-                                                style={[styles.qtyBtn, item.quantity === 1 && styles.qtyBtnDanger]}
-                                                onPress={handleDecrement}
-                                              >
-                {item.quantity === 1
-                  ? <Feather name="trash-2" size={12} color={colors.error} />
-                  : <Feather name="minus" size={14} color={colors.primary} />}
-              </TouchableOpacity>
-              <Text style={styles.qtyText}>{item.quantity}</Text>
-<TouchableOpacity
-                                                accessibilityLabel="Increase quantity"
-                                                accessibilityRole="button"
-                                                style={[styles.qtyBtn, styles.qtyBtnActive]}
-                                                onPress={() => updateQuantity(item.id, 1)}
-                                              >
-                <Feather name="plus" size={14} color="#FFF" />{/* white icon on primary-colored button, readable in both themes */}
-              </TouchableOpacity>
-            </View>
+              {item.quantity === 1
+                ? <Feather name="trash-2" size={12} color={colors.error} />
+                : <Feather name="minus" size={14} color={colors.primary} />}
+            </TouchableOpacity>
+            <Text style={styles.qtyText}>{item.quantity}</Text>
+            <TouchableOpacity
+              accessibilityLabel="Increase quantity"
+              accessibilityRole="button"
+              style={[styles.qtyBtn, styles.qtyBtnActive]}
+              onPress={() => updateQuantity(item.id, 1)}
+            >
+              <Feather name="plus" size={14} color="#FFF" />{/* white icon on primary-colored button, readable in both themes */}
+            </TouchableOpacity>
           </View>
         </View>
-      </Animated.View>
+      </View>
       <ConfirmModal
         visible={showRemoveConfirm}
         onClose={() => setShowRemoveConfirm(false)}
@@ -254,15 +231,23 @@ export default function CartScreen() {
         </SafeAreaView>
       </LinearGradient>
 
-      {cartAds.length > 0 && (
+      {cartAds.length > 0 ? (
         <CompactAdCarousel ads={cartAds} onAdPress={handleAdPress} />
+      ) : (
+        <View style={styles.adPlaceholder}>
+          <Image
+            source={require('@/assets/images/Shopyos Banner.png')}
+            style={styles.adPlaceholderImg}
+            resizeMode="cover"
+          />
+        </View>
       )}
 
       <FlatList
         data={cartItems}
         keyExtractor={item => item.id}
         renderItem={({ item, index }) => (
-          <SwipeableCartItem
+          <CartItemRow
             item={item}
             index={index}
             refQty={refQty}
@@ -336,17 +321,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   listContent: { paddingVertical: 12, paddingBottom: 200 },
 
-  // Swipe-to-delete
   swipeContainer: { marginBottom: 10, overflow: 'hidden' },
-  deleteBackground: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.error,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingRight: 8,
-  },
-  deleteAction: { alignItems: 'center', justifyContent: 'center', width: 70, paddingVertical: 12 },
-  deleteActionText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-Bold', marginTop: 4 }, // white text on the fixed error-red background
 
   // Cart item
   cartItem: {
@@ -354,16 +329,14 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     padding: 12, elevation: 1,
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
+  itemTapArea: { flex: 1, flexDirection: 'row' },
+  itemSideControls: { alignItems: 'flex-end', justifyContent: 'space-between', marginLeft: 6 },
   itemImage: { width: 95, height: 95, borderRadius: 10, backgroundColor: colors.border },
   itemDetails: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   itemTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text, lineHeight: 18 },
-  deleteBtn: { padding: 4, backgroundColor: colors.errorBg, borderRadius: 6, marginLeft: 6 },
+  deleteBtn: { padding: 4, backgroundColor: colors.errorBg, borderRadius: 6, marginBottom: 6 },
   itemCategory: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 2 },
-  priceControlRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginTop: 6,
-  },
   itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
   itemPriceStrikethrough: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, textDecorationLine: 'line-through' },
   itemPriceBargained: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.success },
@@ -407,4 +380,14 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: colors.textMuted, marginTop: 20, marginBottom: 30 },
   shopBtn: { backgroundColor: colors.primary, paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
   shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' }, // white text on the fixed primary button
+
+  // Ad slot placeholder
+  adPlaceholder: {
+    height: 80,
+    overflow: 'hidden',
+  },
+  adPlaceholderImg: {
+    width: '100%',
+    height: '100%',
+  },
 });

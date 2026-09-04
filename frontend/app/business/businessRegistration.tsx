@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { businessRegister } from '@/services/api';
 import { queryKeys } from '@/lib/query/keys';
@@ -28,6 +28,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import MapView, { UrlTile } from '@/components/MapView';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
   'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
@@ -64,12 +66,11 @@ interface BusinessFormData {
 
 // --- Mock City Data ---
 const CITIES = [
-  'Kumasi', 'Accra', 'Tema', 'Tamale', 'Takoradi', 
+  'Kumasi', 'Accra', 'Tema', 'Tamale', 'Takoradi',
   'Cape Coast', 'Sunyani', 'Koforidua', 'Ho', 'Wa', 'Bolgatanga'
 ];
 // --- REUSABLE FIELD COMPONENT ---
-function renderFieldIcon(icon: string, library: string) {
-  const color = "#64748B";
+function renderFieldIcon(icon: string, library: string, color: string) {
   const size = 20;
   if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={size} color={color} />;
   if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={16} color={color} />;
@@ -85,19 +86,19 @@ function getFieldDisplayValue(value: any, placeholder: string, isUpload: boolean
   return value;
 }
 
-function getFieldTextColor(value: any, isUpload: boolean, isMap: boolean, isDropdown: boolean): string {
-  if (isUpload) return value ? "#16A34A" : "#94A3B8";
-  if (isMap) return value ? "#16A34A" : "#94A3B8";
-  if (isDropdown && !value) return "#94A3B8";
-  return '#0F172A';
+function getFieldTextColor(value: any, isUpload: boolean, isMap: boolean, isDropdown: boolean, colors: ThemeColors): string {
+  if (isUpload) return value ? colors.success : colors.textMuted;
+  if (isMap) return value ? colors.success : colors.textMuted;
+  if (isDropdown && !value) return colors.textMuted;
+  return colors.text;
 }
 
-function renderActionIcon(loading: boolean, isMap: boolean, isUpload: boolean, isAdd: boolean, value: any) {
-  if (loading) return <ActivityIndicator size="small" color="#0C1559" />;
-  if (isMap) return <MaterialCommunityIcons name="map-marker-outline" size={22} color={value ? "#16A34A" : "#0C1559"} />;
-  if (isUpload) return <Feather name={value ? "check" : "upload-cloud"} size={20} color={value ? "#16A34A" : "#0C1559"} />;
-  if (isAdd) return <Feather name="plus-circle" size={20} color="#0C1559" />;
-  return <Feather name="chevron-down" size={20} color="#94A3B8" />;
+function renderActionIcon(loading: boolean, isMap: boolean, isUpload: boolean, isAdd: boolean, value: any, colors: ThemeColors) {
+  if (loading) return <ActivityIndicator size="small" color={colors.primary} />;
+  if (isMap) return <MaterialCommunityIcons name="map-marker-outline" size={22} color={value ? colors.success : colors.primary} />;
+  if (isUpload) return <Feather name={value ? "check" : "upload-cloud"} size={20} color={value ? colors.success : colors.primary} />;
+  if (isAdd) return <Feather name="plus-circle" size={20} color={colors.primary} />;
+  return <Feather name="chevron-down" size={20} color={colors.textMuted} />;
 }
 
 const RegistrationField = ({
@@ -116,11 +117,13 @@ const RegistrationField = ({
   disabled = false,
   loading = false
 }: any) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const displayValue = getFieldDisplayValue(value, placeholder, isUpload, isMap, isDropdown);
-  const textColor = getFieldTextColor(value, isUpload, isMap, isDropdown);
+  const textColor = getFieldTextColor(value, isUpload, isMap, isDropdown, colors);
   return (
     <View style={styles.inputContainer}>
-      <View style={styles.inputIconBox}>{renderFieldIcon(icon, library)}</View>
+      <View style={styles.inputIconBox}>{renderFieldIcon(icon, library, colors.textSecondary)}</View>
       <View style={styles.inputWrapper}>
         {isPhone && (
           <View style={styles.flagContainer}>
@@ -129,7 +132,7 @@ const RegistrationField = ({
              <View style={styles.dividerVertical} />
           </View>
         )}
-        
+
         {(isUpload || isDropdown || isMap) ? (
            <TouchableOpacity style={{ flex: 1 }} onPress={onAction} disabled={disabled || loading}>
              <Text style={[styles.inputText, { color: textColor }]}>
@@ -142,14 +145,14 @@ const RegistrationField = ({
              value={value}
              onChangeText={onChangeText}
              placeholder={placeholder}
-             placeholderTextColor="#94A3B8"
-             editable={!disabled} 
+             placeholderTextColor={colors.textMuted}
+             editable={!disabled}
            />
         )}
       </View>
       {(isUpload || isAdd || isDropdown || isMap) && (
           <TouchableOpacity style={styles.actionBtn} onPress={onAction} disabled={loading}>
-              {renderActionIcon(loading, isMap, isUpload, isAdd, value)}
+              {renderActionIcon(loading, isMap, isUpload, isAdd, value, colors)}
           </TouchableOpacity>
       )}
     </View>
@@ -159,6 +162,8 @@ export default function BusinessRegistrationScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const mapRef = React.useRef<MapView>(null);
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: userProfile } = useProfile();
 
@@ -167,14 +172,14 @@ export default function BusinessRegistrationScreen() {
     businessName: '',
     ownerName: '',
     ownerEmail: '',
-    businessEmail: '', 
+    businessEmail: '',
     ownerPhone: '',
     businessPhone: '',
     country: 'Ghana',
     city: '',
     stateProvince: '',
     address: '',
-    latitude: null, 
+    latitude: null,
     longitude: null,
     website: '',
     socialMedia: '',
@@ -330,16 +335,16 @@ export default function BusinessRegistrationScreen() {
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-                
+
                 <View style={styles.headerWrapper}>
-                    <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
+                    <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
                         <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                             <View style={styles.headerContent}>
                                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                                 </TouchableOpacity>
                                 <Text style={styles.headerTitle}>Business Registration</Text>
-                                <View style={{ width: 40 }} /> 
+                                <View style={{ width: 40 }} />
                             </View>
                             <Text style={styles.headerSubtitle}>Complete your profile to start selling.</Text>
                         </SafeAreaView>
@@ -358,9 +363,9 @@ export default function BusinessRegistrationScreen() {
                     </View>
                     <Text style={styles.sectionHeader}>Map & Address</Text>
                     <View style={styles.sectionCard}>
-                        <RegistrationField 
-                            icon="map-outline" 
-                            value={formData.latitude} 
+                        <RegistrationField
+                            icon="map-outline"
+                            value={formData.latitude}
                             placeholder="Set Store Location on Map"
                             isMap={true}
                             onAction={() => setMapVisible(true)}
@@ -371,15 +376,15 @@ export default function BusinessRegistrationScreen() {
                         <RegistrationField icon="map-outline" value={formData.city} isDropdown={true} placeholder="Select City" onAction={() => setShowCityModal(true)} />
                         <View style={styles.divider} />
                         <View style={{ paddingVertical: 10, paddingHorizontal: 4 }}>
-                          <Text style={{ fontFamily: 'Montserrat-SemiBold', fontSize: 13, color: '#64748B', marginBottom: 8 }}>Region / State *</Text>
+                          <Text style={{ fontFamily: 'Montserrat-SemiBold', fontSize: 13, color: colors.textSecondary, marginBottom: 8 }}>Region / State *</Text>
                           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {GHANA_REGIONS.map((reg) => (
                               <TouchableOpacity
                                 key={reg}
-                                style={[{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, marginRight: 8, borderColor: formData.stateProvince === reg ? '#0C1559' : '#CBD5E1', backgroundColor: formData.stateProvince === reg ? '#0C1559' : '#F8FAFC' }]}
+                                style={[{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, marginRight: 8, borderColor: formData.stateProvince === reg ? colors.primary : colors.borderStrong, backgroundColor: formData.stateProvince === reg ? colors.primary : colors.backgroundAlt }]}
                                 onPress={() => handleInputChange('stateProvince', reg)}
                               >
-                                <Text style={[{ fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: formData.stateProvince === reg ? '#FFF' : '#64748B' }]}>{reg}</Text>
+                                <Text style={[{ fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: formData.stateProvince === reg ? colors.textInverse : colors.textSecondary }]}>{reg}</Text>
                               </TouchableOpacity>
                             ))}
                           </ScrollView>
@@ -408,16 +413,16 @@ export default function BusinessRegistrationScreen() {
                     )}
                     <View style={styles.photoUploadContainer}>
                         <TouchableOpacity style={styles.photoUploadBox} onPress={() => pickImage('storePhotos', true)}>
-                            <Feather name="image" size={24} color="#0C1559" /><Text style={styles.uploadBoxText}>Add Photo</Text>
+                            <Feather name="image" size={24} color={colors.primary} /><Text style={styles.uploadBoxText}>Add Photo</Text>
                         </TouchableOpacity>
                     </View>
                     <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8} disabled={isSubmitting}>
                         {isSubmitting ? (
-                          <ActivityIndicator color="#FFF" size="small" />
+                          <ActivityIndicator color={colors.textInverse} size="small" />
                         ) : (
                           <Text style={styles.submitBtnText}>Submit Application</Text>
                         )}
-                        <Feather name="arrow-right" size={20} color="#FFF" />
+                        <Feather name="arrow-right" size={20} color={colors.textInverse} />
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -446,7 +451,7 @@ export default function BusinessRegistrationScreen() {
               zIndex={-1}
             />
           </MapView>
-          
+
           <View style={styles.mapMarkerFixed} pointerEvents="none">
             <View style={styles.markerCircle}><MaterialCommunityIcons name="store" size={26} color="#FFF" /></View>
             <View style={styles.markerArrow} />
@@ -454,14 +459,14 @@ export default function BusinessRegistrationScreen() {
           <SafeAreaView style={styles.mapOverlay} pointerEvents="box-none">
             <View style={styles.mapSearchContainer}>
                 <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.mapSearchClose}>
-                    <Ionicons name="arrow-back" size={24} color="#0C1559" />
+                    <Ionicons name="arrow-back" size={24} color={colors.primary} />
                 </TouchableOpacity>
                 <View style={styles.mapSearchWrapper}>
-                    <Ionicons name="search" size={18} color="#94A3B8" />
-                    <TextInput 
+                    <Ionicons name="search" size={18} color={colors.textMuted} />
+                    <TextInput
                         style={styles.mapSearchInput}
                         placeholder="Search street or landmark..."
-                        placeholderTextColor="#94A3B8"
+                        placeholderTextColor={colors.textMuted}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         onSubmitEditing={handleMapSearch}
@@ -469,14 +474,14 @@ export default function BusinessRegistrationScreen() {
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
-            
+
             <TouchableOpacity style={styles.confirmBtn} onPress={confirmMapSelection}>
-                <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <LinearGradient colors={colors.headerGradient} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                     <Text style={styles.confirmText}>Set Store Location</Text>
                     <Feather name="check" size={20} color="#FFF" style={{ marginLeft: 10 }} />
                 </LinearGradient>
@@ -490,15 +495,15 @@ export default function BusinessRegistrationScreen() {
             <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Select City</Text>
-                    <TouchableOpacity onPress={() => setShowCityModal(false)}><Ionicons name="close" size={24} color="#0F172A" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowCityModal(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
                 </View>
                 <FlatList
                     data={CITIES}
                     keyExtractor={(item) => item}
                     renderItem={({ item }) => (
                         <TouchableOpacity style={styles.modalItem} onPress={() => handleCitySelect(item)}>
-                            <Text style={[styles.modalItemText, formData.city === item && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }]}>{item}</Text>
-                            {formData.city === item && <Ionicons name="checkmark" size={20} color="#0C1559" />}
+                            <Text style={[styles.modalItemText, formData.city === item && { color: colors.primary, fontFamily: 'Montserrat-Bold' }]}>{item}</Text>
+                            {formData.city === item && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                         </TouchableOpacity>
                     )}
                 />
@@ -508,8 +513,8 @@ export default function BusinessRegistrationScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
   safeArea: { flex: 1 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
@@ -521,45 +526,45 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   headerSubtitle: { textAlign: 'center', color: 'rgba(255,255,255,0.8)', fontSize: 14, fontFamily: 'Montserrat-Regular' },
   contentContainer: { paddingHorizontal: 20 },
-  sectionHeader: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 10, marginTop: 10, textTransform: 'uppercase', marginLeft: 4 },
-  sectionCard: { backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 16, marginBottom: 10, elevation: 1 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 40 },
+  sectionHeader: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.textSecondary, marginBottom: 10, marginTop: 10, textTransform: 'uppercase', marginLeft: 4 },
+  sectionCard: { backgroundColor: colors.surface, borderRadius: 16, paddingHorizontal: 16, marginBottom: 10, elevation: 1 },
+  divider: { height: 1, backgroundColor: colors.border, marginLeft: 40 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   inputIconBox: { width: 30, alignItems: 'center', marginRight: 10 },
   inputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  inputText: { flex: 1, fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+  inputText: { flex: 1, fontSize: 14, color: colors.text, fontFamily: 'Montserrat-Medium' },
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   flag: { width: 20, height: 14, borderRadius: 2, marginRight: 6 },
-  phonePrefix: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  dividerVertical: { width: 1, height: 16, backgroundColor: '#CBD5E1', marginLeft: 8 },
+  phonePrefix: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: colors.text },
+  dividerVertical: { width: 1, height: 16, backgroundColor: colors.borderStrong, marginLeft: 8 },
   actionBtn: { padding: 8 },
   photoList: { flexDirection: 'row', marginBottom: 10 },
   photoThumbnailContainer: { position: 'relative', marginRight: 10 },
-  photoThumbnail: { width: 70, height: 70, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  photoThumbnail: { width: 70, height: 70, borderRadius: 12, borderWidth: 1, borderColor: colors.borderStrong },
   removePhotoBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
   photoUploadContainer: { flexDirection: 'row', marginBottom: 30 },
-  photoUploadBox: { width: 100, height: 100, backgroundColor: '#FFF', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' },
-  uploadBoxText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 8 },
-  submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '60%' },
+  photoUploadBox: { width: 100, height: 100, backgroundColor: colors.surface, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.borderStrong, borderStyle: 'dashed' },
+  uploadBoxText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 8 },
+  submitBtn: { flexDirection: 'row', backgroundColor: colors.primary, paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 },
+  submitBtnText: { color: colors.textInverse, fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '60%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalItemText: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.text },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalItemText: { fontSize: 15, color: colors.text, fontFamily: 'Montserrat-Medium' },
   // --- Map Selection Styles ---
   mapMarkerFixed: { position: 'absolute', top: '50%', left: '50%', marginLeft: -24, marginTop: -48, alignItems: 'center', zIndex: 1 },
   markerCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFF', elevation: 10 },
   markerArrow: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 12, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#0C1559', transform: [{ rotate: '180deg' }], marginTop: -2 },
   mapOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', padding: 20 },
-  
+
   // New Search Styles
   mapSearchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  mapSearchWrapper: { flex: 1, height: 50, backgroundColor: '#FFF', borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1 },
-  mapSearchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', color: '#0F172A', fontSize: 14 },
-  mapSearchClose: { width: 50, height: 50, backgroundColor: '#FFF', borderRadius: 15, justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  
+  mapSearchWrapper: { flex: 1, height: 50, backgroundColor: colors.surface, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1 },
+  mapSearchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', color: colors.text, fontSize: 14 },
+  mapSearchClose: { width: 50, height: 50, backgroundColor: colors.surface, borderRadius: 15, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+
   confirmBtn: { borderRadius: 18, overflow: 'hidden', elevation: 10, marginBottom: 20 },
   confirmGradient: { paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   confirmText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },

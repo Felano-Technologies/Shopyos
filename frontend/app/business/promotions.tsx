@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform,
@@ -18,6 +18,8 @@ import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/servic
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const DURATION_TIERS = [
   { days: 1,  label: '1 Day',   price: 1  },
   { days: 7,  label: '1 Week',  price: 10 },
@@ -56,6 +58,8 @@ async function verifyAndApplyReference(params: {
 export default function PromotionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
   const [adTitle, setAdTitle] = useState('');
@@ -102,7 +106,8 @@ export default function PromotionsScreen() {
   }, [reference, refetchCampaigns, router]);
   const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
-    const uri = await showImagePicker({ allowsEditing: true, aspect: [10.8, 4], quality: 1 });
+    // 2.24:1 matches the hero carousel, sponsored row, and inline grid placements
+    const uri = await showImagePicker({ allowsEditing: true, aspect: [2.24, 1], quality: 1 });
     if (uri) setBannerUri(uri);
   };
   const handleSubmit = () => {
@@ -161,10 +166,10 @@ export default function PromotionsScreen() {
       });
       if (res.success && res.data.authorization_url) {
         CustomInAppToast.show({ type: 'success', title: 'Opening Checkout', message: 'Redirecting to Paystack secure payment page...' });
-        
+
         // Open Paystack checkout in auth session for auto-closure
         const result = await WebBrowser.openAuthSessionAsync(res.data.authorization_url, callbackUrl);
-        
+
         if (result.type === 'success' || result.type === 'cancel' || result.type === 'dismiss') {
           verifyAndApplyReference({
             reference: res.data.reference,
@@ -188,7 +193,7 @@ export default function PromotionsScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       {/* --- Premium Header --- */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <LinearGradient colors={colors.headerGradient} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="#FFF" />
@@ -200,14 +205,14 @@ export default function PromotionsScreen() {
         </View>
         {/* Custom Tabs */}
         <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'campaigns' && styles.activeTab]} 
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'campaigns' && styles.activeTab]}
             onPress={() => setActiveTab('campaigns')}
           >
             <Text style={[styles.tabText, activeTab === 'campaigns' && styles.activeTabText]}>My Campaigns</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'create' && styles.activeTab]} 
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'create' && styles.activeTab]}
             onPress={() => setActiveTab('create')}
           >
             <Text style={[styles.tabText, activeTab === 'create' && styles.activeTabText]}>Create New Ad</Text>
@@ -220,7 +225,7 @@ export default function PromotionsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" colors={['#0C1559']} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
           }
         >
 
@@ -234,16 +239,16 @@ export default function PromotionsScreen() {
                   <Text style={styles.statLabel}>Total Ad Clicks</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <Feather name="pie-chart" size={20} color="#0C1559" />
+                  <Feather name="pie-chart" size={20} color={colors.primary} />
                   <Text style={styles.statValue}>₵{totalSpent}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>
               <Text style={styles.sectionTitle}>Campaign History</Text>
               {loading ? (
-                <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />
+                <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
               ) : campaigns.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 20 }}>No campaigns yet</Text>
+                <Text style={{ textAlign: 'center', color: colors.textMuted, marginTop: 20 }}>No campaigns yet</Text>
               ) : (
                 campaigns.map(camp => {
                   const theme = getStatusColor(camp.status);
@@ -257,18 +262,18 @@ export default function PromotionsScreen() {
                       </View>
                       <View style={styles.campBody}>
                         <View style={styles.campDetail}>
-                          <Feather name="layout" size={14} color="#64748B" />
+                          <Feather name="layout" size={14} color={colors.textSecondary} />
                           <Text style={styles.campDetailTxt}>{camp.placement}</Text>
                         </View>
                         <View style={styles.campDetail}>
-                          <Feather name="clock" size={14} color="#64748B" />
+                          <Feather name="clock" size={14} color={colors.textSecondary} />
                           <Text style={styles.campDetailTxt}>{camp.duration_days} Days</Text>
                         </View>
                       </View>
                       <View style={styles.campFooter}>
                         <Text style={styles.campSpent}>Cost: ₵{camp.paid_amount}</Text>
                         {camp.status === 'Approved' ? (
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.payBtnSmall}
                             onPress={() => handlePayAd(camp.id)}
                           >
@@ -296,7 +301,7 @@ export default function PromotionsScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., Summer Clearance Sale"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
                 value={adTitle}
                 onChangeText={setAdTitle}
               />
@@ -309,14 +314,14 @@ export default function PromotionsScreen() {
                     setSelectedProduct(null);
                   }}
                 >
-                  <Ionicons name="storefront-outline" size={18} color={campaignType === 'store' ? '#FFF' : '#0C1559'} />
+                  <Ionicons name="storefront-outline" size={18} color={campaignType === 'store' ? colors.textInverse : colors.primary} />
                   <Text style={[styles.typeCardText, campaignType === 'store' && styles.typeCardTextActive]}>Store Ad</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.typeCard, campaignType === 'product' && styles.typeCardActive]}
                   onPress={() => setCampaignType('product')}
                 >
-                  <Ionicons name="pricetag-outline" size={18} color={campaignType === 'product' ? '#FFF' : '#0C1559'} />
+                  <Ionicons name="pricetag-outline" size={18} color={campaignType === 'product' ? colors.textInverse : colors.primary} />
                   <Text style={[styles.typeCardText, campaignType === 'product' && styles.typeCardTextActive]}>Product Ad</Text>
                 </TouchableOpacity>
               </View>
@@ -328,10 +333,10 @@ export default function PromotionsScreen() {
                     style={styles.productPickerTrigger}
                     onPress={() => setProductPickerVisible(true)}
                   >
-                    <Text style={[styles.productPickerText, !selectedProduct && { color: '#94A3B8' }]}>
+                    <Text style={[styles.productPickerText, !selectedProduct && { color: colors.textMuted }]}>
                       {selectedProduct ? selectedProduct.name : 'Choose product to promote'}
                     </Text>
-                    <Ionicons name="chevron-down" size={16} color="#64748B" />
+                    <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </>
               )}
@@ -347,7 +352,7 @@ export default function PromotionsScreen() {
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Select Product</Text>
                       <TouchableOpacity onPress={() => setProductPickerVisible(false)}>
-                        <Ionicons name="close" size={24} color="#0F172A" />
+                        <Ionicons name="close" size={24} color={colors.text} />
                       </TouchableOpacity>
                     </View>
                     <ScrollView style={styles.productList} showsVerticalScrollIndicator={false}>
@@ -371,7 +376,7 @@ export default function PromotionsScreen() {
                               <Text style={styles.productItemPrice}>₵{prod.price}</Text>
                             </View>
                             {selectedProduct?.id === prod.id && (
-                              <Ionicons name="checkmark-circle" size={20} color="#0C1559" />
+                              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
                             )}
                           </TouchableOpacity>
                         ))
@@ -399,19 +404,39 @@ export default function PromotionsScreen() {
                 ))}
               </View>
               <Text style={styles.inputLabel}>Upload Ad Banner</Text>
-              <TouchableOpacity 
-                style={[styles.uploadBox, bannerUri && { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]} 
+              <TouchableOpacity
+                style={[styles.uploadBox, bannerUri && { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]}
                 onPress={handlePickImage}
               >
                 {bannerUri ? (
                   <AppImage uri={bannerUri} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
                 ) : (
                   <>
-                    <Feather name="upload-cloud" size={32} color="#94A3B8" />
-                    <Text style={styles.uploadText}>Tap to upload (1080x400px)</Text>
+                    <Feather name="upload-cloud" size={32} color={colors.textMuted} />
+                    <Text style={styles.uploadText}>Tap to upload banner image</Text>
+                    <Text style={styles.uploadSubText}>Recommended: 1920 × 858 px</Text>
                   </>
                 )}
               </TouchableOpacity>
+              {/* Dimension guide */}
+              <View style={styles.dimGuide}>
+                <View style={styles.dimGuideHeader}>
+                  <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+                  <Text style={styles.dimGuideTitle}>Banner Size Guide</Text>
+                </View>
+                <View style={styles.dimRow}>
+                  <View style={styles.dimDot} />
+                  <Text style={styles.dimText}><Text style={styles.dimBold}>Hero &amp; Sponsored</Text> — 1920 × 858 px (2.24:1)</Text>
+                </View>
+                <View style={styles.dimRow}>
+                  <View style={styles.dimDot} />
+                  <Text style={styles.dimText}><Text style={styles.dimBold}>Compact strip</Text> — 1920 × 400 px (4.8:1)</Text>
+                </View>
+                <View style={styles.dimRow}>
+                  <View style={styles.dimDot} />
+                  <Text style={styles.dimText}>Placement is assigned by admin after approval</Text>
+                </View>
+              </View>
               {/* Checkout Summary */}
               <View style={styles.checkoutBox}>
                 <View style={styles.checkoutRow}>
@@ -436,7 +461,7 @@ export default function PromotionsScreen() {
                     catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
                   }}>
                     <View style={[styles.disclaimerBox, isAdTermsChecked && styles.disclaimerBoxChecked]}>
-                      {isAdTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                      {isAdTermsChecked && <Ionicons name="checkmark" size={13} color={colors.textInverse} />}
                     </View>
                   </TouchableOpacity>
                   <Text style={styles.disclaimerText}>
@@ -453,11 +478,11 @@ export default function PromotionsScreen() {
                 onPress={handleSubmit}
               >
                 {createCampaignMutation.isPending ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color={colors.textInverse} />
                 ) : (
                   <>
                     <Text style={styles.submitBtnText}>Submit for Approval</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                    <Ionicons name="arrow-forward" size={18} color={colors.textInverse} />
                   </>
                 )}
               </TouchableOpacity>
@@ -474,15 +499,15 @@ export default function PromotionsScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   header: { paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   headerTextWrap: { flex: 1 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   headerSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#A3E635' },
-  
+
   tabContainer: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 15, padding: 4, marginBottom: 20 },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
   activeTab: { backgroundColor: '#FFF' },
@@ -491,72 +516,82 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingBottom: 60 },
   // --- Campaign Dashboard Styles ---
   statsRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
-  statCard: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 20, elevation: 2, shadowColor: '#0C1559', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.05, shadowRadius: 8 },
-  statValue: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginTop: 10 },
-  statLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  
-  sectionTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
-  campaignCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#E2E8F0' },
+  statCard: { flex: 1, backgroundColor: colors.surface, padding: 15, borderRadius: 20, elevation: 2, shadowColor: colors.primary, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.05, shadowRadius: 8 },
+  statValue: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: colors.text, marginTop: 10 },
+  statLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 2 },
+
+  sectionTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 15 },
+  campaignCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: colors.borderStrong },
   campHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  campTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', flex: 1 },
+  campTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: colors.text, flex: 1 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   badgeText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
   campBody: { flexDirection: 'row', gap: 15, marginBottom: 15 },
   campDetail: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  campDetailTxt: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  campFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  campSpent: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  campDetailTxt: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary },
+  campFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  campSpent: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
   campClicks: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#10B981' },
   // --- Create Form Styles ---
   formContainer: { paddingBottom: 20 },
   infoBanner: { flexDirection: 'row', backgroundColor: '#E0E7FF', padding: 15, borderRadius: 16, alignItems: 'center', gap: 10, marginBottom: 25 },
   infoText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#3730A3', lineHeight: 18 },
-  
-  inputLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10, marginTop: 10 },
-  input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 15, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', marginBottom: 15 },
-  
+
+  inputLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 10, marginTop: 10 },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 16, padding: 15, fontSize: 14, fontFamily: 'Montserrat-Medium', color: colors.text, marginBottom: 15 },
+
   durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
-  durationPill: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, alignItems: 'center' },
-  durationPillActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  durationText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
-  durationTextActive: { color: '#FFF' },
-  durationPrice: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#84cc16', marginTop: 2 },
+  durationPill: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 16, alignItems: 'center' },
+  durationPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  durationText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.textSecondary },
+  durationTextActive: { color: colors.textInverse },
+  durationPrice: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
   durationPriceActive: { color: '#A3E635' },
-  uploadBox: { height: 120, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-  uploadText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 10 },
-  checkoutBox: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 },
+  // Upload box height matches the 2.24:1 crop aspect the picker enforces
+  uploadBox: { aspectRatio: 2.24, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.borderStrong, borderStyle: 'dashed', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  uploadText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 10 },
+  uploadSubText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 4 },
+  // Dimension guide card
+  dimGuide: { backgroundColor: colors.surface, borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: colors.border },
+  dimGuideHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  dimGuideTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  dimRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+  dimDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary, marginTop: 5 },
+  dimText: { flex: 1, fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, lineHeight: 17 },
+  dimBold: { fontFamily: 'Montserrat-Bold', color: colors.text },
+  checkoutBox: { backgroundColor: colors.surface, padding: 20, borderRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 },
   checkoutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  checkoutLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  checkoutValue: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 15 },
-  totalLabel: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  totalValue: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
-  submitBtnDisabled: { backgroundColor: '#94A3B8' },
-  submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
-  payBtnSmall: { backgroundColor: '#0C1559', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  payBtnTextSmall: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
+  checkoutLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textSecondary },
+  checkoutValue: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 15 },
+  totalLabel: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text },
+  totalValue: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  submitBtn: { flexDirection: 'row', backgroundColor: colors.primary, padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  submitBtnDisabled: { backgroundColor: colors.textMuted },
+  submitBtnText: { color: colors.textInverse, fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  payBtnSmall: { backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  payBtnTextSmall: { color: colors.textInverse, fontSize: 12, fontFamily: 'Montserrat-Bold' },
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  typeCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 15, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, backgroundColor: '#FFF', justifyContent: 'center' },
-  typeCardActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  typeCardText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  typeCardTextActive: { color: '#FFF' },
-  productPickerTrigger: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 15, marginBottom: 15 },
-  productPickerText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '50%', padding: 20 },
+  typeCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 15, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 16, backgroundColor: colors.surface, justifyContent: 'center' },
+  typeCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  typeCardText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  typeCardTextActive: { color: colors.textInverse },
+  productPickerTrigger: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 16, padding: 15, marginBottom: 15 },
+  productPickerText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: colors.text },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '50%', padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.text },
   productList: { marginBottom: 20 },
-  productItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  productItemActive: { backgroundColor: '#F8FAFC' },
+  productItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
+  productItemActive: { backgroundColor: colors.backgroundAlt },
   productItemInfo: { flex: 1 },
-  productItemName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  productItemPrice: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  noProductsText: { textAlign: 'center', color: '#94A3B8', marginVertical: 30, fontFamily: 'Montserrat-Medium' },
+  productItemName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.text },
+  productItemPrice: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 2 },
+  noProductsText: { textAlign: 'center', color: colors.textMuted, marginVertical: 30, fontFamily: 'Montserrat-Medium' },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
-  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  disclaimerBoxChecked: { backgroundColor: '#0C1559' },
-  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
-  disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: colors.primary },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, lineHeight: 18 },
+  disclaimerLink: { color: colors.primary, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 });

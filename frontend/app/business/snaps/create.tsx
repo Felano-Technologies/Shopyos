@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { createSnap, uploadSnapImage } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -10,9 +13,13 @@ import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/servic
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { requestCameraPermissionWithDisclosure, requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function CreateSnapScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,8 +86,8 @@ export default function CreateSnapScreen() {
 
   const handlePickedAsset = (asset: ImagePicker.ImagePickerAsset) => {
     // 1. Check duration limit for videos (60 seconds)
-    const isVid = asset.type === 'video' || 
-                  asset.uri.toLowerCase().endsWith('.mp4') || 
+    const isVid = asset.type === 'video' ||
+                  asset.uri.toLowerCase().endsWith('.mp4') ||
                   asset.uri.toLowerCase().endsWith('.mov') ||
                   asset.uri.toLowerCase().endsWith('.webm') ||
                   asset.uri.toLowerCase().endsWith('.quicktime');
@@ -105,7 +112,7 @@ export default function CreateSnapScreen() {
     setImageUri(asset.uri);
   };
 
-  const isVideo = imageUri?.toLowerCase().endsWith('.mp4') || 
+  const isVideo = imageUri?.toLowerCase().endsWith('.mp4') ||
                   imageUri?.toLowerCase().endsWith('.mov') ||
                   imageUri?.toLowerCase().endsWith('.quicktime') ||
                   imageUri?.toLowerCase().endsWith('.webm');
@@ -144,23 +151,28 @@ export default function CreateSnapScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={28} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Snap</Text>
-        <TouchableOpacity style={styles.postBtn} onPress={handlePost} disabled={loading || !imageUri}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.postBtnTxt}>Post</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      <StatusBar style="light" />
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
+        <SafeAreaView edges={['top']} style={{ width: '100%' }}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Create Snap</Text>
+            <TouchableOpacity style={styles.postBtn} onPress={handlePost} disabled={loading || !imageUri}>
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.textInverse} />
+              ) : (
+                <Text style={styles.postBtnTxt}>Post</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity 
-          style={[styles.imagePicker, imageUri ? styles.imagePickerSelected : null]} 
+        <TouchableOpacity
+          style={[styles.imagePicker, imageUri ? styles.imagePickerSelected : null]}
           onPress={pickImage}
           activeOpacity={0.8}
         >
@@ -179,7 +191,7 @@ export default function CreateSnapScreen() {
             )
           ) : (
             <View style={styles.placeholder}>
-              <Ionicons name="camera-outline" size={40} color="#84cc16" />
+              <Ionicons name="camera-outline" size={40} color={colors.accent} />
               <Text style={styles.placeholderTxt}>Tap to add photo or video{"\n"}(9:16 aspect ratio)</Text>
             </View>
           )}
@@ -190,7 +202,7 @@ export default function CreateSnapScreen() {
           <TextInput
             style={styles.input}
             placeholder="Write something catchy..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             multiline
             maxLength={100}
             value={caption}
@@ -228,7 +240,7 @@ export default function CreateSnapScreen() {
       {loading && (
         <View style={styles.progressOverlay}>
           <View style={styles.progressContainer}>
-            <ActivityIndicator size="large" color="#84cc16" style={{ marginBottom: 16 }} />
+            <ActivityIndicator size="large" color={colors.accent} style={{ marginBottom: 16 }} />
             <Text style={styles.progressText}>
               {uploadProgress === 100
                 ? 'Saving snap...'
@@ -248,39 +260,44 @@ export default function CreateSnapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.backgroundAlt },
   header: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   postBtn: {
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
   },
-  postBtnTxt: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
-  content: { 
+  postBtnTxt: { color: c.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 14 },
+  content: {
     padding: 24,
     alignItems: 'center',
   },
   imagePicker: {
     height: 220,
     aspectRatio: 9 / 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: c.borderStrong,
     borderStyle: 'dashed',
     overflow: 'hidden',
     marginBottom: 24,
@@ -298,45 +315,46 @@ const styles = StyleSheet.create({
   },
   previewImage: { width: '100%', height: '100%' },
   placeholder: { justifyContent: 'center', alignItems: 'center', padding: 16 },
-  placeholderTxt: { 
-    marginTop: 12, 
-    fontSize: 12, 
-    fontFamily: 'Montserrat-SemiBold', 
-    color: '#64748B', 
+  placeholderTxt: {
+    marginTop: 12,
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
   },
-  inputContainer: { 
+  inputContainer: {
     width: '100%',
     marginBottom: 20,
   },
-  label: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#334155', marginBottom: 8 },
+  label: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 8 },
   input: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
     borderRadius: 12,
     padding: 16,
     height: 100,
     textAlignVertical: 'top',
     fontSize: 15,
     fontFamily: 'Montserrat-Medium',
+    color: c.text,
   },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 16, paddingHorizontal: 4 },
   disclaimerCheckbox: { padding: 4 },
-  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  disclaimerBoxChecked: { backgroundColor: '#0C1559' },
-  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
-  disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: c.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: c.primary },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, lineHeight: 18 },
+  disclaimerLink: { color: c.primary, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   progressOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999,
   },
   progressContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 30,
     width: '80%',
@@ -350,20 +368,20 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 16,
     textAlign: 'center',
   },
   progressBarBg: {
     width: '100%',
     height: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     borderRadius: 3,
   }
 });

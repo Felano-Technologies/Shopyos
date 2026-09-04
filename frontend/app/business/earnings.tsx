@@ -160,7 +160,7 @@ const EarningsScreen = () => {
           style={{ backgroundColor: colors.primary, paddingVertical: rs(10), paddingHorizontal: rs(24), borderRadius: rs(12) }}
           onPress={() => { setLoading(true); loadData(); }}
         >
-          <Text style={{ color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) }}>{/* white text on the fixed-brand retry button */}Retry</Text>
+          <Text style={{ color: colors.textInverse, fontFamily: 'Montserrat-Bold', fontSize: rf(13) }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -315,7 +315,7 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   },
   toggleBtnOn: { backgroundColor: c.primary, borderColor: c.primary },
   toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: c.textSecondary },
-  toggleTxtOn: { color: '#fff' }, // white text on the fixed-brand active toggle
+  toggleTxtOn: { color: c.textInverse },
   card: {
     backgroundColor: c.surface, borderRadius: rs(18), padding: rs(14), marginBottom: rs(16),
     elevation: 3, shadowColor: c.primary,

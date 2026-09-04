@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, FlatList, RefreshControl, Alert, TextInput,
@@ -17,6 +17,8 @@ import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 
@@ -32,6 +34,8 @@ function statusColor(status: string) {
 
 export default function PayoutScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
@@ -167,7 +171,7 @@ export default function PayoutScreen() {
   if (isChecking || isLoadingBusinesses || loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -183,7 +187,7 @@ export default function PayoutScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={colors.headerGradient}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={styles.headerContainer}
         >
@@ -201,7 +205,7 @@ export default function PayoutScreen() {
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         >
           {hasPayoutMethod ? (
             <View style={styles.contentContainer}>
@@ -282,7 +286,7 @@ export default function PayoutScreen() {
               <View style={styles.methodCard}>
                 <View style={styles.methodRow}>
                   <View style={styles.methodIcon}>
-                    <FontAwesome5 name="university" size={18} color="#0C1559" />
+                    <FontAwesome5 name="university" size={18} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.methodTitle}>Payout Method</Text>
@@ -299,17 +303,17 @@ export default function PayoutScreen() {
 
               {/* Search */}
               <View style={styles.searchBar}>
-                <Feather name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                <Feather name="search" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchInput}
                   placeholder="Search by amount or reference..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
                 {searchQuery !== '' && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                    <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -335,7 +339,7 @@ export default function PayoutScreen() {
                 contentContainerStyle={styles.historyList}
                 ListEmptyComponent={
                   <View style={styles.emptyHistory}>
-                    <Feather name="inbox" size={32} color="#CBD5E1" />
+                    <Feather name="inbox" size={32} color={colors.textMuted} />
                     <Text style={styles.emptyHistoryText}>No payouts match your filter</Text>
                     <Text style={styles.emptyHistorySubText}>Payouts happen instantly on delivery</Text>
                   </View>
@@ -345,7 +349,7 @@ export default function PayoutScreen() {
           ) : (
             <View style={styles.emptyStateContainer}>
               <View style={styles.emptyIconCircle}>
-                <MaterialCommunityIcons name="bank-remove" size={64} color="#CBD5E1" />
+                <MaterialCommunityIcons name="bank-remove" size={64} color={colors.textMuted} />
               </View>
               <Text style={styles.emptyTitle}>No Payout Method Set</Text>
               <Text style={styles.emptyText}>
@@ -356,7 +360,7 @@ export default function PayoutScreen() {
                 onPress={() => router.push('/business/businessRegistration')}
               >
                 <Text style={styles.actionBtnText}>Set Up Payout Method</Text>
-                <Feather name="arrow-right" size={18} color="#FFF" />
+                <Feather name="arrow-right" size={18} color={colors.textInverse} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
                 <Text style={styles.secondaryBtnText}>Do this later</Text>
@@ -376,15 +380,15 @@ export default function PayoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundAlt },
   safeArea: { flex: 1 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
     paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30,
-    marginBottom: 10, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 8 },
+    marginBottom: 10, shadowColor: colors.primary, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2, shadowRadius: 12, elevation: 8,
   },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 10 },
@@ -392,9 +396,9 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   contentContainer: { paddingHorizontal: 20, marginTop: 10 },
   balanceCard: {
-    backgroundColor: '#0C1559', borderRadius: 20, padding: 24, marginBottom: 16,
+    backgroundColor: colors.headerGradient[0], borderRadius: 20, padding: 24, marginBottom: 16,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    shadowColor: '#0C1559', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+    shadowColor: colors.headerGradient[0], shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
   balanceLabel: { color: '#94A3B8', fontSize: 12, fontFamily: 'Montserrat-Medium', marginBottom: 4 },
   balanceAmount: { color: '#FFF', fontSize: 28, fontFamily: 'Montserrat-Bold' },
@@ -402,57 +406,57 @@ const styles = StyleSheet.create({
   lockedHint: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 4 },
   withdrawBtn: { backgroundColor: '#A3E635', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center' },
   withdrawText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 11, textAlign: 'center' },
-  amountInputCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
-  amountInputLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginBottom: 10 },
+  amountInputCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.borderStrong },
+  amountInputLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.textSecondary, marginBottom: 10 },
   amountInputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  currencySymbol: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginRight: 6 },
-  amountInput: { flex: 1, borderBottomWidth: 2, borderBottomColor: '#0C1559', fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559', paddingBottom: 4 },
-  confirmBtn: { backgroundColor: '#0C1559', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, marginLeft: 12 },
-  confirmBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 13 },
-  cancelLink: { color: '#94A3B8', fontFamily: 'Montserrat-Medium', fontSize: 12, textAlign: 'center' },
+  currencySymbol: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.primary, marginRight: 6 },
+  amountInput: { flex: 1, borderBottomWidth: 2, borderBottomColor: colors.primary, fontSize: 22, fontFamily: 'Montserrat-Bold', color: colors.primary, paddingBottom: 4 },
+  confirmBtn: { backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, marginLeft: 12 },
+  confirmBtnText: { color: colors.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  cancelLink: { color: colors.textMuted, fontFamily: 'Montserrat-Medium', fontSize: 12, textAlign: 'center' },
   scheduleCard: { backgroundColor: '#EFF6FF', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   scheduleText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#1E293B', flex: 1 },
-  methodCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' },
+  methodCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.borderStrong },
   methodRow: { flexDirection: 'row', alignItems: 'center' },
-  methodIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  methodTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  methodSub: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  editText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 12 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 12 },
+  methodIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  methodTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.text },
+  methodSub: { fontSize: 12, color: colors.textSecondary, fontFamily: 'Montserrat-Medium' },
+  editText: { color: colors.primary, fontFamily: 'Montserrat-Bold', fontSize: 12 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 12 },
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12,
-    paddingHorizontal: 12, height: 44, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12,
+    paddingHorizontal: 12, height: 44, marginBottom: 12, borderWidth: 1, borderColor: colors.borderStrong,
   },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#1E293B' },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Regular', color: colors.text },
   filtersRow: { marginBottom: 12 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9', marginRight: 8 },
-  filterChipActive: { backgroundColor: '#0C1559' },
-  filterChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
-  filterChipTextActive: { color: '#FFF' },
-  historyList: { backgroundColor: '#FFF', borderRadius: 16, padding: 5, borderWidth: 1, borderColor: '#E2E8F0' },
-  historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.border, marginRight: 8 },
+  filterChipActive: { backgroundColor: colors.primary },
+  filterChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.textSecondary },
+  filterChipTextActive: { color: colors.textInverse },
+  historyList: { backgroundColor: colors.surface, borderRadius: 16, padding: 5, borderWidth: 1, borderColor: colors.borderStrong },
+  historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   historyLeft: { flexDirection: 'row', alignItems: 'flex-start' },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 10, marginTop: 5 },
-  historyDate: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  historyDate: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: colors.text },
   typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   typeBadgeText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
   historyStatus: { fontSize: 11, fontFamily: 'Montserrat-Bold', marginTop: 2 },
-  historyRef: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Regular', marginTop: 2, maxWidth: 160 },
-  historyAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  historyRef: { fontSize: 10, color: colors.textMuted, fontFamily: 'Montserrat-Regular', marginTop: 2, maxWidth: 160 },
+  historyAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.primary },
   emptyHistory: { alignItems: 'center', paddingVertical: 30 },
-  emptyHistoryText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 10 },
-  emptyHistorySubText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#CBD5E1', marginTop: 4 },
+  emptyHistoryText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: colors.textMuted, marginTop: 10 },
+  emptyHistorySubText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: colors.textMuted, marginTop: 4 },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, marginTop: 60 },
-  emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  emptyTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 12, textAlign: 'center' },
-  emptyText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  actionBtn: { flexDirection: 'row', backgroundColor: '#0C1559', paddingVertical: 16, paddingHorizontal: 30, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginBottom: 16 },
-  actionBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  emptyTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 12, textAlign: 'center' },
+  emptyText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  actionBtn: { flexDirection: 'row', backgroundColor: colors.primary, paddingVertical: 16, paddingHorizontal: 30, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginBottom: 16 },
+  actionBtnText: { color: colors.textInverse, fontSize: 15, fontFamily: 'Montserrat-Bold' },
   secondaryBtn: { padding: 12 },
-  secondaryBtnText: { color: '#64748B', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  secondaryBtnText: { color: colors.textSecondary, fontSize: 14, fontFamily: 'Montserrat-Bold' },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#A3E635', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   disclaimerBoxChecked: { backgroundColor: '#A3E635' },
-  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', lineHeight: 18 },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textMuted, lineHeight: 18 },
   disclaimerLink: { color: '#A3E635', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 });

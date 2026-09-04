@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Dimensions, Linking, Alert, ActivityIndicator, RefreshControl,
@@ -17,21 +17,32 @@ import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string;
+  border: string; borderStrong: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+});
+
 const STATUS_THEME: Record<string, { color: string; bg: string; bar: string; label: string }> = {
   pending:          { color: '#D97706', bg: '#FEF3C7', bar: '#F59E0B', label: 'Awaiting Payment' },
   paid:             { color: '#059669', bg: '#DCFCE7', bar: '#22c55e', label: 'Payment Received'  },
@@ -41,7 +52,7 @@ const STATUS_THEME: Record<string, { color: string; bg: string; bar: string; lab
   delivered:        { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', label: 'Delivered'          },
   cancelled:        { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', label: 'Cancelled'         },
 };
-const getTheme = (s: string) =>
+const getTheme = (s: string, C: LegacyPalette) =>
   STATUS_THEME[s.toLowerCase()] ?? { color: C.muted, bg: '#F1F5F9', bar: '#94A3B8', label: s };
 export default function OrderDetailsScreen() {
   const router = useRouter();
@@ -49,6 +60,9 @@ export default function OrderDetailsScreen() {
   const { id }  = useLocalSearchParams();
   // ── ALL HOOKS FIRST ────────────────────────────────────────────────────────
   const queryClient = useQueryClient();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
   const { isChecking: isGuardChecking, isVerified: isGuardVerified } = useSellerGuard();
   const [order,         setOrder]         = useState<any>(null);
   const [loading,       setLoading]       = useState(true);
@@ -168,7 +182,7 @@ export default function OrderDetailsScreen() {
     return (
       <View style={S.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+        <LinearGradient colors={colors.headerGradient} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
           <View style={S.hdrRow}>
             <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" style={S.backBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -182,16 +196,16 @@ export default function OrderDetailsScreen() {
       </View>
     );
   }
-  const theme = getTheme(currentStatus);
+  const theme = getTheme(currentStatus, C);
   const isPaid = currentStatus === 'paid' || order.payment.paymentStatus === 'success';
   const updateStatus = async (newStatus: string) => {
     try {
       setUpdating(true);
       await updateOrderStatus(id as string, newStatus);
       await fetchOrder();
-      
+
       queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
-      
+
       CustomInAppToast.show({ type: 'success', title: 'Status updated', message: `Order is now ${newStatus.replaceAll('_', ' ')}` });
     } catch (e: any) {
       CustomInAppToast.show({ type: 'error', title: 'Update failed', message: e.message });
@@ -228,7 +242,7 @@ export default function OrderDetailsScreen() {
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
-            colors={[C.navy, C.navyMid]}
+            colors={colors.headerGradient}
             style={[S.header, { paddingTop: insets.top + rs(12) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
@@ -273,7 +287,7 @@ export default function OrderDetailsScreen() {
           {!['delivered', 'cancelled'].includes(currentStatus) && (
             <View style={S.section}>
               <Text style={S.sectionLbl}>Workflow Actions</Text>
-              
+
               {currentStatus === 'ready_for_pickup' && (
                 <View style={S.infoNote}>
                   <Ionicons name="time-outline" size={rs(18)} color="#7C3AED" />
@@ -509,7 +523,7 @@ export default function OrderDetailsScreen() {
     </View>
   );
 }
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   scroll: { flexGrow: 1 },
@@ -568,7 +582,7 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-  divider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(14) },
+  divider: { height: 0.5, backgroundColor: C.border, marginVertical: rs(14) },
   // Actions
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(10) },
   actionBtn: {
@@ -590,12 +604,12 @@ const S = StyleSheet.create({
   actionBtns:    { flexDirection: 'row', gap: rs(8) },
   iconBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 0.5, borderColor: '#E2E8F0',
+    backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 0.5, borderColor: C.borderStrong,
   },
   addressRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(6) },
   addressTitle:{ fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body },
-  addressTxt:  { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: rf(22) },
+  addressTxt:  { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.muted, lineHeight: rf(22) },
   mapBtn: {
     flexDirection: 'row', alignItems: 'center', gap: rs(5), marginTop: rs(12),
     alignSelf: 'flex-start', backgroundColor: '#EEF2FF',
@@ -604,7 +618,7 @@ const S = StyleSheet.create({
   mapBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.navy },
   // Items
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
-  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
+  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: C.bg },
   itemName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(3) },
   itemMeta: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   itemTotal: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
@@ -616,9 +630,9 @@ const S = StyleSheet.create({
   totalVal:   { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.navy },
   methodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(8),
-    backgroundColor: '#F8FAFC', padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
+    backgroundColor: C.bg, padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
   },
-  methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#475569' },
+  methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.muted },
   infoNote: {
     flexDirection: 'row', alignItems: 'center', gap: rs(8),
     backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE',

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert, Dimensions, Switch, ActivityIndicator,
@@ -16,21 +16,30 @@ import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { APP_VERSION } from '@/constants/appVersion';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string; border: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.borderStrong,
+});
+
 const STATUS_INFO: Record<string, { text: string; bg: string; color: string; icon: any }> = {
   verified: { text: 'Verified Merchant',    bg: '#DCFCE7', color: '#15803D', icon: 'checkmark-circle' },
   pending:  { text: 'Verification Pending', bg: '#FEF9C3', color: '#854D0E', icon: 'time'             },
@@ -41,6 +50,9 @@ const getStatus = (s?: string) =>
 export default function BusinessSettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [notificationsOn, setNotificationsOn] = useState(true);
@@ -104,7 +116,7 @@ export default function BusinessSettingsScreen() {
           {/* ── Header ─────────────────────────────────────────────────── */}
           <View style={{ position: 'relative', zIndex: 10 }}>
             <LinearGradient
-              colors={[C.navy, C.navyMid]}
+              colors={colors.headerGradient}
               style={[S.header, { paddingTop: insets.top + rs(20), paddingBottom: rs(90) }]}
             >
               <View style={S.hdrGlow} pointerEvents="none" />
@@ -264,7 +276,7 @@ export default function BusinessSettingsScreen() {
             <Text style={S.groupLabel}>Support</Text>
             <SettingGroup>
               <SettingRow
-                icon="alert-circle-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                icon="alert-circle-outline" iconColor={C.muted} iconBg={C.border}
                 label="Raise a Report"
                 onPress={() => router.push('/support' as any)}
                 onRestrictedAction={handleRestrictedAction}
@@ -272,7 +284,7 @@ export default function BusinessSettingsScreen() {
               />
               <Divider />
               <SettingRow
-                icon="list-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                icon="list-outline" iconColor={C.muted} iconBg={C.border}
                 label="My Reports"
                 onPress={() => router.push('/support/my-tickets' as any)}
                 onRestrictedAction={handleRestrictedAction}
@@ -280,7 +292,7 @@ export default function BusinessSettingsScreen() {
               />
               <Divider />
               <SettingRow
-                icon="help-circle-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                icon="help-circle-outline" iconColor={C.muted} iconBg={C.border}
                 label="Help Center"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/helpCenter' as any)}
@@ -289,7 +301,7 @@ export default function BusinessSettingsScreen() {
               />
               <Divider />
               <SettingRow
-                icon="chatbubble-ellipses-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                icon="chatbubble-ellipses-outline" iconColor={C.muted} iconBg={C.border}
                 label="Contact Support"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/contactUs' as any)}
@@ -336,7 +348,7 @@ export default function BusinessSettingsScreen() {
   );
 }
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
@@ -383,7 +395,7 @@ const S = StyleSheet.create({
   profileLoading: { paddingVertical: rs(20), alignItems: 'center' },
   profileInner:   { flexDirection: 'row', alignItems: 'center' },
   avatarWrap:    { position: 'relative', marginRight: rs(14) },
-  avatar:        { width: rs(58), height: rs(58), borderRadius: rs(14), backgroundColor: '#F1F5F9' },
+  avatar:        { width: rs(58), height: rs(58), borderRadius: rs(14), backgroundColor: C.border },
   avatarFallback:{ backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
   avatarInitials:{ fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: C.lime },
   verifiedDot: {
@@ -403,7 +415,7 @@ const S = StyleSheet.create({
   statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
   editBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: '#E2E8F0',
+    backgroundColor: C.bg, borderWidth: 0.5, borderColor: C.border,
     justifyContent: 'center', alignItems: 'center',
   },
   // ── Body ───────────────────────────────────────────────────────────────────
@@ -465,8 +477,8 @@ const S = StyleSheet.create({
     width: rs(36), height: rs(36), borderRadius: rs(11),
     justifyContent: 'center', alignItems: 'center',
   },
-  settingLabel: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
-  divider:      { height: 0.5, backgroundColor: '#F1F5F9', marginLeft: rs(62) },
+  settingLabel: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body },
+  divider:      { height: 0.5, backgroundColor: C.border, marginLeft: rs(62) },
   // ── Logout ─────────────────────────────────────────────────────────────────
   logoutBtn: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
@@ -491,6 +503,9 @@ const SettingRow = ({
   icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
   onRestrictedAction, onNotificationToggle,
 }: SettingRowProps) => {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
   const pressTarget = disabled ? onRestrictedAction : onPress;
   const handlePress = isToggle ? undefined : pressTarget;
   return (
@@ -500,7 +515,7 @@ const SettingRow = ({
       activeOpacity={isToggle ? 1 : 0.72}
     >
       <View style={S.settingLeft}>
-        <View style={[S.settingIconWrap, { backgroundColor: disabled ? '#E2E8F0' : iconBg }]}>
+        <View style={[S.settingIconWrap, { backgroundColor: disabled ? C.border : iconBg }]}>
           <Ionicons name={icon} size={rs(18)} color={disabled ? C.subtle : iconColor} />
         </View>
         <Text style={[S.settingLabel, isDanger && { color: '#EF4444' }, disabled && { color: C.subtle }]}>{label}</Text>
@@ -516,9 +531,9 @@ const SettingRow = ({
             onNotificationToggle();
           }}
           disabled={disabled}
-          trackColor={{ false: '#E2E8F0', true: C.navy }}
+          trackColor={{ false: C.border, true: C.navy }}
           thumbColor="#fff"
-          ios_backgroundColor="#E2E8F0"
+          ios_backgroundColor={C.border}
         />
       ) : (
         <Ionicons name={disabled ? 'lock-closed-outline' : 'chevron-forward'} size={rs(16)} color={isDanger ? '#EF4444' : C.subtle} />
@@ -527,8 +542,14 @@ const SettingRow = ({
   );
 };
 
-const SettingGroup = ({ children }: Readonly<{ children: React.ReactNode }>) => (
-  <View style={S.group}>{children}</View>
-);
+const SettingGroup = ({ children }: Readonly<{ children: React.ReactNode }>) => {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(buildC(colors)), [colors]);
+  return <View style={S.group}>{children}</View>;
+};
 
-const Divider = () => <View style={S.divider} />;
+const Divider = () => {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(buildC(colors)), [colors]);
+  return <View style={S.divider} />;
+};

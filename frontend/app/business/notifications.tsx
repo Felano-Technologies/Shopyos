@@ -15,44 +15,75 @@ import {
 import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  badgeBg: string;
+  textInverse: string;
 };
 
-const ICON_CFG: Record<string, { name: any; color: string; bg: string; bar: string }> = {
-  order:     { name: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' },
-  message:   { name: 'mail',           color: '#8B5CF6', bg: '#F5F3FF', bar: '#8B5CF6' },
-  payment:   { name: 'credit-card',    color: '#10B981', bg: '#ECFDF5', bar: '#10B981' },
-  alert:     { name: 'alert-triangle', color: '#D97706', bg: '#FFFBEB', bar: '#F59E0B' },
-  success:   { name: 'check-circle',   color: '#059669', bg: '#ECFDF5', bar: '#84cc16' },
-  info:      { name: 'info',           color: C.muted,   bg: '#F1F5F9', bar: C.navy    },
-};
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
+}
 
-const getIcon = (type: string) => {
+type IconCfgEntry = { name: any; color: string; bg: string; bar: string };
+
+// Category icon tints — fixed brand/status accents per notification type,
+// self-contained pale-badge pairs (intentionally not tokenized), except
+// "info" which falls back to neutral theme tokens.
+function buildIconCfg(C: LegacyPalette): Record<string, IconCfgEntry> {
+  return {
+    order:   { name: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' },
+    message: { name: 'mail',           color: '#8B5CF6', bg: '#F5F3FF', bar: '#8B5CF6' },
+    payment: { name: 'credit-card',    color: '#10B981', bg: '#ECFDF5', bar: '#10B981' },
+    alert:   { name: 'alert-triangle', color: '#D97706', bg: '#FFFBEB', bar: '#F59E0B' },
+    success: { name: 'check-circle',   color: '#059669', bg: '#ECFDF5', bar: '#84cc16' },
+    info:    { name: 'info',           color: C.muted,   bg: C.border,  bar: C.navy    },
+  };
+}
+
+const getIcon = (type: string, cfg: Record<string, IconCfgEntry>) => {
   const t = type?.toLowerCase() || '';
-  if (t.startsWith('order') || t.includes('purchase') || t === 'new_order') return ICON_CFG.order;
-  if (t.startsWith('message') || t.includes('chat') || t.startsWith('new_message')) return ICON_CFG.message;
-  if (t.startsWith('payment') || t.includes('payout') || t.includes('escrow') || t === 'payout_released') return ICON_CFG.payment;
-  if (t.startsWith('low_stock') || t.includes('alert') || t.includes('warning')) return ICON_CFG.alert;
-  if (t.includes('success') || t.includes('approved') || t.includes('verification')) return ICON_CFG.success;
-  
-  return ICON_CFG[t] ?? ICON_CFG.info;
+  if (t.startsWith('order') || t.includes('purchase') || t === 'new_order') return cfg.order;
+  if (t.startsWith('message') || t.includes('chat') || t.startsWith('new_message')) return cfg.message;
+  if (t.startsWith('payment') || t.includes('payout') || t.includes('escrow') || t === 'payout_released') return cfg.payment;
+  if (t.startsWith('low_stock') || t.includes('alert') || t.includes('warning')) return cfg.alert;
+  if (t.includes('success') || t.includes('approved') || t.includes('verification')) return cfg.success;
+
+  return cfg[t] ?? cfg.info;
 };
 
 function NotificationsEmpty() {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
   return (
     <View style={S.emptyWrap}>
       <View style={S.emptyCircle}>
@@ -67,6 +98,10 @@ function NotificationsEmpty() {
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
+  const iconCfg = useMemo(() => buildIconCfg(C), [C]);
 
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified }  = useSellerGuard();
@@ -139,10 +174,10 @@ export default function NotificationsScreen() {
         <Text style={S.sectionPillTxt}>{title}</Text>
       </View>
     </View>
-  ), []);
+  ), [S]);
 
   const renderItem = useCallback(({ item, index, section }: any) => {
-    const cfg        = getIcon(item.type);
+    const cfg        = getIcon(item.type, iconCfg);
     const isLast     = index === section.data.length - 1;
     const isUnread   = !isRead(item.raw);
 
@@ -185,7 +220,7 @@ export default function NotificationsScreen() {
         {isUnread && <View style={S.unreadDot} />}
       </TouchableOpacity>
     );
-  }, [isRead, handleItemPress]);
+  }, [isRead, handleItemPress, iconCfg, S]);
 
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
@@ -204,7 +239,7 @@ export default function NotificationsScreen() {
 
         {/* ── Header ─────────────────────────────────────────────────── */}
         <LinearGradient
-          colors={[C.navy, C.navyMid]}
+          colors={colors.headerGradient}
           style={[S.header, { paddingTop: insets.top + rs(12) }]}
         >
           <View style={S.hdrGlow} pointerEvents="none" />
@@ -255,7 +290,7 @@ export default function NotificationsScreen() {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
@@ -300,7 +335,7 @@ const S = StyleSheet.create({
   // Section header
   sectionHeaderWrap: { alignItems: 'center', marginTop: rs(18), marginBottom: rs(10) },
   sectionPill: {
-    backgroundColor: 'rgba(12,21,89,0.08)',
+    backgroundColor: C.badgeBg,
     paddingHorizontal: rs(14), paddingVertical: rs(4), borderRadius: rs(20),
   },
   sectionPillTxt: {
@@ -317,7 +352,7 @@ const S = StyleSheet.create({
   },
   cardUnread: {
     // Very subtle tint so unread stands out without being garish
-    backgroundColor: '#FAFBFF',
+    backgroundColor: C.badgeBg,
   },
   accentBar: {
     position: 'absolute', left: 0, top: 0, bottom: 0, width: rs(3),
@@ -333,11 +368,11 @@ const S = StyleSheet.create({
   },
   textWrap:  { flex: 1 },
   titleRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(4) },
-  cardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: '#334155', flex: 1, marginRight: rs(8) },
+  cardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted, flex: 1, marginRight: rs(8) },
   cardTitleUnread: { fontFamily: 'Montserrat-Bold', color: C.body },
   timeTxt:   { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, flexShrink: 0 },
   messageTxt:    { fontSize: rf(12), fontFamily: 'Montserrat-Regular', lineHeight: rf(18) },
-  messageUnread: { color: '#475569' },
+  messageUnread: { color: C.muted },
   messageRead:   { color: C.subtle },
 
   // Unread dot — top-right corner
@@ -352,7 +387,7 @@ const S = StyleSheet.create({
   emptyWrap:   { alignItems: 'center', paddingTop: rs(80), paddingHorizontal: rs(40) },
   emptyCircle: {
     width: rs(90), height: rs(90), borderRadius: rs(45),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(18),
+    backgroundColor: C.badgeBg, justifyContent: 'center', alignItems: 'center', marginBottom: rs(18),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },

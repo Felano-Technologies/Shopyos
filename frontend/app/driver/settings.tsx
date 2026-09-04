@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -16,30 +16,36 @@ import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 // removed useCloudinaryUpload import
 function SettingRow({ icon, label, value, onPress }: Readonly<{ icon: any; label: string; value?: string; onPress?: () => void }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowLeft}>
         <View style={styles.iconCircle}>
-          <Feather name={icon} size={20} color="#0C1559" />
+          <Feather name={icon} size={20} color={colors.primary} />
         </View>
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
       <View style={styles.rowRight}>
         <Text style={styles.rowValue}>{value}</Text>
-        <Feather name="chevron-right" size={18} color="#94A3B8" />
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
   );
 }
 
 function ToggleRow({ icon, label, value, onToggle, description }: Readonly<{ icon: any; label: string; value: boolean; onToggle: (v: boolean) => void; description?: string }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
         <View style={styles.iconCircle}>
-          <Feather name={icon} size={20} color="#0C1559" />
+          <Feather name={icon} size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowLabel}>{label}</Text>
@@ -49,8 +55,8 @@ function ToggleRow({ icon, label, value, onToggle, description }: Readonly<{ ico
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
-        thumbColor={value ? '#0C1559' : '#CBD5E1'}
+        trackColor={{ false: colors.borderStrong, true: colors.accent }}
+        thumbColor={value ? colors.primary : colors.textMuted}
       />
     </View>
   );
@@ -59,6 +65,8 @@ function ToggleRow({ icon, label, value, onToggle, description }: Readonly<{ ico
 export default function DriverSettings() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const [shareLiveLocation, setShareLiveLocation] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -198,14 +206,14 @@ export default function DriverSettings() {
   };
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Fixed Header --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.navBar}>
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="#A3E635" />
+              <Ionicons name="arrow-back" size={24} color={colors.accent} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Driver Profile</Text>
             <View style={{ width: 24 }} />
@@ -213,7 +221,7 @@ export default function DriverSettings() {
           <View style={styles.profileCard}>
             {saving || uploading ? (
               <View style={[styles.avatarWrapper, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#A3E635" />
+                <ActivityIndicator size="large" color={colors.accent} />
               </View>
             ) : (
               <TappableAvatar
@@ -296,10 +304,10 @@ export default function DriverSettings() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     paddingBottom: 30,
@@ -310,12 +318,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, color: '#FFF', fontFamily: 'Montserrat-Bold' },
   profileCard: { alignItems: 'center' },
   avatarWrapper: { position: 'relative', marginBottom: 10 },
-  avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: '#A3E635', backgroundColor: '#FFF' },
+  avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: colors.accent, backgroundColor: colors.surface },
   cameraBadge: {
     position: 'absolute', bottom: 0, right: 0,
-    backgroundColor: '#A3E635', width: 28, height: 28,
+    backgroundColor: colors.accent, width: 28, height: 28,
     borderRadius: 14, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: '#0C1559',
+    borderWidth: 2, borderColor: colors.headerGradient[0],
   },
   name: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF', marginBottom: 5 },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 15 },
@@ -323,17 +331,17 @@ const styles = StyleSheet.create({
   // Scroll Layout
   scrollView: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 120 },
-  sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 10, marginTop: 10, textTransform: 'uppercase' },
-  section: { backgroundColor: '#FFF', borderRadius: 16, padding: 5, marginBottom: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.textSecondary, marginBottom: 10, marginTop: 10, textTransform: 'uppercase' },
+  section: { backgroundColor: colors.surface, borderRadius: 16, padding: 5, marginBottom: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  iconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  rowLabel: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
-  rowDescription: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  iconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  rowLabel: { fontSize: 15, color: colors.text, fontFamily: 'Montserrat-Medium' },
+  rowDescription: { fontSize: 12, color: colors.textSecondary, fontFamily: 'Montserrat-Regular', marginTop: 2 },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
-  rowValue: { fontSize: 14, color: '#64748B', marginRight: 8, fontFamily: 'Montserrat-Regular' },
+  rowValue: { fontSize: 14, color: colors.textSecondary, marginRight: 8, fontFamily: 'Montserrat-Regular' },
   shopBtn: {
-    backgroundColor: '#EFF6FF', padding: 16, borderRadius: 16, alignItems: 'center',
+    backgroundColor: colors.border, padding: 16, borderRadius: 16, alignItems: 'center',
     marginTop: 20, marginBottom: 8, flexDirection: 'row', justifyContent: 'center', gap: 8,
   },
   shopBtnText: { color: '#1D4ED8', fontFamily: 'Montserrat-Bold', fontSize: 16 },

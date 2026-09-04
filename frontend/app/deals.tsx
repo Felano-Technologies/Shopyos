@@ -131,11 +131,6 @@ export default function DealsScreen() {
                 <Text style={styles.tagText}>{item.tag}</Text>
             </View>
         )}
-
-        {/* Favorite Icon */}
-        <TouchableOpacity style={styles.favBtn}>
-            <Ionicons name="heart-outline" size={18} color={colors.primary} />
-        </TouchableOpacity>
       </View>
 
       {/* Info Section */}
@@ -349,20 +344,6 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     color: '#FFF', // white text on the dark tag overlay
     fontSize: 10,
     fontFamily: 'Montserrat-Medium',
-  },
-  favBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: c.surface,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
 
   // Info

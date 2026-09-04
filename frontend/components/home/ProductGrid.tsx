@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Dimensions, ActivityIndicator,
+  Dimensions, ActivityIndicator, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +70,115 @@ export function buildGridItems(products: any[], injectedAds: any[] = []): GridLi
     }
   });
   return items;
+}
+
+// ─── Explore feed: full-width spotlight & store cards ───────────────────────
+// Interspersed into the virtualized, 2-column Explore feed (home.tsx) to keep
+// scrolling engaging without touching the existing product-card grid at all.
+// A numColumns=2 FlatList always groups items into row-pairs by index, so a
+// full-width item must be paired with an invisible 'spacer' to complete its
+// row — buildExploreItems handles that pairing on top of buildGridItems.
+export type SpotlightListItem = { type: 'spotlight'; data: any; key: string };
+export type StoreSpotlightListItem = {
+  type: 'store'; products: any[]; storeName: string; storeLogo?: string | null; key: string;
+};
+export type SpacerListItem = { type: 'spacer'; key: string };
+export type ExploreListItem = GridListItem | SpotlightListItem | StoreSpotlightListItem | SpacerListItem;
+
+const SPOTLIGHT_EVERY = 9;
+const STORE_EVERY = 13;
+
+// Store id shows up under different keys depending on which backend endpoint
+// produced the item: recommendation/trending endpoints return `store_id`
+// directly, while the plain product-listing endpoint (used by Recently Added
+// and the Explore feed) only returns `businessId` (which IS the store id,
+// just named differently) and a `store` object with no id field at all. Fall
+// back to the store's slug/name as a last-resort grouping key so items from
+// that listing endpoint can still be grouped even with no real id present.
+export function getStoreId(item: any) {
+  return (
+    item?.store_id || item?.businessId || item?.store?.id || item?.store?._id ||
+    item?.store?.slug || item?.store?.store_name || item?.store?.name || null
+  );
+}
+
+// Groups a product pool by store and returns the best-stocked store found
+// (>= minCount items) as a ready-to-render store-spotlight payload, or null
+// if no store in the pool clears that bar. Used both by the interspersed
+// Explore-feed store card and the static between-sections spotlight below.
+export function pickStoreGroup(
+  products: any[],
+  getStoreName: (item: any) => string = defaultStoreName,
+  minCount = 1,
+): { storeName: string; storeLogo: string | null; products: any[] } | null {
+  const groups = new Map<string, any[]>();
+  products.forEach((p) => {
+    const id = getStoreId(p);
+    if (!id) return;
+    const arr = groups.get(id) || [];
+    arr.push(p);
+    groups.set(id, arr);
+  });
+  const eligible: any[][] = [];
+  groups.forEach((arr) => { if (arr.length >= minCount) eligible.push(arr); });
+  if (!eligible.length) return null;
+  // Rotate which store gets featured day-to-day instead of always the same
+  // (largest-catalog) one, so the spotlight isn't stuck on one seller.
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  const chosen = eligible[dayIndex % eligible.length];
+  const sample = chosen.slice(0, 3);
+  return {
+    storeName: getStoreName(sample[0]),
+    storeLogo: sample[0]?.store?.logo_url || sample[0]?.store_logo_url || null,
+    products: sample,
+  };
+}
+
+export function buildExploreItems(
+  products: any[],
+  injectedAds: any[] = [],
+  getStoreName: (item: any) => string = defaultStoreName,
+): ExploreListItem[] {
+  const base = buildGridItems(products, injectedAds);
+  const out: ExploreListItem[] = [];
+  let col: 0 | 1 = 0; // 0 = next item starts a new row, 1 = next item fills the current row's 2nd slot
+  let productCount = 0;
+
+  const closeRowIfOpen = () => {
+    if (col === 1) {
+      out.push({ type: 'spacer', key: `pad-${out.length}` });
+      col = 0;
+    }
+  };
+
+  base.forEach((item) => {
+    out.push(item);
+    col = col === 0 ? 1 : 0;
+
+    if (item.type !== 'product') return;
+    productCount += 1;
+
+    if (productCount % SPOTLIGHT_EVERY === 0) {
+      closeRowIfOpen();
+      out.push({ type: 'spotlight', data: item.data, key: `spotlight-${productCount}` });
+      out.push({ type: 'spacer', key: `spotlight-pad-${productCount}` });
+      col = 0;
+    } else if (productCount % STORE_EVERY === 0) {
+      const storeId = getStoreId(item.data);
+      const storeMates = storeId ? products.filter((p) => getStoreId(p) === storeId).slice(0, 3) : [];
+      const group = storeMates.length
+        ? { storeName: getStoreName(item.data), storeLogo: item.data?.store?.logo_url || item.data?.store_logo_url || null, products: storeMates }
+        : pickStoreGroup(products, getStoreName, 1);
+      if (group) {
+        closeRowIfOpen();
+        out.push({ type: 'store', ...group, key: `store-${productCount}` });
+        out.push({ type: 'spacer', key: `store-pad-${productCount}` });
+        col = 0;
+      }
+    }
+  });
+
+  return out;
 }
 
 function ProductGridBase({
@@ -256,13 +365,12 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
   const S = useMemo(() => getS(C), [C]);
   if (ad.isPlaceholder) {
     return (
-      <View style={[S.card, S.adCard, S.adPlaceholderCard]}>
-        <View style={S.adContent}>
-          <View style={[S.adTag, S.adPlaceholderTag]}>
-            <Text style={[S.adTagTxt, S.adPlaceholderTagTxt]}>AD</Text>
-          </View>
-          <Text style={[S.adTitle, S.adPlaceholderTitle]}>Your campaign here</Text>
-        </View>
+      <View style={[S.adCard, S.adPlaceholderCard]}>
+        <Image
+          source={require('@/assets/images/Shopyos Banner - Bigger.png')}
+          style={S.adPlaceholderImg}
+          resizeMode="contain"
+        />
       </View>
     );
   }
@@ -290,6 +398,80 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
 }
 
 export const AdCard = React.memo(AdCardBase);
+
+// Full-width "trending / just added" feature card — same tap-through as a
+// regular product card, just bigger and visually distinct while scrolling.
+function SpotlightCardBase({
+  item, onPress, storeName,
+}: Readonly<{ item: any; onPress: (item: any) => void; storeName: (item: any) => string }>) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
+  const price = Number(item.price || 0);
+  const origPrice = Number(item.compare_at_price || item.oldPrice || 0);
+
+  return (
+    <TouchableOpacity style={S.spotlightCard} activeOpacity={0.92} onPress={() => onPress(item)}>
+      <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/600'} style={S.spotlightImg} />
+      <LinearGradient
+        colors={['transparent', 'rgba(12,21,89,0.85)']}
+        start={{ x: 0, y: 0.35 }} end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={S.spotlightTag}>
+        <Text style={S.spotlightTagTxt}>{item.isNew ? 'JUST ADDED' : 'TRENDING NOW'}</Text>
+      </View>
+      <View style={S.spotlightContent}>
+        <Text style={S.spotlightStore} numberOfLines={1}>{storeName(item)}</Text>
+        <Text style={S.spotlightTitle} numberOfLines={2}>{item.name}</Text>
+        <View style={S.spotlightPriceRow}>
+          <Text style={S.spotlightPrice}>₵{price.toFixed(2)}</Text>
+          {origPrice > price && <Text style={S.spotlightOrigPrice}>₵{origPrice.toFixed(2)}</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+export const SpotlightCard = React.memo(SpotlightCardBase);
+
+// "More from this shop" style card — surfaces a store the buyer hasn't
+// necessarily browsed to directly, using products already loaded in-feed.
+function StoreSpotlightCardBase({
+  item, onPressProduct, onPressStore,
+}: Readonly<{ item: StoreSpotlightListItem; onPressProduct: (item: any) => void; onPressStore: (item: any) => void }>) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
+
+  return (
+    <View style={S.storeCard}>
+      <TouchableOpacity style={S.storeCardHeader} activeOpacity={0.8} onPress={() => onPressStore(item)}>
+        <AppImage uri={item.storeLogo || 'https://via.placeholder.com/100?text=Store'} style={S.storeLogo} />
+        <Text style={S.storeCardName} numberOfLines={1}>{item.storeName}</Text>
+        <View style={S.storeCardVisitRow}>
+          <Text style={S.storeCardVisit}>Visit store</Text>
+          <Ionicons name="chevron-forward" size={14} color={C.navy} />
+        </View>
+      </TouchableOpacity>
+      <View style={S.storeCardRow}>
+        {item.products.map((p: any, i: number) => (
+          <TouchableOpacity
+            key={p._id || p.id || i}
+            style={S.storeMiniCard}
+            activeOpacity={0.88}
+            onPress={() => onPressProduct(p)}
+          >
+            <AppImage uri={p.images?.[0] || 'https://via.placeholder.com/200'} style={S.storeMiniImg} />
+            <Text style={S.storeMiniPrice} numberOfLines={1}>₵{Number(p.price || 0).toFixed(2)}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export const StoreSpotlightCard = React.memo(StoreSpotlightCardBase);
 
 export const ProductGrid = React.memo(ProductGridBase);
 
@@ -375,16 +557,59 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   adTagTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: 0.4 },
   adTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff', lineHeight: 18 },
   adPlaceholderCard: {
-    backgroundColor: 'transparent',
-    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    width: '100%',
+    height: 120,
+    backgroundColor: '#0C1559',
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 14,
   },
-  adPlaceholderTag: {
-    backgroundColor: C.border,
-    borderColor: C.border,
+  adPlaceholderImg: {
+    width: '100%',
+    height: '100%',
   },
-  adPlaceholderTagTxt: { color: C.subtle },
-  adPlaceholderTitle: { color: C.subtle },
   // Empty state
   empty: { width: '100%', alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.subtle },
+
+  // Spotlight card — full-width feature, interspersed in the Explore feed
+  spotlightCard: {
+    width: '100%', height: 240, borderRadius: 22, overflow: 'hidden',
+    backgroundColor: C.navy, marginBottom: 14,
+  },
+  spotlightImg: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },
+  spotlightTag: {
+    position: 'absolute', top: 12, left: 12,
+    backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  spotlightTagTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: 0.5 },
+  spotlightContent: { position: 'absolute', bottom: 14, left: 16, right: 16 },
+  spotlightStore: {
+    fontSize: 10, fontFamily: 'Montserrat-Bold', color: 'rgba(255,255,255,0.75)',
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
+  },
+  spotlightTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#fff', lineHeight: 24, marginBottom: 6 },
+  spotlightPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  spotlightPrice: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.lime },
+  spotlightOrigPrice: {
+    fontSize: 12, fontFamily: 'Montserrat-Regular', color: 'rgba(255,255,255,0.6)',
+    textDecorationLine: 'line-through',
+  },
+
+  // Store spotlight card — "More from this shop", interspersed in the Explore feed
+  storeCard: {
+    width: '100%', backgroundColor: C.card, borderRadius: 22,
+    borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 14,
+  },
+  storeCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  storeLogo: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.border },
+  storeCardName: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body },
+  storeCardVisitRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  storeCardVisit: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.navy },
+  storeCardRow: { flexDirection: 'row', gap: 10 },
+  storeMiniCard: { flex: 1 },
+  storeMiniImg: { width: '100%', height: 80, borderRadius: 12, backgroundColor: C.border, marginBottom: 6 },
+  storeMiniPrice: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.body },
 });

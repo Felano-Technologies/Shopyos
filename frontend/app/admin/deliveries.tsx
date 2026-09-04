@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getAdminOrders } from '@/services/api';
 import { updateOrderStatus } from '@/services/orders';
@@ -49,6 +49,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function AdminDeliveries() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -188,7 +190,7 @@ export default function AdminDeliveries() {
         </LinearGradient>
 
         {loading && !refreshing ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: C.appBg }} edges={['top', 'left', 'right']}>
             <AdminScreenSkeleton metrics={4} rows={4} />
           </SafeAreaView>
         ) : (
@@ -198,11 +200,11 @@ export default function AdminDeliveries() {
             renderItem={renderOrder}
             contentContainerStyle={styles.listContent}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor="#0C1559" />
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor={C.navy} />
             }
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="cube-outline" size={48} color={adminColors.textMuted} />
+                <Ionicons name="cube-outline" size={48} color={C.textMuted} />
                 <Text style={styles.emptyTitle}>No orders found</Text>
                 <Text style={styles.emptyText}>No delivery orders to display.</Text>
               </View>
@@ -214,8 +216,8 @@ export default function AdminDeliveries() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,22 +245,22 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0C1559',
+    borderColor: C.border,
+    shadowColor: C.navy,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  orderNumber: { color: '#1D2B73', fontSize: 15, fontFamily: 'Montserrat-Bold', marginBottom: 3 },
-  storeName: { color: '#1D2B73', fontSize: 13, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
-  buyerName: { color: adminColors.textMuted, fontSize: 12, fontFamily: 'Montserrat-Regular' },
+  orderNumber: { color: C.text, fontSize: 15, fontFamily: 'Montserrat-Bold', marginBottom: 3 },
+  storeName: { color: C.text, fontSize: 13, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
+  buyerName: { color: C.textMuted, fontSize: 12, fontFamily: 'Montserrat-Regular' },
   statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 10,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 12,
     paddingVertical: 10,
     minHeight: 38,
@@ -282,6 +284,6 @@ const styles = StyleSheet.create({
   cancelLink: { paddingHorizontal: 12, paddingVertical: 10 },
   cancelLinkText: { color: '#DC2626', fontFamily: 'Montserrat-SemiBold', fontSize: 13 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { color: '#1D2B73', fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 12, marginBottom: 6 },
-  emptyText: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular' },
+  emptyTitle: { color: C.text, fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 12, marginBottom: 6 },
+  emptyText: { color: C.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular' },
 });

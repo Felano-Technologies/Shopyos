@@ -10,6 +10,11 @@ export const useFavorites = () => {
     queryKey: queryKeys.favorites.list(),
     queryFn: favoritesApi.getAll,
     enabled: isAuthenticated,
+    // A buyer expects a just-added favorite to be there the moment they open
+    // this screen — the global refetchOnMount:false default (tuned for
+    // rarely-changing catalog data) would otherwise show a stale list until
+    // a manual pull-to-refresh.
+    refetchOnMount: true,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });

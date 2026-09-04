@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
     View,
@@ -18,6 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { Audio } from 'expo-av';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
@@ -29,10 +32,12 @@ type StatusModalBodyProps = Readonly<{
 }>;
 
 function StatusModalBody({ checking, isVerified, onDismiss, onGoToDashboard }: StatusModalBodyProps) {
+    const colors = useThemeColors();
+    const styles = useMemo(() => getStyles(colors), [colors]);
     if (checking) {
         return (
             <View style={styles.modalBody}>
-                <ActivityIndicator size="large" color="#0C1559" />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.modalInfoTitle}>Synchronizing...</Text>
                 <Text style={styles.modalInfoSub}>Verifying your status with Shopyos servers.</Text>
             </View>
@@ -88,6 +93,9 @@ async function playSuccessSound(setSound: (s: Audio.Sound | null) => void) {
 }
 
 export default function VerificationStatus() {
+    const colors = useThemeColors();
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const styles = useMemo(() => getStyles(colors), [colors]);
     const { activeBusiness: business, refetch, isLoading } = useActiveBusiness();
 
     const [checking, setChecking] = useState(false);
@@ -122,7 +130,7 @@ export default function VerificationStatus() {
         }, 1500);
     };
 
-    if (isLoading && !showStatusModal) return <ActivityIndicator style={{ flex: 1 }} color="#0C1559" />;
+    if (isLoading && !showStatusModal) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />;
     if (!business) return null;
 
     const isPending = business.verificationStatus === 'pending';
@@ -148,8 +156,8 @@ export default function VerificationStatus() {
 
     return (
         <View style={styles.mainContainer}>
-            <StatusBar style="dark" />
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }} edges={['top', 'left', 'right']}>
+            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
+            <SafeAreaView style={{ flex: 1, backgroundColor: colors.backgroundAlt }} edges={['top', 'left', 'right']}>
                 <ScrollView contentContainerStyle={styles.lockoutScroll} showsVerticalScrollIndicator={false}>
 
                     <View style={[styles.iconCircle, isRejected && styles.iconCircleRejected]}>
@@ -186,12 +194,12 @@ export default function VerificationStatus() {
                             <View key={step} style={styles.stepRow}>
                                 <View style={[styles.stepNum, (i === 0 || isVerified) && styles.stepNumActive]}>
                                     {isVerified ? (
-                                         <Ionicons name="checkmark" size={14} color="#FFF" />
+                                         <Ionicons name="checkmark" size={14} color={colors.textInverse} />
                                     ) : (
                                         <Text style={styles.stepNumText}>{i + 1}</Text>
                                     )}
                                 </View>
-                                <Text style={[styles.stepText, isVerified && { color: '#0C1559', fontFamily: 'Montserrat-SemiBold' }]}>{step}</Text>
+                                <Text style={[styles.stepText, isVerified && { color: colors.primary, fontFamily: 'Montserrat-SemiBold' }]}>{step}</Text>
                             </View>
                         ))}
                     </View>
@@ -200,8 +208,8 @@ export default function VerificationStatus() {
                         style={styles.btn}
                         onPress={() => router.push(`/business/verification?businessId=${business._id}` as any)}
                     >
-                        <LinearGradient colors={['#0C1559', '#1e40af']} style={styles.btnGradient}>
-                            <Ionicons name={updateBtnIconName} size={18} color="#FFF" />
+                        <LinearGradient colors={[colors.primary, colors.primaryMid]} style={styles.btnGradient}>
+                            <Ionicons name={updateBtnIconName} size={18} color={colors.textInverse} />
                             <Text style={styles.btnText}>{updateBtnText}</Text>
                         </LinearGradient>
                     </TouchableOpacity>
@@ -231,13 +239,13 @@ export default function VerificationStatus() {
     );
 }
 
-const styles = StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+    mainContainer: { flex: 1, backgroundColor: c.backgroundAlt },
     lockoutScroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 40 },
     iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     iconCircleRejected: { backgroundColor: '#FEE2E2' },
-    title: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
-    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+    title: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 10 },
+    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: c.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
     statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginBottom: 25 },
     badgeRejected: { backgroundColor: '#FEE2E2' },
     badgeVerified: { backgroundColor: '#DCFCE7' },
@@ -247,22 +255,22 @@ const styles = StyleSheet.create({
     reasonText: { fontSize: 14, color: '#7F1D1D', lineHeight: 20 },
     stepsContainer: { width: '100%', marginBottom: 30 },
     stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 12 },
-    stepNum: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-    stepNumActive: { backgroundColor: '#0C1559' },
-    stepNumText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#475569' },
-    stepText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
+    stepNum: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.border, justifyContent: 'center', alignItems: 'center' },
+    stepNumActive: { backgroundColor: c.primary },
+    stepNumText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: c.textSecondary },
+    stepText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.text },
     btn: { width: '100%', borderRadius: 16, overflow: 'hidden' },
     btnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
-    btnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
-    refreshText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 14, textDecorationLine: 'underline' },
+    btnText: { color: c.textInverse, fontSize: 15, fontFamily: 'Montserrat-Bold' },
+    refreshText: { color: c.primary, fontFamily: 'Montserrat-Bold', fontSize: 14, textDecorationLine: 'underline' },
 
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.6)', justifyContent: 'center', alignItems: 'center' },
-    modalContent: { width: width * 0.85, backgroundColor: '#FFF', borderRadius: 30, padding: 30, elevation: 10 },
+    modalOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', alignItems: 'center' },
+    modalContent: { width: width * 0.85, backgroundColor: c.surface, borderRadius: 30, padding: 30, elevation: 10 },
     modalBody: { alignItems: 'center' },
-    modalInfoTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginTop: 20 },
-    modalInfoSub: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 10, lineHeight: 20, fontFamily: 'Montserrat-Medium' },
-    modalBtn: { backgroundColor: '#0C1559', width: '100%', paddingVertical: 15, borderRadius: 15, marginTop: 25, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
-    modalBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 },
+    modalInfoTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: c.text, marginTop: 20 },
+    modalInfoSub: { fontSize: 14, color: c.textSecondary, textAlign: 'center', marginTop: 10, lineHeight: 20, fontFamily: 'Montserrat-Medium' },
+    modalBtn: { backgroundColor: c.primary, width: '100%', paddingVertical: 15, borderRadius: 15, marginTop: 25, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+    modalBtnText: { color: c.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 15 },
 
     pendingCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
     successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#16A34A', justifyContent: 'center', alignItems: 'center' },

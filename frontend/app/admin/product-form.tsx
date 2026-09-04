@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 
@@ -24,6 +24,8 @@ const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, st
 
 export default function AdminProductForm() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const { storeId, productId } = useLocalSearchParams<{ storeId?: string; productId?: string }>();
   const isEdit = Boolean(productId);
 
@@ -113,7 +115,7 @@ export default function AdminProductForm() {
 
         {initialLoading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#0C1559" />
+            <ActivityIndicator size="large" color={C.navy} />
           </View>
         ) : (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -123,7 +125,7 @@ export default function AdminProductForm() {
                 <TextInput
                   style={[styles.input, errors.name ? styles.inputError : null]}
                   placeholder="e.g. Wireless Headphones"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   value={name}
                   onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: '' })); }}
                 />
@@ -133,7 +135,7 @@ export default function AdminProductForm() {
                 <TextInput
                   style={[styles.input, styles.multilineInput]}
                   placeholder="Describe the product..."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -145,7 +147,7 @@ export default function AdminProductForm() {
                 <TextInput
                   style={styles.input}
                   placeholder="0.00"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   keyboardType="decimal-pad"
                   value={price}
                   onChangeText={setPrice}
@@ -155,7 +157,7 @@ export default function AdminProductForm() {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Electronics"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   value={category}
                   onChangeText={setCategory}
                 />
@@ -164,7 +166,7 @@ export default function AdminProductForm() {
                 <TextInput
                   style={styles.input}
                   placeholder="0"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   keyboardType="number-pad"
                   value={quantity}
                   onChangeText={setQuantity}
@@ -178,7 +180,7 @@ export default function AdminProductForm() {
                   <Switch
                     value={isActive}
                     onValueChange={setIsActive}
-                    trackColor={{ false: '#D9E2F2', true: '#0C1559' }}
+                    trackColor={{ false: C.borderStrong, true: C.navy }}
                     thumbColor="#fff"
                   />
                 </View>
@@ -199,8 +201,8 @@ export default function AdminProductForm() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   formCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 24,
     padding: 18,
     shadowColor: '#0B2060',
@@ -231,19 +233,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    color: '#1D2B73',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.border,
     borderRadius: 12,
     padding: 14,
-    color: '#1D2B73',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -256,16 +258,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
+    borderTopColor: C.border,
   },
-  toggleLabel: { color: '#1D2B73', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
-  toggleHint: { color: adminColors.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  toggleLabel: { color: C.text, fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+  toggleHint: { color: C.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

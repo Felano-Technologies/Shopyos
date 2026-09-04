@@ -231,7 +231,7 @@ export default function TransactionsScreen() {
             {/* List */}
             {isChecking || loading ? (
                 <View style={{ marginTop: 50 }}>
-                    <ActivityIndicator size="large" color="#0C1559" />
+                    <ActivityIndicator size="large" color={colors.primary} />
                 </View>
             ) : (
                 <FlatList
@@ -256,7 +256,7 @@ export default function TransactionsScreen() {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
   safeArea: { flex: 1 },
 
   // Background
@@ -269,7 +269,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     marginBottom: 10,
-    shadowColor: "#0C1559",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -298,26 +298,26 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Content
   contentContainer: { flex: 1 },
-  
+
   // Search
   searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#FFF',
+      backgroundColor: colors.surface,
       marginHorizontal: 20,
       marginTop: 10,
       borderRadius: 12,
       paddingHorizontal: 12,
       height: 45,
       borderWidth: 1,
-      borderColor: '#E2E8F0',
+      borderColor: colors.borderStrong,
   },
   searchInput: {
       flex: 1,
       marginLeft: 10,
       fontFamily: 'Montserrat-Medium',
       fontSize: 14,
-      color: '#0F172A',
+      color: colors.text,
   },
 
   // Filter Chips
@@ -332,21 +332,21 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
       paddingVertical: 6,
       paddingHorizontal: 16,
       borderRadius: 20,
-      backgroundColor: '#FFF',
+      backgroundColor: colors.surface,
       borderWidth: 1,
-      borderColor: '#E2E8F0',
+      borderColor: colors.borderStrong,
   },
   filterChipActive: {
-      backgroundColor: '#0C1559',
-      borderColor: '#0C1559',
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
   },
   filterText: {
       fontSize: 12,
       fontFamily: 'Montserrat-Medium',
-      color: '#64748B',
+      color: colors.textSecondary,
   },
   filterTextActive: {
-      color: '#FFF',
+      color: colors.textInverse,
       fontFamily: 'Montserrat-Bold',
   },
 
@@ -358,7 +358,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#FFF',
+      backgroundColor: colors.surface,
       borderRadius: 16,
       padding: 15,
       marginBottom: 12,
@@ -380,13 +380,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   cardTitle: {
       fontSize: 14,
       fontFamily: 'Montserrat-Bold',
-      color: '#0F172A',
+      color: colors.text,
       marginBottom: 4,
   },
   cardDate: {
       fontSize: 11,
       fontFamily: 'Montserrat-Regular',
-      color: '#94A3B8',
+      color: colors.textMuted,
   },
   amount: {
       fontSize: 14,
@@ -396,7 +396,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   status: {
       fontSize: 10,
       fontFamily: 'Montserrat-Medium',
-      color: '#64748B',
+      color: colors.textSecondary,
   },
 
   // Empty State
@@ -410,7 +410,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
       width: 100,
       height: 100,
       borderRadius: 50,
-      backgroundColor: '#F1F5F9',
+      backgroundColor: colors.border,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 20,
@@ -418,24 +418,24 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   emptyTitle: {
       fontSize: 18,
       fontFamily: 'Montserrat-Bold',
-      color: '#0F172A',
+      color: colors.text,
       marginBottom: 8,
   },
   emptyText: {
       fontSize: 14,
       fontFamily: 'Montserrat-Regular',
-      color: '#64748B',
+      color: colors.textSecondary,
       textAlign: 'center',
       marginBottom: 20,
   },
   refreshBtn: {
-      backgroundColor: '#E0E7FF',
+      backgroundColor: colors.backgroundAlt,
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 12,
   },
   refreshText: {
-      color: '#0C1559',
+      color: colors.primary,
       fontFamily: 'Montserrat-Bold',
       fontSize: 14,
   },

@@ -21,7 +21,7 @@ const SIMILAR_PRODUCTS_SQL = `
     s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
-     ORDER BY display_order ASC, is_primary DESC
+     ORDER BY is_primary DESC, display_order ASC
      LIMIT 1)            AS image_url,
     COALESCE(ps.score * 2, 0)
       + CASE WHEN p.category = ref.category THEN 3 ELSE 0 END
@@ -80,7 +80,7 @@ const PERSONALIZED_SQL = `
     s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
-     ORDER BY display_order ASC, is_primary DESC
+     ORDER BY is_primary DESC, display_order ASC
      LIMIT 1)            AS image_url
   FROM products p
   JOIN stores s ON s.id = p.store_id
@@ -109,7 +109,7 @@ const TRENDING_SQL = `
     s.logo_url           AS store_logo_url,
     (SELECT image_url FROM product_images
      WHERE product_id = p.id
-     ORDER BY display_order ASC, is_primary DESC
+     ORDER BY is_primary DESC, display_order ASC
      LIMIT 1)            AS image_url
   FROM products p
   JOIN stores s ON s.id = p.store_id

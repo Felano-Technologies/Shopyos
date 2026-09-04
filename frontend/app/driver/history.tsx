@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,13 @@ import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { getMyDeliveries } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function DriverHistory() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +69,7 @@ export default function DriverHistory() {
     } else if (isCancelled) {
       badgeStyle = styles.statusCancelled;
     } else {
-      badgeStyle = { backgroundColor: '#E2E8F0' };
+      badgeStyle = { backgroundColor: colors.border };
     }
     let textStyle: object;
     if (isCompleted) {
@@ -73,7 +77,7 @@ export default function DriverHistory() {
     } else if (isCancelled) {
       textStyle = styles.textCancelled;
     } else {
-      textStyle = { color: '#64748B' };
+      textStyle = { color: colors.textSecondary };
     }
     return (
       <TouchableOpacity style={styles.card} activeOpacity={0.7}>
@@ -83,7 +87,7 @@ export default function DriverHistory() {
                 <MaterialIcons
                     name={isCancelled ? "cancel" : "restaurant"}
                     size={20}
-                    color={isCancelled ? "#EF4444" : "#0C1559"}
+                    color={isCancelled ? colors.error : colors.primary}
                 />
             </View>
             <View style={{ flex: 1 }}>
@@ -101,7 +105,7 @@ export default function DriverHistory() {
         {/* Bottom Row: Date + Status Badge */}
         <View style={styles.cardBottom}>
             <View style={styles.dateTimeContainer}>
-                <Feather name="calendar" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                <Feather name="calendar" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
                 <Text style={styles.timestamp}>{item.date} • {item.time}</Text>
             </View>
 
@@ -117,18 +121,18 @@ export default function DriverHistory() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.headerGradient[0]} />
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       {/* --- Header --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
             <View style={styles.navBar}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#A3E635" />
+                    <Ionicons name="arrow-back" size={24} color={colors.accent} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Trip History</Text>
-                <View style={{ width: 40 }} /> 
+                <View style={{ width: 40 }} />
             </View>
         </SafeAreaView>
       </View>
@@ -137,7 +141,7 @@ export default function DriverHistory() {
       <View style={styles.contentContainer}>
         {loading ? (
           <View style={styles.emptyContainer}>
-            <ActivityIndicator size="large" color="#0C1559" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.emptyText, { marginTop: 10 }]}>Loading history...</Text>
           </View>
         ) : (
@@ -148,7 +152,7 @@ export default function DriverHistory() {
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -162,15 +166,15 @@ export default function DriverHistory() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F8FAFC' 
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.backgroundAlt
   },
-  
+
   // Header
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     paddingBottom: 20,
@@ -201,54 +205,54 @@ const styles = StyleSheet.create({
   list: { padding: 20, paddingBottom: 120 },
 
   // Card
-  card: { 
-    backgroundColor: '#FFF', 
-    padding: 16, 
-    borderRadius: 20, 
-    marginBottom: 16, 
-    borderWidth: 1, 
+  card: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+    borderWidth: 1,
     borderColor: 'transparent',
-    shadowColor: "#0C1559",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
   },
-  
+
   // Card Top
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   iconBox: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  restaurant: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  orderId: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  earnings: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#16A34A' },
-  earningsCancelled: { color: '#94A3B8', textDecorationLine: 'line-through' },
+  restaurant: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text },
+  orderId: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary },
+  earnings: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.success },
+  earningsCancelled: { color: colors.textMuted, textDecorationLine: 'line-through' },
 
   // Divider
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 12 },
+  divider: { height: 1, backgroundColor: colors.border, marginBottom: 12 },
 
   // Card Bottom
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateTimeContainer: { flexDirection: 'row', alignItems: 'center' },
-  timestamp: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  
+  timestamp: { fontSize: 12, color: colors.textSecondary, fontFamily: 'Montserrat-Medium' },
+
   // Badges
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusCompleted: { backgroundColor: '#DCFCE7' },
   statusCancelled: { backgroundColor: '#FEE2E2' },
-  
+
   statusText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
-  textCompleted: { color: '#16A34A' },
-  textCancelled: { color: '#DC2626' },
+  textCompleted: { color: colors.success },
+  textCancelled: { color: colors.error },
 
   // Empty State
   emptyContainer: { alignItems: 'center', marginTop: 50 },
-  emptyText: { color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+  emptyText: { color: colors.textMuted, fontFamily: 'Montserrat-Medium' },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
   Dimensions, Modal, RefreshControl, Platform, TextInput,
@@ -18,6 +18,9 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 import { router } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
+import { ThemeColors } from '@/constants/Colors';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const isValidDateRange = (start: string, end: string) => {
@@ -33,17 +36,27 @@ const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string;
+  border: string; borderStrong: string; headerBg: string; overlay: string; textInverse: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+  headerBg: colors.headerGradient[0],
+  overlay: colors.overlay,
+  textInverse: colors.textInverse,
+});
 
 function getTimeframeLabel(p: 'week' | 'month' | 'year' | 'custom'): string {
   if (p === 'week') return 'Weekly';
@@ -84,6 +97,7 @@ function measureElementInWindow(
 
 // --- Custom 3-Color Spinner ---
 const MultiColorSpinner = () => {
+  const colors = useThemeColors();
   const spinValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -111,13 +125,18 @@ const MultiColorSpinner = () => {
           style={{ flex: 1, borderRadius: 25 }}
         />
       </Animated.View>
-      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: C.bg }} />
+      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.backgroundAlt }} />
     </View>
   );
 };
 
 const Analytics = () => {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const isDark = resolvedTheme === 'dark';
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
 
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
@@ -185,7 +204,7 @@ const Analytics = () => {
     return (
       <View style={S.centred}>
         <MultiColorSpinner />
-        <Text style={{ marginTop: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' }}>
+        <Text style={{ marginTop: 16, color: C.muted, fontFamily: 'Montserrat-Medium' }}>
           Loading Analytics...
         </Text>
       </View>
@@ -228,14 +247,14 @@ const Analytics = () => {
   const hasPie = analytics.categoryDistribution.length > 0;
 
   const chartConfig = {
-    backgroundGradientFrom: '#fff',
-    backgroundGradientTo:   '#fff',
+    backgroundGradientFrom: colors.surface,
+    backgroundGradientTo:   colors.surface,
     decimalPlaces: 0,
-    color: (o = 1) => `rgba(12,21,89,${o})`,
-    labelColor: (o = 1) => `rgba(100,116,139,${o})`,
+    color: (o = 1) => isDark ? `rgba(140,165,255,${o})` : `rgba(12,21,89,${o})`,
+    labelColor: (o = 1) => isDark ? `rgba(148,163,184,${o})` : `rgba(100,116,139,${o})`,
     style: { borderRadius: rs(16) },
     propsForDots: { r: '4', strokeWidth: '2', stroke: C.lime },
-    propsForBackgroundLines: { strokeDasharray: '5', stroke: 'rgba(0,0,0,0.05)' },
+    propsForBackgroundLines: { strokeDasharray: '5', stroke: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
     propsForLabels: { fontFamily: 'Montserrat-Medium', fontSize: 10 },
   };
 
@@ -256,7 +275,7 @@ const Analytics = () => {
         {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
           <LinearGradient
-            colors={[C.navy, C.navyMid]}
+            colors={colors.headerGradient}
             style={[S.header, { paddingTop: insets.top + rs(16) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
@@ -281,7 +300,7 @@ const Analytics = () => {
                   <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
                 </View>
               </TouchableOpacity>
-              
+
               <View style={S.topIcons}>
                 <TouchableOpacity style={S.hdrBtn} onPress={() => refetch()}>
                   <Feather name="refresh-cw" size={rs(16)} color="#fff" />
@@ -310,13 +329,13 @@ const Analytics = () => {
           showsVerticalScrollIndicator={false}
           style={{ zIndex: 10 }}
           contentContainerStyle={[
-            S.scroll, 
-            { 
-              paddingTop: Platform.OS === 'android' ? 240 : 0, 
+            S.scroll,
+            {
+              paddingTop: Platform.OS === 'android' ? 240 : 0,
               paddingBottom: rs(120) + insets.bottom
             }
           ]}
-          contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 
+          contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }}
           contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -240 : 0 }}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -381,14 +400,14 @@ const Analytics = () => {
                       placeholder="Start date (e.g. 2025-01-01)"
                       value={customStartDate}
                       onChangeText={setCustomStartDate}
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={colors.textMuted}
                     />
                     <TextInput
                       style={S.dateInput}
                       placeholder="End date (e.g. 2025-01-31)"
                       value={customEndDate}
                       onChangeText={setCustomEndDate}
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={colors.textMuted}
                     />
                     <View style={S.datePickerActions}>
                       <TouchableOpacity
@@ -446,7 +465,7 @@ const Analytics = () => {
                   />
                 ) : (
                   <View style={S.emptyChart}>
-                    <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color="#CBD5E1" />
+                    <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color={colors.textMuted} />
                     <Text style={S.emptyTxt}>No revenue data for this period</Text>
                   </View>
                 )}
@@ -540,13 +559,13 @@ const Analytics = () => {
                 ))
               ) : (
                 <View style={S.emptyList}>
-                  <MaterialCommunityIcons name="chart-bar" size={rs(32)} color="#CBD5E1" />
+                  <MaterialCommunityIcons name="chart-bar" size={rs(32)} color={colors.textMuted} />
                   <Text style={S.emptyTxt}>No top products yet</Text>
                 </View>
               )}
 
               {/* Repeat customer banner — real backend metric, no invented score */}
-              <LinearGradient colors={[C.navy, C.navyMid]} style={S.scoreBanner}>
+              <LinearGradient colors={colors.headerGradient} style={S.scoreBanner}>
                 <View style={{ flex: 1, marginRight: rs(12) }}>
                   <Text style={S.scoreTitle}>Customer Loyalty</Text>
                   <Text style={S.scoreDesc}>
@@ -576,10 +595,10 @@ const Analytics = () => {
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity onPress={() => setShowSwitcher(false)}>
-                  <Ionicons name="close" size={24} color="#64748B" />
+                  <Ionicons name="close" size={24} color={C.muted} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={S.switcherList}>
                 {businesses.map((biz: any) => {
                   const active = biz._id === activeBusiness?._id;
@@ -606,14 +625,14 @@ const Analytics = () => {
                         <Text style={S.switcherCat}>{biz.category}</Text>
                       </View>
                       {active ? (
-                        <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                        <Ionicons name="checkmark-circle" size={22} color={C.lime} />
                       ) : (
-                        <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                        <Ionicons name="ellipse-outline" size={22} color={C.borderStrong} />
                       )}
                     </TouchableOpacity>
                   );
                 })}
-                
+
                 {businesses.length < 3 && (
                   <TouchableOpacity
                     style={S.switcherAddCard}
@@ -623,7 +642,7 @@ const Analytics = () => {
                     }}
                   >
                     <View style={S.switcherAddIcon}>
-                      <Ionicons name="add" size={22} color="#0C1559" />
+                      <Ionicons name="add" size={22} color={C.navy} />
                     </View>
                     <Text style={S.switcherAddText}>Register Another Store</Text>
                   </TouchableOpacity>
@@ -633,8 +652,8 @@ const Analytics = () => {
           </View>
         </Modal>
 
-        <SpotlightTour 
-          visible={isTourActive && activeScreen === 'business_analytics'} 
+        <SpotlightTour
+          visible={isTourActive && activeScreen === 'business_analytics'}
           steps={onboardingSteps}
           onComplete={handleOnboardingComplete}
         />
@@ -644,7 +663,7 @@ const Analytics = () => {
 };
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
@@ -681,7 +700,7 @@ const S = StyleSheet.create({
   badgeContainer: {
     position: 'absolute', top: -3, right: -3,
     backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.headerBg,
   },
   badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
   hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' },
@@ -697,13 +716,13 @@ const S = StyleSheet.create({
   toggleRow: { flexDirection: 'row', gap: rs(10), marginTop: rs(4), marginBottom: rs(16) },
   toggleBtn: {
     paddingVertical: rs(8), paddingHorizontal: rs(20), borderRadius: rs(20),
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card,
+    borderWidth: 0.5, borderColor: C.borderStrong, backgroundColor: C.card,
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
   toggleBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
   toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
-  toggleTxtOn: { color: '#fff' },
+  toggleTxtOn: { color: C.textInverse },
 
   secTitle: {
     fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.navy,
@@ -746,7 +765,7 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.04, shadowRadius: rs(4),
   },
   rankBadge:    { width: rs(32), height: rs(32), borderRadius: rs(16), justifyContent: 'center', alignItems: 'center' },
-  rankTxt:      { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  rankTxt:      { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.textInverse },
   productName:  { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body },
   productSales: { fontSize: rf(12), fontFamily: 'Montserrat-Regular',  color: C.muted },
   productRev:   { fontSize: rf(14), fontFamily: 'Montserrat-Bold',     color: C.navy },
@@ -782,7 +801,7 @@ const S = StyleSheet.create({
     width: rs(28),
     height: rs(28),
     borderRadius: rs(14),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   storePillPlaceholder: {
     width: rs(28),
@@ -817,7 +836,7 @@ const S = StyleSheet.create({
   // Switcher bottom sheet styles
   switcherOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   switcherDismiss: {
@@ -828,7 +847,7 @@ const S = StyleSheet.create({
     bottom: 0,
   },
   switcherSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: rs(30),
     borderTopRightRadius: rs(30),
     padding: rs(24),
@@ -848,7 +867,7 @@ const S = StyleSheet.create({
   switcherTitle: {
     fontSize: rf(20),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherList: {
     gap: rs(12),
@@ -858,13 +877,13 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   switcherCardActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F1F5F9',
+    borderColor: C.navy,
+    backgroundColor: C.border,
   },
   switcherLogoWrapper: {
     width: rs(40),
@@ -889,12 +908,12 @@ const S = StyleSheet.create({
   switcherName: {
     fontSize: rf(15),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherCat: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: rs(2),
   },
   switcherAddCard: {
@@ -902,30 +921,30 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: C.borderStrong,
     marginTop: rs(6),
   },
   switcherAddIcon: {
     width: rs(40),
     height: rs(40),
     borderRadius: rs(20),
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   switcherAddText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginLeft: rs(12),
   },
 
   datePickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   datePickerDismiss: {
@@ -933,7 +952,7 @@ const S = StyleSheet.create({
     top: 0, left: 0, right: 0, bottom: 0,
   },
   datePickerSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: rs(30),
     borderTopRightRadius: rs(30),
     padding: rs(24),
@@ -942,25 +961,25 @@ const S = StyleSheet.create({
   datePickerTitle: {
     fontSize: rf(20),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: rs(4),
   },
   datePickerHint: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginBottom: rs(20),
   },
   dateInput: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: rs(12),
     padding: rs(14),
     fontSize: rf(15),
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: rs(12),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
   },
   datePickerActions: {
     flexDirection: 'row',
@@ -971,25 +990,25 @@ const S = StyleSheet.create({
     flex: 1,
     paddingVertical: rs(14),
     borderRadius: rs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.border,
     alignItems: 'center',
   },
   dateCancelText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
+    color: C.body,
   },
   dateApplyBtn: {
     flex: 1,
     paddingVertical: rs(14),
     borderRadius: rs(12),
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     alignItems: 'center',
   },
   dateApplyText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
+    color: C.textInverse,
   },
 });
 

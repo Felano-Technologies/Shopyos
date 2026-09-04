@@ -17,6 +17,7 @@ import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotificati
 import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 type Notification = {
@@ -31,6 +32,7 @@ type Notification = {
 export default function DriverNotificationsScreen() {
     const router = useRouter();
     const colors = useThemeColors();
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const styles = useMemo(() => getStyles(colors), [colors]);
     const { data, refetch, isRefetching } = useNotifications();
     const markReadMutation = useMarkNotificationRead();
@@ -142,7 +144,7 @@ export default function DriverNotificationsScreen() {
     );
     return (
         <View style={styles.container}>
-            <StatusBar style="dark" />
+            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
             {/* Header */}
             <SafeAreaView edges={['top']} style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>

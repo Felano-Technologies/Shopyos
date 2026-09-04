@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import AppImage from '@/components/AppImage';
 import { getMySnaps, repostSnap, deleteSnap } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 
@@ -22,7 +24,6 @@ const { width } = Dimensions.get('window');
 
 export default function SnapsDashboardScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
@@ -178,19 +179,27 @@ export default function SnapsDashboardScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Snaps</Text>
-        <TouchableOpacity
-          style={styles.createBtn}
-          onPress={() => router.push('/business/snaps/create')}
-        >
-          <Ionicons name="add" size={24} color={colors.accentText} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      <LinearGradient
+        colors={colors.headerGradient}
+        style={styles.header}
+      >
+        <SafeAreaView edges={['top']} style={{ width: '100%' }}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Snaps</Text>
+            <TouchableOpacity
+              style={styles.createBtn}
+              onPress={() => router.push('/business/snaps/create')}
+            >
+              <Ionicons name="add" size={24} color={colors.accentText} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -263,28 +272,33 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.surfaceElevated,
   },
   header: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: c.borderStrong,
-    backgroundColor: c.surface,
   },
   backBtn: {
-    padding: 4,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: c.text,
+    color: '#FFF',
   },
   createBtn: {
     backgroundColor: c.accent,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },

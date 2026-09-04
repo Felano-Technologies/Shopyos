@@ -67,7 +67,9 @@ type LegacyPalette = {
 
 function buildC(colors: ThemeColors): LegacyPalette {
   return {
-    bg: colors.backgroundAlt,
+    // `background` (not `backgroundAlt`, a light-blue tint) is pure white
+    // in light mode and proper dark in dark mode.
+    bg: colors.background,
     navy: colors.primary,
     navyMid: colors.primaryMid,
     lime: colors.accent,
@@ -469,14 +471,17 @@ const OrderDetailsScreen = () => {
               )}
             </View>
             <View style={S.storeInfo}>
-              <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6), marginTop: rs(2) }}>
-                <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
-                <Text style={{ fontSize: rf(11), color: Cx.subtle }}>•</Text>
-                <Text style={{ fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: '#16a34a' }}>
+              <Text style={S.storeName} numberOfLines={1}>{order.store?.store_name || 'Shopyos Store'}</Text>
+              {/* A single Text with nested spans truncates the whole line together —
+                  three sibling Texts in a row can't wrap/truncate and were overflowing
+                  behind the call/chat buttons when the category or joined-date was long. */}
+              <Text style={[S.storeCat, { marginTop: rs(2) }]} numberOfLines={1}>
+                {order.store?.store_category || order.store?.category || 'General'}
+                <Text style={{ color: Cx.subtle }}> • </Text>
+                <Text style={{ fontFamily: 'Montserrat-Bold', color: '#16a34a' }}>
                   {formatStoreAge(order.store?.created_at)}
                 </Text>
-              </View>
+              </Text>
             </View>
             {order.store?.phone || order.store?.store_phone ? (
               <TouchableOpacity
@@ -724,7 +729,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   hdrContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 20 },
   orderId: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#FFF', flexShrink: 1 },
   orderDate: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 4 },
-  hdrMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  hdrMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: rs(14) },
   hdrOrderNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrDate: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3) },
   statusPill: {
@@ -737,7 +742,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(12),
     backgroundColor: C.bg, borderTopLeftRadius: rs(12), borderTopRightRadius: rs(12),
   },
-  scrollContent: { paddingHorizontal: rs(16), paddingTop: rs(4) },
+  scrollContent: { paddingHorizontal: rs(16), paddingTop: rs(14) },
   // Timeline
   timelineWrap: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',

@@ -168,7 +168,7 @@ export default function ParcelNotificationsScreen() {
       <StatusBar style="light" />
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <LinearGradient
-          colors={[C.navy, C.navyMid]}
+          colors={colors.headerGradient}
           style={[S.header, { paddingTop: insets.top + rs(12) }]}
         >
           <View style={S.hdrGlow} pointerEvents="none" />

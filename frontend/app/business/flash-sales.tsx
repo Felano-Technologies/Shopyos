@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,18 @@ import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getSellerSales, getSlotsList, cancelFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function BusinessFlashSales() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<'my-campaigns' | 'time-slots'>('my-campaigns');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Data lists
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [slots, setSlots] = useState<any[]>([]);
@@ -104,7 +108,7 @@ export default function BusinessFlashSales() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#0C1559" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Flash Campaigns</Text>
         <View style={{ width: 24 }} />
@@ -133,7 +137,7 @@ export default function BusinessFlashSales() {
       {/* Content */}
       {loading && !refreshing ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : activeTab === 'my-campaigns' ? (
         <FlatList
@@ -141,11 +145,11 @@ export default function BusinessFlashSales() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0C1559']} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Feather name="zap" size={40} color="#CBD5E1" />
+              <Feather name="zap" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>You have not submitted any campaigns yet.</Text>
             </View>
           }
@@ -226,11 +230,11 @@ export default function BusinessFlashSales() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0C1559']} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Feather name="calendar" size={40} color="#CBD5E1" />
+              <Feather name="calendar" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>No upcoming slots open for scheduling.</Text>
             </View>
           }
@@ -244,7 +248,7 @@ export default function BusinessFlashSales() {
               </View>
 
               <View style={styles.slotTimeRow}>
-                <Ionicons name="time-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                <Ionicons name="time-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
                 <Text style={styles.slotTime}>
                   {new Date(item.start_time).toLocaleString(undefined, {
                     month: 'short',
@@ -267,7 +271,7 @@ export default function BusinessFlashSales() {
                 onPress={() => router.push({ pathname: '/business/flash-sale-submit', params: { slotId: item.id } })}
               >
                 <Text style={styles.submitBtnText}>Submit Products</Text>
-                <Feather name="plus-circle" size={16} color="#FFF" style={{ marginLeft: 6 }} />
+                <Feather name="plus-circle" size={16} color={colors.textInverse} style={{ marginLeft: 6 }} />
               </TouchableOpacity>
             </View>
           )}
@@ -277,10 +281,10 @@ export default function BusinessFlashSales() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
   },
   header: {
     flexDirection: 'row',
@@ -288,9 +292,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.borderStrong,
   },
   backBtn: {
     padding: 4,
@@ -298,15 +302,15 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.borderStrong,
   },
   tab: {
     flex: 1,
@@ -316,15 +320,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#0C1559',
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#94A3B8',
+    color: colors.textMuted,
   },
   tabTextActive: {
-    color: '#0C1559',
+    color: colors.primary,
   },
   center: {
     flex: 1,
@@ -342,17 +346,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: colors.textMuted,
     marginTop: 10,
     textAlign: 'center',
   },
   campaignCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   campaignHeader: {
     flexDirection: 'row',
@@ -363,7 +367,7 @@ const styles = StyleSheet.create({
   campaignTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     flex: 1,
     marginRight: 10,
   },
@@ -379,13 +383,13 @@ const styles = StyleSheet.create({
   campaignDesc: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 10,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   detailsRow: {
@@ -395,25 +399,25 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: colors.textMuted,
     textTransform: 'uppercase',
   },
   detailVal: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
+    color: colors.text,
     marginTop: 2,
   },
   productsSummary: {
     marginTop: 15,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 12,
   },
   productsTitle: {
     fontSize: 11,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     marginBottom: 8,
   },
   productRow: {
@@ -425,14 +429,14 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#475569',
+    color: colors.textSecondary,
     flex: 1,
     marginRight: 10,
   },
   productPrice: {
     fontSize: 11,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   adminNotesBox: {
     backgroundColor: '#FEF2F2',
@@ -468,12 +472,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   slotCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   slotHeader: {
     flexDirection: 'row',
@@ -484,7 +488,7 @@ const styles = StyleSheet.create({
   slotTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     flex: 1,
     marginRight: 10,
   },
@@ -507,10 +511,10 @@ const styles = StyleSheet.create({
   slotTime: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -518,7 +522,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitBtnText: {
-    color: '#FFF',
+    color: colors.textInverse,
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
   },

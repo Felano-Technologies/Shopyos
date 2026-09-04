@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
-  TextInput, ScrollView
+  TextInput, ScrollView, Image
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -551,24 +551,11 @@ const OrdersScreen = () => {
                 <CompactAdCarousel ads={orderAds} onAdPress={handleAdPress} />
               ) : (
                 <View style={S.adPlaceholder}>
-                  <LinearGradient
-                    // decorative low-opacity navy tint, unaffected by theme
-                    colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
+                  <Image
+                    source={require('@/assets/images/Shopyos Banner.png')}
+                    style={S.adPlaceholderImg}
+                    resizeMode="cover"
                   />
-                  <View style={S.adPlaceholderContent}>
-                    <View style={S.adPlaceholderBadge}>
-                      <Text style={S.adPlaceholderBadgeTxt}>ADS</Text>
-                    </View>
-                    <Text style={S.adPlaceholderTitle}>Your campaign here</Text>
-                    <Text style={S.adPlaceholderSub}>Promote your store to thousands of buyers →</Text>
-                  </View>
-                  <View style={S.adPlaceholderDots}>
-                    {[0, 1, 2].map(i => (
-                      <View key={`dot-${i}`} style={[S.adPlaceholderDot, i === 0 && S.adPlaceholderDotActive]} />
-                    ))}
-                  </View>
                 </View>
               )}
             </View>
@@ -756,28 +743,12 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   adPlaceholder: {
     marginBottom: rs(12),
     height: rs(80),
-    borderWidth: 1,
-    borderColor: C.border,
-    borderStyle: 'dashed',
     overflow: 'hidden',
   },
-  adPlaceholderContent: {
-    flex: 1, justifyContent: 'center', paddingHorizontal: rs(24),
+  adPlaceholderImg: {
+    width: '100%',
+    height: '100%',
   },
-  adPlaceholderBadge: {
-    backgroundColor: C.border, borderRadius: rs(10),
-    paddingHorizontal: rs(8), paddingVertical: rs(3),
-    alignSelf: 'flex-start', marginBottom: rs(8),
-  },
-  adPlaceholderBadgeTxt: { fontSize: rf(8), fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
-  adPlaceholderTitle:     { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(2) },
-  adPlaceholderSub:       { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle },
-  adPlaceholderDots: {
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-    position: 'absolute', bottom: rs(10), left: 0, right: 0,
-  },
-  adPlaceholderDot:       { width: rs(6),  height: rs(6), borderRadius: rs(3), backgroundColor: C.border },
-  adPlaceholderDotActive: { width: rs(24), height: rs(6), borderRadius: rs(3), backgroundColor: C.navyMid },
 
   // List
   listContent: { paddingHorizontal: 0 },

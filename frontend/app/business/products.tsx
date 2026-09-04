@@ -50,6 +50,7 @@ export default function ProductsScreen() {
     subtle: colors.textMuted,
     border: colors.border,
     errorBg: colors.errorBg,
+    headerBg: colors.headerGradient[0],
   }), [colors]);
   const S = useMemo(() => getS(C), [C]);
 
@@ -198,7 +199,7 @@ export default function ProductsScreen() {
         ) : (
           <>
             {/* ── STICKY HEADER OUTSIDE SCROLLVIEW ────────────────────────── */}
-            <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(16), zIndex: 10 }]}>
+            <LinearGradient colors={colors.headerGradient} style={[S.header, { paddingTop: insets.top + rs(16), zIndex: 10 }]}>
               <View style={S.hdrGlow} pointerEvents="none" />
 
               <View style={S.hdrLogoRow}>
@@ -433,7 +434,7 @@ export default function ProductsScreen() {
   );
 }
 
-type LegacyPalette = { bg: string; navy: string; navyMid: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string; errorBg: string };
+type LegacyPalette = { bg: string; navy: string; navyMid: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string; errorBg: string; headerBg: string };
 
 const getS = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
@@ -457,7 +458,7 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
 
   topIcons: { flexDirection: 'row', gap: rs(10), alignItems: 'center' },
   iconBtn: { width: rs(38), height: rs(38), borderRadius: rs(12), backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)' },
-  badgeContainer: { position: 'absolute', top: -3, right: -3, backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy },
+  badgeContainer: { position: 'absolute', top: -3, right: -3, backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.headerBg },
   badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
 
   revenueRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(12) },

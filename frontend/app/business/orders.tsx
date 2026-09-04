@@ -19,23 +19,34 @@ import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSke
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness, useStoreOrders } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string;
+  border: string; borderStrong: string; headerBg: string; overlay: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+  headerBg: colors.headerGradient[0],
+  overlay: colors.overlay,
+});
 
 type FilterType = 'All' | 'Awaiting Payment' | 'Processing' | 'Delivered' | 'Cancelled';
 
@@ -52,13 +63,13 @@ interface Order {
 
 const MAP_STATUS = (s: string): { label: FilterType; color: string; bg: string; bar: string } => {
   const status = (s || '').toLowerCase();
-  if (['pending'].includes(status)) 
+  if (['pending'].includes(status))
     return { label: 'Awaiting Payment', color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B' };
-  if (['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'].includes(status)) 
+  if (['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'].includes(status))
     return { label: 'Processing', color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6' };
-  if (['delivered', 'completed'].includes(status)) 
+  if (['delivered', 'completed'].includes(status))
     return { label: 'Delivered', color: '#15803D', bg: '#DCFCE7', bar: '#84cc16' };
-  if (['cancelled', 'refunded'].includes(status)) 
+  if (['cancelled', 'refunded'].includes(status))
     return { label: 'Cancelled', color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444' };
   return { label: 'All', color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF' };
 };
@@ -67,22 +78,27 @@ const FILTERS: FilterType[] = ['All', 'Awaiting Payment', 'Processing', 'Deliver
 
 const OrderListSeparator = () => <View style={{ height: rs(12) }} />;
 
-const OrderListEmpty = ({ filter }: { filter: FilterType }) => (
-  <View style={S.emptyWrap}>
-    <View style={S.emptyCircle}>
-      <Feather name="inbox" size={rs(36)} color={C.navy} />
+const OrderListEmpty = ({ filter }: { filter: FilterType }) => {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(buildC(colors)), [colors]);
+  return (
+    <View style={S.emptyWrap}>
+      <View style={S.emptyCircle}>
+        <Feather name="inbox" size={rs(36)} color={colors.primary} />
+      </View>
+      <Text style={S.emptyTitle}>No {filter === 'All' ? '' : filter} orders</Text>
+      <Text style={S.emptySub}>
+        {filter === 'All'
+          ? 'Orders from your store will appear here.'
+          : `You have no ${filter.toLowerCase()} orders right now.`}
+      </Text>
     </View>
-    <Text style={S.emptyTitle}>No {filter === 'All' ? '' : filter} orders</Text>
-    <Text style={S.emptySub}>
-      {filter === 'All'
-        ? 'Orders from your store will appear here.'
-        : `You have no ${filter.toLowerCase()} orders right now.`}
-    </Text>
-  </View>
-);
+  );
+};
 
 // --- Custom 3-Color Spinner ---
 const MultiColorSpinner = () => {
+  const colors = useThemeColors();
   const spinValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -110,7 +126,7 @@ const MultiColorSpinner = () => {
           style={{ flex: 1, borderRadius: 25 }}
         />
       </Animated.View>
-      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: C.bg }} />
+      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: colors.backgroundAlt }} />
     </View>
   );
 };
@@ -118,6 +134,9 @@ const MultiColorSpinner = () => {
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const { isChecking, isVerified } = useSellerGuard();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
 
   const [filter, setFilter] = useState<FilterType>('All');
   const [showSwitcher, setShowSwitcher] = useState(false);
@@ -182,7 +201,7 @@ export default function OrdersScreen() {
     return (
       <View style={S.centred}>
         <MultiColorSpinner />
-        <Text style={{ marginTop: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' }}>
+        <Text style={{ marginTop: 16, color: C.muted, fontFamily: 'Montserrat-Medium' }}>
           Loading Orders...
         </Text>
       </View>
@@ -219,7 +238,7 @@ export default function OrdersScreen() {
   // Stats
   const paidStatuses    = new Set(['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit']);
   const completedStatuses = new Set(['delivered', 'completed']);
-  
+
   const earnedRevenue   = orders.reduce((s, o) => {
     const st = (o.status || '').toLowerCase();
     if (completedStatuses.has(st)) return s + o.totalAmount;
@@ -309,7 +328,7 @@ export default function OrdersScreen() {
             {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
             <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
               <LinearGradient
-                colors={[C.navy, C.navyMid]}
+                colors={colors.headerGradient}
                 style={[S.header, { paddingTop: insets.top + rs(16) }]}
               >
                 <View style={S.hdrGlow} pointerEvents="none" />
@@ -382,12 +401,12 @@ export default function OrdersScreen() {
               // Android uses padding to push content down; iOS uses contentInset
               contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? 240 : 0, paddingBottom: rs(120) }}
               // iOS pushes the content down AND moves the refresh spinner into this empty space!
-              contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 
+              contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }}
               contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -10 : 0 }}
               refreshControl={
-                <RefreshControl 
-                  refreshing={refreshing} 
-                  onRefresh={handleRefresh} 
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
                   tintColor="#84cc16" // iOS single color (Apple strict rule)
                   colors={['#1e3a8a', '#84cc16', '#111827']} // Android 3-color ring
                   progressViewOffset={260} // Android offset
@@ -472,10 +491,10 @@ export default function OrdersScreen() {
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity onPress={() => setShowSwitcher(false)}>
-                  <Ionicons name="close" size={24} color="#64748B" />
+                  <Ionicons name="close" size={24} color={C.muted} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={S.switcherList}>
                 {businesses.map((biz: any) => {
                   const active = biz._id === activeBusiness?._id;
@@ -502,14 +521,14 @@ export default function OrdersScreen() {
                         <Text style={S.switcherCat}>{biz.category}</Text>
                       </View>
                       {active ? (
-                        <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                        <Ionicons name="checkmark-circle" size={22} color={C.lime} />
                       ) : (
-                        <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                        <Ionicons name="ellipse-outline" size={22} color={C.borderStrong} />
                       )}
                     </TouchableOpacity>
                   );
                 })}
-                
+
                 {businesses.length < 3 && (
                   <TouchableOpacity
                     style={S.switcherAddCard}
@@ -519,7 +538,7 @@ export default function OrdersScreen() {
                     }}
                   >
                     <View style={S.switcherAddIcon}>
-                      <Ionicons name="add" size={22} color="#0C1559" />
+                      <Ionicons name="add" size={22} color={C.navy} />
                     </View>
                     <Text style={S.switcherAddText}>Register Another Store</Text>
                   </TouchableOpacity>
@@ -529,20 +548,20 @@ export default function OrdersScreen() {
           </View>
         </Modal>
 
-        <SpotlightTour 
-          visible={isTourActive && activeScreen === 'business_orders'} 
+        <SpotlightTour
+          visible={isTourActive && activeScreen === 'business_orders'}
           steps={onboardingSteps}
           onComplete={handleOnboardingComplete}
         />
       </SafeAreaView>
     </View>
   );
-};
+}
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
-  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
   scrollBody: { flex: 1, backgroundColor: C.bg, minHeight: SH },
   watermark:    { position: 'absolute', bottom: 140, left: -20 },
@@ -585,7 +604,7 @@ const S = StyleSheet.create({
   badgeContainer: {
     position: 'absolute', top: -3, right: -3,
     backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.headerBg,
   },
   badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
 
@@ -616,7 +635,7 @@ const S = StyleSheet.create({
   statCard: {
     flex: 1, backgroundColor: C.card, borderRadius: rs(14),
     padding: rs(12), alignItems: 'center',
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.borderStrong,
   },
   statNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', marginBottom: rs(3) },
   statLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: rs(6) },
@@ -630,7 +649,7 @@ const S = StyleSheet.create({
   },
   chip: {
     height: 36, paddingHorizontal: rs(16), borderRadius: 18,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    borderWidth: 0.5, borderColor: C.borderStrong,
     backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
@@ -643,7 +662,7 @@ const S = StyleSheet.create({
   listWrap: { paddingHorizontal: rs(16) },
   card: {
     backgroundColor: C.card, borderRadius: rs(20), overflow: 'hidden',
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.borderStrong,
   },
   cardBar:   { height: rs(3) },
   cardInner: { padding: rs(14) },
@@ -655,7 +674,7 @@ const S = StyleSheet.create({
   orderIdRow: { flexDirection: 'row', alignItems: 'center', gap: rs(8), flex: 1, marginRight: rs(8) },
   orderIcon: {
     width: rs(30), height: rs(30), borderRadius: rs(10),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center',
   },
   orderNum: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, flex: 1 },
 
@@ -667,12 +686,12 @@ const S = StyleSheet.create({
   statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
 
   infoGrid: {
-    backgroundColor: '#F8FAFC', borderRadius: rs(12),
+    backgroundColor: C.bg, borderRadius: rs(12),
     padding: rs(12), gap: rs(8), marginBottom: rs(14),
   },
   infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   infoLbl:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
-  infoVal:  { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: '#334155', maxWidth: '60%', textAlign: 'right' },
+  infoVal:  { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.body, maxWidth: '60%', textAlign: 'right' },
 
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   footLbl:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
@@ -689,7 +708,7 @@ const S = StyleSheet.create({
   },
   emptyCircle: {
     width: rs(80), height: rs(80), borderRadius: rs(40),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16),
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: rs(16),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
@@ -715,7 +734,7 @@ const S = StyleSheet.create({
     width: rs(28),
     height: rs(28),
     borderRadius: rs(14),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   storePillPlaceholder: {
     width: rs(28),
@@ -750,7 +769,7 @@ const S = StyleSheet.create({
   // Switcher bottom sheet styles
   switcherOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   switcherDismiss: {
@@ -761,7 +780,7 @@ const S = StyleSheet.create({
     bottom: 0,
   },
   switcherSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: rs(30),
     borderTopRightRadius: rs(30),
     padding: rs(24),
@@ -781,7 +800,7 @@ const S = StyleSheet.create({
   switcherTitle: {
     fontSize: rf(20),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherList: {
     gap: rs(12),
@@ -791,13 +810,13 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   switcherCardActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F1F5F9',
+    borderColor: C.navy,
+    backgroundColor: C.border,
   },
   switcherLogoWrapper: {
     width: rs(40),
@@ -822,12 +841,12 @@ const S = StyleSheet.create({
   switcherName: {
     fontSize: rf(15),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherCat: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: rs(2),
   },
   switcherAddCard: {
@@ -835,24 +854,24 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: C.borderStrong,
     marginTop: rs(6),
   },
   switcherAddIcon: {
     width: rs(40),
     height: rs(40),
     borderRadius: rs(20),
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   switcherAddText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginLeft: rs(12),
   },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
@@ -54,6 +54,8 @@ function getInitials(name?: string, email?: string) {
 export default function AdminParcelPartners() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [searchQuery, setSearchQuery] = useState('');
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,18 +138,18 @@ export default function AdminParcelPartners() {
         </LinearGradient>
 
         <View style={styles.searchWrap}>
-          <Feather name="search" size={15} color="#94A3B8" style={{ marginRight: 8 }} />
+          <Feather name="search" size={15} color={C.textSoft} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name, email or phone…"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.textSoft}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color={C.textSoft} />
             </TouchableOpacity>
           )}
         </View>
@@ -159,7 +161,7 @@ export default function AdminParcelPartners() {
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 80 }]}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="cube-outline" size={40} color="#CBD5E1" />
+              <Ionicons name="cube-outline" size={40} color={C.borderStrong} />
               <Text style={styles.emptyText}>
                 {searchQuery ? `No results for "${searchQuery}"` : 'No parcel partners yet'}
               </Text>
@@ -223,8 +225,8 @@ export default function AdminParcelPartners() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,14 +251,14 @@ const styles = StyleSheet.create({
     margin: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
   },
   searchInput: {
     flex: 1,
-    color: '#1D2B73',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -264,7 +266,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
@@ -281,9 +283,9 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontFamily: 'Montserrat-Bold', fontSize: 16 },
   info: { flex: 1 },
-  name: { color: '#0F172A', fontFamily: 'Montserrat-SemiBold', fontSize: 14 },
-  email: { color: '#64748B', fontFamily: 'Montserrat-Regular', fontSize: 12, marginTop: 2 },
-  phone: { color: '#94A3B8', fontFamily: 'Montserrat-Regular', fontSize: 11, marginTop: 1 },
+  name: { color: C.text, fontFamily: 'Montserrat-SemiBold', fontSize: 14 },
+  email: { color: C.textMuted, fontFamily: 'Montserrat-Regular', fontSize: 12, marginTop: 2 },
+  phone: { color: C.textSoft, fontFamily: 'Montserrat-Regular', fontSize: 11, marginTop: 1 },
   pill: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 3,
@@ -293,9 +295,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 4 },
   actionBtn: { padding: 6 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyText: { color: '#94A3B8', fontFamily: 'Montserrat-Regular', fontSize: 14, textAlign: 'center' },
+  emptyText: { color: C.textSoft, fontFamily: 'Montserrat-Regular', fontSize: 14, textAlign: 'center' },
   emptyAction: {
-    backgroundColor: '#0C1559', borderRadius: 12,
+    backgroundColor: C.navy, borderRadius: 12,
     paddingHorizontal: 20, paddingVertical: 10, marginTop: 4,
   },
   emptyActionText: { color: '#fff', fontFamily: 'Montserrat-SemiBold', fontSize: 13 },

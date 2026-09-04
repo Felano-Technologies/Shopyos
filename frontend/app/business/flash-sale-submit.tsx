@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,13 @@ import { getStoreProducts, submitFlashSale, getDisclaimerByType, acknowledgeDisc
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function FlashSaleSubmit() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { slotId } = useLocalSearchParams();
   const { activeBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -27,7 +31,7 @@ export default function FlashSaleSubmit() {
   const [submitting, setSubmitting] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-  
+
   // Product configuration state (prices & stock limits)
   const [campaignTitle, setCampaignTitle] = useState('');
   const [campaignDesc, setCampaignDesc] = useState('');
@@ -141,7 +145,7 @@ export default function FlashSaleSubmit() {
 
     try {
       setSubmitting(true);
-      
+
       // Acknowledge terms on backend
       if (flashSalePolicy) {
         await acknowledgeDisclaimer('flash_sale_terms', flashSalePolicy.version, slotId as string, 'flash_sale_slot');
@@ -174,7 +178,7 @@ export default function FlashSaleSubmit() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#0C1559" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New Flash Sale</Text>
         <View style={{ width: 24 }} />
@@ -184,11 +188,12 @@ export default function FlashSaleSubmit() {
         {/* Campaign Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Campaign Details</Text>
-          
+
           <Text style={styles.inputLabel}>Campaign Name / Title</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g. Weekend Mega Sale"
+            placeholderTextColor={colors.textMuted}
             value={campaignTitle}
             onChangeText={setCampaignTitle}
           />
@@ -198,6 +203,7 @@ export default function FlashSaleSubmit() {
             style={[styles.input, { height: 60, textAlignVertical: 'top' }]}
             multiline
             placeholder="Describe the promotion themes or terms"
+            placeholderTextColor={colors.textMuted}
             value={campaignDesc}
             onChangeText={setCampaignDesc}
           />
@@ -206,26 +212,26 @@ export default function FlashSaleSubmit() {
         {/* Product Selection */}
         <Text style={styles.sectionTitle}>Select Products</Text>
         {loading ? (
-          <ActivityIndicator size="small" color="#0C1559" style={{ marginVertical: 20 }} />
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }} />
         ) : products.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Feather name="package" size={28} color="#94A3B8" />
+            <Feather name="package" size={28} color={colors.textMuted} />
             <Text style={styles.emptyText}>No active products available in your store catalog.</Text>
           </View>
         ) : (
           products.map((item) => {
             const itemId = item.id || item._id;
             const isSelected = selectedProductIds.includes(itemId);
-            
+
             return (
               <View key={itemId} style={[styles.productCard, isSelected && styles.productCardActive]}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.productSelectRow}
                   onPress={() => toggleProductSelect(itemId)}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                    {isSelected && <Feather name="check" size={12} color="#FFF" />}
+                    {isSelected && <Feather name="check" size={12} color={colors.textInverse} />}
                   </View>
                   <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.productPrice}>₵{Number(item.price).toFixed(2)}</Text>
@@ -239,6 +245,7 @@ export default function FlashSaleSubmit() {
                         style={styles.configInput}
                         keyboardType="decimal-pad"
                         placeholder="0.00"
+                        placeholderTextColor={colors.textMuted}
                         value={productConfigs[itemId]?.flashPrice}
                         onChangeText={(v) => updateConfig(itemId, 'flashPrice', v)}
                       />
@@ -249,6 +256,7 @@ export default function FlashSaleSubmit() {
                         style={styles.configInput}
                         keyboardType="number-pad"
                         placeholder="Qty"
+                        placeholderTextColor={colors.textMuted}
                         value={productConfigs[itemId]?.stockLimit}
                         onChangeText={(v) => updateConfig(itemId, 'stockLimit', v)}
                       />
@@ -269,7 +277,7 @@ export default function FlashSaleSubmit() {
                 onPress={() => setIsDisclaimerChecked(!isDisclaimerChecked)}
               >
                 <View style={[styles.checkbox, isDisclaimerChecked && styles.checkboxChecked]}>
-                  {isDisclaimerChecked && <Feather name="check" size={12} color="#FFF" />}
+                  {isDisclaimerChecked && <Feather name="check" size={12} color={colors.textInverse} />}
                 </View>
               </TouchableOpacity>
               <Text style={styles.disclaimerText}>
@@ -289,7 +297,7 @@ export default function FlashSaleSubmit() {
           disabled={submitting || selectedProductIds.length === 0}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color="#FFF" />
+            <ActivityIndicator size="small" color={colors.textInverse} />
           ) : (
             <Text style={styles.submitBtnText}>Submit to Admin Queue</Text>
           )}
@@ -312,10 +320,10 @@ export default function FlashSaleSubmit() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
   },
   header: {
     flexDirection: 'row',
@@ -323,9 +331,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.borderStrong,
   },
   backBtn: {
     padding: 4,
@@ -333,78 +341,78 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   scrollContent: {
     padding: 16,
   },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   cardTitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: colors.border,
     paddingBottom: 8,
   },
   inputLabel: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#1E293B',
+    color: colors.text,
   },
   sectionTitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     marginTop: 10,
     marginBottom: 12,
   },
   emptyCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
   },
   emptyText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
   },
   productCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   productCardActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#FAF5FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.border,
   },
   productSelectRow: {
     flexDirection: 'row',
@@ -415,31 +423,31 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#0C1559',
+    borderColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   checkboxChecked: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
   },
   productTitle: {
     flex: 1,
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#334155',
+    color: colors.text,
   },
   productPrice: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   configContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.borderStrong,
     paddingTop: 10,
   },
   configField: {
@@ -448,26 +456,27 @@ const styles = StyleSheet.create({
   configLabel: {
     fontSize: 10,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   configInput: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 36,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
-    backgroundColor: '#FFF',
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
   disclaimerCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
     padding: 12,
     marginTop: 15,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   disclaimerRow: {
     flexDirection: 'row',
@@ -479,16 +488,16 @@ const styles = StyleSheet.create({
   disclaimerText: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#475569',
+    color: colors.textSecondary,
     flex: 1,
   },
   disclaimerLink: {
-    color: '#0C1559',
+    color: colors.primary,
     fontFamily: 'Montserrat-Bold',
     textDecorationLine: 'underline',
   },
   submitButton: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -500,7 +509,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitBtnText: {
-    color: '#FFF',
+    color: colors.textInverse,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },

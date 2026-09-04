@@ -1,5 +1,5 @@
 // app/business/products/addproducts.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Pressable, Alert, Dimensions} from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -13,23 +13,32 @@ import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProdu
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import * as WebBrowser from 'expo-web-browser';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#FFFFFF',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string;
+  border: string; borderStrong: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+});
 
 const MAX_PRODUCT_IMAGES = 5;
 
@@ -44,29 +53,37 @@ const isFashionCategory = (cat: string) => String(cat || '').toLowerCase().match
 const isElectronicsCategory = (cat: string) => String(cat || '').toLowerCase().includes('electron');
 const isHomeCategory = (cat: string) => String(cat || '').toLowerCase().match(/home|kitchen|furniture/);
 
-const StatusRadio = ({ isActive, onToggle, disabled }: any) => (
-  <View style={S.radioRow}>
-    <TouchableOpacity style={[S.radioOption, isActive && S.radioOptionSelected]} onPress={() => onToggle(true)} disabled={disabled}>
-      <View style={[S.radioCircle, isActive && S.radioCircleSelected]}>{isActive && <View style={S.radioInner} />}</View>
-      <Text style={[S.radioLabel, isActive && S.radioLabelSelected]}>Active</Text>
-    </TouchableOpacity>
-    <TouchableOpacity style={[S.radioOption, !isActive && S.radioOptionSelected]} onPress={() => onToggle(false)} disabled={disabled}>
-      <View style={[S.radioCircle, !isActive && S.radioCircleSelected]}>{!isActive && <View style={S.radioInner} />}</View>
-      <Text style={[S.radioLabel, !isActive && S.radioLabelSelected]}>Inactive</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-const CardActionRow = ({ icon, title, subtitle, onPress, disabled, rightLabel }: any) => (
-  <TouchableOpacity style={S.cardRow} onPress={onPress} disabled={disabled} activeOpacity={0.8}>
-    <View style={S.cardRowIcon}>{icon}</View>
-    <View style={S.cardRowText}>
-      <Text style={S.cardRowTitle}>{title}</Text>
-      {subtitle ? <Text style={S.cardRowSub}>{subtitle}</Text> : null}
+const StatusRadio = ({ isActive, onToggle, disabled }: any) => {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(buildC(colors)), [colors]);
+  return (
+    <View style={S.radioRow}>
+      <TouchableOpacity style={[S.radioOption, isActive && S.radioOptionSelected]} onPress={() => onToggle(true)} disabled={disabled}>
+        <View style={[S.radioCircle, isActive && S.radioCircleSelected]}>{isActive && <View style={S.radioInner} />}</View>
+        <Text style={[S.radioLabel, isActive && S.radioLabelSelected]}>Active</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[S.radioOption, !isActive && S.radioOptionSelected]} onPress={() => onToggle(false)} disabled={disabled}>
+        <View style={[S.radioCircle, !isActive && S.radioCircleSelected]}>{!isActive && <View style={S.radioInner} />}</View>
+        <Text style={[S.radioLabel, !isActive && S.radioLabelSelected]}>Inactive</Text>
+      </TouchableOpacity>
     </View>
-    {rightLabel ? <Text style={S.cardRowRight}>{rightLabel}</Text> : <Feather name="chevron-right" size={20} color={C.muted} />}
-  </TouchableOpacity>
-);
+  );
+};
+
+const CardActionRow = ({ icon, title, subtitle, onPress, disabled, rightLabel }: any) => {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(buildC(colors)), [colors]);
+  return (
+    <TouchableOpacity style={S.cardRow} onPress={onPress} disabled={disabled} activeOpacity={0.8}>
+      <View style={S.cardRowIcon}>{icon}</View>
+      <View style={S.cardRowText}>
+        <Text style={S.cardRowTitle}>{title}</Text>
+        {subtitle ? <Text style={S.cardRowSub}>{subtitle}</Text> : null}
+      </View>
+      {rightLabel ? <Text style={S.cardRowRight}>{rightLabel}</Text> : <Feather name="chevron-right" size={20} color={colors.textSecondary} />}
+    </TouchableOpacity>
+  );
+};
 
 export default function ManageProductScreen() {
   const insets = useSafeAreaInsets();
@@ -74,6 +91,9 @@ export default function ManageProductScreen() {
   const showImagePicker = useImagePickerSheet();
   const { activeBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -93,7 +113,7 @@ export default function ManageProductScreen() {
   const [attrStyle, setAttrStyle] = useState('');
   const [attrBrand, setAttrBrand] = useState('');
   const [attrConnectivity, setAttrConnectivity] = useState('');
-  
+
   const [bargainingEnabled, setBargainingEnabled] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryModal, setCategoryModal] = useState(false);
@@ -143,7 +163,7 @@ export default function ManageProductScreen() {
         attributes: { material: attrMaterial, style: attrStyle, connectivity: attrConnectivity },
         variantOptions: [] as any[]
       };
-      
+
       if (attrColor.trim()) payload.variantOptions.push({ option_name: 'color', option_values: attrColor.split(',').map(v => v.trim()) });
       if (attrSize.trim()) payload.variantOptions.push({ option_name: 'size', option_values: attrSize.split(',').map(v => v.trim()) });
 
@@ -151,6 +171,10 @@ export default function ManageProductScreen() {
         CustomInAppToast.show({ type: 'error', title: 'Missing Image', message: 'Please add at least one photo.' });
         setIsSubmitting(false);
         return;
+      }
+
+      if (images.length === 1) {
+        CustomInAppToast.show({ type: 'info', title: 'Tip', message: 'Listings with multiple photos build more buyer trust — you can add more anytime.' });
       }
 
       let productId = editingId;
@@ -206,7 +230,7 @@ export default function ManageProductScreen() {
       CustomInAppToast.show({ type: 'error', title: 'Limit Reached', message: `You can add up to ${MAX_PRODUCT_IMAGES} photos.` });
       return;
     }
-    const uri = await showImagePicker({ allowsEditing: true, quality: 0.8 });
+    const uri = await showImagePicker({ allowsEditing: true, quality: 0.9 });
     if (!uri) return;
     setImages((prev) => [...prev, { uri, isPrimary: prev.length === 0, isNew: true }]);
   };
@@ -238,10 +262,10 @@ return (
 
       {/* 2. Change edges to only ['left', 'right'] so it bleeds into the top */}
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
-        
+
         {/* 3. Apply dynamic top padding and the new header style */}
-        <LinearGradient 
-          colors={[C.navy, C.navyMid]} 
+        <LinearGradient
+          colors={colors.headerGradient}
           style={[S.header, { paddingTop: insets.top + rs(16) }]}
         >
           <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
@@ -249,7 +273,7 @@ return (
           </TouchableOpacity>
           <Text style={S.headerTitle}>{editingId ? 'Edit Product' : 'Create Product'}</Text>
           <View style={{ width: rs(38) }} />
-          
+
           {/* Add the little bottom curve to match the index screen perfectly */}
           <View style={S.hdrArc} />
         </LinearGradient>
@@ -260,10 +284,13 @@ return (
           keyboardVerticalOffset={0}
         >
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={S.screen}>
-          
+
           <View style={S.cardSection}>
             <Text style={S.sectionLabel}>Product Media</Text>
             <Text style={S.mediaHint}>Add up to {MAX_PRODUCT_IMAGES} photos. Tap the star to choose which one shows on your product card.</Text>
+            {images.length === 1 && (
+              <Text style={S.mediaHint}>Tip: add a few more angles — listings with multiple photos build more buyer trust.</Text>
+            )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.mediaRow}>
               {images.map((img, index) => (
                 <View key={img.id || img.uri} style={S.mediaTile}>
@@ -274,7 +301,7 @@ return (
                     onPress={() => handleSetPrimaryImage(index)}
                     disabled={isSubmitting || img.isPrimary}
                   >
-                    <Ionicons name={img.isPrimary ? 'star' : 'star-outline'} size={rs(13)} color={img.isPrimary ? '#FFF' : C.navy} />
+                    <Ionicons name={img.isPrimary ? 'star' : 'star-outline'} size={rs(13)} color={img.isPrimary ? colors.textInverse : colors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     accessibilityLabel="Remove photo"
@@ -365,7 +392,7 @@ return (
                     value={price}
                     onChangeText={setPrice}
                     placeholder="0.00"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="numeric"
                     style={S.lightInputTxt}
                     editable={!isSubmitting}
@@ -380,7 +407,7 @@ return (
                     value={compareAtPrice}
                     onChangeText={setCompareAtPrice}
                     placeholder="0.00"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="numeric"
                     style={S.lightInputTxt}
                     editable={!isSubmitting}
@@ -398,7 +425,7 @@ return (
                   value={stock}
                   onChangeText={setStock}
                   placeholder="Enter quantity"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={S.lightInputTxt}
                   editable={!isSubmitting}
@@ -409,20 +436,20 @@ return (
 
 <View style={S.cardSection}>
             <Text style={S.sectionLabel}>Product Details</Text>
-            
+
             {/* Color(s) */}
             {(isFashionCategory(category) || (!isElectronicsCategory(category) && !isHomeCategory(category))) && (
               <View style={{ marginBottom: rs(12) }}>
                 <Text style={S.inputLabel}>Color(s)</Text>
                 <View style={S.lightInput}>
                   <Feather name="droplet" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                  <TextInput 
-                    value={attrColor} 
-                    onChangeText={setAttrColor} 
-                    placeholder="e.g. Red, Blue, Black" 
-                    placeholderTextColor="#94A3B8" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={attrColor}
+                    onChangeText={setAttrColor}
+                    placeholder="e.g. Red, Blue, Black"
+                    placeholderTextColor={colors.textMuted}
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
@@ -434,13 +461,13 @@ return (
                 <Text style={S.inputLabel}>Size(s)</Text>
                 <View style={S.lightInput}>
                   <Feather name="maximize-2" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                  <TextInput 
-                    value={attrSize} 
-                    onChangeText={setAttrSize} 
-                    placeholder="e.g. S, M, L, XL or 42, 44" 
-                    placeholderTextColor="#94A3B8" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={attrSize}
+                    onChangeText={setAttrSize}
+                    placeholder="e.g. S, M, L, XL or 42, 44"
+                    placeholderTextColor={colors.textMuted}
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
@@ -452,13 +479,13 @@ return (
                 <Text style={S.inputLabel}>Material</Text>
                 <View style={S.lightInput}>
                   <Feather name="box" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                  <TextInput 
-                    value={attrMaterial} 
-                    onChangeText={setAttrMaterial} 
-                    placeholder="e.g. Cotton, Leather, Wood" 
-                    placeholderTextColor="#94A3B8" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={attrMaterial}
+                    onChangeText={setAttrMaterial}
+                    placeholder="e.g. Cotton, Leather, Wood"
+                    placeholderTextColor={colors.textMuted}
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
@@ -470,13 +497,13 @@ return (
                 <Text style={S.inputLabel}>Style</Text>
                 <View style={S.lightInput}>
                   <Feather name="sliders" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                  <TextInput 
-                    value={attrStyle} 
-                    onChangeText={setAttrStyle} 
-                    placeholder="e.g. Casual, Modern, Vintage" 
-                    placeholderTextColor="#94A3B8" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={attrStyle}
+                    onChangeText={setAttrStyle}
+                    placeholder="e.g. Casual, Modern, Vintage"
+                    placeholderTextColor={colors.textMuted}
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
@@ -488,13 +515,13 @@ return (
                 <Text style={S.inputLabel}>Connectivity</Text>
                 <View style={S.lightInput}>
                   <Feather name="wifi" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                  <TextInput 
-                    value={attrConnectivity} 
-                    onChangeText={setAttrConnectivity} 
-                    placeholder="e.g. Bluetooth, Wi-Fi, USB-C" 
-                    placeholderTextColor="#94A3B8" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={attrConnectivity}
+                    onChangeText={setAttrConnectivity}
+                    placeholder="e.g. Bluetooth, Wi-Fi, USB-C"
+                    placeholderTextColor={colors.textMuted}
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
@@ -505,13 +532,13 @@ return (
               <Text style={S.inputLabel}>Brand (Optional)</Text>
               <View style={S.lightInput}>
                 <Feather name="award" size={rs(14)} color={C.muted} style={{ marginRight: rs(8) }} />
-                <TextInput 
-                  value={attrBrand} 
-                  onChangeText={setAttrBrand} 
-                  placeholder="e.g. Nike, Samsung, Apple" 
-                  placeholderTextColor="#94A3B8" 
-                  style={S.lightInputTxt} 
-                  editable={!isSubmitting} 
+                <TextInput
+                  value={attrBrand}
+                  onChangeText={setAttrBrand}
+                  placeholder="e.g. Nike, Samsung, Apple"
+                  placeholderTextColor={colors.textMuted}
+                  style={S.lightInputTxt}
+                  editable={!isSubmitting}
                 />
               </View>
             </View>
@@ -556,28 +583,28 @@ return (
   );
 }
 
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
 
-header: { 
-    paddingHorizontal: rs(20), 
-    paddingBottom: rs(28), 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    position: 'relative', 
-    elevation: 10, 
-    shadowColor: C.navy, 
-    shadowOffset: { width: 0, height: rs(8) }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: rs(16) 
+header: {
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(28),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    position: 'relative',
+    elevation: 10,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(8) },
+    shadowOpacity: 0.2,
+    shadowRadius: rs(16)
   },
-  hdrArc: { 
-    position: 'absolute', bottom: 0, left: 0, right: 0, 
-    height: rs(24), backgroundColor: C.bg, 
-    borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24) 
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: rs(24), backgroundColor: C.bg,
+    borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24)
   },
 
   backBtn: { width: rs(38), height: rs(38), borderRadius: rs(12), backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
@@ -587,20 +614,20 @@ header: {
 
   cardSection: { marginBottom: rs(16), backgroundColor: C.card, borderRadius: rs(24), padding: rs(16), shadowColor: C.navy, shadowOpacity: 0.04, shadowRadius: rs(8), shadowOffset: { width: 0, height: rs(3) }, elevation: 2 },
   sectionLabel: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(10) },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: rs(14) },
+  divider: { height: 1, backgroundColor: C.borderStrong, marginVertical: rs(14) },
 
-  cardRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: rs(16), padding: rs(12), gap: rs(12), borderWidth: 1, borderColor: '#E2E8F0' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: rs(16), padding: rs(12), gap: rs(12), borderWidth: 1, borderColor: C.borderStrong },
   cardRowIcon: { justifyContent: 'center', alignItems: 'center' },
   cardRowText: { flex: 1 },
   cardRowTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body },
   cardRowSub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
   cardRowRight: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
-  
-  iconBg: { width: rs(36), height: rs(36), borderRadius: rs(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+
+  iconBg: { width: rs(36), height: rs(36), borderRadius: rs(10), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
 
   mediaHint: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: rs(12) },
   mediaRow: { gap: rs(10), paddingRight: rs(4) },
-  mediaTile: { width: rs(84), height: rs(84), borderRadius: rs(14), overflow: 'hidden', backgroundColor: '#F1F5F9' },
+  mediaTile: { width: rs(84), height: rs(84), borderRadius: rs(14), overflow: 'hidden', backgroundColor: C.border },
   mediaTileImg: { width: '100%', height: '100%' },
   mediaStarBadge: {
     position: 'absolute', top: rs(4), left: rs(4), width: rs(22), height: rs(22), borderRadius: rs(11),
@@ -617,51 +644,51 @@ header: {
   },
   mediaPrimaryTagTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold', color: '#FFF' },
   mediaAddTile: {
-    width: rs(84), height: rs(84), borderRadius: rs(14), borderWidth: 1.5, borderColor: '#CBD5E1', borderStyle: 'dashed',
-    justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC', gap: rs(4),
+    width: rs(84), height: rs(84), borderRadius: rs(14), borderWidth: 1.5, borderColor: C.borderStrong, borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, gap: rs(4),
   },
   mediaAddTileTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.navy },
 
   inputBlock: { width: '100%' },
   inputLabel: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: rs(6) },
-  inputField: { backgroundColor: '#F8FAFC', borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(46), fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body, borderWidth: 1, borderColor: '#E2E8F0' },
+  inputField: { backgroundColor: C.bg, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(46), fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body, borderWidth: 1, borderColor: C.borderStrong },
 
   radioRow: { flexDirection: 'row', gap: rs(12) },
-  radioOption: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: '#F8FAFC', borderRadius: rs(14), paddingHorizontal: rs(14), paddingVertical: rs(12), borderWidth: 1.5, borderColor: '#E2E8F0' },
-  radioOptionSelected: { borderColor: C.navy, backgroundColor: '#EEF2FF' },
-  radioCircle: { width: rs(18), height: rs(18), borderRadius: rs(9), borderWidth: 1.5, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+  radioOption: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: C.bg, borderRadius: rs(14), paddingHorizontal: rs(14), paddingVertical: rs(12), borderWidth: 1.5, borderColor: C.borderStrong },
+  radioOptionSelected: { borderColor: C.navy, backgroundColor: C.border },
+  radioCircle: { width: rs(18), height: rs(18), borderRadius: rs(9), borderWidth: 1.5, borderColor: C.borderStrong, justifyContent: 'center', alignItems: 'center' },
   radioCircleSelected: { borderColor: C.navy },
   radioInner: { width: rs(9), height: rs(9), borderRadius: rs(4.5), backgroundColor: C.navy },
   radioLabel: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   radioLabelSelected: { color: C.navy },
 
-  descriptionBox: { backgroundColor: '#F8FAFC', borderRadius: rs(14), borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: rs(14), paddingVertical: rs(12), minHeight: rs(100) },
+  descriptionBox: { backgroundColor: C.bg, borderRadius: rs(14), borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: rs(14), paddingVertical: rs(12), minHeight: rs(100) },
   descriptionInput: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body, minHeight: rs(80) },
 
   genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(8) },
-  genderChip: { paddingHorizontal: rs(14), paddingVertical: rs(10), borderRadius: rs(10), backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  genderChip: { paddingHorizontal: rs(14), paddingVertical: rs(10), borderRadius: rs(10), backgroundColor: C.bg, borderWidth: 1, borderColor: C.borderStrong },
   genderChipOn: { backgroundColor: C.navy, borderColor: C.navy },
   genderChipTxt: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   genderChipTxtOn: { color: '#FFFFFF' },
 
   pricingRow: { flexDirection: 'row', gap: rs(8) },
-  lightInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: rs(12), paddingHorizontal: rs(12), height: rs(46), borderWidth: 1, borderColor: '#E2E8F0' },
+  lightInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: rs(12), paddingHorizontal: rs(12), height: rs(46), borderWidth: 1, borderColor: C.borderStrong },
   lightInputTxt: { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body },
   currencyPfx: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted, marginRight: rs(6) },
 
   formActionRow: { flexDirection: 'row', gap: rs(12), marginTop: rs(6) },
-  cancelBtn: { flex: 1, paddingVertical: rs(14), borderRadius: rs(16), borderWidth: 1.5, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
+  cancelBtn: { flex: 1, paddingVertical: rs(14), borderRadius: rs(16), borderWidth: 1.5, borderColor: C.borderStrong, backgroundColor: C.card, justifyContent: 'center', alignItems: 'center' },
   cancelBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted },
   addBtn: { flex: 2, paddingVertical: rs(14), borderRadius: rs(16), backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center' },
   addBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.limeText },
 
   catOverlay: { flex: 1, backgroundColor: 'rgba(11, 32, 96, 0.4)', justifyContent: 'flex-end' },
-  catSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28), padding: rs(20), maxHeight: '80%' },
-  catHandle: { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: rs(16) },
-  catHdrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16), paddingBottom: rs(14), borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  catSheet: { backgroundColor: C.card, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28), padding: rs(20), maxHeight: '80%' },
+  catHandle: { width: rs(40), height: rs(4), borderRadius: rs(2), backgroundColor: C.borderStrong, alignSelf: 'center', marginBottom: rs(16) },
+  catHdrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16), paddingBottom: rs(14), borderBottomWidth: 1, borderBottomColor: C.border },
   catTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
-  catClose: { width: rs(32), height: rs(32), borderRadius: rs(16), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  catItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: rs(14), borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  catClose: { width: rs(32), height: rs(32), borderRadius: rs(16), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  catItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: rs(14), borderBottomWidth: 1, borderBottomColor: C.border },
   catTxt: { fontSize: rf(15), fontFamily: 'Montserrat-Medium', color: C.muted },
   catTxtOn: { fontFamily: 'Montserrat-Bold', color: C.navy }
 });

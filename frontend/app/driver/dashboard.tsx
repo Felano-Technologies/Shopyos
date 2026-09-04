@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,15 +23,20 @@ import { useAllUnreadCount } from '@/hooks/useChat';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
 import WelcomeCard from '@/components/WelcomeCard';
 import {
-  
+
   stopDriverLocationTracking,
   requestLocationPermissions,
   setLocationSharingPreference,
 } from '@/src/background/controller';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
 function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPending: boolean; onAccept: (id: string) => void }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.requestCard}>
       <View style={styles.cardHeader}>
@@ -51,7 +56,7 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
         <View style={styles.timeline}>
           <View style={styles.dot} />
           <View style={styles.line} />
-          <View style={[styles.dot, { backgroundColor: '#A3E635' }]} />
+          <View style={[styles.dot, { backgroundColor: colors.accent }]} />
         </View>
         <View style={styles.addresses}>
           <View style={styles.addressBlock}>
@@ -66,7 +71,7 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
       </View>
       <View style={styles.cardFooter}>
         <View style={styles.itemBadge}>
-          <Feather name="package" size={14} color="#64748B" />
+          <Feather name="package" size={14} color={colors.textSecondary} />
           <Text style={styles.itemText}>{item.items} Items</Text>
         </View>
         <TouchableOpacity
@@ -74,7 +79,7 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
           onPress={() => onAccept(item.id)}
           disabled={isPending}
         >
-          {isPending ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
+          {isPending ? <ActivityIndicator size="small" color={colors.accent} /> : <Text style={styles.acceptText}>Accept Order</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -82,6 +87,8 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
 }
 
 function ActiveMissionCard({ delivery, onPress }: Readonly<{ delivery: any; onPress: () => void }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.activeCard} onPress={onPress}>
       <LinearGradient colors={['#A3E635', '#84cc16']} style={styles.activeGradient}>
@@ -101,6 +108,8 @@ function ActiveMissionCard({ delivery, onPress }: Readonly<{ delivery: any; onPr
 
 export default function Dashboard() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { data: chatUnreadCount = 0 } = useAllUnreadCount();
   const { profile: initialProfile, isChecking } = useDriverGuard();
   const [profile, setProfile] = useState<any>(initialProfile);
@@ -143,15 +152,15 @@ export default function Dashboard() {
   // --- TanStack Query Hooks ---
   const { data: statsData, refetch: refetchStats } = useDriverStats('today');
   const stats = statsData?.today || { total: 0, completed: 0, inProgress: 0, earnings: 0 };
-  
+
   const { data: activeData, refetch: refetchActive } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const activeDeliveries = activeData?.deliveries || [];
-  
-  const { 
-    data: availableData, 
-    refetch: refetchAvailable, 
+
+  const {
+    data: availableData,
+    refetch: refetchAvailable,
     isLoading: isLoadingAvailable,
-    isFetching: isFetchingAvailable 
+    isFetching: isFetchingAvailable
   } = useAvailableDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const requests = availableData?.deliveries?.map((d: any) => ({
     id: d.id || d._id,
@@ -315,19 +324,19 @@ export default function Dashboard() {
   }
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           {!isVerified && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.verificationBanner}
               activeOpacity={0.9}
               onPress={() => router.push('/driver/verification')}
             >
-              <Feather name="shield" size={16} color="#0C1559" />
+              <Feather name="shield" size={16} color={colors.accentText} />
               <Text style={styles.verificationText}>{verificationBannerText}</Text>
-              <Feather name="chevron-right" size={14} color="#0C1559" />
+              <Feather name="chevron-right" size={14} color={colors.accentText} />
             </TouchableOpacity>
           )}
           <View style={styles.headerTop}>
@@ -345,7 +354,7 @@ export default function Dashboard() {
             </View>
             {/* Online Toggle */}
             <View style={styles.toggleContainer}>
-              <Text style={[styles.toggleLabel, { color: isOnline ? '#A3E635' : '#94A3B8' }]}>
+              <Text style={[styles.toggleLabel, { color: isOnline ? colors.accent : colors.textMuted }]}>
                 {isOnline ? 'ON' : 'OFF'}
               </Text>
               <Switch
@@ -404,17 +413,17 @@ export default function Dashboard() {
               <View style={styles.searchingState}>
                 {isLoadingAvailable ? (
                   <>
-                    <ActivityIndicator size="large" color="#0C1559" />
+                    <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.searchingText}>Finding orders...</Text>
                   </>
                 ) : (
                   <>
                     <View style={styles.searchingIconCircle}>
-                      <Feather name="search" size={40} color="#94A3B8" />
+                      <Feather name="search" size={40} color={colors.textMuted} />
                     </View>
                     <Text style={styles.searchingText}>No orders available right now</Text>
                     <Text style={styles.searchingSub}>We&apos;ll notify you when a new request comes in.</Text>
-                    {isFetchingAvailable && <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 15 }} />}
+                    {isFetchingAvailable && <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 15 }} />}
                   </>
                 )}
               </View>
@@ -433,7 +442,7 @@ export default function Dashboard() {
         ) : (
           <View style={styles.offlineState}>
             <View style={styles.offlineIconCircle}>
-              <MaterialCommunityIcons name="motorbike-off" size={60} color="#94A3B8" />
+              <MaterialCommunityIcons name="motorbike-off" size={60} color={colors.textMuted} />
             </View>
             <Text style={styles.offlineTitle}>You are currently offline</Text>
             <Text style={styles.offlineSub}>Go online to start receiving delivery requests nearby.</Text>
@@ -457,7 +466,7 @@ export default function Dashboard() {
         activeOpacity={0.85}
         onPress={() => router.push('/chat' as any)}
       >
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+        <LinearGradient colors={colors.headerGradient} style={styles.chatFabGrad}>
           <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
         </LinearGradient>
         {chatUnreadCount > 0 && (
@@ -470,11 +479,11 @@ export default function Dashboard() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   // Header
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     paddingBottom: 25,
@@ -483,7 +492,7 @@ const styles = StyleSheet.create({
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 5 },
   verificationBanner: {
-    backgroundColor: '#A3E635',
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
@@ -497,10 +506,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559'
+    color: colors.accentText
   },
   profileRow: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#A3E635', marginRight: 12, backgroundColor: '#FFF' },
+  avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: colors.accent, marginRight: 12, backgroundColor: colors.surface },
   greeting: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   statusTextHeader: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
   toggleContainer: { alignItems: 'center' },
@@ -518,15 +527,15 @@ const styles = StyleSheet.create({
   contentContainer: { flex: 1, padding: 20 },
   // Offline State
   offlineState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: -50 },
-  offlineIconCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  offlineTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-  offlineSub: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', width: '80%', marginBottom: 30 },
-  goOnlineBtn: { backgroundColor: '#0C1559', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
-  goOnlineText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  offlineIconCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  offlineTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 8 },
+  offlineSub: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, textAlign: 'center', width: '80%', marginBottom: 30 },
+  goOnlineBtn: { backgroundColor: colors.primary, paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
+  goOnlineText: { color: colors.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 16 },
   chatFab: {
     position: 'absolute', bottom: 110, right: 18,
     width: 58, height: 58, borderRadius: 29,
-    elevation: 8, shadowColor: '#0C1559',
+    elevation: 8, shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
     zIndex: 100, overflow: 'visible',
   },
@@ -534,20 +543,20 @@ const styles = StyleSheet.create({
   chatFabBadge: {
     position: 'absolute', top: -2, right: -2,
     minWidth: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: colors.headerGradient[0],
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
   },
   chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   // Online State
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', marginBottom: 10 },
+  sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 10 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#DC2626', marginRight: 6 },
   liveText: { color: '#DC2626', fontSize: 10, fontFamily: 'Montserrat-Bold' },
   searchingState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
-  searchingIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  searchingText: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#475569', textAlign: 'center' },
-  searchingSub: { fontSize: rf(13), fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 5, width: '80%' },
+  searchingIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  searchingText: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: colors.text, textAlign: 'center' },
+  searchingSub: { fontSize: rf(13), fontFamily: 'Montserrat-Regular', color: colors.textMuted, textAlign: 'center', marginTop: 5, width: '80%' },
   // Active Order Card
   activeCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 15, elevation: 4, shadowColor: '#365314', shadowOpacity: 0.2, shadowRadius: 10 },
   activeGradient: { padding: 16 },
@@ -559,13 +568,13 @@ const styles = StyleSheet.create({
   activeOrderNum: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
   // Request Card
   requestCard: {
-    backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16,
+    backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 16,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
   priceTag: { backgroundColor: '#ECFCCB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  priceText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 16 },
-  distanceText: { color: '#64748B', fontFamily: 'Montserrat-SemiBold', fontSize: 12, marginTop: 5 },
+  priceText: { color: colors.primary, fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  distanceText: { color: colors.textSecondary, fontFamily: 'Montserrat-SemiBold', fontSize: 12, marginTop: 5 },
   legBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 5,
@@ -574,15 +583,15 @@ const styles = StyleSheet.create({
   legBadgeText: { color: '#1D4ED8', fontFamily: 'Montserrat-Bold', fontSize: 11 },
   routeContainer: { flexDirection: 'row', marginBottom: 20 },
   timeline: { alignItems: 'center', marginRight: 12, marginTop: 5 },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0C1559' },
-  line: { width: 2, height: 35, backgroundColor: '#E2E8F0', marginVertical: 2 },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  line: { width: 2, height: 35, backgroundColor: colors.borderStrong, marginVertical: 2 },
   addresses: { flex: 1 },
   addressBlock: { height: 42, justifyContent: 'center' },
-  addressLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#94A3B8', textTransform: 'uppercase' },
-  addressTitle: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 15 },
-  itemBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  itemText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#475569', marginLeft: 6 },
-  acceptBtn: { backgroundColor: '#0C1559', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
-  acceptText: { color: '#A3E635', fontFamily: 'Montserrat-Bold', fontSize: 13 }
+  addressLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: colors.textMuted, textTransform: 'uppercase' },
+  addressTitle: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: colors.text },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 15 },
+  itemBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.border, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  itemText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginLeft: 6 },
+  acceptBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  acceptText: { color: colors.accent, fontFamily: 'Montserrat-Bold', fontSize: 13 }
 });

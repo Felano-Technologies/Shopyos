@@ -268,7 +268,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   // Switcher bottom sheet styles
   switcherOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   switcherDismiss: {
@@ -279,7 +279,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     bottom: 0,
   },
   switcherSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: rs(30),
     borderTopRightRadius: rs(30),
     padding: rs(24),
@@ -299,7 +299,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   switcherTitle: {
     fontSize: rf(20),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: colors.text,
   },
   switcherList: {
     gap: rs(12),
@@ -309,13 +309,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
   },
   switcherCardActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F1F5F9',
+    borderColor: colors.primary,
+    backgroundColor: colors.border,
   },
   switcherLogoWrapper: {
     width: rs(40),
@@ -340,12 +340,12 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   switcherName: {
     fontSize: rf(15),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: colors.text,
   },
   switcherCat: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: rs(2),
   },
   switcherAddCard: {
@@ -353,24 +353,24 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: colors.borderStrong,
     marginTop: rs(6),
   },
   switcherAddIcon: {
     width: rs(40),
     height: rs(40),
     borderRadius: rs(20),
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
   },
   switcherAddText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
     marginLeft: rs(12),
   },
 });

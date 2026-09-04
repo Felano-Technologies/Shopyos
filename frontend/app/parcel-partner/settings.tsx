@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
@@ -13,21 +13,25 @@ import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 function SettingRow({
   icon, label, value, onPress,
 }: Readonly<{ icon: any; label: string; value?: string; onPress?: () => void }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowLeft}>
         <View style={styles.iconCircle}>
-          <Feather name={icon} size={20} color="#0C1559" />
+          <Feather name={icon} size={20} color={colors.primary} />
         </View>
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
       <View style={styles.rowRight}>
         {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-        <Feather name="chevron-right" size={18} color="#94A3B8" />
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -36,6 +40,8 @@ function SettingRow({
 export default function ParcelPartnerSettings() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const [user, setUser] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
@@ -79,14 +85,14 @@ export default function ParcelPartnerSettings() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
 
       {/* Header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.navBar}>
             <TouchableOpacity onPress={() => router.back()} style={styles.hdrBtn}>
-              <Ionicons name="arrow-back" size={24} color="#A3E635" />
+              <Ionicons name="arrow-back" size={24} color={colors.accent} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Hub Profile</Text>
             <View style={{ width: 40 }} />
@@ -94,7 +100,7 @@ export default function ParcelPartnerSettings() {
           <View style={styles.profileCard}>
             {uploading ? (
               <View style={styles.avatarLoader}>
-                <ActivityIndicator size="large" color="#A3E635" />
+                <ActivityIndicator size="large" color={colors.accent} />
               </View>
             ) : (
               <TappableAvatar
@@ -178,15 +184,15 @@ export default function ParcelPartnerSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   header: {
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingBottom: 28,
     paddingHorizontal: 20,
     elevation: 8,
-    shadowColor: '#0C1559',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -219,24 +225,24 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 120 },
   sectionTitle: {
-    fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#64748B',
+    fontSize: 12, fontFamily: 'Montserrat-Bold', color: colors.textSecondary,
     marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 0.8,
   },
-  section: { backgroundColor: '#FFF', borderRadius: 16, paddingVertical: 4, marginBottom: 8 },
+  section: { backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 4, marginBottom: 8 },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    padding: 15, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   iconCircle: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  rowLabel: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+  rowLabel: { fontSize: 15, color: colors.text, fontFamily: 'Montserrat-Medium' },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
-  rowValue: { fontSize: 14, color: '#64748B', marginRight: 8, fontFamily: 'Montserrat-Regular' },
+  rowValue: { fontSize: 14, color: colors.textSecondary, marginRight: 8, fontFamily: 'Montserrat-Regular' },
   shopBtn: {
-    backgroundColor: '#EFF6FF', padding: 16, borderRadius: 16,
+    backgroundColor: colors.border, padding: 16, borderRadius: 16,
     alignItems: 'center', marginTop: 20, marginBottom: 8,
     flexDirection: 'row', justifyContent: 'center', gap: 8,
   },

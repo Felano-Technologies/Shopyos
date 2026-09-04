@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Animated, RefreshControl,
@@ -14,23 +14,34 @@ import { router } from 'expo-router';
 import { useStoreProducts, useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string;
+  border: string; borderStrong: string; headerBg: string; overlay: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+  headerBg: colors.headerGradient[0],
+  overlay: colors.overlay,
+});
 
 const InventoryItemSeparator = () => <View style={{ height: rs(10) }} />;
 
@@ -45,6 +56,9 @@ interface InventoryItem {
 const Inventory = () => {
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getStyles(C), [C]);
 
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
@@ -159,7 +173,7 @@ const Inventory = () => {
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
-            colors={[C.navy, C.navyMid]}
+            colors={colors.headerGradient}
             style={[S.header, { paddingTop: insets.top + rs(16) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
@@ -185,7 +199,7 @@ const Inventory = () => {
                   <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
                 </View>
               </TouchableOpacity>
-              
+
               <View style={S.topIcons}>
                 <TouchableOpacity
                   style={S.hdrBtn}
@@ -327,10 +341,10 @@ const Inventory = () => {
             <View style={S.switcherHeader}>
               <Text style={S.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity onPress={() => setShowSwitcher(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={C.muted} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={S.switcherList}>
               {businesses.map((biz: any) => {
                 const active = biz._id === activeBusiness?._id;
@@ -357,14 +371,14 @@ const Inventory = () => {
                       <Text style={S.switcherCat}>{biz.category}</Text>
                     </View>
                     {active ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                      <Ionicons name="checkmark-circle" size={22} color={C.lime} />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                      <Ionicons name="ellipse-outline" size={22} color={C.borderStrong} />
                     )}
                   </TouchableOpacity>
                 );
               })}
-              
+
               {businesses.length < 3 && (
                 <TouchableOpacity
                   style={S.switcherAddCard}
@@ -374,7 +388,7 @@ const Inventory = () => {
                   }}
                 >
                   <View style={S.switcherAddIcon}>
-                    <Ionicons name="add" size={22} color="#0C1559" />
+                    <Ionicons name="add" size={22} color={C.navy} />
                   </View>
                   <Text style={S.switcherAddText}>Register Another Store</Text>
                 </TouchableOpacity>
@@ -387,7 +401,7 @@ const Inventory = () => {
   );
 };
 
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
@@ -421,7 +435,7 @@ const S = StyleSheet.create({
   badgeContainer: {
     position: 'absolute', top: -3, right: -3,
     backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.headerBg,
   },
   badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
   hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' },
@@ -458,7 +472,7 @@ const S = StyleSheet.create({
   chipStrip:  { paddingHorizontal: rs(16), paddingVertical: rs(6), gap: rs(8), flexDirection: 'row', flexGrow: 0, alignItems: 'center' },
   chip: {
     height: 36, paddingHorizontal: rs(14), borderRadius: 18,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card,
+    borderWidth: 0.5, borderColor: C.borderStrong, backgroundColor: C.card,
     justifyContent: 'center', alignItems: 'center',
     elevation: 1, shadowColor: C.navy, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
@@ -471,9 +485,9 @@ const S = StyleSheet.create({
   sortLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle },
   sortBtn: {
     paddingVertical: rs(6), paddingHorizontal: rs(12), borderRadius: rs(10),
-    backgroundColor: C.card, borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.1)',
+    backgroundColor: C.card, borderWidth: 0.5, borderColor: C.borderStrong,
   },
-  sortBtnOn:  { backgroundColor: '#EEF2FF', borderColor: C.navyMid },
+  sortBtnOn:  { backgroundColor: C.border, borderColor: C.navyMid },
   sortBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   sortBtnTxtOn:{ color: C.navy },
 
@@ -491,7 +505,7 @@ const S = StyleSheet.create({
     position: 'relative',
   },
   itemAccentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: rs(3), backgroundColor: '#EF4444' },
-  itemImg:  { width: rs(58), height: rs(58), borderRadius: rs(14), backgroundColor: '#F1F5F9' },
+  itemImg:  { width: rs(58), height: rs(58), borderRadius: rs(14), backgroundColor: C.border },
   itemInfo: { flex: 1 },
   itemNameRow: { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(3) },
   itemName: { flex: 1, fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body },
@@ -504,14 +518,14 @@ const S = StyleSheet.create({
   itemMeta: { flexDirection: 'row', gap: rs(8) },
   metaChip: {
     flexDirection: 'row', alignItems: 'center', gap: rs(4),
-    backgroundColor: '#F8FAFC', paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(8),
+    backgroundColor: C.bg, paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(8),
   },
   metaChipTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   itemDots:    { padding: rs(8) },
 
   // Empty
   emptyWrap:  { alignItems: 'center', paddingVertical: rs(48) },
-  emptyCircle:{ width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16) },
+  emptyCircle:{ width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: rs(16) },
   emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(6) },
   emptySub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'center' },
 
@@ -531,7 +545,7 @@ const S = StyleSheet.create({
     width: rs(28),
     height: rs(28),
     borderRadius: rs(14),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   storePillPlaceholder: {
     width: rs(28),
@@ -566,7 +580,7 @@ const S = StyleSheet.create({
   // Switcher bottom sheet styles
   switcherOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   switcherDismiss: {
@@ -577,7 +591,7 @@ const S = StyleSheet.create({
     bottom: 0,
   },
   switcherSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: rs(30),
     borderTopRightRadius: rs(30),
     padding: rs(24),
@@ -597,7 +611,7 @@ const S = StyleSheet.create({
   switcherTitle: {
     fontSize: rf(20),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherList: {
     gap: rs(12),
@@ -607,13 +621,13 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   switcherCardActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F1F5F9',
+    borderColor: C.navy,
+    backgroundColor: C.border,
   },
   switcherLogoWrapper: {
     width: rs(40),
@@ -638,12 +652,12 @@ const S = StyleSheet.create({
   switcherName: {
     fontSize: rf(15),
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
   },
   switcherCat: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
     marginTop: rs(2),
   },
   switcherAddCard: {
@@ -651,24 +665,24 @@ const S = StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: C.borderStrong,
     marginTop: rs(6),
   },
   switcherAddIcon: {
     width: rs(40),
     height: rs(40),
     borderRadius: rs(20),
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   switcherAddText: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginLeft: rs(12),
   },
 });

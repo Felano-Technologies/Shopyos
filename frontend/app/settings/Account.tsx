@@ -294,7 +294,16 @@ export default function AccountScreen() {
   };
   const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
+    // Close the "Choose an Avatar" modal BEFORE presenting the native
+    // camera/photo-library picker. Nesting a second native presentation
+    // (the picker's action sheet, then the camera/library itself) inside an
+    // already-open RN <Modal> is what left the modal's close (X) button
+    // unresponsive on iOS release/TestFlight builds — a preset tap never
+    // hit this path since it doesn't open a second native view.
+    setShowAvatarModal(false);
+    await new Promise((resolve) => setTimeout(resolve, Platform.OS === 'ios' ? 400 : 0));
     try {
+      setUploading(true);
       const uri = await showImagePicker({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
       if (!uri) return;
       const asset = { uri, fileSize: undefined as number | undefined, mimeType: undefined as string | undefined };
@@ -309,8 +318,6 @@ export default function AccountScreen() {
         alert('Unsupported image type. Please choose JPG, PNG, or WEBP.');
         return;
       }
-      setShowAvatarModal(false);
-      setUploading(true);
       const res = await uploadAvatar(uri);
       if (res?.success) {
         const uploadedAvatar = res?.data?.public_url || res?.data?.url || userData.avatar;
@@ -355,13 +362,19 @@ export default function AccountScreen() {
                 {loading ? (
                   <View style={[styles.profileImageSkeleton, { marginBottom: 12 }]} />
                 ) : (
-                  <TappableAvatar
-                    uri={userData.avatar}
-                    size={100}
-                    label={userData.name}
-                    onEditPress={() => setShowAvatarModal(true)}
-                    style={{ marginBottom: 12 }}
-                  />
+                  <View style={{ marginBottom: 12 }}>
+                    <TappableAvatar
+                      uri={userData.avatar}
+                      size={100}
+                      label={userData.name}
+                      onEditPress={() => setShowAvatarModal(true)}
+                    />
+                    {uploading && (
+                      <View style={styles.avatarUploadingOverlay} pointerEvents="none">
+                        <ActivityIndicator color="#FFF" />
+                      </View>
+                    )}
+                  </View>
                 )}
                 {loading ? (
                   <>
@@ -630,6 +643,14 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 3,
     borderColor: '#A3E635',
     backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  avatarUploadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, width: 100, height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cameraBadge: {
     position: 'absolute', bottom: 0, right: 0,

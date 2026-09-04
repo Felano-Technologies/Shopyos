@@ -203,7 +203,7 @@ export default function ReviewsScreen() {
               disabled={isReplying}
             >
               {isReplying ? (
-                <ActivityIndicator color="#FFF" /> // white spinner on the fixed navy send button
+                <ActivityIndicator color={colors.textInverse} />
               ) : (
                 <Text style={styles.sendText}>Post Reply</Text>
               )}
@@ -265,7 +265,7 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textSecondary
   },
   filterTextActive: {
-    color: '#FFF' // white text on the fixed primary-colored active chip
+    color: c.textInverse
   },
 
   listContent: { paddingBottom: 100 },
@@ -299,7 +299,7 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   originalComment: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, fontStyle: 'italic', marginBottom: 20, padding: 15, backgroundColor: c.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: c.borderStrong, lineHeight: 20 },
   input: { backgroundColor: c.border, borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.text, marginBottom: 20 },
   sendBtn: { backgroundColor: c.primary, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  sendText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 }, // white text on the fixed navy send button
+  sendText: { color: c.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 15 },
 
   // Empty State
   emptyState: {

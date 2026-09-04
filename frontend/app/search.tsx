@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, StyleSheet, FlatList,
   TouchableOpacity, Dimensions, Keyboard,
   ScrollView, ActivityIndicator, Animated,
-  Pressable,
+  Pressable, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -31,6 +31,9 @@ const { width } = Dimensions.get('window');
 const CARD_W = (width - 52) / 2;
 const RECENT_KEY = 'SHOPYOS_RECENT_SEARCHES';
 const MAX_RECENT = 6;
+// Search ad placeholder height derived from the banner's exact pixel ratio
+// Shopyos Banner.png is 1920 × 400 px (4.8:1)
+const SEARCH_AD_H = Math.round((width - 32) / (1920 / 400));
 
 const isFashionCategory = (cat: string | null) => {
   const c = String(cat || '').toLowerCase();
@@ -112,18 +115,11 @@ function AdPlaceholder({ style }: { style?: any }) {
   const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={[styles.searchAdPlaceholder, style]}>
-      <LinearGradient
-        colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']} // decorative low-opacity navy tint, subtle in both themes
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        style={StyleSheet.absoluteFill}
+      <Image
+        source={require('@/assets/images/Shopyos Banner.png')}
+        style={styles.searchAdPlaceholderImg}
+        resizeMode="cover"
       />
-      <View style={styles.searchAdContent}>
-        <View style={[styles.searchAdBadge, { backgroundColor: colors.border }]}>
-          <Text style={[styles.searchAdBadgeTxt, { color: colors.textSecondary }]}>ADS</Text>
-        </View>
-        <Text style={[styles.searchAdTitle, { color: colors.textSecondary }]}>Your campaign here</Text>
-        <Text style={[styles.searchAdSub, { color: colors.textMuted }]}>Promote your store to buyers →</Text>
-      </View>
     </View>
   );
 }
@@ -1413,13 +1409,14 @@ catTileFallback: {   // keep for safety, though now unused
     marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 12,
-    height: 90,
+    height: SEARCH_AD_H,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
+  },
+  searchAdPlaceholderImg: {
+    width: '100%',
+    height: '100%',
   },
   searchAdImg: {
     ...StyleSheet.absoluteFillObject,

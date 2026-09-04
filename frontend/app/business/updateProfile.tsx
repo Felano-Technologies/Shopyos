@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ import { router } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useActiveBusiness, useUpdateBusiness } from '@/hooks/useBusiness';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
@@ -36,17 +38,19 @@ const InputField = React.memo(function InputField({
   icon,
   onChange,
 }: any) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.inputContainer}>
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
-        {icon && <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />}
+        {icon && <Feather name={icon} size={18} color={colors.textSecondary} style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />}
         <TextInput
           style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
           value={value}
           onChangeText={(t) => onChange(field, t)}
           placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textMuted}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
           keyboardType={keyboardType}
@@ -59,6 +63,8 @@ const BusinessUpdateScreen = () => {
   const { activeBusiness: activeBiz, isLoading: loadingData } = useActiveBusiness();
   const updateMutation = useUpdateBusiness();
   const businessId = activeBiz?._id;
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [formData, setFormData] = useState({
     businessName: '',
     description: '',
@@ -83,7 +89,7 @@ const BusinessUpdateScreen = () => {
   useEffect(() => {
     if (activeBiz) {
       const biz = activeBiz;
-      
+
       setFormData({
         businessName: biz.store_name || biz.businessName || '',
         description: biz.description || '',
@@ -97,7 +103,7 @@ const BusinessUpdateScreen = () => {
         instagram: biz.socialMedia?.instagram || '',
         facebook: biz.socialMedia?.facebook || ''
       });
-      
+
       setLogo(biz.logo_url || biz.logo || null);
       setCoverImage(biz.banner_url || biz.coverImage || null);
     }
@@ -159,14 +165,14 @@ const BusinessUpdateScreen = () => {
   if (loadingData) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      
+
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
@@ -177,8 +183,8 @@ const BusinessUpdateScreen = () => {
         </View>
       </View>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ flex: 1 }}
         >
         <ScrollView
@@ -186,10 +192,10 @@ const BusinessUpdateScreen = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          
+
           {/* --- Gradient Header --- */}
           <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
+            colors={colors.headerGradient}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.headerContainer}
           >
@@ -209,7 +215,7 @@ const BusinessUpdateScreen = () => {
                     <AppImage uri={coverImage} style={styles.coverImage} />
                 ) : (
                     <View style={styles.coverPlaceholder}>
-                        <Ionicons name="image-outline" size={32} color="#94A3B8" />
+                        <Ionicons name="image-outline" size={32} color={colors.textMuted} />
                         <Text style={styles.uploadText}>Add Cover Photo</Text>
                     </View>
                 )}
@@ -227,28 +233,28 @@ const BusinessUpdateScreen = () => {
                     </View>
                 )}
                 <View style={styles.logoEditBadge}>
-                    <Feather name="edit-2" size={12} color="#FFF" />
+                    <Feather name="edit-2" size={12} color={colors.textInverse} />
                 </View>
              </TouchableOpacity>
           </View>
           {/* --- Form Section --- */}
           <View style={styles.formSection}>
-            
+
             <Text style={styles.sectionHeader}>Business Details</Text>
-            
-            <InputField 
-                label="Business Name" 
-                value={formData.businessName} 
-                field="businessName" 
-                placeholder="Tech Haven Ltd." 
+
+            <InputField
+                label="Business Name"
+                value={formData.businessName}
+                field="businessName"
+                placeholder="Tech Haven Ltd."
                 icon="briefcase"
               onChange={handleInputChange}
             />
-            <InputField 
-                label="Description" 
-                value={formData.description} 
-                field="description" 
-                placeholder="Tell us about your business..." 
+            <InputField
+                label="Description"
+                value={formData.description}
+                field="description"
+                placeholder="Tell us about your business..."
                 multiline={true}
                 icon="file-text"
                 onChange={handleInputChange}
@@ -275,11 +281,11 @@ const BusinessUpdateScreen = () => {
                 </ScrollView>
             </View>
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Contact Information</Text>
-            <InputField 
-                label="Phone Number" 
-                value={formData.phone} 
-                field="phone" 
-                placeholder="+233 54 123 4567" 
+            <InputField
+                label="Phone Number"
+                value={formData.phone}
+                field="phone"
+                placeholder="+233 54 123 4567"
                 keyboardType="phone-pad"
                 icon="phone"
                 onChange={handleInputChange}
@@ -309,7 +315,7 @@ const BusinessUpdateScreen = () => {
                 <InputField label="Address" value={formData.address} field="address" placeholder="123 Independence Ave" icon="map" onChange={handleInputChange} />
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Social Media</Text>
             <InputField label="Website" value={formData.website} field="website" placeholder="https://..." icon="globe" keyboardType="url" onChange={handleInputChange} />
-            
+
             <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
                 <InputField label="Instagram" value={formData.instagram} field="instagram" placeholder="@handle" icon="instagram" onChange={handleInputChange} />
@@ -325,7 +331,7 @@ const BusinessUpdateScreen = () => {
                 disabled={updateMutation.isPending}
             >
                 <LinearGradient
-                    colors={['#0C1559', '#1e3a8a']}
+                    colors={colors.headerGradient}
                     style={styles.saveGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
@@ -347,10 +353,10 @@ const BusinessUpdateScreen = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#F1F5F9', // Light gray background
+    backgroundColor: colors.backgroundAlt,
   },
   safeArea: {
     flex: 1,
@@ -359,12 +365,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.backgroundAlt,
   },
   scrollContent: {
     paddingBottom: 50,
   },
-  
+
   // Background
   bottomLogos: {
     position: 'absolute',
@@ -405,12 +411,12 @@ const styles = StyleSheet.create({
   },
   // Media Card (Floating)
   mediaCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginTop: -50,
     borderRadius: 20,
     padding: 10,
-    shadowColor: "#0C1559",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 15,
@@ -423,7 +429,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.backgroundAlt,
     position: 'relative',
   },
   coverImage: {
@@ -438,7 +444,7 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontFamily: 'Montserrat-Medium',
     marginTop: 6,
   },
@@ -450,7 +456,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
   },
-  
+
   // Logo Logic
   logoWrapper: {
     position: 'absolute',
@@ -460,8 +466,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 4,
-    borderColor: '#FFF',
-    backgroundColor: '#FFF',
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: "#000",
@@ -479,27 +485,27 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 40,
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoInitial: {
     fontSize: 32,
-    color: '#FFF',
+    color: colors.textInverse,
     fontFamily: 'Montserrat-Bold',
   },
   logoEditBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
     width: 24,
     height: 24,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: colors.surface,
   },
   // Form
   formSection: {
@@ -509,7 +515,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginBottom: 15,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -520,30 +526,30 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
+    color: colors.text,
     marginBottom: 6,
     marginLeft: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     height: 50,
   },
   input: {
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: colors.text,
   },
   row: {
     flexDirection: 'row',
   },
-  
+
   // Categories
   categoryScroll: {
     gap: 8,
@@ -556,28 +562,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   categoryActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryInactive: {
-    backgroundColor: '#FFF',
-    borderColor: '#E2E8F0',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
   },
   categoryText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
   },
   categoryTextActive: {
-    color: '#FFF',
+    color: colors.textInverse,
   },
   categoryTextInactive: {
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   // Save Button
   saveButton: {
     marginTop: 20,
     borderRadius: 14,
-    shadowColor: '#0C1559',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

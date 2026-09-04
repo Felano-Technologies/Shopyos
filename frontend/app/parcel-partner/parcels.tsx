@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,13 +16,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getHubParcels } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
 
 export default function ParcelsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   // Status filter state
   const [selectedFilter, setSelectedFilter] = useState<string>('ready_for_pickup');
   const [hubId, setHubId] = useState<string | null>(null);
@@ -104,8 +108,8 @@ export default function ParcelsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -119,21 +123,21 @@ export default function ParcelsScreen() {
       </SafeAreaView>
       </LinearGradient>
 
-      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{ flex: 1, backgroundColor: colors.backgroundAlt }}>
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" style={styles.searchIcon} />
+          <Feather name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by Order # or Tracking #"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery !== '' && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -168,11 +172,11 @@ export default function ParcelsScreen() {
       {/* Parcels List */}
       {loading && !refreshing ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filteredParcels.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Feather name="package" size={48} color="#CBD5E1" />
+          <Feather name="package" size={48} color={colors.textMuted} />
           <Text style={styles.emptyText}>No matching parcels found.</Text>
         </View>
       ) : (
@@ -181,7 +185,7 @@ export default function ParcelsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#0C1559']} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
           renderItem={({ item }) => {
             const statusTheme = getStatusColor(item.status);
@@ -210,7 +214,7 @@ export default function ParcelsScreen() {
                     <Text style={styles.routeLabel}>Origin</Text>
                     <Text style={styles.routeValue}>{item.origin_region || 'Store Region'}</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color="#94A3B8" />
+                  <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
                   <View style={styles.routeStep}>
                     <Text style={styles.routeLabel}>Destination</Text>
                     <Text style={styles.routeValue}>{item.destination_region || 'Buyer Region'}</Text>
@@ -219,7 +223,7 @@ export default function ParcelsScreen() {
 
                 <View style={styles.cardFooter}>
                   <View style={styles.storeContainer}>
-                    <Feather name="shopping-bag" size={14} color="#64748B" style={{ marginRight: 5 }} />
+                    <Feather name="shopping-bag" size={14} color={colors.textSecondary} style={{ marginRight: 5 }} />
                     <Text style={styles.storeName}>{item.store_name || 'Vendor Store'}</Text>
                   </View>
                   <Text style={styles.dateText}>
@@ -232,15 +236,15 @@ export default function ParcelsScreen() {
         />
       )}
       </View>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.backgroundAlt }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
   },
   header: {
     flexDirection: 'row',
@@ -262,12 +266,12 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 44,
@@ -279,13 +283,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#1E293B',
+    color: colors.text,
     padding: 0, // Reset default Android text input padding
   },
   tabsContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.borderStrong,
     paddingBottom: 8,
   },
   tabsList: {
@@ -295,19 +299,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     marginRight: 8,
   },
   tabActive: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: '#FFF',
+    color: colors.textInverse,
   },
   centerContainer: {
     flex: 1,
@@ -319,19 +323,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: colors.textMuted,
   },
   listContent: {
     padding: 16,
     paddingBottom: 120,
   },
   parcelCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.borderStrong,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.01,
@@ -346,7 +350,7 @@ const styles = StyleSheet.create({
   orderNumber: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: colors.primary,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -360,12 +364,12 @@ const styles = StyleSheet.create({
   trackingNumber: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: colors.textSecondary,
     marginTop: 6,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   routeRow: {
@@ -379,13 +383,13 @@ const styles = StyleSheet.create({
   routeLabel: {
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: colors.textMuted,
     textTransform: 'uppercase',
   },
   routeValue: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#1E293B',
+    color: colors.text,
     marginTop: 2,
   },
   cardFooter: {
@@ -401,11 +405,11 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   dateText: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: colors.textMuted,
   },
 });

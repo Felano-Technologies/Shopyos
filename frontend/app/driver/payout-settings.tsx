@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -10,12 +10,16 @@ import { StatusBar } from 'expo-status-bar';
 import { updateDriverPayoutMethod } from '@/services/payments';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useProfile } from '@/hooks/useProfile';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const MOMO_NETWORKS = ['MTN', 'Vodafone', 'AirtelTigo'] as const;
 const NETWORK_CODES: Record<string, string> = { MTN: 'MTN', Vodafone: 'VOD', AirtelTigo: 'ATL' };
 
 export default function DriverPayoutSettings() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { data: profile, refetch } = useProfile();
 
   const existingMethod = (profile as any)?.payout_method as string | null;
@@ -83,14 +87,14 @@ export default function DriverPayoutSettings() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
-        <StatusBar style="light" backgroundColor="#0C1559" />
+        <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
         <Stack.Screen options={{ headerShown: false }} />
 
         <View style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons name="arrow-back" size={24} color="#A3E635" />
+                <Ionicons name="arrow-back" size={24} color={colors.accent} />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Payout Settings</Text>
               <View style={{ width: 40 }} />
@@ -131,7 +135,7 @@ export default function DriverPayoutSettings() {
                 <Feather
                   name={t === 'momo' ? 'smartphone' : 'credit-card'}
                   size={16}
-                  color={methodTab === t ? '#0C1559' : '#94A3B8'}
+                  color={methodTab === t ? colors.primary : colors.textMuted}
                   style={{ marginBottom: 4 }}
                 />
                 <Text style={[styles.methodTabText, methodTab === t && styles.methodTabTextActive]}>
@@ -162,7 +166,7 @@ export default function DriverPayoutSettings() {
                 value={momoName}
                 onChangeText={setMomoName}
                 placeholder="e.g. John Doe"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
                 autoCapitalize="words"
               />
 
@@ -173,11 +177,11 @@ export default function DriverPayoutSettings() {
                 onChangeText={setMomoPhone}
                 keyboardType="phone-pad"
                 placeholder="024XXXXXXX"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
               />
 
               <View style={styles.infoRow}>
-                <Feather name="info" size={13} color="#64748B" style={{ marginRight: 6 }} />
+                <Feather name="info" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
                 <Text style={styles.infoText}>
                   Payouts are sent to this number automatically every morning.
                 </Text>
@@ -191,7 +195,7 @@ export default function DriverPayoutSettings() {
                 value={bankName}
                 onChangeText={setBankName}
                 placeholder="Full name as on bank account"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
                 autoCapitalize="words"
               />
 
@@ -202,11 +206,11 @@ export default function DriverPayoutSettings() {
                 onChangeText={setBankAccount}
                 keyboardType="number-pad"
                 placeholder="Account number"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
               />
 
               <View style={styles.infoRow}>
-                <Feather name="info" size={13} color="#64748B" style={{ marginRight: 6 }} />
+                <Feather name="info" size={13} color={colors.textSecondary} style={{ marginRight: 6 }} />
                 <Text style={styles.infoText}>
                   Bank transfers use a default bank code. Contact support to specify your bank.
                 </Text>
@@ -220,7 +224,7 @@ export default function DriverPayoutSettings() {
             disabled={saving}
           >
             {saving
-              ? <ActivityIndicator size="small" color="#FFF" />
+              ? <ActivityIndicator size="small" color={colors.textInverse} />
               : <Text style={styles.saveBtnText}>{isSet ? 'Update Method' : 'Save Method'}</Text>
             }
           </TouchableOpacity>
@@ -230,9 +234,9 @@ export default function DriverPayoutSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { backgroundColor: '#0C1559', paddingBottom: 16 },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  header: { backgroundColor: colors.headerGradient[0], paddingBottom: 16 },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 },
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 },
   headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
@@ -243,34 +247,34 @@ const styles = StyleSheet.create({
     marginBottom: 20, borderWidth: 1, borderColor: '#BBF7D0',
   },
   currentBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#166534', flex: 1 },
-  sectionLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B', textTransform: 'uppercase', marginBottom: 10 },
+  sectionLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 10 },
   methodTabs: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   methodTab: {
     flex: 1, alignItems: 'center', paddingVertical: 16, borderRadius: 16,
-    backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E2E8F0',
+    backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.borderStrong,
   },
-  methodTabActive: { borderColor: '#0C1559', backgroundColor: '#EFF6FF' },
-  methodTabText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8' },
-  methodTabTextActive: { color: '#0C1559' },
-  formCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' },
-  formLabel: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#64748B', textTransform: 'uppercase', marginBottom: 6 },
+  methodTabActive: { borderColor: colors.primary, backgroundColor: colors.border },
+  methodTabText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: colors.textMuted },
+  methodTabTextActive: { color: colors.primary },
+  formCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: colors.borderStrong },
+  formLabel: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: 6 },
   formInput: {
-    backgroundColor: '#F8FAFC', borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0',
-    padding: 13, fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#1E293B', marginBottom: 16,
+    backgroundColor: colors.backgroundAlt, borderRadius: 10, borderWidth: 1, borderColor: colors.borderStrong,
+    padding: 13, fontSize: 14, fontFamily: 'Montserrat-Regular', color: colors.text, marginBottom: 16,
   },
   networkRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   networkChip: {
     flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 10,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: 'transparent',
+    backgroundColor: colors.border, borderWidth: 1, borderColor: 'transparent',
   },
-  networkChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
-  networkChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+  networkChipActive: { backgroundColor: colors.border, borderColor: '#2563EB' },
+  networkChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.textSecondary },
   networkChipTextActive: { color: '#2563EB' },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 },
-  infoText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B', flex: 1, lineHeight: 18 },
+  infoText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, flex: 1, lineHeight: 18 },
   saveBtn: {
-    backgroundColor: '#0C1559', borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', shadowColor: '#0C1559', shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  saveBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 },
+  saveBtnText: { color: colors.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 15 },
 });

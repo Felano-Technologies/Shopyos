@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -365,15 +366,17 @@ export default function RootLayout() {
   if (!loaded || !themeReady) return null;
 
   return (
-    <ErrorBoundary>
-      <QueryProvider>
-        <OnboardingProvider>
-          <ImagePreviewProvider>
-            <AppContent />
-          </ImagePreviewProvider>
-        </OnboardingProvider>
-      </QueryProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <QueryProvider>
+          <OnboardingProvider>
+            <ImagePreviewProvider>
+              <AppContent />
+            </ImagePreviewProvider>
+          </OnboardingProvider>
+        </QueryProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

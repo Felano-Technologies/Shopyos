@@ -35,6 +35,8 @@ import {
     createReviewComment
 } from '@/services/api';
 import { getAcceptedBargainForProduct, addBargainToCart } from '@/services/bargain';
+import { queryClient } from '@/lib/query/client';
+import { queryKeys } from '@/lib/query/keys';
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
@@ -290,6 +292,11 @@ export default function ProductDetails() {
                 await addToFavorites(product.id);
                 CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: product.title || '' });
             }
+            // This screen tracks its own `isLiked` boolean, not the shared
+            // favorites-list cache — invalidate it so the Favorites screen
+            // (if already mounted underneath) reflects the change immediately
+            // instead of waiting for its next fresh mount.
+            queryClient.invalidateQueries({ queryKey: queryKeys.favorites.list() });
         } catch (error: unknown) {
             setIsLiked(wasLiked);
             CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" });

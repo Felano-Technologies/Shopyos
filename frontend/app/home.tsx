@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  RefreshControl, Dimensions, ScrollView, ActivityIndicator,
+  RefreshControl, Dimensions, ScrollView, ActivityIndicator, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -33,7 +33,10 @@ import { QuickActions, QuickAction } from '@/components/home/QuickActions';
 import { FlashSaleSection } from '@/components/home/FlashSaleSection';
 import { MidFeedBanner } from '@/components/home/MidFeedBanner';
 import { ProductRow } from '@/components/home/ProductRow';
-import { ProductGrid, ProductCard, AdCard, buildGridItems, GridListItem } from '@/components/home/ProductGrid';
+import {
+  ProductGrid, ProductCard, AdCard, SpotlightCard, StoreSpotlightCard,
+  buildExploreItems, ExploreListItem, pickStoreGroup,
+} from '@/components/home/ProductGrid';
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { SponsoredAdsRow } from '@/components/home/SponsoredAdsRow';
 import { RecommendedSection } from '@/components/home/RecommendedSection';
@@ -41,6 +44,13 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
+
+// Hero placeholder height derived from the banner image's exact pixel ratio
+// Shopyos Banner - Bigger.png is 2000 × 892 px
+const HERO_PH_H = Math.round((width - 32) * (892 / 2000));
+
+// Sponsored card placeholder height — same image, card width is 70% of screen
+const SPONSORED_PH_H = Math.round(width * 0.7 * (892 / 2000));
 
 // Show sponsored section when more than this many campaigns are active
 const AD_THRESHOLD = 0;
@@ -272,32 +282,67 @@ const { data: notifData } = useUnreadNotificationCount(false);
   // ── Virtualized Explore feed ────────────────────────────────────────────────
   // The FlatList is the screen's scroll container; everything above Explore is
   // its header, so off-screen product cards get recycled instead of piling up.
-  const exploreItems = useMemo<GridListItem[]>(
-    () => buildGridItems(exploreProducts, isManyAds ? sponsoredCampaigns : []),
+  const exploreItems = useMemo<ExploreListItem[]>(
+    () => buildExploreItems(exploreProducts, isManyAds ? sponsoredCampaigns : [], getStoreDisplayName),
     [exploreProducts, isManyAds, sponsoredCampaigns]
   );
 
-  const renderExploreItem = useCallback(({ item }: { item: GridListItem }) => (
-    <View style={S.exploreCell}>
-      {item.type === 'ad' ? (
-        <AdCard ad={item.data} />
-      ) : (
-        <ProductCard
-          item={item.data}
-          onPressProduct={goToDetails}
-          onAddToCart={handleAddToCart}
-          addingId={addingId}
-          favoriteIds={favoriteIds}
-          onToggleFavorite={handleToggleFavorite}
-          favoriteBusyId={favoriteBusyId}
-          storeName={getStoreDisplayName}
-        />
-      )}
-    </View>
-  ), [goToDetails, handleAddToCart, addingId, favoriteIds, handleToggleFavorite, favoriteBusyId]);
+  // ── Static spotlight breaks between the above-the-fold sections ────────────
+  // These use data already fetched for Recently Added / Hot & Trending — no
+  // extra requests — so the feed has engaging cards before the user even
+  // reaches the virtualized Explore grid, not just within it.
+  const recentStoreSpotlight = useMemo(
+    () => pickStoreGroup(recentProducts.length ? recentProducts : trendingProducts, getStoreDisplayName),
+    [recentProducts, trendingProducts]
+  );
+  const trendingSpotlightProduct = trendingProducts[0] || dealsProducts[0] || null;
 
-  const exploreKeyExtractor = useCallback((item: GridListItem, idx: number) =>
-    item.type === 'ad' ? item.key : `${item.data._id || item.data.id || 'p'}-${idx}`, []);
+  const goToStore = useCallback((storeItem: { products: any[] }) => {
+    const p = storeItem.products?.[0];
+    const storeId = p?.store_id || p?.businessId || p?.store?.id || p?.store?._id;
+    if (storeId) router.push({ pathname: '/stores/details', params: { id: storeId } } as any);
+  }, [router]);
+
+  const renderExploreItem = useCallback(({ item }: { item: ExploreListItem }) => {
+    if (item.type === 'spacer') return <View style={S.exploreCellSpacer} />;
+    if (item.type === 'spotlight') {
+      return (
+        <View style={S.exploreCellFull}>
+          <SpotlightCard item={item.data} onPress={goToDetails} storeName={getStoreDisplayName} />
+        </View>
+      );
+    }
+    if (item.type === 'store') {
+      return (
+        <View style={S.exploreCellFull}>
+          <StoreSpotlightCard item={item} onPressProduct={goToDetails} onPressStore={goToStore} />
+        </View>
+      );
+    }
+    return (
+      <View style={S.exploreCell}>
+        {item.type === 'ad' ? (
+          <AdCard ad={item.data} />
+        ) : (
+          <ProductCard
+            item={item.data}
+            onPressProduct={goToDetails}
+            onAddToCart={handleAddToCart}
+            addingId={addingId}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={handleToggleFavorite}
+            favoriteBusyId={favoriteBusyId}
+            storeName={getStoreDisplayName}
+          />
+        )}
+      </View>
+    );
+  }, [goToDetails, goToStore, handleAddToCart, addingId, favoriteIds, handleToggleFavorite, favoriteBusyId]);
+
+  const exploreKeyExtractor = useCallback((item: ExploreListItem, idx: number) => {
+    if (item.type === 'ad' || item.type === 'spotlight' || item.type === 'store' || item.type === 'spacer') return item.key;
+    return `${item.data._id || item.data.id || 'p'}-${idx}`;
+  }, []);
 
   // ── Startup skeleton ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -417,23 +462,11 @@ const { data: notifData } = useUnreadNotificationCount(false);
             <HeroCarousel ads={activeCampaigns as HeroAd[]} onAdPress={handleAdPress} />
           ) : (
             <View style={S.adPlaceholder}>
-              <LinearGradient
-                colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFill}
+              <Image
+                source={require('@/assets/images/Shopyos Banner - Bigger.png')}
+                style={S.adPlaceholderImg}
+                resizeMode="cover"
               />
-              <View style={S.adPlaceholderContent}>
-                <View style={S.adPlaceholderBadge}>
-                  <Text style={S.adPlaceholderBadgeTxt}>ADS</Text>
-                </View>
-                <Text style={S.adPlaceholderTitle}>Your campaign here</Text>
-                <Text style={S.adPlaceholderSub}>Promote your store to thousands of buyers →</Text>
-              </View>
-              <View style={S.adPlaceholderDots}>
-                {[0, 1, 2].map(i => (
-                  <View key={i} style={[S.adPlaceholderDot, i === 0 && S.adPlaceholderDotActive]} />
-                ))}
-              </View>
             </View>
           )}
 
@@ -458,6 +491,17 @@ const { data: notifData } = useUnreadNotificationCount(false);
             endsAt={flashSale?.endsAt}
             saleTitle={flashSale?.title}
           />
+
+          {/* Store spotlight — "More from this shop", rotates daily, shown before Recently Added */}
+          {recentStoreSpotlight && (
+            <View style={S.spotlightBreak}>
+              <StoreSpotlightCard
+                item={{ type: 'store', ...recentStoreSpotlight, key: 'store-recent' }}
+                onPressProduct={goToDetails}
+                onPressStore={goToStore}
+              />
+            </View>
+          )}
 
           {/* Recently Added — horizontal scroll */}
           <ProductRow
@@ -491,14 +535,11 @@ const { data: notifData } = useUnreadNotificationCount(false);
               >
                 {[0, 1, 2].map(i => (
                   <View key={i} style={S.sponsoredPlaceholderCard}>
-                    <LinearGradient
-                      colors={['rgba(12,21,89,0.04)', 'rgba(12,21,89,0.02)']}
-                      style={StyleSheet.absoluteFill}
+                    <Image
+                      source={require('@/assets/images/Shopyos Banner - Bigger.png')}
+                      style={S.sponsoredPlaceholderCardImg}
+                      resizeMode="cover"
                     />
-                    <View style={S.sponsoredPlaceholderAdTag}>
-                      <Text style={S.sponsoredPlaceholderAdTagTxt}>AD</Text>
-                    </View>
-                    <Text style={S.sponsoredPlaceholderCardTxt}>Your campaign here</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -514,6 +555,13 @@ const { data: notifData } = useUnreadNotificationCount(false);
             onSeeAll={() => router.push('/search?sortBy=popular' as any)}
             getStoreName={getStoreDisplayName}
           />
+
+          {/* Spotlight product — between Hot & Trending and Recommended for You */}
+          {trendingSpotlightProduct && (
+            <View style={S.spotlightBreak}>
+              <SpotlightCard item={trendingSpotlightProduct} onPress={goToDetails} storeName={getStoreDisplayName} />
+            </View>
+          )}
 
           {/* Recommended for You — personalised or trending fallback */}
           <RecommendedSection />
@@ -637,6 +685,9 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   // Virtualized Explore grid cells
   exploreRow: { paddingHorizontal: 14, justifyContent: 'space-between' },
   exploreCell: { width: '48.5%' },
+  exploreCellFull: { width: '100%' },
+  exploreCellSpacer: { width: 0 },
+  spotlightBreak: { paddingHorizontal: 14, marginBottom: 14 },
   exploreEmpty: { alignItems: 'center', paddingVertical: 32, gap: 10 },
   exploreEmptyTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.muted },
 
@@ -660,39 +711,19 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   },
   chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
 
-  // Ad campaign placeholder (shown when no live campaigns)
+  // Ad campaign placeholder — height is pixel-exact for the banner image ratio
   adPlaceholder: {
     marginBottom: 14,
     marginHorizontal: 16,
-    height: 210,
+    height: HERO_PH_H,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderStyle: 'dashed',
     overflow: 'hidden',
+    backgroundColor: '#0C1559',
   },
-  adPlaceholderContent: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+  adPlaceholderImg: {
+    width: '100%',
+    height: '100%',
   },
-  adPlaceholderBadge: {
-    backgroundColor: C.border,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  adPlaceholderBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
-  adPlaceholderTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: 6 },
-  adPlaceholderSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted },
-  adPlaceholderDots: {
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-    position: 'absolute', bottom: 10, left: 0, right: 0,
-  },
-  adPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
-  adPlaceholderDotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: C.navyMid },
 
   // Sponsored ads row placeholder
   sponsoredPlaceholderWrap: { marginBottom: 12 },
@@ -704,16 +735,11 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   sponsoredPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
   sponsoredPlaceholderList: { paddingHorizontal: 16, gap: 12 },
   sponsoredPlaceholderCard: {
-    width: width * 0.7, height: 130, borderRadius: 18,
-    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
-    overflow: 'hidden', justifyContent: 'flex-end', padding: 14,
+    width: width * 0.7, height: SPONSORED_PH_H, borderRadius: 18,
+    overflow: 'hidden',
   },
-  sponsoredPlaceholderAdTag: {
-    backgroundColor: C.border, borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 3,
-    alignSelf: 'flex-start', marginBottom: 5,
-    borderWidth: 1, borderColor: C.border,
+  sponsoredPlaceholderCardImg: {
+    width: '100%',
+    height: '100%',
   },
-  sponsoredPlaceholderAdTagTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
-  sponsoredPlaceholderCardTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.muted },
 });

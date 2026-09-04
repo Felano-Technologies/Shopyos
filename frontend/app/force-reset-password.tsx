@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { forceResetPassword } from '@/services/auth';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  lime: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    lime: colors.accent,
+  };
+}
 
 function navigateByRole(role: string, needsRole: boolean) {
   if (needsRole) {
@@ -34,6 +58,9 @@ function navigateByRole(role: string, needsRole: boolean) {
 
 export default function ForceResetPasswordScreen() {
   const { role, needsRole } = useLocalSearchParams<{ role: string; needsRole: string }>();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNew, setShowNew] = useState(false);
@@ -64,7 +91,7 @@ export default function ForceResetPasswordScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <LinearGradient colors={['#061f65', '#0C2E8A']} style={{ flex: 1 }}>
+      <LinearGradient colors={themeColors.headerGradient} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -83,14 +110,14 @@ export default function ForceResetPasswordScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="Enter new password"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={C.subtle}
                     secureTextEntry={!showNew}
                     value={newPassword}
                     onChangeText={setNewPassword}
                     autoCapitalize="none"
                   />
                   <TouchableOpacity onPress={() => setShowNew(!showNew)} style={styles.eyeBtn}>
-                    <Ionicons name={showNew ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                    <Ionicons name={showNew ? 'eye-off' : 'eye'} size={20} color={C.muted} />
                   </TouchableOpacity>
                 </View>
 
@@ -99,19 +126,19 @@ export default function ForceResetPasswordScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="Confirm new password"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={C.subtle}
                     secureTextEntry={!showConfirm}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     autoCapitalize="none"
                   />
                   <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
-                    <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                    <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={C.muted} />
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.hintRow}>
-                  <Ionicons name="information-circle-outline" size={14} color="#94A3B8" />
+                  <Ionicons name="information-circle-outline" size={14} color={C.subtle} />
                   <Text style={styles.hint}>Minimum 6 characters</Text>
                 </View>
               </View>
@@ -131,7 +158,7 @@ export default function ForceResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
@@ -166,7 +193,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
@@ -177,7 +204,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   label: {
-    color: '#1D2B73',
+    color: C.body,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 8,
@@ -186,15 +213,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.borderStrong,
     borderRadius: 12,
-    backgroundColor: '#F8FAFF',
+    backgroundColor: C.surfaceElevated,
     paddingHorizontal: 14,
   },
   input: {
     flex: 1,
     paddingVertical: 14,
-    color: '#1D2B73',
+    color: C.body,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -206,17 +233,17 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   hint: {
-    color: '#94A3B8',
+    color: C.subtle,
     fontSize: 11,
     fontFamily: 'Montserrat-Regular',
   },
   btn: {
     width: '100%',
-    backgroundColor: '#A3E635',
+    backgroundColor: C.lime,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#A3E635',
+    shadowColor: C.lime,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
