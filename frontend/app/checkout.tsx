@@ -50,8 +50,14 @@ import { GHANA_REGIONS, nearestGhanaRegion, mapTextToGhanaRegion } from '@/utils
 
 type StoreQuote = {
   deliveryFee: number;
+  // Buyer-facing single delivery cost (store→hub + hub→hub combined for
+  // inter-regional, same as deliveryFee for intra-regional) — shown instead
+  // of two separate "delivery" line items so it doesn't read as double
+  // charging for what feels like one trip.
+  combinedDeliveryFee: number;
   isInterRegional: boolean;
   parcelTransitFee: number;
+  lastMileFee: number;
   estimatedTransitDays: number | null;
   estimatedTransitDaysMax: number | null;
   storeRegion: string | null;
@@ -195,11 +201,17 @@ export default function CheckoutScreen() {
         try {
           const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
           if (res?.success) {
-            const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, estimatedTransitDaysMax: daysMax, storeRegion, note } = res.quote || {};
+            const {
+              withinRange, deliveryFee: fee, combinedDeliveryFee: combined,
+              isInterRegional: isInter, parcelTransitFee: transit, lastMileFee: lastMile,
+              estimatedTransitDays: days, estimatedTransitDaysMax: daysMax, storeRegion, note,
+            } = res.quote || {};
             newQuotes[storeId] = {
               deliveryFee: withinRange && fee != null ? fee : 0,
+              combinedDeliveryFee: withinRange && combined != null ? combined : 0,
               isInterRegional: !!isInter,
               parcelTransitFee: transit || 0,
+              lastMileFee: lastMile || 15,
               estimatedTransitDays: days || null,
               estimatedTransitDaysMax: daysMax || null,
               storeRegion: storeRegion || null,

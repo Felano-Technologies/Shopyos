@@ -60,7 +60,7 @@ async function validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng) {
 
 async function processStoreOrder({ storeId, items, cart, req, userId, validatedPromo, validatedLoyaltyPoints, pool }) {
   const deliveryState = req.body.deliveryState || 'Greater Accra';
-  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false, lastMileFee } = req.body;
+  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false } = req.body;
 
   let subtotal = 0;
   const orderItems = items.map(item => {
@@ -165,8 +165,12 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   }
 
   const discountAmount = Number.parseFloat((promoDiscount + loyaltyDiscount).toFixed(2));
+  // Computed server-side only — the previous version trusted whatever
+  // `lastMileFee` the client sent as the actual charge, which let a client
+  // dictate its own delivery fee. Distance-based like the store→hub leg,
+  // using the destination hub → buyer distance.
   const lastMileCharge = isInterRegional && requestLastMile
-    ? Number.parseFloat(lastMileFee ?? await feeConfigService.get('last_mile_default_fee') ?? 15)
+    ? await calcLastMileFee(destHub, buyerLat, buyerLng)
     : 0;
   const totalAmount = Number.parseFloat((subtotal + tax + deliveryFee + transitFee + lastMileCharge - discountAmount - totalBargainDiscount).toFixed(2));
 
@@ -326,6 +330,23 @@ async function calcOrderDeliveryFee(store, targetLat, targetLng, isInterRegional
   // Cross-region orders use the inter-regional floor (sync with deliveryFeeController).
   const minFee = await feeConfigService.get(isInterRegional ? 'delivery_inter_min_fee' : 'delivery_intra_min_fee');
   return Math.max(minFee, fee);
+}
+
+// Last-mile leg (destination hub → buyer) — same base+per-km model as
+// calcOrderDeliveryFee, just with the destination hub as the origin point
+// instead of the store. Falls back to the flat base fee alone when the hub
+// has no coordinates or the buyer's weren't provided.
+async function calcLastMileFee(destHub, buyerLat, buyerLng) {
+  const baseFee = await feeConfigService.get('last_mile_default_fee', 15);
+  if (destHub?.latitude == null || destHub?.longitude == null || buyerLat == null || buyerLng == null) {
+    return baseFee;
+  }
+  const perKmFee = await feeConfigService.get('last_mile_per_km_fee', 2);
+  const distanceKm = haversineKm(
+    Number.parseFloat(destHub.latitude), Number.parseFloat(destHub.longitude),
+    Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
+  );
+  return Number.parseFloat((baseFee + distanceKm * perKmFee).toFixed(2));
 }
 
 /**

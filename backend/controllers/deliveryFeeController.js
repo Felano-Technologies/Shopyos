@@ -73,6 +73,7 @@ const getDeliveryQuote = async (req, res, next) => {
         let deliveryFee = null;
         let isInterRegional = false;
         let parcelTransitFee = 0;
+        let lastMileFee = 0;
         let estimatedTransitDays = null;
         let estimatedTransitDaysMax = null;
 
@@ -126,14 +127,42 @@ const getDeliveryQuote = async (req, res, next) => {
                 estimatedTransitDays = 3;
                 estimatedTransitDaysMax = 4;
             }
+
+            // Last-mile estimate (destination hub → buyer) — same base+per-km
+            // model as the store→hub leg, so it's a real distance-based
+            // number instead of the flat default. Sync with
+            // orderController.js's calcLastMileFee (the authoritative charge
+            // computed again, server-side, at order creation).
+            const destHub = repositories.parcelPartner
+                ? await repositories.parcelPartner.getHubByRegionName(deliveryState)
+                : null;
+            const lastMileBase = await feeConfigService.get('last_mile_default_fee', 15);
+            if (destHub?.latitude != null && destHub?.longitude != null && buyerLat !== undefined && buyerLng !== undefined) {
+                const lastMilePerKm = await feeConfigService.get('last_mile_per_km_fee', 2);
+                const hubToBuyerKm = haversineKm(
+                    Number.parseFloat(destHub.latitude), Number.parseFloat(destHub.longitude),
+                    Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
+                );
+                lastMileFee = Number.parseFloat((lastMileBase + hubToBuyerKm * lastMilePerKm).toFixed(2));
+            } else {
+                lastMileFee = lastMileBase;
+            }
         }
+
+        // Buyer-facing single combined delivery cost — the store→hub leg and
+        // the hub→hub courier leg are tracked separately for internal/admin
+        // reporting, but shown to the buyer as one number so they aren't
+        // confused by two "delivery" line items for what feels like one trip.
+        const combinedDeliveryFee = deliveryFee != null ? Number((deliveryFee + parcelTransitFee).toFixed(2)) : null;
 
         ApiResponse.withEntity(res, 'quote', {
             storeId,
             distanceKm,
             deliveryFee,
+            combinedDeliveryFee,
             isInterRegional,
             parcelTransitFee,
+            lastMileFee,
             estimatedTransitDays,
             estimatedTransitDaysMax,
             storeRegion: resolvedRegion,
