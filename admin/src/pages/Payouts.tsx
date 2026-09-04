@@ -141,8 +141,8 @@ export const Payouts: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payouts</h1>
-          <p className="text-sm text-gray-500 mt-1">Approve and monitor seller and driver withdrawal requests.</p>
+          <h1 className="text-2xl font-bold text-body">Payouts</h1>
+          <p className="text-sm text-secondary mt-1">Approve and monitor seller and driver withdrawal requests.</p>
         </div>
 
         <div className="bg-blue-50 border border-blue-100 text-blue-800 text-sm rounded-xl px-4 py-3">
@@ -156,12 +156,12 @@ export const Payouts: React.FC = () => {
               <button
                 key={card.key}
                 onClick={() => setStatusFilter(card.key)}
-                className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-navy/20 hover:shadow-md transition-all overflow-hidden"
+                className="relative bg-card p-4 rounded-xl shadow-sm border border-border text-left hover:border-navy/20 hover:shadow-md transition-all overflow-hidden"
               >
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                <p className="text-xl font-bold text-gray-900">{s.count.toLocaleString()}</p>
-                <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatCurrency(s.total)}</p>
+                <p className="text-xl font-bold text-body">{s.count.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
+                <p className="text-xs text-subtle mt-0.5">{formatCurrency(s.total)}</p>
                 <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
               </button>
             );
@@ -174,92 +174,92 @@ export const Payouts: React.FC = () => {
               <button
                 key={t.label}
                 onClick={() => setTypeFilter(t.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${typeFilter === t.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${typeFilter === t.value ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-border-strong'}`}
               >
                 {t.label}
               </button>
             ))}
-            <div className="w-px bg-gray-200 mx-1" />
+            <div className="w-px bg-border-strong mx-1" />
             {STATUS_FILTERS.map((s) => (
               <button
                 key={s.label}
                 onClick={() => setStatusFilter(s.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusFilter === s.value ? 'bg-navy text-white border-navy' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusFilter === s.value ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-border-strong'}`}
               >
                 {s.label}
               </button>
             ))}
           </div>
           <div className="relative w-full sm:w-64">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
             <input
               type="text"
               placeholder="Search by name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
             />
           </div>
         </div>
 
         {selected.size > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
-            <span className="text-sm font-semibold text-gray-700">{selected.size} selected</span>
+          <div className="bg-card rounded-xl shadow-sm border border-border px-4 py-3 flex items-center gap-3">
+            <span className="text-sm font-semibold text-body">{selected.size} selected</span>
             <button onClick={() => handleBulkAction('approve')} disabled={bulkLoading} className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
               Approve All
             </button>
             <button onClick={() => handleBulkAction('reject')} disabled={bulkLoading} className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-60">
               Reject All
             </button>
-            <button onClick={() => setSelected(new Set())} className="ml-auto text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSelected(new Set())} className="ml-auto text-subtle hover:text-secondary">
               <FiX className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           {!loading && payouts.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <FiDollarSign className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <div className="p-12 text-center text-secondary">
+              <FiDollarSign className="w-10 h-10 mx-auto mb-3 text-subtle" />
               <p className="text-sm">No payouts match your filters.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                  <tr className="bg-surface-muted/50 border-b border-border">
                     <th className="px-4 py-4 w-10"></th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recipient</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Recipient</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Method</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {loading ? (
                     <TableRowsSkeleton columns={7} />
                   ) : payouts.map((p) => {
                     const name = p.payout_type === 'seller' ? p.store_name : p.driver_name;
                     const account = p.payout_details?.account_number || p.payout_details?.phone;
                     return (
-                      <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={p.id} className="hover:bg-surface-muted/50 transition-colors">
                         <td className="px-4 py-4">
-                          <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="w-4 h-4 rounded border-gray-300 text-navy focus:ring-navy" />
+                          <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="w-4 h-4 rounded border-border-strong text-navy focus:ring-navy" />
                         </td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{name || 'Unknown'}</div>
+                          <div className="font-medium text-body">{name || 'Unknown'}</div>
                           <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${p.payout_type === 'seller' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
                             {p.payout_type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
+                        <td className="px-6 py-4 text-sm text-body">
                           {methodLabel(p.payout_method)}
-                          {account && <div className="text-xs text-gray-400">{account}</div>}
+                          {account && <div className="text-xs text-subtle">{account}</div>}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-gray-900">{formatCurrency(p.amount)}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(p.created_at)}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-body">{formatCurrency(p.amount)}</td>
+                        <td className="px-6 py-4 text-sm text-secondary">{formatDate(p.created_at)}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${STATUS_PILL[p.status]}`}>{p.status}</span>
                         </td>
@@ -284,7 +284,7 @@ export const Payouts: React.FC = () => {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-400">—</span>
+                            <span className="text-xs text-subtle">—</span>
                           )}
                         </td>
                       </tr>
@@ -295,20 +295,20 @@ export const Payouts: React.FC = () => {
             </div>
           )}
 
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between text-sm text-gray-500">
+          <div className="px-6 py-4 border-t border-border bg-surface-muted/30 flex items-center justify-between text-sm text-secondary">
             <span>Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
               </button>

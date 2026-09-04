@@ -96,8 +96,8 @@ export const Ads: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Platform Advertising</h1>
-          <p className="text-sm text-gray-500 mt-1">Review and approve banner ad campaigns from sellers.</p>
+          <h1 className="text-2xl font-bold text-body">Platform Advertising</h1>
+          <p className="text-sm text-secondary mt-1">Review and approve banner ad campaigns from sellers.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 justify-between">
@@ -107,12 +107,12 @@ export const Ads: React.FC = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors relative ${
-                  activeTab === tab ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+                  activeTab === tab ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'
                 }`}
               >
                 {tab}
                 {tab === 'Pending' && pendingCount > 0 && (
-                  <span className={`ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${activeTab === tab ? 'bg-white text-navy' : 'bg-red-500 text-white'}`}>
+                  <span className={`ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${activeTab === tab ? 'bg-card text-navy' : 'bg-red-500 text-white'}`}>
                     {pendingCount}
                   </span>
                 )}
@@ -120,42 +120,42 @@ export const Ads: React.FC = () => {
             ))}
           </div>
           <div className="relative w-full sm:w-64">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
             <input
               type="text"
               placeholder="Search stores or campaigns..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
             />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           {loading ? (
             <ListRowsSkeleton rows={5} leadingIcon={false} />
           ) : visible.length === 0 ? (
-            <div className="text-center p-12 text-gray-500">
-              <FiImage className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <div className="text-center p-12 text-secondary">
+              <FiImage className="w-10 h-10 mx-auto mb-3 text-subtle" />
               <p className="text-sm">No {activeTab.toLowerCase()} ad campaigns found.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Banner</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Campaign</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Store</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Paid</th>
-                    {activeTab === 'Pending' && <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>}
+                  <tr className="bg-surface-muted/50 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Banner</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Campaign</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Store</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Paid</th>
+                    {activeTab === 'Pending' && <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {visible.map((ad) => (
-                    <tr key={ad.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={ad.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="w-24 h-12 bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative group" onClick={() => setPreviewImage(ad.banner_url)}>
+                        <div className="w-24 h-12 bg-surface-muted rounded-lg overflow-hidden cursor-pointer relative group" onClick={() => setPreviewImage(ad.banner_url)}>
                           <img src={ad.banner_url} alt="Ad banner" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-navy/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <FiZoomIn className="text-white w-4 h-4" />
@@ -163,15 +163,15 @@ export const Ads: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900">{ad.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Placement: {ad.placement}</p>
-                        <p className="text-xs text-gray-500">Duration: {ad.duration_days} days</p>
+                        <p className="font-medium text-body">{ad.title}</p>
+                        <p className="text-xs text-secondary mt-0.5">Placement: {ad.placement}</p>
+                        <p className="text-xs text-secondary">Duration: {ad.duration_days} days</p>
                         {ad.status === 'Rejected' && ad.rejection_reason && (
                           <p className="text-xs text-red-500 mt-0.5">Reason: {ad.rejection_reason}</p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-700">{ad.store?.store_name || 'N/A'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">₵{Number(ad.paid_amount || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-body">{ad.store?.store_name || 'N/A'}</td>
+                      <td className="px-6 py-4 text-sm text-secondary">₵{Number(ad.paid_amount || 0).toFixed(2)}</td>
                       {activeTab === 'Pending' && (
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -213,15 +213,15 @@ export const Ads: React.FC = () => {
 
       {rejectTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Reject Ad Campaign</h2>
-              <button onClick={() => setRejectTarget(null)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="text-lg font-bold text-body">Reject Ad Campaign</h2>
+              <button onClick={() => setRejectTarget(null)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-500">Rejecting "{rejectTarget.title}" will notify the merchant. Please provide a reason.</p>
+              <p className="text-sm text-secondary">Rejecting "{rejectTarget.title}" will notify the merchant. Please provide a reason.</p>
               {rejectError && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{rejectError}</div>
               )}
@@ -230,11 +230,11 @@ export const Ads: React.FC = () => {
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows={3}
                 placeholder="e.g. Image violates platform guidelines..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none"
               />
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
-              <button onClick={() => setRejectTarget(null)} disabled={actingId === rejectTarget.id} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+            <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">
+              <button onClick={() => setRejectTarget(null)} disabled={actingId === rejectTarget.id} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">Cancel</button>
               <button onClick={handleReject} disabled={actingId === rejectTarget.id} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60">
                 {actingId === rejectTarget.id ? 'Rejecting...' : 'Confirm Rejection'}
               </button>

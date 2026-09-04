@@ -23,7 +23,7 @@ interface ThemeStore {
   setPreference: (pref: ThemePreference) => void;
 }
 
-const storedPreference = (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? 'system';
+const storedPreference = (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? 'light';
 const initialSystemScheme = getSystemScheme();
 const initialResolved = resolve(storedPreference, initialSystemScheme);
 applyDocumentClass(initialResolved);

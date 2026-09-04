@@ -116,8 +116,8 @@ export const UserManagement: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-            <p className="text-sm text-gray-500 mt-1">Buyers, sellers, drivers and parcel partners on the platform.</p>
+            <h1 className="text-2xl font-bold text-body">User Management</h1>
+            <p className="text-sm text-secondary mt-1">Buyers, sellers, drivers and parcel partners on the platform.</p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
@@ -131,16 +131,16 @@ export const UserManagement: React.FC = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {(stats ? statCards : Array.from({ length: 6 })).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
@@ -155,7 +155,7 @@ export const UserManagement: React.FC = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 roleFilter === tab.value
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+                  : 'bg-card text-secondary border-border hover:border-navy/30'
               }`}
             >
               {tab.icon}
@@ -164,36 +164,36 @@ export const UserManagement: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-surface-muted/50 border-b border-border">
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">User</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Joined</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <TableRowsSkeleton columns={5} leadingIcon />
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No users found.</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-secondary">No users found.</td>
                   </tr>
                 ) : (
                   users.map((user: any) => (
-                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={user.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center font-bold text-secondary text-sm overflow-hidden shrink-0">
                             <Avatar url={user.avatar_url} name={user.full_name} email={user.email} />
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{user.full_name || 'Unnamed User'}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
+                            <div className="font-semibold text-body">{user.full_name || 'Unnamed User'}</div>
+                            <div className="text-sm text-secondary">{user.email}</div>
                           </div>
                         </div>
                       </td>
@@ -209,7 +209,7 @@ export const UserManagement: React.FC = () => {
                           {user.account_status === 'active' ? 'Active' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -232,20 +232,20 @@ export const UserManagement: React.FC = () => {
             </table>
           </div>
 
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between text-sm text-gray-500">
+          <div className="px-6 py-4 border-t border-border bg-surface-muted/30 flex items-center justify-between text-sm text-secondary">
             <span>Showing {users.length} result{users.length === 1 ? '' : 's'}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
                 disabled={offset === 0}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setOffset((o) => o + PAGE_SIZE)}
                 disabled={users.length < PAGE_SIZE}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -257,10 +257,10 @@ export const UserManagement: React.FC = () => {
       {/* Create user modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Add New User</h2>
-              <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-bold text-body">Add New User</h2>
+              <button onClick={() => setShowCreate(false)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -277,7 +277,7 @@ export const UserManagement: React.FC = () => {
                 placeholder="Full name"
                 value={createForm.full_name}
                 onChange={(e) => setCreateForm((f) => ({ ...f, full_name: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
               />
               <input
                 required
@@ -285,13 +285,13 @@ export const UserManagement: React.FC = () => {
                 placeholder="Email address"
                 value={createForm.email}
                 onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
               />
               <input
                 placeholder="Phone (optional)"
                 value={createForm.phone}
                 onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
               />
               <input
                 required
@@ -299,12 +299,12 @@ export const UserManagement: React.FC = () => {
                 placeholder="Temporary password"
                 value={createForm.password}
                 onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
               />
               <select
                 value={createForm.role}
                 onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy"
               >
                 <option value="buyer">Buyer</option>
                 <option value="seller">Seller</option>

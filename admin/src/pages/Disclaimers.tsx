@@ -94,8 +94,8 @@ export const Disclaimers: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Legal & Disclaimers</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage platform policy content and review user consent.</p>
+          <h1 className="text-2xl font-bold text-body">Legal & Disclaimers</h1>
+          <p className="text-sm text-secondary mt-1">Manage platform policy content and review user consent.</p>
         </div>
 
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
@@ -106,46 +106,46 @@ export const Disclaimers: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setTab('content')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'content' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'content' ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'}`}
           >
             Disclaimer Content
           </button>
           <button
             onClick={() => setTab('audit')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'audit' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'audit' ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'}`}
           >
             Consent Audit
           </button>
         </div>
 
         {tab === 'content' ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
             {!loading && disclaimers.length === 0 ? (
-              <div className="text-center p-12 text-gray-500">
-                <FiFileText className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+              <div className="text-center p-12 text-secondary">
+                <FiFileText className="w-10 h-10 mx-auto mb-3 text-subtle" />
                 <p className="text-sm">No disclaimers found.</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Version</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  <tr className="bg-surface-muted/50 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Title</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Version</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {loading ? (
                     <TableRowsSkeleton columns={4} />
                   ) : disclaimers.map((d) => (
-                    <tr key={d.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={d.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="font-medium text-gray-900">{d.title}</p>
-                        <p className="text-sm text-gray-500 max-w-md truncate">{d.content}</p>
+                        <p className="font-medium text-body">{d.title}</p>
+                        <p className="text-sm text-secondary max-w-md truncate">{d.content}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600">{d.type}</span>
+                        <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-surface-muted text-secondary">{d.type}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700">v{d.version}</span>
@@ -166,7 +166,7 @@ export const Disclaimers: React.FC = () => {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setAuditFilter('')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${auditFilter === '' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${auditFilter === '' ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-border-strong'}`}
               >
                 All
               </button>
@@ -174,40 +174,40 @@ export const Disclaimers: React.FC = () => {
                 <button
                   key={d.type}
                   onClick={() => setAuditFilter(d.type)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors font-mono ${auditFilter === d.type ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors font-mono ${auditFilter === d.type ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-border-strong'}`}
                 >
                   {d.type}
                 </button>
               ))}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
               {!loadingAudit && auditLogs.length === 0 ? (
-                <div className="text-center p-12 text-gray-500">
-                  <FiClock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <div className="text-center p-12 text-secondary">
+                  <FiClock className="w-10 h-10 mx-auto mb-3 text-subtle" />
                   <p className="text-sm">No acknowledgements found.</p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Version</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Context</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Acknowledged</th>
+                    <tr className="bg-surface-muted/50 border-b border-border">
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Version</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">User</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Context</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Acknowledged</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {loadingAudit ? (
                       <TableRowsSkeleton columns={5} />
                     ) : auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-600">{log.disclaimer_type}</span></td>
-                        <td className="px-6 py-4 text-sm text-gray-700">v{log.version}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700">{log.user_full_name || log.user_email || 'Unknown'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{log.context_type ? `${log.context_type}` : '—'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{formatDate(log.acknowledged_at)}</td>
+                      <tr key={log.id} className="hover:bg-surface-muted/50 transition-colors">
+                        <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-md text-xs font-mono bg-surface-muted text-secondary">{log.disclaimer_type}</span></td>
+                        <td className="px-6 py-4 text-sm text-body">v{log.version}</td>
+                        <td className="px-6 py-4 text-sm text-body">{log.user_full_name || log.user_email || 'Unknown'}</td>
+                        <td className="px-6 py-4 text-sm text-secondary">{log.context_type ? `${log.context_type}` : '—'}</td>
+                        <td className="px-6 py-4 text-sm text-secondary">{formatDate(log.acknowledged_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -220,10 +220,10 @@ export const Disclaimers: React.FC = () => {
 
       {editing && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">{editing.title}</h2>
-              <button onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="text-lg font-bold text-body">{editing.title}</h2>
+              <button onClick={() => setEditing(null)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -232,23 +232,23 @@ export const Disclaimers: React.FC = () => {
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{formError}</div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
-                <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+                <label className="block text-sm font-semibold text-body mb-1">Title</label>
+                <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-semibold text-gray-700">Version</label>
+                  <label className="block text-sm font-semibold text-body">Version</label>
                   <span className="text-xs text-amber-600">Bump this to force re-consent</span>
                 </div>
-                <input type="text" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} placeholder="e.g. 1.0 or 2.1" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+                <input type="text" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} placeholder="e.g. 1.0 or 2.1" className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Content</label>
-                <textarea rows={10} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
+                <label className="block text-sm font-semibold text-body mb-1">Content</label>
+                <textarea rows={10} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
-              <button onClick={() => setEditing(null)} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+            <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">
+              <button onClick={() => setEditing(null)} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
                 {saving ? 'Saving...' : 'Save & Publish'}
               </button>

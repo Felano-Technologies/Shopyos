@@ -130,23 +130,23 @@ export const RiderManagement: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Rider Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Review, verify, and manage delivery riders.</p>
+          <h1 className="text-2xl font-bold text-body">Rider Management</h1>
+          <p className="text-sm text-secondary mt-1">Review, verify, and manage delivery riders.</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(loading ? Array.from({ length: 4 }) : statCards).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
@@ -161,7 +161,7 @@ export const RiderManagement: React.FC = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 statusFilter === tab.value
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+                  : 'bg-card text-secondary border-border hover:border-navy/30'
               }`}
             >
               {tab.label}
@@ -169,45 +169,45 @@ export const RiderManagement: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rider</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Verification</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Applied</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-surface-muted/50 border-b border-border">
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Rider</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Vehicle</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Verification</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Applied</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <TableRowsSkeleton columns={5} leadingIcon />
                 ) : filteredRiders.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No riders found.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-secondary">No riders found.</td></tr>
                 ) : (
                   filteredRiders.map((rider: any) => (
-                    <tr key={rider.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={rider.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-surface-muted flex items-center justify-center font-bold text-secondary text-sm overflow-hidden shrink-0">
                             <RiderAvatar url={rider.avatar_url} name={rider.full_name} />
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{rider.full_name || 'Unknown'}</div>
-                            <div className="text-sm text-gray-500">{rider.phone || 'N/A'}</div>
+                            <div className="font-semibold text-body">{rider.full_name || 'Unknown'}</div>
+                            <div className="text-sm text-secondary">{rider.phone || 'N/A'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900 capitalize">{rider.vehicle_type || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{rider.vehicle_plate || 'No plate on file'}</div>
+                        <div className="text-sm font-medium text-body capitalize">{rider.vehicle_type || 'N/A'}</div>
+                        <div className="text-sm text-secondary">{rider.vehicle_plate || 'No plate on file'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusPill status={rider.verification_status} />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">
                         {rider.created_at ? new Date(rider.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -227,18 +227,18 @@ export const RiderManagement: React.FC = () => {
       {/* Review modal */}
       {selectedRider && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600 overflow-hidden shrink-0">
+                <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center font-bold text-secondary overflow-hidden shrink-0">
                   <RiderAvatar url={selectedRider.avatar_url} name={selectedRider.full_name} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">{selectedRider.full_name || 'Unknown Rider'}</h2>
+                  <h2 className="text-lg font-bold text-body">{selectedRider.full_name || 'Unknown Rider'}</h2>
                   <StatusPill status={selectedRider.verification_status} />
                 </div>
               </div>
-              <button onClick={() => setSelectedRider(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedRider(null)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -248,27 +248,27 @@ export const RiderManagement: React.FC = () => {
             )}
 
             <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Phone</p><p className="text-gray-900">{selectedRider.phone || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Email</p><p className="text-gray-900">{selectedRider.email || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Vehicle Type</p><p className="text-gray-900 capitalize">{selectedRider.vehicle_type || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Make / Model</p><p className="text-gray-900">{[selectedRider.vehicle_make, selectedRider.vehicle_model].filter(Boolean).join(' ') || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Plate Number</p><p className="text-gray-900">{selectedRider.vehicle_plate || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Phone</p><p className="text-body">{selectedRider.phone || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Email</p><p className="text-body">{selectedRider.email || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Vehicle Type</p><p className="text-body capitalize">{selectedRider.vehicle_type || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Make / Model</p><p className="text-body">{[selectedRider.vehicle_make, selectedRider.vehicle_model].filter(Boolean).join(' ') || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Plate Number</p><p className="text-body">{selectedRider.vehicle_plate || 'N/A'}</p></div>
             </div>
 
             {documents.length > 0 ? (
               <div className="mb-4">
-                <p className="text-xs text-gray-400 uppercase font-semibold mb-2">Documents</p>
+                <p className="text-xs text-subtle uppercase font-semibold mb-2">Documents</p>
                 <div className="grid grid-cols-2 gap-3">
                   {documents.map((doc) => (
                     <a key={doc.label} href={doc.url} target="_blank" rel="noreferrer" className="block">
-                      <img src={doc.url} alt={doc.label} className="w-full h-24 object-cover rounded-lg bg-gray-100 border border-gray-200" />
-                      <p className="text-xs text-gray-500 mt-1">{doc.label}</p>
+                      <img src={doc.url} alt={doc.label} className="w-full h-24 object-cover rounded-lg bg-surface-muted border border-border" />
+                      <p className="text-xs text-secondary mt-1">{doc.label}</p>
                     </a>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+              <div className="flex items-center gap-2 text-sm text-subtle mb-4">
                 <FiUser className="w-4 h-4" /> No documents uploaded yet.
               </div>
             )}
@@ -287,12 +287,12 @@ export const RiderManagement: React.FC = () => {
                   placeholder="Reason for rejection..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy min-h-[80px]"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy min-h-[80px]"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowRejectForm(false)}
-                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border text-secondary hover:bg-surface-muted transition-colors"
                   >
                     Cancel
                   </button>

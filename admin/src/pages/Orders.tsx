@@ -101,23 +101,23 @@ export const Orders: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Orders</h1>
-          <p className="text-sm text-gray-500 mt-1">Monitor platform-wide transactions and fulfillment.</p>
+          <h1 className="text-2xl font-bold text-body">All Orders</h1>
+          <p className="text-sm text-secondary mt-1">Monitor platform-wide transactions and fulfillment.</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {(stats ? statCards : Array.from({ length: 5 })).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
@@ -132,7 +132,7 @@ export const Orders: React.FC = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 statusFilter === tab.value
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+                  : 'bg-card text-secondary border-border hover:border-navy/30'
               }`}
             >
               {tab.label}
@@ -140,38 +140,38 @@ export const Orders: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Store</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-surface-muted/50 border-b border-border">
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Order</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Store</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <TableRowsSkeleton columns={6} />
                 ) : orders.length === 0 ? (
-                  <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No orders found.</td></tr>
+                  <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-secondary">No orders found.</td></tr>
                 ) : (
                   orders.map((order: any) => (
-                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={order.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">#{order.order_number || order.id?.slice(0, 8)?.toUpperCase()}</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="font-medium text-body">#{order.order_number || order.id?.slice(0, 8)?.toUpperCase()}</div>
+                        <div className="text-sm text-secondary">
                           {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.buyer_name || 'Unknown'}</div>
-                        <div className="text-sm text-gray-500">{order.items_count ?? 0} item{order.items_count === 1 ? '' : 's'}</div>
+                        <div className="text-sm font-medium text-body">{order.buyer_name || 'Unknown'}</div>
+                        <div className="text-sm text-secondary">{order.items_count ?? 0} item{order.items_count === 1 ? '' : 's'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-body">
                         {order.store?.store_name || 'Unknown Store'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -179,7 +179,7 @@ export const Orders: React.FC = () => {
                           {formatStatus(order.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-body">
                         ₵{Number(order.total_amount || 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -197,20 +197,20 @@ export const Orders: React.FC = () => {
             </table>
           </div>
 
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between text-sm text-gray-500">
+          <div className="px-6 py-4 border-t border-border bg-surface-muted/30 flex items-center justify-between text-sm text-secondary">
             <span>Showing {orders.length} result{orders.length === 1 ? '' : 's'}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
                 disabled={offset === 0}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setOffset((o) => o + PAGE_SIZE)}
                 disabled={orders.length < PAGE_SIZE}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -222,14 +222,14 @@ export const Orders: React.FC = () => {
       {/* Status update modal */}
       {statusTarget && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-gray-900">Update Status</h2>
-              <button onClick={() => setStatusTarget(null)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-lg font-bold text-body">Update Status</h2>
+              <button onClick={() => setStatusTarget(null)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-secondary mb-4">
               Order #{statusTarget.order_number || statusTarget.id?.slice(0, 8)?.toUpperCase()}
             </p>
 
@@ -246,7 +246,7 @@ export const Orders: React.FC = () => {
                     onClick={() => handleStatusChange(status)}
                     disabled={updating || isCurrent}
                     className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold capitalize transition-colors disabled:cursor-not-allowed ${
-                      isCurrent ? 'bg-navy text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      isCurrent ? 'bg-navy text-white' : 'bg-surface-muted text-body hover:bg-surface-muted'
                     }`}
                   >
                     {formatStatus(status)}

@@ -61,7 +61,7 @@ export const AdminSidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-navy text-white h-screen flex flex-col fixed left-0 top-0 z-50">
+    <aside className="w-64 bg-navy dark:bg-[#050814] text-white h-screen flex flex-col fixed left-0 top-0 z-50">
       <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/10 shrink-0">
         <img src="/iconwhite.png" alt="Shopyos" className="w-8 h-8 object-contain shrink-0" />
         <h1 className="text-lg font-bold tracking-tight truncate">Shopyos Admin</h1>

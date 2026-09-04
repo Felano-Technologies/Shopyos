@@ -137,23 +137,23 @@ export const StoreManagement: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Store Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Review, approve, and manage seller stores.</p>
+          <h1 className="text-2xl font-bold text-body">Store Management</h1>
+          <p className="text-sm text-secondary mt-1">Review, approve, and manage seller stores.</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(stats ? statCards : Array.from({ length: 4 })).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
@@ -168,7 +168,7 @@ export const StoreManagement: React.FC = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 statusFilter === tab.value
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'
+                  : 'bg-card text-secondary border-border hover:border-navy/30'
               }`}
             >
               {tab.label}
@@ -176,45 +176,45 @@ export const StoreManagement: React.FC = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Store</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Owner</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Verification</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-surface-muted/50 border-b border-border">
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Store</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Owner</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Verification</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {loading ? (
                   <TableRowsSkeleton columns={5} leadingIcon />
                 ) : stores.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No stores found.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-secondary">No stores found.</td></tr>
                 ) : (
                   stores.map((store: any) => (
-                    <tr key={store.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={store.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center font-bold text-gray-600 text-sm overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-surface-muted flex items-center justify-center font-bold text-secondary text-sm overflow-hidden shrink-0">
                             <StoreLogo url={store.logo_url} name={store.store_name} />
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{store.store_name || 'Unnamed Store'}</div>
-                            <div className="text-sm text-gray-500">{store.category || store.business_name || 'Retail'}</div>
+                            <div className="font-semibold text-body">{store.store_name || 'Unnamed Store'}</div>
+                            <div className="text-sm text-secondary">{store.category || store.business_name || 'Retail'}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{store.owner?.full_name || 'Unknown'}</div>
-                        <div className="text-sm text-gray-500">{store.owner?.email || 'N/A'}</div>
+                        <div className="text-sm font-medium text-body">{store.owner?.full_name || 'Unknown'}</div>
+                        <div className="text-sm text-secondary">{store.owner?.email || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusPill status={store.verification_status} />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">
                         {store.created_at ? new Date(store.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -229,20 +229,20 @@ export const StoreManagement: React.FC = () => {
             </table>
           </div>
 
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between text-sm text-gray-500">
+          <div className="px-6 py-4 border-t border-border bg-surface-muted/30 flex items-center justify-between text-sm text-secondary">
             <span>Showing {stores.length} result{stores.length === 1 ? '' : 's'}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setOffset((o) => Math.max(0, o - PAGE_SIZE))}
                 disabled={offset === 0}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
                 onClick={() => setOffset((o) => o + PAGE_SIZE)}
                 disabled={stores.length < PAGE_SIZE}
-                className="px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 border border-border rounded-lg hover:bg-surface-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -254,13 +254,13 @@ export const StoreManagement: React.FC = () => {
       {/* Review modal */}
       {selectedStore && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{selectedStore.store_name || 'Unnamed Store'}</h2>
+                <h2 className="text-lg font-bold text-body">{selectedStore.store_name || 'Unnamed Store'}</h2>
                 <div className="mt-1"><StatusPill status={selectedStore.verification_status} /></div>
               </div>
-              <button onClick={() => setSelectedStore(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setSelectedStore(null)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -270,21 +270,21 @@ export const StoreManagement: React.FC = () => {
             )}
 
             <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Owner</p><p className="text-gray-900">{selectedStore.owner?.full_name || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Owner Email</p><p className="text-gray-900">{selectedStore.owner?.email || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">City</p><p className="text-gray-900">{selectedStore.city || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Category</p><p className="text-gray-900">{selectedStore.category || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Phone</p><p className="text-gray-900">{selectedStore.phone || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-400 uppercase font-semibold">Registration No.</p><p className="text-gray-900">{selectedStore.registration_number || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Owner</p><p className="text-body">{selectedStore.owner?.full_name || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Owner Email</p><p className="text-body">{selectedStore.owner?.email || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">City</p><p className="text-body">{selectedStore.city || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Category</p><p className="text-body">{selectedStore.category || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Phone</p><p className="text-body">{selectedStore.phone || 'N/A'}</p></div>
+              <div><p className="text-xs text-subtle uppercase font-semibold">Registration No.</p><p className="text-body">{selectedStore.registration_number || 'N/A'}</p></div>
             </div>
 
             {selectedStore.description && (
-              <p className="text-sm text-gray-600 mb-4">{selectedStore.description}</p>
+              <p className="text-sm text-secondary mb-4">{selectedStore.description}</p>
             )}
 
             {documents.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-400 uppercase font-semibold mb-2">Documents</p>
+                <p className="text-xs text-subtle uppercase font-semibold mb-2">Documents</p>
                 <div className="flex flex-col gap-2">
                   {documents.map((doc) => (
                     <a
@@ -292,10 +292,10 @@ export const StoreManagement: React.FC = () => {
                       href={doc.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:border-navy/30 hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between px-3 py-2 rounded-lg border border-border text-sm text-body hover:border-navy/30 hover:bg-surface-muted transition-colors"
                     >
                       {doc.label}
-                      <FiExternalLink className="w-4 h-4 text-gray-400" />
+                      <FiExternalLink className="w-4 h-4 text-subtle" />
                     </a>
                   ))}
                 </div>
@@ -316,12 +316,12 @@ export const StoreManagement: React.FC = () => {
                   placeholder="Reason for rejection..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy min-h-[80px]"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy min-h-[80px]"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowRejectForm(false)}
-                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border text-secondary hover:bg-surface-muted transition-colors"
                   >
                     Cancel
                   </button>
