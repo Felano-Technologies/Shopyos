@@ -11,7 +11,7 @@ interface TableRowsSkeletonProps {
 export const TableRowsSkeleton: React.FC<TableRowsSkeletonProps> = ({ rows = 6, columns, leadingIcon = false }) => (
   <>
     {Array.from({ length: rows }).map((_, r) => (
-      <tr key={r} className="border-b border-gray-100 last:border-0">
+      <tr key={r} className="border-b border-border last:border-0">
         {Array.from({ length: columns }).map((__, c) => (
           <td key={c} className="px-6 py-4">
             {c === 0 && leadingIcon ? (

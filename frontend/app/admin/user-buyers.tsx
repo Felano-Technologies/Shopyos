@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
@@ -55,6 +55,9 @@ function getInitials(name?: string, email?: string) {
 export default function AdminBuyers() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
+  const menuStyles = useMemo(() => getMenuStyles(C), [C]);
   const [searchQuery, setSearchQuery] = useState('');
   const [buyers, setBuyers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +182,7 @@ export default function AdminBuyers() {
         </View>
         {/* Three-dot menu */}
         <TouchableOpacity onPress={() => setMenuUser(item)} style={styles.menuBtn}>
-          <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
+          <Ionicons name="ellipsis-vertical" size={18} color={C.textSoft} />
         </TouchableOpacity>
       </View>
     );
@@ -209,26 +212,26 @@ export default function AdminBuyers() {
 
         {/* ── Search ─────────────────────────────────────────────────── */}
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#94A3B8" />
+          <Ionicons name="search" size={16} color={C.textSoft} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search buyers by name or email..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.textSoft}
             style={styles.searchInput}
             returnKeyType="search"
             onSubmitEditing={() => loadBuyers()}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              <Ionicons name="close-circle" size={16} color={C.textSoft} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* ── List ───────────────────────────────────────────────────── */}
         {loading && !refreshing ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: C.appBg }} edges={['top', 'left', 'right']}>
             <AdminScreenSkeleton metrics={4} rows={4} />
           </SafeAreaView>
         ) : (
@@ -238,13 +241,13 @@ export default function AdminBuyers() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadBuyers(true)} tintColor="#1E88E5" />
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadBuyers(true)} tintColor={C.navy} />
             }
             renderItem={renderBuyer}
             ListEmptyComponent={
               <View style={styles.emptyCard}>
                 <View style={styles.emptyIconCircle}>
-                  <Ionicons name="person-outline" size={36} color={adminColors.textSoft} />
+                  <Ionicons name="person-outline" size={36} color={C.textSoft} />
                 </View>
                 <Text style={styles.emptyTitle}>No buyers found</Text>
                 <Text style={styles.emptySubtitle}>Try a different search term.</Text>
@@ -317,21 +320,21 @@ export default function AdminBuyers() {
   );
 }
 
-const menuStyles = StyleSheet.create({
+const getMenuStyles = (C: AdminColors) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
-  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 16 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 8 },
-  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 4 },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 16 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: C.surfaceMuted, marginBottom: 8 },
+  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.text },
+  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: C.textSoft, marginTop: 2 },
+  divider: { height: 1, backgroundColor: C.border, marginVertical: 4 },
 });
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
 
   // Header
@@ -397,7 +400,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 24,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
@@ -406,10 +409,10 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
@@ -421,7 +424,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#0F172A',
+    color: C.text,
   },
 
   // List
@@ -437,7 +440,7 @@ const styles = StyleSheet.create({
 
   // User card
   userCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 12,
@@ -446,7 +449,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     shadowColor: '#0C1559',
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -465,12 +468,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   userName: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
   },
   userEmail: {
-    color: '#64748B',
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     marginTop: 2,
@@ -492,7 +495,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 24,
     marginTop: 16,
     shadowColor: '#0B2060',
@@ -505,19 +508,19 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: adminColors.surfaceSoft,
+    backgroundColor: C.surfaceSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
   },
   emptyTitle: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 6,
   },
   emptySubtitle: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',

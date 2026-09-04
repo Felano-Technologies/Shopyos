@@ -13,23 +13,17 @@ import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useAdminListingFees } from '@/hooks/useAdmin';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 const { width } = Dimensions.get('window');
-
-const C = {
-  pageBg: '#F8FAFC',
-  navy: '#0C1559',
-  white: '#FFFFFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-};
 
 const statusColor = (tier: string) => tier === 'paid' ? '#16A34A' : '#F59E0B';
 const statusLabel = (tier: string) => tier === 'paid' ? 'Paid' : 'Free';
 
 export default function AdminListingFees() {
   const { data, isLoading } = useAdminListingFees();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState<'all' | 'free' | 'paid'>('all');
 
@@ -48,7 +42,7 @@ export default function AdminListingFees() {
   const summary = data?.summary;
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.pageBg }}>
+    <View style={{ flex: 1, backgroundColor: C.appBg }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient
@@ -67,7 +61,7 @@ export default function AdminListingFees() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
         {isLoading ? (
-          <Text style={{ textAlign: 'center', color: C.muted, marginTop: 40 }}>Loading...</Text>
+          <Text style={{ textAlign: 'center', color: C.textMuted, marginTop: 40 }}>Loading...</Text>
         ) : summary ? (
           <>
             <View style={styles.summaryRow}>
@@ -109,11 +103,11 @@ export default function AdminListingFees() {
             </View>
 
             <View style={styles.searchBar}>
-              <Feather name="search" size={16} color={C.subtle} />
+              <Feather name="search" size={16} color={C.textSoft} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search stores..."
-                placeholderTextColor={C.subtle}
+                placeholderTextColor={C.textSoft}
                 value={search}
                 onChangeText={setSearch}
               />
@@ -144,18 +138,18 @@ export default function AdminListingFees() {
             ))}
 
             {filteredStores.length === 0 && (
-              <Text style={{ textAlign: 'center', color: C.muted, marginTop: 24 }}>No stores match filter</Text>
+              <Text style={{ textAlign: 'center', color: C.textMuted, marginTop: 24 }}>No stores match filter</Text>
             )}
           </>
         ) : (
-          <Text style={{ textAlign: 'center', color: C.muted, marginTop: 40 }}>Failed to load data</Text>
+          <Text style={{ textAlign: 'center', color: C.textMuted, marginTop: 40 }}>Failed to load data</Text>
         )}
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   header: {
     paddingBottom: 20,
     borderBottomLeftRadius: 24,
@@ -195,7 +189,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: C.muted,
+    color: C.textMuted,
     marginTop: 4,
     fontFamily: 'Montserrat',
   },
@@ -223,14 +217,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
   },
   filterChipActive: {
     backgroundColor: C.navy,
   },
   filterChipText: {
     fontSize: 13,
-    color: C.muted,
+    color: C.textMuted,
     fontFamily: 'Montserrat',
     fontWeight: '500',
   },
@@ -240,7 +234,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.white,
+    backgroundColor: C.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 44,
@@ -255,11 +249,11 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: C.body,
+    color: C.text,
     fontFamily: 'Montserrat',
   },
   storeCard: {
-    backgroundColor: C.white,
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 10,
@@ -276,12 +270,12 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 15,
     fontWeight: '600',
-    color: C.body,
+    color: C.text,
     fontFamily: 'Montserrat',
   },
   storeMeta: {
     fontSize: 12,
-    color: C.muted,
+    color: C.textMuted,
     marginTop: 2,
     fontFamily: 'Montserrat',
   },
@@ -297,7 +291,7 @@ const styles = StyleSheet.create({
   },
   paidDate: {
     fontSize: 11,
-    color: C.subtle,
+    color: C.textSoft,
     marginTop: 8,
     fontFamily: 'Montserrat',
   },

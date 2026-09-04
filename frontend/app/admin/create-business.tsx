@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminCreateStore } from '@/services/admin';
 import UserSearchPicker from '@/components/admin/UserSearchPicker';
@@ -25,6 +25,8 @@ const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, st
 
 export default function AdminCreateBusiness() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [ownerId, setOwnerId] = useState('');
   const [storeName, setStoreName] = useState('');
   const [description, setDescription] = useState('');
@@ -126,7 +128,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={[styles.input, errors.storeName ? styles.inputError : null]}
                 placeholder="My Store"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={storeName}
                 onChangeText={(v) => { setStoreName(v); setErrors((e) => ({ ...e, storeName: '' })); }}
               />
@@ -136,7 +138,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={[styles.input, styles.multilineInput]}
                 placeholder="Describe the store..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
@@ -148,7 +150,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Electronics"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={category}
                 onChangeText={setCategory}
               />
@@ -157,7 +159,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Accra"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={city}
                 onChangeText={setCity}
               />
@@ -166,7 +168,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="+1 555 000 0000"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}
@@ -176,7 +178,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="store@example.com"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -187,7 +189,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="REG-12345"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={registrationNumber}
                 onChangeText={setRegistrationNumber}
               />
@@ -196,7 +198,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="TIN-12345"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={taxId}
                 onChangeText={setTaxId}
               />
@@ -207,7 +209,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="https://example.com/logo.png"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="none"
                 keyboardType="url"
                 value={logoUrl}
@@ -218,7 +220,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="https://example.com/banner.jpg"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="none"
                 keyboardType="url"
                 value={bannerUrl}
@@ -231,7 +233,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="https://mystore.com"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="none"
                 keyboardType="url"
                 value={websiteUrl}
@@ -242,7 +244,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="@mystore"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="none"
                 value={socialInstagram}
                 onChangeText={setSocialInstagram}
@@ -252,7 +254,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="facebook.com/mystore"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="none"
                 value={socialFacebook}
                 onChangeText={setSocialFacebook}
@@ -264,7 +266,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="123 Main Street"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={addressLine1}
                 onChangeText={setAddressLine1}
               />
@@ -273,7 +275,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Greater Accra"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={stateProvince}
                 onChangeText={setStateProvince}
               />
@@ -282,7 +284,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="Ghana"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={country}
                 onChangeText={setCountry}
               />
@@ -308,7 +310,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder={payoutMethod === 'bank' ? 'e.g. GCB Bank' : 'e.g. MTN MoMo'}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={bankName}
                 onChangeText={setBankName}
               />
@@ -317,7 +319,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder="John Doe"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={accountName}
                 onChangeText={setAccountName}
               />
@@ -328,7 +330,7 @@ export default function AdminCreateBusiness() {
               <TextInput
                 style={styles.input}
                 placeholder={payoutMethod === 'bank' ? '1234567890' : '0241234567'}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 keyboardType="number-pad"
                 value={accountNumber}
                 onChangeText={setAccountNumber}
@@ -342,7 +344,7 @@ export default function AdminCreateBusiness() {
                 <Switch
                   value={autoVerify}
                   onValueChange={setAutoVerify}
-                  trackColor={{ false: '#D9E2F2', true: '#0C1559' }}
+                  trackColor={{ false: C.border, true: C.navy }}
                   thumbColor="#fff"
                 />
               </View>
@@ -362,8 +364,8 @@ export default function AdminCreateBusiness() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -382,7 +384,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, color: '#fff', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   formCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 24,
     padding: 18,
     shadowColor: '#0B2060',
@@ -393,19 +395,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    color: '#1D2B73',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.border,
     borderRadius: 12,
     padding: 14,
-    color: '#1D2B73',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -416,8 +418,8 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
-    color: '#0C1559',
+    borderTopColor: C.border,
+    color: C.navy,
     fontSize: 14,
   },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
@@ -425,12 +427,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.border,
   },
-  chipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  chipText: { color: '#1D2B73', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
+  chipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  chipText: { color: C.text, fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   chipTextActive: { color: '#fff' },
   toggleRow: {
     flexDirection: 'row',
@@ -438,16 +440,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
+    borderTopColor: C.border,
   },
-  toggleLabel: { color: '#1D2B73', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
-  toggleHint: { color: adminColors.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  toggleLabel: { color: C.text, fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+  toggleHint: { color: C.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

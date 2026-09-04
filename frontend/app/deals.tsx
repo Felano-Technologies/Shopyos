@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -27,8 +27,15 @@ export default function DealsScreen() {
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   // --- TanStack Query Hook ---
-  const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc', onSale: true });
+  const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc', onSale: true }, 20, { refetchOnMount: 'always' });
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Deals content is expected to change often (backend logic, active
+  // discounts, admin config) — the persisted query cache + refetchOnMount:
+  // false default means a stale response could otherwise linger on this
+  // screen indefinitely. Force a real network refetch every time the deals
+  // screen gains focus, same pattern used by chat/index.tsx.
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
 
   const [flashSale, setFlashSale] = React.useState<any | null>(null);
   const [flashProducts, setFlashProducts] = React.useState<any[]>([]);
@@ -169,10 +176,7 @@ export default function DealsScreen() {
                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Deals For You</Text>
-                <TouchableOpacity style={styles.iconBtn}>
-                    {/* white icon on the header gradient, fixed dark navy in both themes */}
-                    <Ionicons name="search" size={24} color="#FFF" />
-                </TouchableOpacity>
+                <View style={styles.iconBtn} />
             </View>
         </SafeAreaView>
       </LinearGradient>

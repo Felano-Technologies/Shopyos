@@ -2,7 +2,7 @@
 // Detail screen — full driver profile, all documents, approve / reject
 // Tabbed: Documents | Stats | History
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Dimensions, ActivityIndicator, Modal,
@@ -18,31 +18,20 @@ import { getDriverVerificationDetails, approveDriverVerification, rejectDriverVe
 import Skeleton from '@/components/Skeleton';
 import Toast from 'react-native-toast-message';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-};
-
 const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; label: string; icon: any }> = {
   pending:  { color: '#D97706', bg: '#FEF3C7', bar: '#F59E0B', label: 'Pending Review', icon: 'time-outline'            },
   approved: { color: '#15803D', bg: '#DCFCE7', bar: '#84cc16', label: 'Approved',        icon: 'checkmark-circle-outline'},
   rejected: { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', label: 'Rejected',        icon: 'close-circle-outline'   },
 };
-const getStatus = (s: string) =>
-  STATUS_CFG[s?.toLowerCase()] ?? { color: C.muted, bg: '#F3F4F6', bar: '#9CA3AF', label: s ?? '—', icon: 'help-circle-outline' };
+const getStatus = (s: string, C: AdminColors) =>
+  STATUS_CFG[s?.toLowerCase()] ?? { color: C.textMuted, bg: '#F3F4F6', bar: '#9CA3AF', label: s ?? '—', icon: 'help-circle-outline' };
 
 function safeDate(val: any, fallback = '—') {
   if (!val) return fallback;
@@ -58,6 +47,8 @@ type Tab = typeof TABS[number];
 
 // ── Stats Tab ─────────────────────────────────────────────────────────────────
 function StatsTab({ driverId }: { driverId: string }) {
+  const C = useAdminColors();
+  const S = useMemo(() => getStyles(C), [C]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -82,7 +73,7 @@ function StatsTab({ driverId }: { driverId: string }) {
   if (!stats) {
     return (
       <View style={S.tabCenter}>
-        <Feather name="bar-chart-2" size={rs(36)} color={C.subtle} />
+        <Feather name="bar-chart-2" size={rs(36)} color={C.textSoft} />
         <Text style={S.noDataTxt}>No stats available</Text>
       </View>
     );
@@ -124,10 +115,12 @@ const DELIVERY_STATUS_CFG: Record<string, { color: string; bg: string }> = {
   picked_up:  { color: '#2563EB', bg: '#DBEAFE' },
   in_transit: { color: '#2563EB', bg: '#DBEAFE' },
 };
-const getDeliveryStatusCfg = (s: string) =>
-  DELIVERY_STATUS_CFG[s?.toLowerCase()] ?? { color: C.muted, bg: '#F3F4F6' };
+const getDeliveryStatusCfg = (s: string, C: AdminColors) =>
+  DELIVERY_STATUS_CFG[s?.toLowerCase()] ?? { color: C.textMuted, bg: '#F3F4F6' };
 
 function HistoryTab({ driverId }: { driverId: string }) {
+  const C = useAdminColors();
+  const S = useMemo(() => getStyles(C), [C]);
   const [items, setItems]     = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded]   = useState(false);
@@ -164,7 +157,7 @@ function HistoryTab({ driverId }: { driverId: string }) {
   if (!loading && loaded && items.length === 0) {
     return (
       <View style={S.tabCenter}>
-        <Feather name="truck" size={rs(36)} color={C.subtle} />
+        <Feather name="truck" size={rs(36)} color={C.textSoft} />
         <Text style={S.noDataTxt}>No delivery history</Text>
       </View>
     );
@@ -183,7 +176,7 @@ function HistoryTab({ driverId }: { driverId: string }) {
       contentContainerStyle={S.tabScroll}
       showsVerticalScrollIndicator={false}
       renderItem={({ item }) => {
-        const sc = getDeliveryStatusCfg(item.status);
+        const sc = getDeliveryStatusCfg(item.status, C);
         return (
           <View style={S.historyCard}>
             <View style={S.historyCardTop}>
@@ -199,11 +192,11 @@ function HistoryTab({ driverId }: { driverId: string }) {
             </View>
             <View style={S.historyCardBottom}>
               <View style={S.historyMeta}>
-                <Feather name="user" size={rs(11)} color={C.muted} />
+                <Feather name="user" size={rs(11)} color={C.textMuted} />
                 <Text style={S.historyMetaTxt}>{item.buyer_name ?? item.customer_name ?? '—'}</Text>
               </View>
               <View style={S.historyMeta}>
-                <Feather name="calendar" size={rs(11)} color={C.muted} />
+                <Feather name="calendar" size={rs(11)} color={C.textMuted} />
                 <Text style={S.historyMetaTxt}>{safeDate(item.created_at)}</Text>
               </View>
             </View>
@@ -234,6 +227,8 @@ export default function DriverVerificationDetailScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
+  const C = useAdminColors();
+  const S = useMemo(() => getStyles(C), [C]);
 
   const [driver,      setDriver]      = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
@@ -300,7 +295,7 @@ export default function DriverVerificationDetailScreen() {
     return (
       <View style={S.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+        <LinearGradient colors={C.headerGradient} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
           <View style={S.hdrRow}>
             <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -342,7 +337,7 @@ export default function DriverVerificationDetailScreen() {
   }
 
   const status     = driver.verification_status ?? driver.status ?? 'pending';
-  const cfg        = getStatus(status);
+  const cfg        = getStatus(status, C);
   const isPending  = status.toLowerCase() === 'pending';
 
   const name    = driver.user_profiles?.full_name ?? driver.full_name   ?? 'Unknown Driver';
@@ -443,10 +438,10 @@ export default function DriverVerificationDetailScreen() {
               style={S.actionCircle}
               onPress={() => Linking.openURL(`tel:${phone}`)}
             >
-              <Ionicons name="call" size={rs(17)} color={C.limeText} />
+              <Ionicons name="call" size={rs(17)} color={C.onAccent} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[S.actionCircle, { backgroundColor: '#EEF2FF' }]}
+              style={[S.actionCircle, { backgroundColor: C.surfaceMuted }]}
               onPress={() => Linking.openURL(`mailto:${email}`)}
             >
               <Ionicons name="mail" size={rs(17)} color={C.navy} />
@@ -517,8 +512,8 @@ export default function DriverVerificationDetailScreen() {
 
       {DOCUMENTS.length === 0 ? (
         <View style={[S.infoCard, { alignItems: 'center', paddingVertical: rs(24) }]}>
-          <Feather name="inbox" size={rs(30)} color={C.subtle} />
-          <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(8) }}>
+          <Feather name="inbox" size={rs(30)} color={C.textSoft} />
+          <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: rs(8) }}>
             No documents submitted yet
           </Text>
         </View>
@@ -633,7 +628,7 @@ export default function DriverVerificationDetailScreen() {
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <LinearGradient
-          colors={[C.navy, C.navyMid]}
+          colors={C.headerGradient}
           style={[S.header, { paddingTop: insets.top + rs(12) }]}
         >
           <View style={S.hdrGlow} pointerEvents="none" />
@@ -691,7 +686,7 @@ export default function DriverVerificationDetailScreen() {
             <TextInput
               style={S.reasonInput}
               placeholder="e.g. Documents are unclear / expired license / incomplete information…"
-              placeholderTextColor={C.subtle}
+              placeholderTextColor={C.textSoft}
               multiline
               numberOfLines={5}
               value={rejectReason}
@@ -746,12 +741,12 @@ export default function DriverVerificationDetailScreen() {
   );
 }
 
-const S = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  root:   { flex: 1, backgroundColor: C.appBg },
+  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.appBg },
 
-  emptyCircle:{ width: rs(88), height: rs(88), borderRadius: rs(44), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14) },
-  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(14) },
+  emptyCircle:{ width: rs(88), height: rs(88), borderRadius: rs(44), backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center', marginBottom: rs(14) },
+  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: rs(14) },
   backBtn:    { backgroundColor: C.navy, paddingVertical: rs(12), paddingHorizontal: rs(28), borderRadius: rs(14) },
   backBtnTxt: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) },
 
@@ -775,7 +770,7 @@ const S = StyleSheet.create({
   hdrTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+    backgroundColor: C.appBg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
 
   // Tab bar
@@ -784,7 +779,7 @@ const S = StyleSheet.create({
     marginHorizontal: rs(16),
     marginTop: rs(4),
     marginBottom: rs(12),
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
     borderRadius: rs(14),
     padding: rs(4),
     gap: rs(4),
@@ -813,13 +808,13 @@ const S = StyleSheet.create({
   // Tab shared
   tabScroll:  { padding: rs(16), paddingBottom: rs(40) },
   tabCenter:  { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: rs(60) },
-  noDataTxt:  { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(12) },
+  noDataTxt:  { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: rs(12) },
 
   // Stats tab
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(12) },
   metricCard: {
     width: (SW - rs(44)) / 3,
-    backgroundColor: C.card,
+    backgroundColor: C.surface,
     borderRadius: rs(16),
     padding: rs(14),
     alignItems: 'center',
@@ -834,34 +829,34 @@ const S = StyleSheet.create({
     width: rs(40), height: rs(40), borderRadius: rs(12),
     justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
   },
-  metricValue: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, textAlign: 'center' },
-  metricLabel: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginTop: rs(4) },
+  metricValue: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.text, textAlign: 'center' },
+  metricLabel: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.textMuted, textAlign: 'center', marginTop: rs(4) },
 
   // History tab
   historyCard: {
-    backgroundColor: C.card, borderRadius: rs(16), padding: rs(14), marginBottom: rs(10),
+    backgroundColor: C.surface, borderRadius: rs(16), padding: rs(14), marginBottom: rs(10),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.05, shadowRadius: rs(8),
   },
   historyCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(8) },
-  historyOrderNum:{ fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body },
-  historyStore:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
+  historyOrderNum:{ fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.text },
+  historyStore:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.textMuted, marginTop: rs(2) },
   historyStatusBadge: {
     paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(10),
   },
   historyStatusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'capitalize' },
   historyCardBottom:{ flexDirection: 'row', gap: rs(16) },
   historyMeta:     { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
-  historyMetaTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted },
+  historyMetaTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.textMuted },
   loadMoreBtn: {
     alignItems: 'center', paddingVertical: rs(14), marginTop: rs(4),
-    backgroundColor: C.card, borderRadius: rs(14), borderWidth: 0.5, borderColor: '#E2E8F0',
+    backgroundColor: C.surface, borderRadius: rs(14), borderWidth: 0.5, borderColor: C.border,
   },
   loadMoreTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
 
   // Profile card
   profileCard: {
-    backgroundColor: C.card, borderRadius: rs(20), overflow: 'hidden', marginBottom: rs(20),
+    backgroundColor: C.surface, borderRadius: rs(20), overflow: 'hidden', marginBottom: rs(20),
     elevation: 4, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.08, shadowRadius: rs(12),
   },
@@ -872,8 +867,8 @@ const S = StyleSheet.create({
   profileAvatarFallback:{ backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
   profileInitials:      { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: C.lime },
   profileMeta:          { flex: 1 },
-  profileName:          { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(6) },
-  profileSub:           { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(5) },
+  profileName:          { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: rs(6) },
+  profileSub:           { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: rs(5) },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: rs(5), alignSelf: 'flex-start',
     paddingHorizontal: rs(10), paddingVertical: rs(4), borderRadius: rs(20),
@@ -887,27 +882,27 @@ const S = StyleSheet.create({
 
   // Section label
   secLbl: {
-    fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.subtle,
+    fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.textSoft,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: rs(10),
   },
 
   // Info card
   infoCard: {
-    backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(20),
+    backgroundColor: C.surface, borderRadius: rs(18), padding: rs(14), marginBottom: rs(20),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.05, shadowRadius: rs(8),
   },
   infoRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: rs(12), paddingVertical: rs(8) },
-  infoIconWrap:{ width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  infoLbl:     { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
-  infoVal:     { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
-  infoDivider: { height: 0.5, backgroundColor: '#F1F5F9' },
+  infoIconWrap:{ width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  infoLbl:     { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginBottom: rs(2) },
+  infoVal:     { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.text },
+  infoDivider: { height: 0.5, backgroundColor: C.border },
 
   // Vehicle grid
   vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   vehicleCell: { width: '50%', paddingVertical: rs(8), paddingRight: rs(12) },
-  vehicleCellLbl: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(3) },
-  vehicleCellVal: { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.body },
+  vehicleCellLbl: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginBottom: rs(3) },
+  vehicleCellVal: { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.text },
 
   // Documents section header
   docSecHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: rs(10) },
@@ -916,21 +911,21 @@ const S = StyleSheet.create({
 
   // Document card
   docCard: {
-    backgroundColor: C.card, borderRadius: rs(18), marginBottom: rs(12), overflow: 'hidden',
+    backgroundColor: C.surface, borderRadius: rs(18), marginBottom: rs(12), overflow: 'hidden',
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
   docCardHeader: { flexDirection: 'row', alignItems: 'center', gap: rs(10), padding: rs(14) },
   docIconWrap: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+    backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
-  docLabel:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.body },
-  docExpiry:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
+  docLabel:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.text },
+  docExpiry:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: rs(2) },
   docSubmittedBadge:{ flexDirection: 'row', alignItems: 'center', gap: rs(4) },
   docSubmittedTxt:  { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: '#15803D' },
   docImageWrap: { position: 'relative', marginHorizontal: rs(14), marginBottom: rs(14), borderRadius: rs(12), overflow: 'hidden' },
-  docImage:     { width: '100%', height: rs(180), backgroundColor: '#F1F5F9' },
+  docImage:     { width: '100%', height: rs(180), backgroundColor: C.surfaceMuted },
   docImageOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.35)', padding: rs(10),
@@ -966,23 +961,23 @@ const S = StyleSheet.create({
   // Reject modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: C.card, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+    backgroundColor: C.surface, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
     padding: rs(22),
   },
-  modalHandle: { width: rs(36), height: rs(4), borderRadius: rs(2), backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: rs(16) },
-  modalTitle:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(6) },
-  modalSub:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, lineHeight: rf(18), marginBottom: rs(16) },
+  modalHandle: { width: rs(36), height: rs(4), borderRadius: rs(2), backgroundColor: C.border, alignSelf: 'center', marginBottom: rs(16) },
+  modalTitle:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: rs(6) },
+  modalSub:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.textMuted, lineHeight: rf(18), marginBottom: rs(16) },
   reasonInput: {
-    backgroundColor: '#F8FAFC', borderRadius: rs(14), padding: rs(14),
-    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body,
-    minHeight: rs(120), borderWidth: 0.5, borderColor: '#E2E8F0', marginBottom: rs(16),
+    backgroundColor: C.appBg, borderRadius: rs(14), padding: rs(14),
+    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.text,
+    minHeight: rs(120), borderWidth: 0.5, borderColor: C.border, marginBottom: rs(16),
   },
   modalActions:    { flexDirection: 'row', gap: rs(12) },
   modalCancelBtn: {
     flex: 1, alignItems: 'center', paddingVertical: rs(14), borderRadius: rs(14),
-    borderWidth: 0.5, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+    borderWidth: 0.5, borderColor: C.border, backgroundColor: C.appBg,
   },
-  modalCancelTxt:  { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted },
+  modalCancelTxt:  { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.textMuted },
   modalRejectBtn: {
     flex: 2, alignItems: 'center', paddingVertical: rs(14), borderRadius: rs(14),
     backgroundColor: '#EF4444',

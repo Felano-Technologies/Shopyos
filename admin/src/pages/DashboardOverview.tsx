@@ -216,8 +216,8 @@ export const DashboardOverview: React.FC = () => {
 
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-sm text-gray-500 mt-1">Real-time metrics and platform activity</p>
+          <h1 className="text-2xl font-bold text-body">Dashboard Overview</h1>
+          <p className="text-sm text-secondary mt-1">Real-time metrics and platform activity</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -225,11 +225,11 @@ export const DashboardOverview: React.FC = () => {
             <button
               key={kpi.label}
               onClick={() => navigate(kpi.route)}
-              className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-left hover:border-navy/20 hover:shadow-md transition-all overflow-hidden"
+              className="relative bg-card p-4 rounded-xl shadow-sm border border-border text-left hover:border-navy/20 hover:shadow-md transition-all overflow-hidden"
             >
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${kpi.iconBg}`}>{kpi.icon}</div>
-              <p className="text-xl font-bold text-gray-900 truncate">{loading ? '...' : kpi.value}</p>
-              <p className="text-xs font-semibold text-gray-500 mt-1">{kpi.label}</p>
+              <p className="text-xl font-bold text-body truncate">{loading ? '...' : kpi.value}</p>
+              <p className="text-xs font-semibold text-secondary mt-1">{kpi.label}</p>
               <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${kpi.accent}`} />
             </button>
           ))}
@@ -238,15 +238,15 @@ export const DashboardOverview: React.FC = () => {
         {/* Analytics */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Revenue trend (bar) */}
-          <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="lg:col-span-3 bg-card rounded-xl shadow-sm border border-border p-6">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-gray-900">Revenue Trend</h2>
+              <h2 className="text-lg font-bold text-body">Revenue Trend</h2>
             </div>
-            <p className="text-xs text-gray-400 mb-4">Last 14 days</p>
+            <p className="text-xs text-subtle mb-4">Last 14 days</p>
             {trendLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-64" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-64" />
             ) : trend.every((t) => t.revenue === 0) ? (
-              <div className="h-64 flex items-center justify-center text-sm text-gray-500">No revenue recorded in this window yet.</div>
+              <div className="h-64 flex items-center justify-center text-sm text-secondary">No revenue recorded in this window yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={trend} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
@@ -279,16 +279,16 @@ export const DashboardOverview: React.FC = () => {
           </div>
 
           {/* Revenue sources (pie) */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="lg:col-span-2 bg-card rounded-xl shadow-sm border border-border p-6">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-gray-900">Revenue Sources</h2>
-              <div className="flex gap-1 bg-gray-50 rounded-lg p-0.5">
+              <h2 className="text-lg font-bold text-body">Revenue Sources</h2>
+              <div className="flex gap-1 bg-surface-muted rounded-lg p-0.5">
                 {PERIODS.map((p) => (
                   <button
                     key={p.value}
                     onClick={() => setBreakdownPeriod(p.value)}
                     className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors ${
-                      breakdownPeriod === p.value ? 'bg-white text-navy shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                      breakdownPeriod === p.value ? 'bg-card text-navy shadow-sm' : 'text-subtle hover:text-secondary'
                     }`}
                   >
                     {p.label}
@@ -296,11 +296,11 @@ export const DashboardOverview: React.FC = () => {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-gray-400 mb-2">Commission, fees & ads this {breakdownPeriod}</p>
+            <p className="text-xs text-subtle mb-2">Commission, fees & ads this {breakdownPeriod}</p>
             {breakdownLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-64" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-64" />
             ) : pieData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-sm text-gray-500 text-center px-4">No revenue recorded this {breakdownPeriod} yet.</div>
+              <div className="h-64 flex items-center justify-center text-sm text-secondary text-center px-4">No revenue recorded this {breakdownPeriod} yet.</div>
             ) : (
               <div className="relative">
                 <ResponsiveContainer width="100%" height={260}>
@@ -331,8 +331,8 @@ export const DashboardOverview: React.FC = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute top-1/2 left-[38%] -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total</p>
-                  <p className="text-base font-bold text-gray-900">{formatCurrency(breakdown?.grand_total || 0)}</p>
+                  <p className="text-[10px] font-semibold text-subtle uppercase tracking-wide">Total</p>
+                  <p className="text-base font-bold text-body">{formatCurrency(breakdown?.grand_total || 0)}</p>
                 </div>
               </div>
             )}
@@ -341,13 +341,13 @@ export const DashboardOverview: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* User growth (stacked bar) */}
-          <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">User Growth</h2>
-            <p className="text-xs text-gray-400 mb-4">New signups by role · last 14 days</p>
+          <div className="lg:col-span-3 bg-card rounded-xl shadow-sm border border-border p-6">
+            <h2 className="text-lg font-bold text-body mb-1">User Growth</h2>
+            <p className="text-xs text-subtle mb-4">New signups by role · last 14 days</p>
             {userGrowthLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-64" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-64" />
             ) : userGrowth.every((t) => t.buyers + t.sellers + t.drivers === 0) ? (
-              <div className="h-64 flex items-center justify-center text-sm text-gray-500">No new signups in this window yet.</div>
+              <div className="h-64 flex items-center justify-center text-sm text-secondary">No new signups in this window yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={userGrowth} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
@@ -376,13 +376,13 @@ export const DashboardOverview: React.FC = () => {
           </div>
 
           {/* Order status (pie) */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Order Status</h2>
-            <p className="text-xs text-gray-400 mb-2">All orders, platform-wide</p>
+          <div className="lg:col-span-2 bg-card rounded-xl shadow-sm border border-border p-6">
+            <h2 className="text-lg font-bold text-body mb-1">Order Status</h2>
+            <p className="text-xs text-subtle mb-2">All orders, platform-wide</p>
             {breakdownStatsLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-64" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-64" />
             ) : orderStatusData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-sm text-gray-500">No orders yet.</div>
+              <div className="h-64 flex items-center justify-center text-sm text-secondary">No orders yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -399,13 +399,13 @@ export const DashboardOverview: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Platform composition (horizontal bar) */}
-          <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Platform Composition</h2>
-            <p className="text-xs text-gray-400 mb-4">Registered users by role</p>
+          <div className="lg:col-span-3 bg-card rounded-xl shadow-sm border border-border p-6">
+            <h2 className="text-lg font-bold text-body mb-1">Platform Composition</h2>
+            <p className="text-xs text-subtle mb-4">Registered users by role</p>
             {breakdownStatsLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-56" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-56" />
             ) : compositionData.every((d) => d.value === 0) ? (
-              <div className="h-56 flex items-center justify-center text-sm text-gray-500">No users yet.</div>
+              <div className="h-56 flex items-center justify-center text-sm text-secondary">No users yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={compositionData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
@@ -422,13 +422,13 @@ export const DashboardOverview: React.FC = () => {
           </div>
 
           {/* Store verification (pie) */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Store Verification</h2>
-            <p className="text-xs text-gray-400 mb-2">All stores, platform-wide</p>
+          <div className="lg:col-span-2 bg-card rounded-xl shadow-sm border border-border p-6">
+            <h2 className="text-lg font-bold text-body mb-1">Store Verification</h2>
+            <p className="text-xs text-subtle mb-2">All stores, platform-wide</p>
             {breakdownStatsLoading ? (
-              <div className="animate-pulse bg-gray-100 rounded-lg h-56" />
+              <div className="animate-pulse bg-surface-muted rounded-lg h-56" />
             ) : storeStatusData.length === 0 ? (
-              <div className="h-56 flex items-center justify-center text-sm text-gray-500">No stores yet.</div>
+              <div className="h-56 flex items-center justify-center text-sm text-secondary">No stores yet.</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -445,33 +445,33 @@ export const DashboardOverview: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
           {/* Recent Orders */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-card rounded-xl shadow-sm border border-border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Recent Orders</h2>
+              <h2 className="text-lg font-bold text-body">Recent Orders</h2>
               <button onClick={() => navigate('/orders')} className="text-sm font-semibold text-navy hover:text-navy-mid transition-colors">
                 View all
               </button>
             </div>
             {loading ? (
               <div className="animate-pulse space-y-4">
-                <div className="h-10 bg-gray-100 rounded-lg w-full"></div>
-                <div className="h-10 bg-gray-100 rounded-lg w-full"></div>
-                <div className="h-10 bg-gray-100 rounded-lg w-full"></div>
+                <div className="h-10 bg-surface-muted rounded-lg w-full"></div>
+                <div className="h-10 bg-surface-muted rounded-lg w-full"></div>
+                <div className="h-10 bg-surface-muted rounded-lg w-full"></div>
               </div>
             ) : recentOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">No recent orders.</div>
+              <div className="text-center py-8 text-secondary text-sm">No recent orders.</div>
             ) : (
               <div className="flex flex-col">
                 {recentOrders.map((order: any, idx: number) => (
                   <div
                     key={order.id || idx}
-                    className={`flex items-center justify-between gap-3 py-3 ${idx !== recentOrders.length - 1 ? 'border-b border-gray-100' : ''}`}
+                    className={`flex items-center justify-between gap-3 py-3 ${idx !== recentOrders.length - 1 ? 'border-b border-border' : ''}`}
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-body truncate">
                         #{order.order_number || order.id?.slice(0, 8)?.toUpperCase()}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-subtle mt-0.5">
                         {order.buyer_name || 'Customer'} · {order.items_count ?? 0} item{order.items_count === 1 ? '' : 's'}
                       </p>
                     </div>
@@ -485,34 +485,34 @@ export const DashboardOverview: React.FC = () => {
           </div>
 
           {/* Top Stores */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="bg-card rounded-xl shadow-sm border border-border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Top Stores</h2>
+              <h2 className="text-lg font-bold text-body">Top Stores</h2>
               <button onClick={() => navigate('/stores')} className="text-sm font-semibold text-navy hover:text-navy-mid transition-colors">
                 View all
               </button>
             </div>
             {loading ? (
               <div className="animate-pulse space-y-4">
-                <div className="h-14 bg-gray-100 rounded-lg w-full"></div>
-                <div className="h-14 bg-gray-100 rounded-lg w-full"></div>
-                <div className="h-14 bg-gray-100 rounded-lg w-full"></div>
+                <div className="h-14 bg-surface-muted rounded-lg w-full"></div>
+                <div className="h-14 bg-surface-muted rounded-lg w-full"></div>
+                <div className="h-14 bg-surface-muted rounded-lg w-full"></div>
               </div>
             ) : topStores.length === 0 || topStores.every((s: any) => (s.order_count ?? 0) === 0) ? (
-              <div className="text-center py-8 text-gray-500 text-sm">No completed orders yet — top stores will appear once orders come in.</div>
+              <div className="text-center py-8 text-secondary text-sm">No completed orders yet — top stores will appear once orders come in.</div>
             ) : (
               <div className="flex flex-col">
                 {topStores.filter((s: any) => (s.order_count ?? 0) > 0).map((store: any, idx: number) => (
                   <div
                     key={store.id || idx}
-                    className={`flex items-center gap-3 py-3 ${idx !== topStores.length - 1 ? 'border-b border-gray-100' : ''}`}
+                    className={`flex items-center gap-3 py-3 ${idx !== topStores.length - 1 ? 'border-b border-border' : ''}`}
                   >
-                    <span className="w-5 shrink-0 text-center text-xs font-bold text-gray-300">{idx + 1}</span>
+                    <span className="w-5 shrink-0 text-center text-xs font-bold text-subtle">{idx + 1}</span>
                     {store.logo_url ? (
                       <img
                         src={store.logo_url}
                         alt={store.store_name}
-                        className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-100"
+                        className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                     ) : (
@@ -521,12 +521,12 @@ export const DashboardOverview: React.FC = () => {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{store.store_name || 'Store'}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-sm font-semibold text-body truncate">{store.store_name || 'Store'}</p>
+                      <p className="text-xs text-subtle mt-0.5">
                         {store.order_count ?? 0} order{store.order_count === 1 ? '' : 's'}
                       </p>
                     </div>
-                    <span className="text-sm font-bold text-gray-900 shrink-0">{formatCurrency(store.revenue ?? 0)}</span>
+                    <span className="text-sm font-bold text-body shrink-0">{formatCurrency(store.revenue ?? 0)}</span>
                   </div>
                 ))}
               </div>

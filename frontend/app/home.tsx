@@ -6,7 +6,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import * as Location from 'expo-location';
 import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
@@ -174,7 +174,12 @@ const { data: notifData } = useUnreadNotificationCount(false);
   const { data: trendingData, isLoading: loadingTrending, refetch: refetchTrending, isRefetching: refetchingTrending } =
     useProducts({ sortBy: 'popular' }, 10);
   const { data: dealsData, isLoading: loadingDeals, refetch: refetchDeals, isRefetching: refetchingDeals } =
-    useProducts({ sortBy: 'price_asc' }, 20);
+    useProducts({ sortBy: 'price_asc', onSale: true }, 20, { refetchOnMount: 'always' });
+
+  // Same reasoning as deals.tsx: the persisted query cache (7-day AsyncStorage,
+  // refetchOnMount: false) can otherwise keep serving a pre-fix/stale deals
+  // response on this dashboard section indefinitely, surviving force-quits.
+  useFocusEffect(useCallback(() => { refetchDeals(); }, [refetchDeals]));
   const {
     data: exploreData, isLoading: loadingExplore, refetch: refetchExplore,
     isRefetching: refetchingExplore, fetchNextPage: fetchMoreExplore,
@@ -295,7 +300,12 @@ const { data: notifData } = useUnreadNotificationCount(false);
     () => pickStoreGroup(recentProducts.length ? recentProducts : trendingProducts, getStoreDisplayName),
     [recentProducts, trendingProducts]
   );
+  // trendingProducts[0] is genuinely sales-ranked (total_sales DESC), so
+  // "TRENDING NOW" is accurate there. The dealsProducts fallback is only
+  // price/discount-sorted — no sales signal — so it gets an honest "ON SALE"
+  // label instead of a false trending claim.
   const trendingSpotlightProduct = trendingProducts[0] || dealsProducts[0] || null;
+  const trendingSpotlightTag = trendingProducts[0] ? 'TRENDING NOW' : 'ON SALE';
 
   const goToStore = useCallback((storeItem: { products: any[] }) => {
     const p = storeItem.products?.[0];
@@ -492,17 +502,6 @@ const { data: notifData } = useUnreadNotificationCount(false);
             saleTitle={flashSale?.title}
           />
 
-          {/* Store spotlight — "More from this shop", rotates daily, shown before Recently Added */}
-          {recentStoreSpotlight && (
-            <View style={S.spotlightBreak}>
-              <StoreSpotlightCard
-                item={{ type: 'store', ...recentStoreSpotlight, key: 'store-recent' }}
-                onPressProduct={goToDetails}
-                onPressStore={goToStore}
-              />
-            </View>
-          )}
-
           {/* Recently Added — horizontal scroll */}
           <ProductRow
             title="Recently Added"
@@ -512,6 +511,17 @@ const { data: notifData } = useUnreadNotificationCount(false);
             onSeeAll={() => router.push('/recent' as any)}
             getStoreName={getStoreDisplayName}
           />
+
+          {/* Store spotlight — "More from this shop", rotates daily */}
+          {recentStoreSpotlight && (
+            <View style={S.spotlightBreak}>
+              <StoreSpotlightCard
+                item={{ type: 'store', ...recentStoreSpotlight, key: 'store-recent' }}
+                onPressProduct={goToDetails}
+                onPressStore={goToStore}
+              />
+            </View>
+          )}
 
           {/* Mid-feed promo banner (Deals theme) */}
           <MidFeedBanner variant="deals" onPress={() => router.push('/deals' as any)} />
@@ -546,27 +556,37 @@ const { data: notifData } = useUnreadNotificationCount(false);
             </View>
           )}
 
-          {/* Hot & Trending — horizontal scroll */}
-          <ProductRow
+          {/* Hot & Trending — 2-col grid, first 6 items (mirrors Deals for You) */}
+          <ProductGrid
             title="Hot & Trending"
-            products={trendingProducts}
+            products={trendingProducts.slice(0, 6)}
             loading={loadingTrending}
             onPressProduct={goToDetails}
+            onAddToCart={handleAddToCart}
+            addingId={addingId}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={handleToggleFavorite}
+            favoriteBusyId={favoriteBusyId}
             onSeeAll={() => router.push('/search?sortBy=popular' as any)}
             getStoreName={getStoreDisplayName}
+            emptyTitle="Nothing trending right now"
+            emptyIcon="flame-outline"
           />
 
           {/* Spotlight product — between Hot & Trending and Recommended for You */}
           {trendingSpotlightProduct && (
             <View style={S.spotlightBreak}>
-              <SpotlightCard item={trendingSpotlightProduct} onPress={goToDetails} storeName={getStoreDisplayName} />
+              <SpotlightCard item={trendingSpotlightProduct} onPress={goToDetails} storeName={getStoreDisplayName} tag={trendingSpotlightTag} />
             </View>
           )}
 
           {/* Recommended for You — personalised or trending fallback */}
           <RecommendedSection />
 
-          {/* Deals for You — 2-col grid, first 6 items */}
+          {/* Deals for You — 2-col grid, first 6 items. Hidden entirely once
+              loaded if there are no real deals, rather than showing an empty
+              state placeholder for a section that has nothing to offer. */}
+          {(loadingDeals || dealsProducts.length > 0) && (
           <ProductGrid
             title="Deals for You"
             products={dealsProducts.slice(0, 6)}
@@ -582,6 +602,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
             emptyTitle="No deals right now"
             emptyIcon="tag-outline"
           />
+          )}
 
           {/* Mid-feed promo banner (Explore theme) */}
           <MidFeedBanner variant="explore" onPress={() => router.push('/search' as any)} />

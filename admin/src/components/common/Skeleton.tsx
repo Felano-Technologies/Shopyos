@@ -23,7 +23,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   return (
     <div 
-      className={`bg-[#CBD5E1] animate-pulse overflow-hidden ${className}`} 
+      className={`bg-border-strong animate-pulse overflow-hidden ${className}`} 
       style={style}
     />
   );

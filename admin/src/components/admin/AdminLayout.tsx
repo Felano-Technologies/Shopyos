@@ -5,7 +5,7 @@ import { AdminHeader } from './AdminHeader';
 
 export const AdminLayout: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-bg flex">
       <AdminSidebar />
       <div className="flex-1 flex flex-col ml-64 min-w-0">
         <AdminHeader />

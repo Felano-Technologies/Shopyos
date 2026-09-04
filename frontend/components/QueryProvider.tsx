@@ -76,6 +76,13 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
             // error states or loading states across restarts
             if (query.state.status !== 'success') return false;
 
+            // "On sale" / deals product queries are time-sensitive promotional
+            // data — persisting them for up to 7 days risks painting a stale
+            // deal (or a stale empty state) from disk before a fresh refetch
+            // resolves. Always start these from network instead.
+            const filters = query.queryKey[2] as { onSale?: boolean } | undefined;
+            if (key === 'products' && filters?.onSale) return false;
+
             return true;
           },
         },

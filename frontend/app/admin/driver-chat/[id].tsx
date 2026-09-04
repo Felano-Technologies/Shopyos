@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Dimensions, KeyboardAvoidingView,
@@ -11,29 +11,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
-
-
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 // ─── Responsive helpers ──────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
-// ─── Tokens ──────────────────────────────────────────────────────────────────
-const C = {
-  bg:        '#F0F4FF',
-  navy:      '#0C1559',
-  navyMid:   '#1e3a8a',
-  lime:      '#84cc16',
-  limeText:  '#1a2e00',
-  card:      '#FFFFFF',
-  body:      '#0F172A',
-  muted:     '#64748B',
-  subtle:    '#94A3B8',
-  adminBubble: '#0C1559',
-  driverBubble:'#FFFFFF',
-};
 
 // ─── API stubs ────────────────────────────────────────────────────────────────
 async function getAdminDriverMessages(driverId: string): Promise<any[]> {
@@ -60,9 +44,9 @@ const QUICK_REPLIES = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function renderMessageStatus(item: any) {
+function renderMessageStatus(item: any, C: AdminColors) {
   if (item.pending) {
-    return <ActivityIndicator size={rs(10)} color={C.muted} style={{ marginLeft: rs(4) }} />;
+    return <ActivityIndicator size={rs(10)} color={C.textMuted} style={{ marginLeft: rs(4) }} />;
   }
   if (item.failed) {
     return <Ionicons name="alert-circle" size={rs(12)} color="#EF4444" style={{ marginLeft: rs(3) }} />;
@@ -70,7 +54,7 @@ function renderMessageStatus(item: any) {
   return (
     <Ionicons
       name={item.read ? 'checkmark-done' : 'checkmark'}
-      size={rs(13)} color={item.read ? C.lime : C.muted}
+      size={rs(13)} color={item.read ? C.lime : C.textMuted}
       style={{ marginLeft: rs(3) }}
     />
   );
@@ -114,6 +98,8 @@ const STATUS_DOT: Record<string, string> = {
 export default function AdminDriverChatThread() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const S = useMemo(() => getStyles(C), [C]);
   const params = useLocalSearchParams<{
     id: string; name: string; phone: string; status: string; vehicleType: string;
   }>();
@@ -259,7 +245,7 @@ export default function AdminDriverChatThread() {
             {/* Time + status row */}
             <View style={[S.bubbleMeta, isAdmin ? S.bubbleMetaRight : S.bubbleMetaLeft]}>
               <Text style={S.bubbleTime}>{formatBubbleTime(item.timestamp)}</Text>
-              {isAdmin && renderMessageStatus(item)}
+              {isAdmin && renderMessageStatus(item, C)}
             </View>
           </View>
 
@@ -288,7 +274,7 @@ export default function AdminDriverChatThread() {
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <LinearGradient
-        colors={[C.navy, C.navyMid]}
+        colors={C.headerGradient}
         style={[S.header, { paddingTop: insets.top + rs(10) }]}
       >
         <View style={S.hdrGlow} pointerEvents="none" />
@@ -328,7 +314,7 @@ export default function AdminDriverChatThread() {
                 <MaterialCommunityIcons
                   name="lightning-bolt"
                   size={rs(17)}
-                  color={showQuick ? C.limeText : 'rgba(255,255,255,0.85)'}
+                  color={showQuick ? C.onAccent : 'rgba(255,255,255,0.85)'}
                 />
               </TouchableOpacity>
             </View>
@@ -392,7 +378,7 @@ export default function AdminDriverChatThread() {
           <MaterialCommunityIcons
             name="lightning-bolt"
             size={rs(20)}
-            color={showQuick ? C.limeText : C.navy}
+            color={showQuick ? C.onAccent : C.navy}
           />
         </TouchableOpacity>
 
@@ -401,7 +387,7 @@ export default function AdminDriverChatThread() {
           ref={inputRef}
           style={S.input}
           placeholder={`Message ${driverName}…`}
-          placeholderTextColor={C.subtle}
+          placeholderTextColor={C.textSoft}
           value={inputText}
           onChangeText={setInputText}
           multiline
@@ -434,8 +420,8 @@ export default function AdminDriverChatThread() {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.appBg },
 
   // Header
   header: {
@@ -469,10 +455,10 @@ const S = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.11)', borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.16)', justifyContent: 'center', alignItems: 'center',
   },
-  hdrBtnActive: { backgroundColor: '#84cc16', borderColor: '#84cc16' },
+  hdrBtnActive: { backgroundColor: C.lime, borderColor: C.lime },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+    backgroundColor: C.appBg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
   },
 
   // Messages
@@ -481,9 +467,9 @@ const S = StyleSheet.create({
 
   // Date separator
   dateSep: { flexDirection: 'row', alignItems: 'center', marginVertical: rs(16), gap: rs(8) },
-  dateSepLine: { flex: 1, height: 0.5, backgroundColor: 'rgba(12,21,89,0.12)' },
+  dateSepLine: { flex: 1, height: 0.5, backgroundColor: C.border },
   dateSepTxt: {
-    fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.subtle,
+    fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.textSoft,
     paddingHorizontal: rs(6), flexShrink: 0,
   },
 
@@ -502,8 +488,8 @@ const S = StyleSheet.create({
   },
   msgAvatarFallback: { backgroundColor: C.navy },
   msgAvatarTxt:      { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
-  msgAvatarAdmin:    { backgroundColor: '#84cc16' },
-  msgAvatarAdminTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.limeText },
+  msgAvatarAdmin:    { backgroundColor: C.lime },
+  msgAvatarAdminTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.onAccent },
 
   // Bubble itself
   bubble: {
@@ -512,52 +498,52 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.06, shadowRadius: rs(4),
   },
   bubbleAdmin: {
-    backgroundColor: C.adminBubble,
+    backgroundColor: C.navy,
     borderBottomRightRadius: rs(4),
   },
   bubbleDriver: {
-    backgroundColor: C.driverBubble,
+    backgroundColor: C.surface,
     borderBottomLeftRadius: rs(4),
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.1)',
+    borderWidth: 0.5, borderColor: C.border,
   },
   bubbleFailed: { opacity: 0.5 },
   bubbleTxt:        { fontSize: rf(14), lineHeight: rf(21) },
   bubbleTxtAdmin:   { color: '#fff', fontFamily: 'Montserrat-Medium' },
-  bubbleTxtDriver:  { color: C.body, fontFamily: 'Montserrat-Medium' },
+  bubbleTxtDriver:  { color: C.text, fontFamily: 'Montserrat-Medium' },
 
   // Bubble time/read
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', marginTop: rs(3), marginHorizontal: rs(2) },
   bubbleMetaRight: { justifyContent: 'flex-end' },
   bubbleMetaLeft:  { justifyContent: 'flex-start' },
-  bubbleTime: { fontSize: rf(9), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  bubbleTime: { fontSize: rf(9), fontFamily: 'Montserrat-Medium', color: C.textSoft },
 
   // Empty thread
   emptyThread: { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
   emptyIcon: {
     width: rs(84), height: rs(84), borderRadius: rs(42),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center',
     marginBottom: rs(16), elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
+  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: rs(8) },
   emptyBody: {
-    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted,
+    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.textMuted,
     textAlign: 'center', lineHeight: rf(20),
   },
 
   // Quick replies
   quickPanel: {
-    backgroundColor: C.card, borderTopWidth: 0.5,
-    borderTopColor: 'rgba(12,21,89,0.1)', paddingHorizontal: rs(14),
+    backgroundColor: C.surface, borderTopWidth: 0.5,
+    borderTopColor: C.border, paddingHorizontal: rs(14),
   },
   quickLabel: {
-    fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.subtle,
+    fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.textSoft,
     textTransform: 'uppercase', letterSpacing: 0.8,
     paddingTop: rs(10), marginBottom: rs(8),
   },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(8) },
   quickChip: {
-    backgroundColor: '#EEF2FF', borderRadius: rs(12),
+    backgroundColor: C.surfaceMuted, borderRadius: rs(12),
     paddingHorizontal: rs(12), paddingVertical: rs(8),
     maxWidth: (SW - rs(28) - rs(8)) / 2,
   },
@@ -567,22 +553,22 @@ const S = StyleSheet.create({
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: rs(10),
     paddingHorizontal: rs(14), paddingTop: rs(10),
-    backgroundColor: C.card, borderTopWidth: 0.5,
-    borderTopColor: 'rgba(12,21,89,0.1)',
+    backgroundColor: C.surface, borderTopWidth: 0.5,
+    borderTopColor: C.border,
     elevation: 8, shadowColor: C.navy,
     shadowOffset: { width: 0, height: -rs(4) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
   inputIconBtn: {
     width: rs(42), height: rs(42), borderRadius: rs(13),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center',
     flexShrink: 0,
   },
-  inputIconBtnActive: { backgroundColor: '#84cc16' },
+  inputIconBtnActive: { backgroundColor: C.lime },
   input: {
     flex: 1, minHeight: rs(42), maxHeight: rs(110),
-    backgroundColor: '#F1F5F9', borderRadius: rs(14),
+    backgroundColor: C.surfaceMuted, borderRadius: rs(14),
     paddingHorizontal: rs(14), paddingVertical: rs(10),
-    fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body,
+    fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.text,
     lineHeight: rf(20),
   },
   sendBtn: {
@@ -591,5 +577,5 @@ const S = StyleSheet.create({
     flexShrink: 0, elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.2, shadowRadius: rs(6),
   },
-  sendBtnDisabled: { backgroundColor: C.subtle, elevation: 0 },
+  sendBtnDisabled: { backgroundColor: C.textSoft, elevation: 0 },
 });

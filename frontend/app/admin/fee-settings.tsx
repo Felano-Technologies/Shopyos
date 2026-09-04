@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
-import { adminColors, adminShadow } from '@/components/admin/adminTheme';
+import { useAdminColors, adminShadow, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getAdminFeeConfigs,
@@ -43,6 +43,8 @@ const CATEGORIES: { key: Category; label: string; icon: string }[] = [
 export default function FeeSettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [configs, setConfigs] = useState<PlatformFeeConfig[]>([]);
@@ -134,7 +136,7 @@ export default function FeeSettingsScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={adminColors.navy} />
+        <ActivityIndicator size="large" color={C.navy} />
         <Text style={styles.loadingText}>Loading fee configurations...</Text>
       </View>
     );
@@ -145,7 +147,7 @@ export default function FeeSettingsScreen() {
       <StatusBar style="light" />
       <View style={styles.page}>
         {/* Header */}
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <LinearGradient colors={C.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -169,7 +171,7 @@ export default function FeeSettingsScreen() {
                   <Feather
                     name={tab.icon as any}
                     size={16}
-                    color={isActive ? '#FFFFFF' : adminColors.textMuted}
+                    color={isActive ? '#FFFFFF' : C.textMuted}
                     style={styles.tabIcon}
                   />
                   <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -188,13 +190,13 @@ export default function FeeSettingsScreen() {
             { paddingBottom: Math.max(insets.bottom, 12) + 120 },
           ]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={adminColors.navy} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={C.navy} />
           }
           showsVerticalScrollIndicator={false}
         >
           {activeConfigs.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Feather name="database" size={40} color={adminColors.textSoft} />
+              <Feather name="database" size={40} color={C.textSoft} />
               <Text style={styles.emptyText}>No configuration keys found in this category.</Text>
             </View>
           ) : (
@@ -238,8 +240,8 @@ export default function FeeSettingsScreen() {
                       onPress={() => handleViewAudit(config)}
                       activeOpacity={0.7}
                     >
-                      <Feather name="clock" size={14} color={adminColors.navy} style={styles.btnIcon} />
-                      <Text style={[styles.btnText, { color: adminColors.navy }]}>History</Text>
+                      <Feather name="clock" size={14} color={C.navy} style={styles.btnIcon} />
+                      <Text style={[styles.btnText, { color: C.navy }]}>History</Text>
                     </TouchableOpacity>
                   </View>
                 </AdminPanel>
@@ -255,7 +257,7 @@ export default function FeeSettingsScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Update Configuration</Text>
                 <TouchableOpacity onPress={() => setEditingConfig(null)}>
-                  <Feather name="x" size={24} color={adminColors.text} />
+                  <Feather name="x" size={24} color={C.text} />
                 </TouchableOpacity>
               </View>
 
@@ -317,13 +319,13 @@ export default function FeeSettingsScreen() {
                   <Text style={styles.modalSubtitle}>{auditConfig?.label}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setAuditConfig(null)}>
-                  <Feather name="x" size={24} color={adminColors.text} />
+                  <Feather name="x" size={24} color={C.text} />
                 </TouchableOpacity>
               </View>
 
               {loadingAudit ? (
                 <View style={styles.modalLoading}>
-                  <ActivityIndicator size="large" color={adminColors.navy} />
+                  <ActivityIndicator size="large" color={C.navy} />
                 </View>
               ) : (
                 <ScrollView contentContainerStyle={styles.auditBody}>
@@ -344,7 +346,7 @@ export default function FeeSettingsScreen() {
                           <Text style={styles.auditValueOld}>
                             Was: {parseFloat(log.old_value || '0').toString()}
                           </Text>
-                          <Feather name="arrow-right" size={14} color={adminColors.textSoft} style={{ marginHorizontal: 8 }} />
+                          <Feather name="arrow-right" size={14} color={C.textSoft} style={{ marginHorizontal: 8 }} />
                           <Text style={styles.auditValueNew}>
                             Is: {parseFloat(log.new_value).toString()}
                           </Text>
@@ -368,21 +370,21 @@ export default function FeeSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: adminColors.textMuted,
+    color: C.textMuted,
   },
   header: {
     flexDirection: 'row',
@@ -409,9 +411,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   tabBarContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: C.border,
     paddingVertical: 10,
   },
   tabBar: {
@@ -424,10 +426,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
   },
   tabActive: {
-    backgroundColor: adminColors.navy,
+    backgroundColor: C.navy,
   },
   tabIcon: {
     marginRight: 6,
@@ -435,7 +437,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: adminColors.textMuted,
+    color: C.textMuted,
   },
   tabLabelActive: {
     color: '#FFFFFF',
@@ -451,15 +453,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     textAlign: 'center',
   },
   configCard: {
     padding: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: C.cardBorder,
     ...adminShadow,
   },
   configHeader: {
@@ -471,25 +473,25 @@ const styles = StyleSheet.create({
   configLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: adminColors.text,
+    color: C.text,
     flex: 1,
   },
   valueBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: C.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: C.border,
   },
   valueBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: adminColors.blue,
+    color: C.blue,
   },
   configDesc: {
     fontSize: 13,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginTop: 8,
     lineHeight: 18,
   },
@@ -500,14 +502,14 @@ const styles = StyleSheet.create({
   },
   limitsText: {
     fontSize: 12,
-    color: adminColors.textSoft,
+    color: C.textSoft,
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: C.border,
     paddingTop: 14,
   },
   actionBtn: {
@@ -519,12 +521,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   editBtn: {
-    backgroundColor: adminColors.navy,
+    backgroundColor: C.navy,
   },
   auditBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
   },
   btnIcon: {
     marginRight: 6,
@@ -540,7 +542,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '85%',
@@ -553,16 +555,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: adminColors.text,
+    color: C.text,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginTop: 2,
   },
   modalBody: {
@@ -571,11 +573,11 @@ const styles = StyleSheet.create({
   modalLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: adminColors.text,
+    color: C.text,
   },
   modalDesc: {
     fontSize: 13,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginTop: 6,
     lineHeight: 18,
     marginBottom: 20,
@@ -586,18 +588,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: adminColors.text,
-    backgroundColor: '#F8FAFC',
+    color: C.text,
+    backgroundColor: C.surfaceSoft,
   },
   textArea: {
     height: 80,
@@ -607,13 +609,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: adminColors.green,
+    backgroundColor: C.green,
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 10,
   },
   saveBtnDisabled: {
-    backgroundColor: '#86EFAC',
+    backgroundColor: C.green,
   },
   saveBtnText: {
     color: '#FFFFFF',
@@ -630,7 +632,7 @@ const styles = StyleSheet.create({
   },
   emptyAuditText: {
     fontSize: 14,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     textAlign: 'center',
     marginVertical: 40,
   },
@@ -645,11 +647,11 @@ const styles = StyleSheet.create({
   auditUser: {
     fontSize: 13,
     fontWeight: '600',
-    color: adminColors.text,
+    color: C.text,
   },
   auditDate: {
     fontSize: 12,
-    color: adminColors.textSoft,
+    color: C.textSoft,
   },
   auditValuesRow: {
     flexDirection: 'row',
@@ -658,26 +660,26 @@ const styles = StyleSheet.create({
   },
   auditValueOld: {
     fontSize: 13,
-    color: adminColors.red,
+    color: C.red,
     textDecorationLine: 'line-through',
   },
   auditValueNew: {
     fontSize: 13,
     fontWeight: '600',
-    color: adminColors.green,
+    color: C.green,
   },
   auditReason: {
     fontSize: 12,
     fontStyle: 'italic',
-    color: adminColors.textMuted,
-    backgroundColor: '#F8FAFC',
+    color: C.textMuted,
+    backgroundColor: C.surfaceSoft,
     padding: 8,
     borderRadius: 6,
     marginTop: 4,
   },
   auditDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
     marginTop: 14,
   },
 });

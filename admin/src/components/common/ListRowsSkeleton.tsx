@@ -8,7 +8,7 @@ interface ListRowsSkeletonProps {
 }
 
 export const ListRowsSkeleton: React.FC<ListRowsSkeletonProps> = ({ rows = 5, leadingIcon = true }) => (
-  <div className="divide-y divide-gray-100">
+  <div className="divide-y divide-border">
     {Array.from({ length: rows }).map((_, i) => (
       <div key={i} className="p-4 flex items-start gap-4">
         {leadingIcon && <Skeleton width={36} height={36} borderRadius={10} />}

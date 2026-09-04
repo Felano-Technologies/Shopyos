@@ -19,7 +19,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { useAdminColors, adminShadow, useAdminBreakpoint, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminVerifyStore, getAdminStores } from '@/services/api';
 
@@ -104,6 +104,8 @@ function applyStoreResults(
 
 export default function AdminStores() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const { isDesktop } = useAdminBreakpoint();
   const params = useLocalSearchParams<{ id?: string | string[]; ownerId?: string | string[] }>();
   const storeIdParam = normalizeParam(params.id);
@@ -299,12 +301,12 @@ export default function AdminStores() {
             </View>
 
             <View style={styles.searchCard}>
-              <Ionicons name="search" size={18} color={adminColors.textMuted} />
+              <Ionicons name="search" size={18} color={C.textMuted} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search by store or owner..."
-                placeholderTextColor={adminColors.textMuted}
+                placeholderTextColor={C.textMuted}
                 style={styles.searchInput}
                 returnKeyType="search"
                 onSubmitEditing={() => fetchStoreContext()}
@@ -341,7 +343,7 @@ export default function AdminStores() {
                         {store.owner?.full_name || 'No owner name'} • {store.city || 'No location'}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={adminColors.navy} />
+                    <Ionicons name="chevron-forward" size={16} color={C.navy} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -554,7 +556,9 @@ export default function AdminStores() {
 }
 
 function DetailItem({ label, value, icon, isLink, onPress }: any) {
-  const iconNode = React.isValidElement(icon) ? icon : <Ionicons name={icon} size={14} color={isLink ? '#3B82F6' : '#0C1559'} />;
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
+  const iconNode = React.isValidElement(icon) ? icon : <Ionicons name={icon} size={14} color={isLink ? '#3B82F6' : C.navy} />;
 
   return (
     <TouchableOpacity style={styles.detailRow} disabled={!isLink} onPress={onPress}>
@@ -570,7 +574,7 @@ function DetailItem({ label, value, icon, isLink, onPress }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F5F7FA',
@@ -758,7 +762,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   emptyPromptText: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
@@ -826,7 +830,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ownerLine: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     marginTop: 4,
@@ -941,7 +945,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   bodyCopy: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     lineHeight: 20,
@@ -970,14 +974,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailLabel: {
-    color: adminColors.textSoft,
+    color: C.textSoft,
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
     textTransform: 'uppercase',
     marginBottom: 2,
   },
   detailValue: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
   },
@@ -1007,7 +1011,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   docName: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
     textAlign: 'center',
@@ -1015,7 +1019,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tapToZoom: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
@@ -1078,12 +1082,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   resultName: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },
   resultMeta: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     marginTop: 3,
@@ -1139,13 +1143,13 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   modalTitle: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 22,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 6,
   },
   modalSub: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     lineHeight: 20,
     fontFamily: 'Montserrat-Regular',
@@ -1155,11 +1159,11 @@ const styles = StyleSheet.create({
     minHeight: 130,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: adminColors.borderStrong,
-    backgroundColor: adminColors.surfaceSoft,
+    borderColor: C.borderStrong,
+    backgroundColor: C.surfaceSoft,
     padding: 14,
     textAlignVertical: 'top',
-    color: adminColors.text,
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -1173,17 +1177,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: adminColors.surfaceSoft,
+    backgroundColor: C.surfaceSoft,
   },
   cancelText: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontFamily: 'Montserrat-SemiBold',
   },
   modalConfirm: {
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: adminColors.navyDeep,
+    backgroundColor: C.navyDeep,
   },
   confirmText: {
     color: '#FFFFFF',

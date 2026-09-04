@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { getAdminUserStats } from '@/services/api';
@@ -89,7 +88,7 @@ export default function AdminUsers() {
           style={styles.canvas}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStats(true)} tintColor="#0A2EA8" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStats(true)} tintColor={colors.primary} />}
         >
           {/* ── Header ─────────────────────────────────────────────── */}
           <LinearGradient
@@ -163,7 +162,7 @@ export default function AdminUsers() {
                 <Text style={styles.groupTitle}>{item.title}</Text>
                 <Text style={styles.groupCount}>{item.count} users</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
 
@@ -178,7 +177,7 @@ export default function AdminUsers() {
             <View style={styles.storeCardGradient}>
               <View style={styles.storeCardLeft}>
                 <View style={styles.storeIconWrap}>
-                  <Ionicons name="storefront-outline" size={24} color="#0C1559" />
+                  <Ionicons name="storefront-outline" size={24} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.storeCardTitle}>Store Approvals</Text>
@@ -187,7 +186,7 @@ export default function AdminUsers() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="arrow-forward" size={18} color="#94A3B8" />
+              <Ionicons name="arrow-forward" size={18} color={colors.textMuted} />
             </View>
           </TouchableOpacity>
 
@@ -266,11 +265,11 @@ export default function AdminUsers() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.backgroundAlt,
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.backgroundAlt,
   },
   scrollContent: {
     paddingHorizontal: 12,
@@ -346,7 +345,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   heroPill: {
     alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 999,
     paddingHorizontal: 26,
     paddingVertical: 10,
@@ -373,12 +372,12 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingBottom: 14,
   },
   pageTitle: {
-    color: '#1D2B73',
+    color: colors.text,
     fontSize: 24,
     fontFamily: 'Montserrat-Bold',
   },
   pageSubtitle: {
-    color: '#1D2B73',
+    color: colors.text,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     marginTop: 4,
@@ -393,11 +392,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 20,
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
     overflow: 'hidden',
     flexGrow: 1,
   },
@@ -410,13 +409,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 2,
   },
   statLabel: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -430,7 +429,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Section label
   sectionLabel: {
-    color: '#1D2B73',
+    color: colors.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 10,
@@ -439,11 +438,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Group cards (Buyers / Sellers / Drivers)
   groupCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
     shadowColor: '#0C1559',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -462,13 +461,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   groupTitle: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 2,
   },
   groupCount: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
   },
@@ -479,7 +478,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
     shadowColor: '#0B2060',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -491,7 +490,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   storeCardLeft: {
     flexDirection: 'row',
@@ -503,19 +502,19 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   storeCardTitle: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 3,
   },
   storeCardSubtitle: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     maxWidth: 200,
@@ -536,7 +535,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 14,
     marginTop: 4,
@@ -548,7 +547,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   tipText: {
     flex: 1,
-    color: adminColors.textMuted,
+    color: colors.textSecondary,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     lineHeight: 18,
@@ -561,11 +560,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   quickCard: {
     width: '47%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E8EEF8',
+    borderColor: colors.border,
     shadowColor: '#0B2060',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -581,13 +580,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 10,
   },
   quickTitle: {
-    color: '#0F172A',
+    color: colors.text,
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 2,
   },
   quickSub: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     fontFamily: 'Montserrat-Regular',
   },

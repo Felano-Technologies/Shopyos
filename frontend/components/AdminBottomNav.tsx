@@ -12,7 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -29,6 +29,8 @@ const NAV_ITEMS = [
 
 export default function AdminBottomNav() {
   const pathname = usePathname();
+  const C = useAdminColors();
+  const styles = React.useMemo(() => getStyles(C), [C]);
 
   const handlePress = (route: string) => {
     if (pathname === route || pathname.startsWith(route + '/')) return;
@@ -52,7 +54,7 @@ export default function AdminBottomNav() {
             >
               {isActive ? (
                 <LinearGradient
-                  colors={[adminColors.navy, adminColors.navyMid]}
+                  colors={C.headerGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.activePill}
@@ -62,7 +64,7 @@ export default function AdminBottomNav() {
                 </LinearGradient>
               ) : (
                 <View style={styles.iconWrapper}>
-                  <Feather name={item.icon as any} size={22} color="#94A3B8" />
+                  <Feather name={item.icon as any} size={22} color={C.textSoft} />
                 </View>
               )}
             </TouchableOpacity>
@@ -73,7 +75,7 @@ export default function AdminBottomNav() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
     bottom: 25,
@@ -84,20 +86,20 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     width: width - 40,
     height: 70,
     borderRadius: 35,
     padding: 8,
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
   },
   navItem: {
     height: '100%',

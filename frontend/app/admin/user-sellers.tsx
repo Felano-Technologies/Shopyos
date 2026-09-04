@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
@@ -240,11 +240,11 @@ export default function AdminSellers() {
             contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadSellers(true)} tintColor={adminColors.navy} />
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadSellers(true)} tintColor={colors.primary} />
             }
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="storefront-outline" size={48} color={adminColors.textSoft} />
+                <Ionicons name="storefront-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyTitle}>No sellers found</Text>
                 <Text style={styles.emptySubtitle}>
                   {searchQuery ? 'Try a different search term' : 'Sellers will appear here once registered'}
@@ -410,6 +410,6 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   pillText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold' },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
-  emptyTitle: { color: adminColors.text, fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  emptySubtitle: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular', textAlign: 'center' },
+  emptyTitle: { color: c.text, fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  emptySubtitle: { color: c.textSecondary, fontSize: 13, fontFamily: 'Montserrat-Regular', textAlign: 'center' },
 });

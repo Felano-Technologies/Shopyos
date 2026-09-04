@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Modal, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform
@@ -14,7 +14,7 @@ import {
   getAllBannerCampaigns,
   updateBannerCampaignStatus
 } from '@/services/api';
-import { useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { useAdminBreakpoint, useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 const { width, height } = Dimensions.get('window');
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
@@ -28,11 +28,13 @@ type AdCardProps = {
 };
 
 function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Readonly<AdCardProps>) {
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.storeInfo}>
-          <MaterialCommunityIcons name="storefront-outline" size={16} color="#0C1559" />
+          <MaterialCommunityIcons name="storefront-outline" size={16} color={C.navy} />
           <Text style={styles.storeName}>{item.store?.store_name || 'Unknown Store'}</Text>
         </View>
         <Text style={styles.dateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
@@ -47,11 +49,11 @@ function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Re
         <View style={styles.adDetails}>
           <Text style={styles.adTitle} numberOfLines={1}>{item.title}</Text>
           <View style={styles.detailRow}>
-            <Feather name="layout" size={12} color="#64748B" />
+            <Feather name="layout" size={12} color={C.textMuted} />
             <Text style={styles.detailText}>{item.placement}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Feather name="clock" size={12} color="#64748B" />
+            <Feather name="clock" size={12} color={C.textMuted} />
             <Text style={styles.detailText}>{item.duration_days} Days</Text>
           </View>
           <View style={styles.paidBadge}>
@@ -84,11 +86,13 @@ export default function AdminAds() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDesktop } = useAdminBreakpoint();
-  
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
+
   const [ads, setAds] = useState<any[]>([]);
   const [filter, setFilter] = useState<AdStatus>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Modals
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState(false);
@@ -113,9 +117,9 @@ export default function AdminAds() {
   useEffect(() => {
     fetchAds();
   }, []);
-  const filteredAds = ads.filter(ad => 
-    ad.status === filter && 
-    ((ad.store?.store_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredAds = ads.filter(ad =>
+    ad.status === filter &&
+    ((ad.store?.store_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
      ad.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   const pendingCount = ads.filter(a => a.status === 'Pending').length;
@@ -195,17 +199,17 @@ export default function AdminAds() {
       {/* --- Search & Filters --- */}
       <View style={styles.controlsSection}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" />
+          <Feather name="search" size={18} color={C.textSoft} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search stores or campaigns..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.textSoft}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color={C.textSoft} />
             </TouchableOpacity>
           )}
         </View>
@@ -239,7 +243,7 @@ export default function AdminAds() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
-              <MaterialCommunityIcons name="bullhorn-outline" size={40} color="#94A3B8" />
+              <MaterialCommunityIcons name="bullhorn-outline" size={40} color={C.textSoft} />
             </View>
             <Text style={styles.emptyTitle}>No {filter} Ads</Text>
             <Text style={styles.emptySubtitle}>There are currently no campaigns matching this status.</Text>
@@ -269,11 +273,11 @@ export default function AdminAds() {
             <Text style={styles.modalSub}>
               Rejecting this ad will notify the merchant. Please provide a reason for the rejection.
             </Text>
-            
-            <TextInput 
+
+            <TextInput
               style={styles.reasonInput}
               placeholder="e.g. Image violates platform guidelines..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={C.textSoft}
               multiline
               value={rejectReason}
               onChangeText={setRejectReason}
@@ -282,8 +286,8 @@ export default function AdminAds() {
               <TouchableOpacity style={styles.modalCancel} onPress={() => { setRejectModal(false); setRejectReason(''); }}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalConfirm, !rejectReason && { opacity: 0.5 }]} 
+              <TouchableOpacity
+                style={[styles.modalConfirm, !rejectReason && { opacity: 0.5 }]}
                 onPress={handleReject}
                 disabled={!rejectReason || actionLoading === targetAd?.id}
               >
@@ -296,11 +300,11 @@ export default function AdminAds() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.appBg },
   desktopCanvas: { flex: 1 },
   desktopCanvasWide: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
-  
+
   header: { paddingBottom: 14, paddingHorizontal: 16, elevation: 10, zIndex: 10 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
@@ -308,40 +312,40 @@ const styles = StyleSheet.create({
   headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   headerBadgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
   controlsSection: { paddingHorizontal: 16, paddingTop: 15, zIndex: 5 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-  searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#0F172A' },
-  tabs: { flexDirection: 'row', backgroundColor: '#E2E8F0', borderRadius: 14, padding: 4, marginTop: 15 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: C.border, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 14, color: C.text },
+  tabs: { flexDirection: 'row', backgroundColor: C.border, borderRadius: 14, padding: 4, marginTop: 15 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  tabActive: { backgroundColor: '#0C1559', elevation: 2 },
-  tabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  tabActive: { backgroundColor: C.navy, elevation: 2 },
+  tabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.textMuted },
   tabTextActive: { color: '#FFF' },
   listContent: { padding: 16, paddingBottom: 40 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#0C1559', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, borderWidth: 1, borderColor: '#F1F5F9' },
+  card: { backgroundColor: C.surface, borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: C.navy, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, borderWidth: 1, borderColor: C.cardBorder },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   storeInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  storeName: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  dateText: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8' },
+  storeName: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.text },
+  dateText: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: C.textSoft },
 
   cardBody: { flexDirection: 'row', gap: 12, marginBottom: 14 },
   bannerPreview: { width: 88, height: 64, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DBEAFE', flexShrink: 0 },
   bannerImg: { width: '100%', height: '100%' },
   zoomOverlay: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.55)', padding: 4, borderRadius: 6 },
   adDetails: { flex: 1, justifyContent: 'center' },
-  adTitle: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 4 },
+  adTitle: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.text, marginBottom: 4 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
-  detailText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B' },
+  detailText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.textMuted },
   paidBadge: { alignSelf: 'flex-start', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, marginTop: 4 },
   paidText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#16A34A' },
-  actions: { flexDirection: 'row', gap: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  actions: { flexDirection: 'row', gap: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: C.border },
   actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  approveBtn: { backgroundColor: '#0C1559' },
+  approveBtn: { backgroundColor: C.navy },
   rejectText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#DC2626' },
   approveText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   emptyState: { alignItems: 'center', marginTop: 50 },
-  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 5 },
-  emptySubtitle: { fontSize: 13, color: '#94A3B8', fontFamily: 'Montserrat-Medium', textAlign: 'center' },
+  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 5 },
+  emptySubtitle: { fontSize: 13, color: C.textSoft, fontFamily: 'Montserrat-Medium', textAlign: 'center' },
   // Modals
   previewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' },
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
@@ -350,13 +354,13 @@ const styles = StyleSheet.create({
   previewContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   fullImage: { width: width, height: height * 0.5 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
-  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  modalSub: { fontSize: 13, color: '#64748B', marginTop: 10, marginBottom: 20, fontFamily: 'Montserrat-Medium', lineHeight: 20 },
-  reasonInput: { backgroundColor: '#F8FAFC', borderRadius: 15, padding: 15, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: '#E2E8F0', fontFamily: 'Montserrat-Medium' },
+  modalCard: { backgroundColor: C.surface, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.text },
+  modalSub: { fontSize: 13, color: C.textMuted, marginTop: 10, marginBottom: 20, fontFamily: 'Montserrat-Medium', lineHeight: 20 },
+  reasonInput: { backgroundColor: C.surfaceSoft, borderRadius: 15, padding: 15, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: C.border, fontFamily: 'Montserrat-Medium', color: C.text },
   modalBtns: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 20 },
-  modalCancel: { flex: 1, padding: 15, alignItems: 'center', borderRadius: 15, backgroundColor: '#F1F5F9' },
+  modalCancel: { flex: 1, padding: 15, alignItems: 'center', borderRadius: 15, backgroundColor: C.surfaceMuted },
   modalConfirm: { flex: 2, padding: 15, alignItems: 'center', borderRadius: 15, backgroundColor: '#EF4444' },
-  cancelText: { fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  cancelText: { fontFamily: 'Montserrat-Bold', color: C.textMuted },
   confirmText: { fontFamily: 'Montserrat-Bold', color: '#FFF' }
 });

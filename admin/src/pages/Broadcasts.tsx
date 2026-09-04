@@ -199,14 +199,14 @@ export const Broadcasts: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Broadcasts</h1>
-            <p className="text-sm text-gray-500 mt-1">Schedule push, email, and SMS campaigns across your audiences.</p>
+            <h1 className="text-2xl font-bold text-body">Broadcasts</h1>
+            <p className="text-sm text-secondary mt-1">Schedule push, email, and SMS campaigns across your audiences.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleSendTest} disabled={testing} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50">
+            <button onClick={handleSendTest} disabled={testing} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-border text-secondary hover:bg-surface-muted transition-colors flex items-center gap-2 disabled:opacity-50">
               <FiSend className="w-4 h-4" /> {testing ? 'Sending...' : 'Send Test'}
             </button>
-            <button onClick={handleTriggerSweep} disabled={sweeping} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50">
+            <button onClick={handleTriggerSweep} disabled={sweeping} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-border text-secondary hover:bg-surface-muted transition-colors flex items-center gap-2 disabled:opacity-50">
               <FiZap className="w-4 h-4" /> {sweeping ? 'Triggering...' : 'Trigger Sweep'}
             </button>
             <button onClick={() => openCreateModal()} className="bg-navy hover:bg-navy-mid text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors">
@@ -217,7 +217,7 @@ export const Broadcasts: React.FC = () => {
 
         {holiday?.isHoliday && (
           <div className="bg-gradient-to-r from-navy to-navy-mid rounded-xl p-4 flex items-center gap-4 text-white">
-            <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center shrink-0"><FiGift className="w-5 h-5" /></div>
+            <div className="w-10 h-10 rounded-lg bg-card/15 flex items-center justify-center shrink-0"><FiGift className="w-5 h-5" /></div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold">Today: {holiday.holidayName}</p>
               <p className="text-sm text-white/70">An AI-drafted message is ready — auto-fill and review before sending.</p>
@@ -225,7 +225,7 @@ export const Broadcasts: React.FC = () => {
             {holiday.aiRecommendation && (
               <button
                 onClick={() => openCreateModal(holiday.aiRecommendation)}
-                className="shrink-0 bg-white/15 hover:bg-white/25 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                className="shrink-0 bg-card/15 hover:bg-card/25 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors"
               >
                 Auto-fill
               </button>
@@ -235,16 +235,16 @@ export const Broadcasts: React.FC = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(loading ? Array.from({ length: 4 }) : statCards).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
@@ -253,50 +253,50 @@ export const Broadcasts: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setTab('manual')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'manual' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'manual' ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'}`}
           >
             Manual ({manualList.length})
           </button>
           <button
             onClick={() => setTab('automated')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'automated' ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${tab === 'automated' ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'}`}
           >
             Automated ({automatedList.length})
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           {loading ? (
             <ListRowsSkeleton rows={5} leadingIcon={false} />
           ) : visible.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <FiSend className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <div className="p-12 text-center text-secondary">
+              <FiSend className="w-10 h-10 mx-auto mb-3 text-subtle" />
               <p className="text-sm">No {tab === 'manual' ? 'manual broadcasts' : 'automated campaigns'} yet.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title / Message</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Audience</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Channels</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Scheduled / Sent</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                  <tr className="bg-surface-muted/50 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Title / Message</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Audience</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Channels</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Scheduled / Sent</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {visible.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={b.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 max-w-xs">
-                        <p className="font-medium text-gray-900 truncate">{b.title}</p>
-                        <p className="text-sm text-gray-500 truncate">{b.message}</p>
+                        <p className="font-medium text-body truncate">{b.title}</p>
+                        <p className="text-sm text-secondary truncate">{b.message}</p>
                         {b.status === 'failed' && b.error_message && (
                           <p className="text-xs text-red-500 mt-0.5 truncate">{b.error_message}</p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700 capitalize">{b.recipient_type}</td>
+                      <td className="px-6 py-4 text-sm text-body capitalize">{b.recipient_type}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-1.5">
                           {b.send_push && <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-semibold">Push</span>}
@@ -304,7 +304,7 @@ export const Broadcasts: React.FC = () => {
                           {b.send_sms && <span className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded-md font-semibold">SMS</span>}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{fmt(b.sent_at || b.scheduled_at)}</td>
+                      <td className="px-6 py-4 text-sm text-secondary">{fmt(b.sent_at || b.scheduled_at)}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${STATUS_PILL[b.status]}`}>{b.status}</span>
                       </td>
@@ -330,10 +330,10 @@ export const Broadcasts: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">New Broadcast</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <h2 className="text-lg font-bold text-body">New Broadcast</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -342,30 +342,30 @@ export const Broadcasts: React.FC = () => {
                 <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-100">{formError}</div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
-                <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+                <label className="block text-sm font-semibold text-body mb-1">Title</label>
+                <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-semibold text-gray-700">Message</label>
+                  <label className="block text-sm font-semibold text-body">Message</label>
                   <div className="flex gap-1.5">
                     {VARIABLES.map((v) => (
                       <button
                         key={v}
                         type="button"
                         onClick={() => setFormData((f) => ({ ...f, message: f.message + (f.message && !f.message.endsWith(' ') ? ' ' : '') + v }))}
-                        className="px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                        className="px-2 py-0.5 rounded-md text-xs font-semibold bg-surface-muted text-secondary hover:bg-border-strong transition-colors"
                       >
                         + {v.replace(/[{}]/g, '')}
                       </button>
                     ))}
                   </div>
                 </div>
-                <textarea rows={3} value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
+                <textarea rows={3} value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy resize-none" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Audience</label>
-                <select value={formData.recipient_type} onChange={(e) => setFormData({ ...formData, recipient_type: e.target.value as RecipientType })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy">
+                <label className="block text-sm font-semibold text-body mb-2">Audience</label>
+                <select value={formData.recipient_type} onChange={(e) => setFormData({ ...formData, recipient_type: e.target.value as RecipientType })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy">
                   <option value="all">Everyone</option>
                   <option value="customers">Customers</option>
                   <option value="stores">Stores</option>
@@ -373,7 +373,7 @@ export const Broadcasts: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Channels</label>
+                <label className="block text-sm font-semibold text-body mb-2">Channels</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.send_push} onChange={(e) => setFormData({ ...formData, send_push: e.target.checked })} /> Push</label>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={formData.send_email} onChange={(e) => setFormData({ ...formData, send_email: e.target.checked })} /> Email</label>
@@ -381,12 +381,12 @@ export const Broadcasts: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Send At</label>
-                <input type="datetime-local" value={formData.scheduled_at} onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+                <label className="block text-sm font-semibold text-body mb-1">Send At</label>
+                <input type="datetime-local" value={formData.scheduled_at} onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
-              <button onClick={() => setIsModalOpen(false)} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+            <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">
+              <button onClick={() => setIsModalOpen(false)} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">Cancel</button>
               <button onClick={handleCreate} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60 flex items-center gap-2">
                 {submitting ? 'Scheduling...' : <><FiSend className="w-4 h-4" /> Schedule Broadcast</>}
               </button>

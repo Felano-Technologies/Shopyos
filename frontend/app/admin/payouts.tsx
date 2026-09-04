@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   ActivityIndicator, RefreshControl, TextInput, ScrollView,
@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { getAdminPayoutList, getAdminPayoutSummary, processAdminPayout, bulkProcessPayouts } from '@/services/payments';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 const TYPE_FILTERS = ['All', 'Sellers', 'Drivers'] as const;
@@ -28,6 +29,8 @@ function statusTheme(status: string) {
 export default function AdminPayoutsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const [payouts, setPayouts] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({});
@@ -263,17 +266,17 @@ export default function AdminPayoutsScreen() {
       <View style={styles.filtersContainer}>
         {/* Search */}
         <View style={styles.searchBar}>
-          <Feather name="search" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+          <Feather name="search" size={16} color={C.textSoft} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or reference..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.textSoft}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery !== '' && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              <Ionicons name="close-circle" size={16} color={C.textSoft} />
             </TouchableOpacity>
           )}
         </View>
@@ -325,7 +328,7 @@ export default function AdminPayoutsScreen() {
             <Text style={[styles.bulkBtnText, { color: '#DC2626' }]}>Reject All</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setSelectedIds(new Set())}>
-            <Ionicons name="close" size={20} color="#64748B" />
+            <Ionicons name="close" size={20} color={C.textMuted} />
           </TouchableOpacity>
         </View>
       )}
@@ -333,7 +336,7 @@ export default function AdminPayoutsScreen() {
       {/* List */}
       {loading ? (
         <View style={styles.centerLoader}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={C.navy} />
         </View>
       ) : (
         <FlatList
@@ -344,11 +347,11 @@ export default function AdminPayoutsScreen() {
           showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} />}
-          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#0C1559" style={{ marginVertical: 16 }} /> : null}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.navy]} />}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={C.navy} style={{ marginVertical: 16 }} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="check-circle" size={48} color="#CBD5E1" />
+              <Feather name="check-circle" size={48} color={C.borderStrong} />
               <Text style={styles.emptyStateTitle}>All payouts are up to date</Text>
               <Text style={styles.emptyStateText}>No payouts match your current filters</Text>
             </View>
@@ -361,48 +364,48 @@ export default function AdminPayoutsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  page: { flex: 1, backgroundColor: C.appBg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16 },
   backButton: { padding: 8, marginRight: 8, borderRadius: 8 },
   headerTitleContainer: { flex: 1 },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFF' },
   headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   summaryRow: { maxHeight: 90, marginVertical: 12 },
-  summaryCard: { backgroundColor: '#FFF', borderRadius: 12, padding: 12, width: 110, borderLeftWidth: 3, borderWidth: 1, borderColor: '#F1F5F9' },
+  summaryCard: { backgroundColor: C.surface, borderRadius: 12, padding: 12, width: 110, borderLeftWidth: 3, borderWidth: 1, borderColor: C.border },
   summaryCount: { fontSize: 22, fontWeight: '700', fontFamily: 'Montserrat-Bold' },
-  summaryLabel: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginTop: 2 },
-  summaryTotal: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 2 },
+  summaryLabel: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.textMuted, marginTop: 2 },
+  summaryTotal: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: 2 },
   filtersContainer: { paddingHorizontal: 16, marginBottom: 8 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, paddingHorizontal: 12, height: 44, marginBottom: 10, borderWidth: 1, borderColor: '#E2E8F0' },
-  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#1E293B' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 12, paddingHorizontal: 12, height: 44, marginBottom: 10, borderWidth: 1, borderColor: C.border },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Regular', color: C.text },
   filterRow: { marginBottom: 4 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F1F5F9', marginRight: 8 },
-  filterChipActive: { backgroundColor: '#0C1559' },
-  filterChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: C.surfaceMuted, marginRight: 8 },
+  filterChipActive: { backgroundColor: C.navy },
+  filterChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.textMuted },
   filterChipTextActive: { color: '#FFF' },
-  filterDivider: { width: 1, height: 28, backgroundColor: '#E2E8F0', marginRight: 8, alignSelf: 'center' },
-  bulkBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E2E8F0', gap: 10 },
-  bulkBarText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  bulkApproveBtn: { backgroundColor: '#0C1559', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
+  filterDivider: { width: 1, height: 28, backgroundColor: C.border, marginRight: 8, alignSelf: 'center' },
+  bulkBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, gap: 10 },
+  bulkBarText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.text },
+  bulkApproveBtn: { backgroundColor: C.navy, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
   bulkRejectBtn: { backgroundColor: '#FEE2E2', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
   bulkBtnText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   listContent: { paddingHorizontal: 16, paddingBottom: 120, gap: 10 },
-  payoutCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  payoutCard: { backgroundColor: C.surface, borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border },
   payoutCardSelected: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
   checkbox: { marginRight: 10 },
-  checkboxInner: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-  checkboxChecked: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
+  checkboxInner: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.borderStrong, justifyContent: 'center', alignItems: 'center' },
+  checkboxChecked: { backgroundColor: C.navy, borderColor: C.navy },
   cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   initialsCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   initialsText: { fontSize: 15, fontFamily: 'Montserrat-Bold' },
-  payoutName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', flex: 1 },
+  payoutName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.text, flex: 1 },
   typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   typeBadgeText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
-  payoutMethod: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  payoutDate: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 1 },
+  payoutMethod: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textMuted, marginTop: 2 },
+  payoutDate: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: C.textSoft, marginTop: 1 },
   cardRight: { alignItems: 'flex-end', gap: 4 },
-  payoutAmount: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  payoutAmount: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.text },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusBadgeText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
   actionButtons: { flexDirection: 'row', gap: 6 },
@@ -410,6 +413,6 @@ const styles = StyleSheet.create({
   rejectBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
   centerLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyStateTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#64748B', marginTop: 16 },
-  emptyStateText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 6 },
+  emptyStateTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.textMuted, marginTop: 16 },
+  emptyStateText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: C.textSoft, marginTop: 6 },
 });

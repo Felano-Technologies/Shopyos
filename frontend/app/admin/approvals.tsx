@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,7 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getAdminStores,
@@ -32,6 +32,8 @@ const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, st
 
 export default function AdminApprovals() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [activeTab, setActiveTab] = useState<'stores' | 'drivers'>('stores');
   const [pendingStores, setPendingStores] = useState<any[]>([]);
   const [pendingDrivers, setPendingDrivers] = useState<any[]>([]);
@@ -199,7 +201,7 @@ export default function AdminApprovals() {
         </View>
 
         {loading && !refreshing ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: C.appBg }} edges={['top', 'left', 'right']}>
             <AdminScreenSkeleton metrics={4} rows={4} />
           </SafeAreaView>
         ) : (
@@ -208,10 +210,10 @@ export default function AdminApprovals() {
             keyExtractor={(item) => item.id || item._id || Math.random().toString()}
             renderItem={renderCard}
             contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#0C1559" />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={C.navy} />}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="checkmark-done-circle-outline" size={48} color={adminColors.textMuted} />
+                <Ionicons name="checkmark-done-circle-outline" size={48} color={C.textMuted} />
                 <Text style={styles.emptyTitle}>All clear!</Text>
                 <Text style={styles.emptyText}>No pending {activeTab} applications.</Text>
               </View>
@@ -227,7 +229,7 @@ export default function AdminApprovals() {
               <TextInput
                 style={styles.reasonInput}
                 placeholder="Enter rejection reason..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 multiline
                 value={rejectReason}
                 onChangeText={setRejectReason}
@@ -256,8 +258,8 @@ export default function AdminApprovals() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,7 +288,7 @@ const styles = StyleSheet.create({
   headerBadgeText: { color: '#fff', fontSize: 11, fontFamily: 'Montserrat-Bold' },
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
     borderRadius: 12,
     padding: 4,
     margin: 12,
@@ -299,25 +301,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#0C1559',
+    backgroundColor: C.surface,
+    shadowColor: C.navy,
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
-  tabText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
-  tabTextActive: { color: '#0C1559' },
+  tabText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.textMuted },
+  tabTextActive: { color: C.navy },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 0, paddingBottom: 40 },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0C1559',
+    borderColor: C.border,
+    shadowColor: C.navy,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 1,
@@ -332,9 +334,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardAvatarText: { color: '#7C3AED', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-  cardName: { color: '#0F172A', fontSize: 14, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
-  cardEmail: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular' },
-  cardDate: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular' },
+  cardName: { color: C.text, fontSize: 14, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
+  cardEmail: { color: C.textSoft, fontSize: 11, fontFamily: 'Montserrat-Regular' },
+  cardDate: { color: C.textSoft, fontSize: 11, fontFamily: 'Montserrat-Regular' },
   cardActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   approveBtn: {
     flex: 1,
@@ -355,8 +357,8 @@ const styles = StyleSheet.create({
   },
   rejectBtnText: { color: '#DC2626', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   emptyWrap: { alignItems: 'center', paddingVertical: 60 },
-  emptyTitle: { color: '#1D2B73', fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 12, marginBottom: 6 },
-  emptyText: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular' },
+  emptyTitle: { color: C.text, fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 12, marginBottom: 6 },
+  emptyText: { color: C.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15,23,42,0.45)',
@@ -367,21 +369,21 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 520,
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 24,
     padding: 18,
   },
-  modalTitle: { color: '#1D2B73', fontSize: 20, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
-  modalSub: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular', marginBottom: 14 },
+  modalTitle: { color: C.text, fontSize: 20, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
+  modalSub: { color: C.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular', marginBottom: 14 },
   reasonInput: {
     minHeight: 110,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
-    backgroundColor: '#fff',
+    borderColor: C.border,
+    backgroundColor: C.surface,
     padding: 14,
     textAlignVertical: 'top',
-    color: '#1D2B73',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -390,14 +392,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
   },
-  cancelText: { color: adminColors.textMuted, fontFamily: 'Montserrat-SemiBold' },
+  cancelText: { color: C.textMuted, fontFamily: 'Montserrat-SemiBold' },
   modalConfirm: {
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     minWidth: 80,
     alignItems: 'center',
   },

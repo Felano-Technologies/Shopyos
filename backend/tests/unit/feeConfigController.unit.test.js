@@ -240,7 +240,9 @@ describe('feeConfigController Unit Tests', () => {
           delivery_intra_min_fee: 5,
           delivery_intra_max_fee: 30,
           delivery_inter_min_fee: 15,
-          buyer_protection_fee: 2,
+          buyer_protection_pct: 1.5,
+          buyer_protection_min: 2,
+          buyer_protection_max: 15,
           buyer_protection_enabled: true,
           bargain_max_rounds: 3,
           bargain_checkout_window_hours: 1,
@@ -253,7 +255,7 @@ describe('feeConfigController Unit Tests', () => {
       await getPublicFeeConfigs(req, res, next);
 
       // Assert
-      expect(mockGet).toHaveBeenCalledTimes(8);
+      expect(mockGet).toHaveBeenCalledTimes(11);
       expect(res.status).toHaveBeenCalledWith(200);
       const callArgs = res.json.mock.calls[0][0];
       expect(callArgs.success).toBe(true);

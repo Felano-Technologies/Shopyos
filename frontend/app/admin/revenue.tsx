@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LineChart } from 'react-native-chart-kit';
 import { getAdminDashboard, getAdminRevenue, getAdminRevenueBreakdown } from '@/services/api';
@@ -69,6 +69,8 @@ type Period = 'week' | 'month' | 'year';
 export default function AdminRevenue() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -254,7 +256,7 @@ export default function AdminRevenue() {
       <StatusBar style="dark" />
 
       {/* Compact header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <LinearGradient colors={C.headerGradient} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -262,7 +264,7 @@ export default function AdminRevenue() {
       </LinearGradient>
 
       {loading && !refreshing ? (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.appBg }} edges={['top', 'left', 'right']}>
           <AdminScreenSkeleton metrics={3} rows={5} />
         </SafeAreaView>
       ) : (
@@ -272,7 +274,7 @@ export default function AdminRevenue() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 16) + 80 }]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={adminColors.blue} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={C.navy} />
           }
           ListHeaderComponent={listHeader}
           renderItem={({ item }) => {
@@ -305,7 +307,7 @@ export default function AdminRevenue() {
           }}
           ListEmptyComponent={
             <View style={[styles.itemRowWrap, styles.emptyState]}>
-              <Ionicons name="bar-chart-outline" size={50} color="#CBD5E1" />
+              <Ionicons name="bar-chart-outline" size={50} color={C.textSoft} />
               <Text style={styles.emptyText}>No transactions yet</Text>
             </View>
           }
@@ -328,10 +330,10 @@ function formatDate(ts: string) {
   }
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
   header: {
     flexDirection: 'row',
@@ -339,7 +341,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 12,
-    backgroundColor: '#0C1559',
   },
   backBtn: {
     width: 36,
@@ -364,11 +365,11 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     overflow: 'hidden',
     flexGrow: 1,
     flex: 1,
@@ -382,13 +383,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statValue: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 2,
   },
   statLabel: {
-    color: '#64748B',
+    color: C.textMuted,
     fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -410,18 +411,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
   },
   periodBtnActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: C.navy,
+    borderColor: C.navy,
   },
   periodText: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: C.textMuted,
   },
   periodTextActive: {
     color: '#FFFFFF',
@@ -434,11 +435,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sourceCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     width: '48%',
     flexGrow: 1,
   },
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
   sourceLabel: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.textMuted,
     marginBottom: 4,
   },
   sourceValue: {
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   },
 
   heroCard: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 12,
@@ -482,7 +483,7 @@ const styles = StyleSheet.create({
   },
 
   chartCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 12,
@@ -495,12 +496,12 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.text,
     marginBottom: 12,
   },
 
   spendersCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
     marginHorizontal: 12,
@@ -511,24 +512,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
   },
   spenderRank: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: C.textMuted,
     width: 24,
   },
   spenderName: {
     flex: 1,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: C.text,
   },
   spenderValue: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
   },
 
   listPanel: {
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
   },
   sectionTitle: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 14,
@@ -554,18 +555,18 @@ const styles = StyleSheet.create({
   },
 
   itemRowWrap: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     marginHorizontal: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
     gap: 12,
   },
   iconBg: {
@@ -580,12 +581,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemMain: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
   },
   itemSub: {
-    color: '#94A3B8',
+    color: C.textSoft,
     fontSize: 11,
     fontFamily: 'Montserrat-Regular',
     marginTop: 3,
@@ -618,13 +619,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 12,
-    color: '#94A3B8',
+    color: C.textSoft,
     fontFamily: 'Montserrat-Regular',
   },
   listFooter: {
     height: 16,
     marginHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
   },

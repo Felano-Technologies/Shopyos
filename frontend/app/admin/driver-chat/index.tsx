@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Dimensions, RefreshControl,
@@ -11,24 +11,12 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 // ─── Responsive helpers ─────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-// ─── Tokens ─────────────────────────────────────────────────────────────────
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-  border:  'rgba(12,21,89,0.08)',
-};
 // ─── API stubs ───────────────────────────────────────────────────────────────
 // Replace these with real calls from @/services/api
 async function getAdminDriverConversations(): Promise<any[]> {
@@ -72,6 +60,8 @@ function getFilterLabel(f: string, totalUnread: number): string {
 export default function AdminDriverChatList() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const S = useMemo(() => getStyles(C), [C]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [refreshing,    setRefreshing]    = useState(false);
@@ -201,7 +191,7 @@ export default function AdminDriverChatList() {
           <View style={S.vehicleChip}>
             <MaterialCommunityIcons
               name={getVehicleIcon(item.vehicleType) as any}
-              size={rs(10)} color={C.muted}
+              size={rs(10)} color={C.textMuted}
             />
             <Text style={S.vehicleTxt}>{item.vehicleType}</Text>
             <View style={[S.statusPill, { backgroundColor: sc.bg }]}>
@@ -223,7 +213,7 @@ export default function AdminDriverChatList() {
       <StatusBar style="light" />
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <LinearGradient
-        colors={[C.navy, C.navyMid]}
+        colors={C.headerGradient}
         style={[S.header, { paddingTop: insets.top + rs(12) }]}
       >
         <View style={S.hdrGlow} pointerEvents="none" />
@@ -327,8 +317,8 @@ export default function AdminDriverChatList() {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.appBg },
   // Header
   header: {
     paddingBottom: rs(28), position: 'relative',
@@ -379,7 +369,7 @@ const S = StyleSheet.create({
   },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+    backgroundColor: C.appBg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
   },
   // Filter chips
   filterStrip: {
@@ -388,22 +378,22 @@ const S = StyleSheet.create({
   },
   filterChip: {
     height: 36, paddingHorizontal: rs(16), borderRadius: 18,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
-    backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 0.5, borderColor: C.border,
+    backgroundColor: C.surface, justifyContent: 'center', alignItems: 'center',
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
   filterChipOn:    { backgroundColor: C.navy, borderColor: C.navy },
-  filterChipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  filterChipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.textMuted },
   filterChipTxtOn: { color: '#fff' },
   // Conversation row
   row: {
     flexDirection: 'row', alignItems: 'flex-start',
     paddingHorizontal: rs(16), paddingVertical: rs(14),
-    backgroundColor: C.card,
+    backgroundColor: C.surface,
     borderBottomWidth: 0.5, borderBottomColor: C.border,
   },
-  rowUnread: { backgroundColor: '#F0F4FF' },
+  rowUnread: { backgroundColor: C.surfaceMuted },
   // Avatar
   avatarWrap: { position: 'relative', marginRight: rs(13), flexShrink: 0 },
   avatar:     { width: rs(52), height: rs(52), borderRadius: rs(26) },
@@ -414,7 +404,7 @@ const S = StyleSheet.create({
   statusDot: {
     position: 'absolute', bottom: 1, right: 1,
     width: rs(13), height: rs(13), borderRadius: rs(7),
-    borderWidth: 2, borderColor: C.card,
+    borderWidth: 2, borderColor: C.surface,
   },
   // Row content
   rowInfo:    { flex: 1 },
@@ -422,24 +412,24 @@ const S = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: rs(3),
   },
-  rowName:      { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body, flex: 1, marginRight: rs(6) },
+  rowName:      { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.text, flex: 1, marginRight: rs(6) },
   rowNameBold:  { fontFamily: 'Montserrat-Bold' },
-  rowTime:      { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, flexShrink: 0 },
+  rowTime:      { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.textSoft, flexShrink: 0 },
   rowBottom: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: rs(6),
   },
-  rowPreview:      { flex: 1, fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, marginRight: rs(6) },
-  rowPreviewBold:  { color: C.body, fontFamily: 'Montserrat-SemiBold' },
+  rowPreview:      { flex: 1, fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.textMuted, marginRight: rs(6) },
+  rowPreviewBold:  { color: C.text, fontFamily: 'Montserrat-SemiBold' },
   badge: {
     minWidth: rs(20), height: rs(20), borderRadius: rs(10),
     backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: rs(5), flexShrink: 0,
   },
-  badgeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.limeText },
+  badgeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.onAccent },
   // Vehicle chip
   vehicleChip: { flexDirection: 'row', alignItems: 'center', gap: rs(5) },
-  vehicleTxt:  { fontSize: rf(10), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  vehicleTxt:  { fontSize: rf(10), fontFamily: 'Montserrat-SemiBold', color: C.textMuted },
   statusPill: {
     paddingHorizontal: rs(7), paddingVertical: rs(2),
     borderRadius: rs(10),
@@ -450,13 +440,13 @@ const S = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: rs(70), paddingHorizontal: rs(40) },
   emptyCircle: {
     width: rs(88), height: rs(88), borderRadius: rs(44),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center',
     marginBottom: rs(16), elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
+  emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: rs(8) },
   emptyBody: {
-    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted,
+    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.textMuted,
     textAlign: 'center', lineHeight: rf(20),
   },
 });

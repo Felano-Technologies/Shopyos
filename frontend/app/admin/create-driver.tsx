@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminCreateDriver } from '@/services/admin';
 import UserSearchPicker from '@/components/admin/UserSearchPicker';
@@ -27,6 +27,8 @@ type VehicleType = (typeof VEHICLE_TYPES)[number];
 
 export default function AdminCreateDriver() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [userId, setUserId] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType>('Motorcycle');
   const [plateNumber, setPlateNumber] = useState('');
@@ -118,7 +120,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. GR 1234-22"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 autoCapitalize="characters"
                 value={plateNumber}
                 onChangeText={setPlateNumber}
@@ -128,7 +130,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. DL-00000"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={licenseNumber}
                 onChangeText={setLicenseNumber}
               />
@@ -137,12 +139,12 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={licenseExpiry}
                 onChangeText={setLicenseExpiry}
               />
 
-              <Text style={[styles.fieldLabel, { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#EEF2F7' }]}>
+              <Text style={[styles.fieldLabel, { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border }]}>
                 Vehicle Details (optional)
               </Text>
 
@@ -150,7 +152,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Honda"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={vehicleMake}
                 onChangeText={setVehicleMake}
               />
@@ -159,7 +161,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. CB150"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={vehicleModel}
                 onChangeText={setVehicleModel}
               />
@@ -168,13 +170,13 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. 2022"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 keyboardType="number-pad"
                 value={vehicleYear}
                 onChangeText={setVehicleYear}
               />
 
-              <Text style={[styles.fieldLabel, { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#EEF2F7' }]}>
+              <Text style={[styles.fieldLabel, { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border }]}>
                 Insurance (optional)
               </Text>
 
@@ -182,7 +184,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. INS-12345"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={insurancePolicyNumber}
                 onChangeText={setInsurancePolicyNumber}
               />
@@ -191,7 +193,7 @@ export default function AdminCreateDriver() {
               <TextInput
                 style={styles.input}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.textSoft}
                 value={insuranceExpiry}
                 onChangeText={setInsuranceExpiry}
               />
@@ -204,7 +206,7 @@ export default function AdminCreateDriver() {
                 <Switch
                   value={autoApprove}
                   onValueChange={setAutoApprove}
-                  trackColor={{ false: '#D9E2F2', true: '#0C1559' }}
+                  trackColor={{ false: C.borderStrong, true: C.navy }}
                   thumbColor="#fff"
                 />
               </View>
@@ -224,8 +226,8 @@ export default function AdminCreateDriver() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, color: '#fff', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   formCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 24,
     padding: 18,
     shadowColor: '#0B2060',
@@ -255,19 +257,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    color: '#1D2B73',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.border,
     borderRadius: 12,
     padding: 14,
-    color: '#1D2B73',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -278,12 +280,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#D9E2F2',
+    borderColor: C.border,
   },
-  chipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  chipText: { color: '#1D2B73', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
+  chipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  chipText: { color: C.text, fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   chipTextActive: { color: '#fff' },
   toggleRow: {
     flexDirection: 'row',
@@ -291,16 +293,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
+    borderTopColor: C.border,
   },
-  toggleLabel: { color: '#1D2B73', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
-  toggleHint: { color: adminColors.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  toggleLabel: { color: C.text, fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+  toggleHint: { color: C.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 2 },
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

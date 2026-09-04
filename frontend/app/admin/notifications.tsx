@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { useAdminColors, useAdminBreakpoint, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getNotifications,
@@ -59,6 +59,8 @@ export default function AdminNotifications() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isDesktop } = useAdminBreakpoint();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [notifications, setNotifications] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -167,7 +169,7 @@ export default function AdminNotifications() {
           </LinearGradient>
 
           {loading && !refreshing ? (
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: C.appBg }} edges={['top', 'left', 'right']}>
               <AdminScreenSkeleton metrics={4} rows={4} />
             </SafeAreaView>
           ) : (
@@ -181,7 +183,7 @@ export default function AdminNotifications() {
               ]}
               showsVerticalScrollIndicator={false}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={adminColors.navy} />
+                <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={C.navy} />
               }
               ListHeaderComponent={
                 notifications.length > 0 ? (
@@ -192,7 +194,7 @@ export default function AdminNotifications() {
               }
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
-                  <Ionicons name="notifications-off-outline" size={52} color={adminColors.textSoft} />
+                  <Ionicons name="notifications-off-outline" size={52} color={C.textSoft} />
                   <Text style={styles.emptyTitle}>No notifications</Text>
                   <Text style={styles.emptySubtitle}>{"You're all caught up"}</Text>
                 </View>
@@ -205,9 +207,9 @@ export default function AdminNotifications() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
-  canvas: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: C.appBg },
+  canvas: { flex: 1, backgroundColor: C.appBg },
   desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -265,7 +267,7 @@ const styles = StyleSheet.create({
 
   list: { paddingHorizontal: 0, paddingTop: 12 },
   listHeader: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 10,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   },
 
   notifCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 12,
@@ -282,12 +284,12 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
   },
   notifCardUnread: {
     borderLeftWidth: 3,
     borderLeftColor: '#2563EB',
-    backgroundColor: '#F8FAFF',
+    backgroundColor: C.surfaceMuted,
   },
   notifIcon: {
     width: 40,
@@ -306,20 +308,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   notifTitle: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     flex: 1,
     marginRight: 8,
   },
   notifTime: {
-    color: '#94A3B8',
+    color: C.textSoft,
     fontSize: 11,
     fontFamily: 'Montserrat-Regular',
     flexShrink: 0,
   },
   notifMessage: {
-    color: '#64748B',
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     marginTop: 3,
@@ -354,12 +356,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
   },
   emptySubtitle: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
   },

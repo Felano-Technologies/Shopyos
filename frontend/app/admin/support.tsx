@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminGetTickets, adminUpdateTicket, SupportTicket, TicketStatus } from '@/services/support';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 const STATUS_TABS: { key: TicketStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -72,6 +73,8 @@ function TicketDetailModal({ ticket, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const C = useAdminColors();
+  const modal = useMemo(() => getModalStyles(C), [C]);
   const [status, setStatus] = useState<TicketStatus>(ticket.status);
   const [priority, setPriority] = useState<1 | 2 | 3>(ticket.priority as 1 | 2 | 3);
   const [adminNotes, setAdminNotes] = useState(ticket.admin_notes ?? '');
@@ -173,7 +176,7 @@ function TicketDetailModal({ ticket, onClose, onSaved }: {
             value={adminNotes}
             onChangeText={setAdminNotes}
             placeholder="Add a note visible to the reporter..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={C.textSoft}
             multiline
             textAlignVertical="top"
           />
@@ -198,6 +201,8 @@ function TicketDetailModal({ ticket, onClose, onSaved }: {
 export default function AdminSupportScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const [activeTab, setActiveTab] = useState<TicketStatus | 'all'>('open');
   const [page, setPage] = useState(1);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
@@ -273,11 +278,11 @@ export default function AdminSupportScreen() {
 
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={C.navy} />
         </View>
       ) : tickets.length === 0 ? (
         <View style={styles.center}>
-          <Feather name="inbox" size={52} color="#CBD5E1" />
+          <Feather name="inbox" size={52} color={C.borderStrong} />
           <Text style={styles.emptyText}>No tickets in this category</Text>
         </View>
       ) : (
@@ -286,11 +291,11 @@ export default function AdminSupportScreen() {
           keyExtractor={t => t.id}
           renderItem={renderTicket}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={isFetching && page === 1} onRefresh={onRefresh} tintColor="#0C1559" />}
+          refreshControl={<RefreshControl refreshing={isFetching && page === 1} onRefresh={onRefresh} tintColor={C.navy} />}
           ListFooterComponent={
             data && page < data.pages ? (
               <TouchableOpacity style={styles.loadMore} onPress={() => setPage(p => p + 1)} disabled={isFetching}>
-                {isFetching ? <ActivityIndicator color="#0C1559" /> : <Text style={styles.loadMoreText}>Load more</Text>}
+                {isFetching ? <ActivityIndicator color={C.navy} /> : <Text style={styles.loadMoreText}>Load more</Text>}
               </TouchableOpacity>
             ) : null
           }
@@ -313,8 +318,8 @@ export default function AdminSupportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.appBg },
   header: { paddingBottom: 0 },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10, width: 36, alignItems: 'center' },
@@ -325,16 +330,16 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.8)' },
   tabTextActive: { color: '#0C1559' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  emptyText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
+  emptyText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.textSoft },
   list: { padding: 16, paddingBottom: 100 },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0C1559',
+    borderColor: C.border,
+    shadowColor: C.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -343,54 +348,54 @@ const styles = StyleSheet.create({
   cardRow: { flexDirection: 'row', gap: 10 },
   cardBody: { flex: 1 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  cardRole: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  cardDot: { fontSize: 10, color: '#CBD5E1' },
-  cardCategory: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  cardDate: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  cardName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 2 },
-  cardSubject: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#475569' },
+  cardRole: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navy },
+  cardDot: { fontSize: 10, color: C.borderStrong },
+  cardCategory: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.textMuted },
+  cardDate: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.textSoft },
+  cardName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 2 },
+  cardSubject: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textMuted },
   cardBadges: { alignItems: 'flex-end', gap: 6 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 10, fontFamily: 'Montserrat-Bold', textTransform: 'capitalize' },
   priorityText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
   loadMore: { alignItems: 'center', paddingVertical: 16 },
-  loadMoreText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
+  loadMoreText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.navy },
 });
 
-const modal = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const getModalStyles = (C: AdminColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.appBg },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   closeBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10, width: 36, alignItems: 'center' },
   headerTitle: { flex: 1, fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#FFF', textAlign: 'center' },
   scroll: { padding: 20, paddingBottom: 60 },
   section: { marginBottom: 16 },
-  sectionLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
-  infoText: { fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  infoSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  descText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155', lineHeight: 22, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12 },
+  sectionLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.textSoft, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+  infoText: { fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: C.text },
+  infoSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textMuted, marginTop: 2 },
+  descText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.text, lineHeight: 22, backgroundColor: C.surfaceSoft, padding: 14, borderRadius: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   currentBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
   currentBadgeText: { fontSize: 12, fontFamily: 'Montserrat-Bold', textTransform: 'capitalize' },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
-  statusChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#0C1559', backgroundColor: '#EEF2FF' },
-  statusChipActive: { backgroundColor: '#0C1559' },
-  statusChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#0C1559', textTransform: 'capitalize' },
+  statusChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: C.navy, backgroundColor: C.surfaceMuted },
+  statusChipActive: { backgroundColor: C.navy },
+  statusChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.navy, textTransform: 'capitalize' },
   statusChipTextActive: { color: '#FFF' },
-  priorityChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: '#CBD5E1', backgroundColor: '#F8FAFC' },
-  priorityChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#475569' },
+  priorityChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: C.borderStrong, backgroundColor: C.surfaceSoft },
+  priorityChipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.textMuted },
   notesInput: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     padding: 14,
     height: 120,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.text,
     textAlignVertical: 'top',
     marginBottom: 24,
   },
-  saveBtn: { backgroundColor: '#0C1559', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  saveBtn: { backgroundColor: C.navy, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#FFF' },
 });

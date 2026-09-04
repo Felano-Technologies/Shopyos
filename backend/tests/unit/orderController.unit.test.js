@@ -23,6 +23,7 @@ jest.mock('../../services/feeConfigService', () => ({
     if (key === 'loyalty_max_redeem_percent') return Promise.resolve(20);
     return Promise.resolve(0);
   }),
+  calcBuyerProtectionFee: jest.fn().mockResolvedValue(0),
 }));
 
 jest.mock('../../config/logger', () => ({

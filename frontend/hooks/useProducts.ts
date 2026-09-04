@@ -11,7 +11,7 @@ import { productsApi, Product } from '../lib/query/api';
 import { queryKeys, ProductFilters } from '../lib/query/keys';
 import { useAuthStore } from '../store/authStore';
 
-export const useProducts = (filters?: ProductFilters, limit = 20) => {
+export const useProducts = (filters?: ProductFilters, limit = 20, options?: Partial<UseQueryOptions<any>>) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.products.list(filters),
@@ -20,6 +20,7 @@ export const useProducts = (filters?: ProductFilters, limit = 20) => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
+    ...options,
   });
 };
 

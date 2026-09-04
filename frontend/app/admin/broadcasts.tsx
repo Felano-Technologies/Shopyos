@@ -16,12 +16,10 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { useAdminColors, adminShadow, useAdminBreakpoint, AdminColors } from '@/components/admin/adminTheme';
 import { api } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { ThemeColors } from '@/constants/Colors';
 
 type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
 type CampaignType = 'manual' | 'holiday' | 'daily_engagement';
@@ -87,6 +85,8 @@ async function confirmCancelBroadcast(
 }
 
 export default function AdminNotificationsScreen() {
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const { isDesktop } = useAdminBreakpoint();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -233,27 +233,27 @@ export default function AdminNotificationsScreen() {
       </Text>
       <View style={styles.cardMeta}>
         <View style={styles.metaRow}>
-          <Ionicons name="people-outline" size={12} color={adminColors.textSoft} />
+          <Ionicons name="people-outline" size={12} color={C.textSoft} />
           <Text style={styles.metaText}>{item.recipient_type.toUpperCase()}</Text>
         </View>
         <View style={styles.metaRow}>
-          <Feather name="clock" size={12} color={adminColors.textSoft} />
+          <Feather name="clock" size={12} color={C.textSoft} />
           <Text style={styles.metaText}>{fmt(item.sent_at ?? item.scheduled_at)}</Text>
         </View>
       </View>
       <View style={styles.chips}>
-        {item.send_email && <View style={styles.channelChip}><Feather name="mail" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>Email</Text></View>}
-        {item.send_sms && <View style={styles.channelChip}><Feather name="message-square" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>SMS</Text></View>}
-        {item.send_push && <View style={styles.channelChip}><Feather name="bell" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>Push</Text></View>}
+        {item.send_email && <View style={styles.channelChip}><Feather name="mail" size={10} color={C.textMuted} /><Text style={styles.channelChipText}>Email</Text></View>}
+        {item.send_sms && <View style={styles.channelChip}><Feather name="message-square" size={10} color={C.textMuted} /><Text style={styles.channelChipText}>SMS</Text></View>}
+        {item.send_push && <View style={styles.channelChip}><Feather name="bell" size={10} color={C.textMuted} /><Text style={styles.channelChipText}>Push</Text></View>}
         <View style={[styles.channelChip, { backgroundColor: '#F1F5F9' }]}>
-          <Text style={[styles.channelChipText, { color: adminColors.textMuted }]}>
+          <Text style={[styles.channelChipText, { color: C.textMuted }]}>
             {item.campaign_type.replace('_', ' ')}
           </Text>
         </View>
       </View>
       {item.status === 'pending' && (
         <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item.id)}>
-          <Feather name="trash-2" size={12} color={adminColors.red} />
+          <Feather name="trash-2" size={12} color={C.red} />
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       )}
@@ -315,7 +315,7 @@ export default function AdminNotificationsScreen() {
         value={title}
         onChangeText={setTitle}
         placeholder="Notification title..."
-        placeholderTextColor={adminColors.textSoft}
+        placeholderTextColor={C.textSoft}
         style={styles.input}
       />
 
@@ -337,7 +337,7 @@ export default function AdminNotificationsScreen() {
         value={message}
         onChangeText={setMessage}
         placeholder="Write your message here..."
-        placeholderTextColor={adminColors.textSoft}
+        placeholderTextColor={C.textSoft}
         multiline
         numberOfLines={4}
         style={[styles.input, styles.textarea]}
@@ -381,7 +381,7 @@ export default function AdminNotificationsScreen() {
         onChangeText={setScheduleIn}
         keyboardType="number-pad"
         placeholder="e.g. 10"
-        placeholderTextColor={adminColors.textSoft}
+        placeholderTextColor={C.textSoft}
         style={styles.input}
       />
 
@@ -419,7 +419,7 @@ export default function AdminNotificationsScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => fetchBroadcasts(true)}>
-            <Feather name="refresh-cw" size={15} color={adminColors.navy} />
+            <Feather name="refresh-cw" size={15} color={C.navy} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.iconBtn, styles.iconBtnGreen]} onPress={sendTestNotification} disabled={testingNotif}>
             <Feather name="send" size={15} color="#fff" />
@@ -441,13 +441,13 @@ export default function AdminNotificationsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={adminColors.navy} style={{ marginVertical: 40 }} />
+        <ActivityIndicator size="large" color={C.navy} style={{ marginVertical: 40 }} />
       ) : (() => {
           const list = tab === 'queue' ? manualList : automatedList;
           if (!list.length) {
             return (
               <View style={styles.emptyState}>
-                <Ionicons name="notifications-off-outline" size={44} color={adminColors.textSoft} />
+                <Ionicons name="notifications-off-outline" size={44} color={C.textSoft} />
                 <Text style={styles.emptyText}>
                   {tab === 'queue' ? 'No manual broadcasts yet.' : 'No automated campaigns yet.'}
                 </Text>
@@ -462,7 +462,7 @@ export default function AdminNotificationsScreen() {
               scrollEnabled={false}
               renderItem={({ item }) => renderBroadcastCard(item)}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => fetchBroadcasts(true)} tintColor={adminColors.navy} />
+                <RefreshControl refreshing={refreshing} onRefresh={() => fetchBroadcasts(true)} tintColor={C.navy} />
               }
             />
           );
@@ -548,7 +548,7 @@ export default function AdminNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F5F7FA',
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   noticeText: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     lineHeight: 17,
@@ -752,12 +752,12 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   compactNoteText: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
   },
   label: {
-    color: adminColors.text,
+    color: C.text,
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 13,
     marginTop: 14,
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   labelReset: {
-    color: adminColors.text,
+    color: C.text,
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 13,
   },
@@ -787,12 +787,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: adminColors.border,
+    borderColor: C.border,
   },
   varChipText: {
     fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.navy,
+    color: C.navy,
   },
   input: {
     backgroundColor: '#F8FAFC',
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: adminColors.navy,
+    backgroundColor: C.navy,
     ...adminShadow,
   },
   submitBtnText: {
@@ -908,14 +908,14 @@ const styles = StyleSheet.create({
   },
   upcomingBox: {
     marginTop: 16,
-    backgroundColor: adminColors.surfaceSoft,
+    backgroundColor: C.surfaceSoft,
     borderRadius: 10,
     padding: 12,
   },
   upcomingHeader: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginBottom: 8,
   },
   upcomingRow: {
@@ -926,13 +926,13 @@ const styles = StyleSheet.create({
   upcomingDate: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 12,
-    color: adminColors.textSoft,
+    color: C.textSoft,
     width: 90,
   },
   upcomingName: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
-    color: adminColors.text,
+    color: C.text,
     flex: 1,
   },
   tabRow: {
@@ -945,18 +945,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 8,
-    backgroundColor: adminColors.surfaceSoft,
+    backgroundColor: C.surfaceSoft,
     borderWidth: 1,
-    borderColor: adminColors.border,
+    borderColor: C.border,
   },
   tabBtnOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
+    backgroundColor: C.navy,
+    borderColor: C.navy,
   },
   tabBtnText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
-    color: adminColors.textMuted,
+    color: C.textMuted,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -975,13 +975,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: 'Montserrat-Bold',
     fontSize: 14,
-    color: adminColors.text,
+    color: C.text,
     flex: 1,
   },
   cardBody: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 13,
-    color: adminColors.textMuted,
+    color: C.textMuted,
     marginTop: 6,
     lineHeight: 18,
   },
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
   metaText: {
     fontFamily: 'Montserrat-Medium',
     fontSize: 11,
-    color: adminColors.textSoft,
+    color: C.textSoft,
   },
   chips: {
     flexDirection: 'row',
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: adminColors.border,
+    backgroundColor: C.border,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
   channelChipText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 10,
-    color: adminColors.textMuted,
+    color: C.textMuted,
   },
   cancelBtn: {
     flexDirection: 'row',
@@ -1030,12 +1030,12 @@ const styles = StyleSheet.create({
   cancelText: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
-    color: adminColors.red,
+    color: C.red,
   },
   errorText: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 11,
-    color: adminColors.red,
+    color: C.red,
     marginTop: 6,
   },
   badge: {
@@ -1058,17 +1058,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: adminColors.surfaceSoft,
+    backgroundColor: C.surfaceSoft,
     borderWidth: 1,
-    borderColor: adminColors.border,
+    borderColor: C.border,
   },
   iconBtnGreen: {
     backgroundColor: '#16a34a',
     borderColor: '#16a34a',
   },
   iconBtnNavy: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
+    backgroundColor: C.navy,
+    borderColor: C.navy,
   },
   emptyState: {
     alignItems: 'center',
@@ -1077,7 +1077,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontFamily: 'Montserrat-Medium',
-    color: adminColors.textSoft,
+    color: C.textSoft,
     fontSize: 14,
   },
 });

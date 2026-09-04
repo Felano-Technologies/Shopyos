@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,7 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminCreateUser } from '@/services/admin';
 
@@ -32,6 +32,8 @@ const ROLES = [
 type RoleKey = (typeof ROLES)[number]['key'];
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <Text style={styles.fieldLabel}>
       {label}
@@ -43,6 +45,8 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 export default function AdminCreateUser() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const { defaultRole } = useLocalSearchParams<{ defaultRole?: string }>();
 
   const validDefault = ROLES.find((r) => r.key === defaultRole)?.key ?? 'buyer';
@@ -144,7 +148,7 @@ export default function AdminCreateUser() {
                 <TextInput
                   style={[styles.input, errors.fullName ? styles.inputError : null]}
                   placeholder="e.g. Kofi Mensah"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   value={fullName}
                   onChangeText={(v) => { setFullName(v); setErrors((e) => ({ ...e, fullName: '' })); }}
                   autoCapitalize="words"
@@ -156,7 +160,7 @@ export default function AdminCreateUser() {
                 <TextInput
                   style={[styles.input, errors.email ? styles.inputError : null]}
                   placeholder="user@example.com"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -169,7 +173,7 @@ export default function AdminCreateUser() {
                 <TextInput
                   style={styles.input}
                   placeholder="+233 20 000 0000"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={C.textSoft}
                   keyboardType="phone-pad"
                   value={phone}
                   onChangeText={setPhone}
@@ -181,7 +185,7 @@ export default function AdminCreateUser() {
                   <TextInput
                     style={styles.inputFlex}
                     placeholder="Min. 8 characters"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={C.textSoft}
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: '' })); }}
@@ -189,7 +193,7 @@ export default function AdminCreateUser() {
                     onSubmitEditing={handleSubmit}
                   />
                   <TouchableOpacity onPress={() => setShowPassword((s) => !s)} style={styles.eyeBtn}>
-                    <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color="#94A3B8" />
+                    <Feather name={showPassword ? 'eye-off' : 'eye'} size={18} color={C.textSoft} />
                   </TouchableOpacity>
                 </View>
                 {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
@@ -230,8 +234,8 @@ export default function AdminCreateUser() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F0F4FF' },
+const getStyles = (C: AdminColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.appBg },
 
   header: {
     flexDirection: 'row',
@@ -254,21 +258,21 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 16, paddingTop: 20, gap: 16 },
 
   section: { gap: 10 },
-  sectionTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.textMuted, letterSpacing: 0.8, textTransform: 'uppercase' },
 
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   roleCard: {
     flexBasis: '30%',
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     elevation: 2,
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -281,7 +285,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  roleLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#475569', textAlign: 'center' },
+  roleLabel: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.textMuted, textAlign: 'center' },
   roleDot: {
     position: 'absolute',
     top: 8,
@@ -292,18 +296,18 @@ const styles = StyleSheet.create({
   },
 
   formCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 20,
     padding: 18,
     gap: 4,
     elevation: 2,
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
   },
   fieldLabel: {
-    color: '#334155',
+    color: C.text,
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginTop: 12,
@@ -311,22 +315,22 @@ const styles = StyleSheet.create({
   },
   required: { color: '#DC2626' },
   input: {
-    backgroundColor: '#F8FAFF',
+    backgroundColor: C.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    color: '#0F172A',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFF',
+    backgroundColor: C.surfaceSoft,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.border,
     borderRadius: 12,
     paddingRight: 4,
   },
@@ -334,7 +338,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    color: '#0F172A',
+    color: C.text,
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
   },
@@ -346,12 +350,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 14,
     borderLeftWidth: 4,
     elevation: 1,
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.04,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
@@ -363,11 +367,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  summaryTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  summaryNote: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
+  summaryTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.text },
+  summaryNote: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: C.textSoft, marginTop: 2 },
 
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -375,7 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     elevation: 4,
-    shadowColor: '#0C1559',
+    shadowColor: C.navy,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

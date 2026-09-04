@@ -18,7 +18,6 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
-import { adminColors } from '@/components/admin/adminTheme';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { getUserData } from '@/services/api';
 import { getAdminPlatformSettings, updateAdminPlatformSettings } from '@/services/admin';
@@ -35,9 +34,11 @@ function SettingItem({
   value,
   onValueChange,
   onPress,
-  color = adminColors.navy,
+  color,
+  colors,
   styles,
 }: any) {
+  const iconColor = color ?? colors.primary;
   return (
     <TouchableOpacity
       style={styles.settingCard}
@@ -45,8 +46,8 @@ function SettingItem({
       disabled={type === 'toggle'}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconBg, { backgroundColor: `${color}10` }]}>
-        <Feather name={icon} size={20} color={color} />
+      <View style={[styles.iconBg, { backgroundColor: `${iconColor}10` }]}>
+        <Feather name={icon} size={20} color={iconColor} />
       </View>
       <View style={styles.settingText}>
         <Text style={styles.settingLabel}>{label}</Text>
@@ -56,12 +57,12 @@ function SettingItem({
         <Switch
           value={value}
           onValueChange={onValueChange}
-          trackColor={{ false: '#CBD5E1', true: adminColors.navy }}
-          thumbColor={value ? '#A3E635' : '#F8FAFC'}
-          ios_backgroundColor="#CBD5E1"
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={value ? colors.accent : colors.surface}
+          ios_backgroundColor={colors.border}
         />
       ) : (
-        <Feather name="chevron-right" size={18} color={adminColors.textSoft} />
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
       )}
     </TouchableOpacity>
   );
@@ -155,7 +156,7 @@ export default function AdminSettings() {
         <ScrollView
           contentContainerStyle={[styles.pageContent, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 12) + 120 }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={adminColors.navy} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.primary} />}
         >
           {/* Header */}
           <View style={styles.pageHeader}>
@@ -179,7 +180,7 @@ export default function AdminSettings() {
               <Text style={styles.profileRole}>{profileRole}</Text>
             </View>
             <View style={styles.profileBadge}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={adminColors.blue} />
+              <Ionicons name="shield-checkmark-outline" size={16} color={'#3B82F6'} />
               <Text style={styles.profileBadgeText}>Protected</Text>
             </View>
           </AdminPanel>
@@ -188,6 +189,8 @@ export default function AdminSettings() {
             <AdminPanel style={styles.column}>
               <Text style={styles.sectionTitle}>Platform control</Text>
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="tool"
                 label="Maintenance Mode"
                 subLabel="Restrict user access during updates"
@@ -205,6 +208,8 @@ export default function AdminSettings() {
               />
               <View style={styles.divider} />
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="check-circle"
                 label="Auto-Approve Sellers"
                 subLabel="Skip manual verification for trusted stores"
@@ -219,29 +224,35 @@ export default function AdminSettings() {
                     storage.setItem('admin:autoApproveSellers', String(!v)).catch(() => {});
                   });
                 }}
-                color={adminColors.green}
+                color={colors.success}
               />
               <View style={styles.divider} />
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="send"
                 label="Broadcasts"
                 subLabel="Send scheduled notifications to users"
                 onPress={() => router.push('/admin/broadcasts' as any)}
-                color={adminColors.blue}
+                color={'#3B82F6'}
               />
               <View style={styles.divider} />
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="dollar-sign"
                 label="Fees & Commission"
                 subLabel="Manage commission, delivery, and ad fees"
                 onPress={() => router.push('/admin/fee-settings' as any)}
-                color={adminColors.amber}
+                color={colors.warning}
               />
             </AdminPanel>
 
             <AdminPanel style={styles.column}>
               <Text style={styles.sectionTitle}>Security & audit</Text>
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="lock"
                 label="Update Password"
                 subLabel="Rotate admin credentials"
@@ -249,6 +260,8 @@ export default function AdminSettings() {
               />
               <View style={styles.divider} />
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="list"
                 label="System Audit Logs"
                 subLabel="Review recent admin actions"
@@ -256,6 +269,8 @@ export default function AdminSettings() {
               />
               <View style={styles.divider} />
               <SettingItem
+                colors={colors}
+                styles={styles}
                 icon="bell"
                 label="Admin Notifications"
                 subLabel="Keep push alerts enabled"
@@ -272,6 +287,8 @@ export default function AdminSettings() {
           <AdminPanel>
             <Text style={styles.sectionTitle}>Logistics</Text>
             <SettingItem
+              colors={colors}
+              styles={styles}
               icon="map-pin"
               label="Hubs & Transit Routes"
               subLabel="Manage delivery hubs and inter-regional lanes"
@@ -283,6 +300,8 @@ export default function AdminSettings() {
           <AdminPanel>
             <Text style={styles.sectionTitle}>Content</Text>
             <SettingItem
+              colors={colors}
+              styles={styles}
               icon="tag"
               label="Categories"
               subLabel="Manage product categories"
@@ -291,6 +310,8 @@ export default function AdminSettings() {
             />
             <View style={styles.divider} />
             <SettingItem
+              colors={colors}
+              styles={styles}
               icon="image"
               label="Ads & Campaigns"
               subLabel="Manage banner ads and promotions"
@@ -299,6 +320,8 @@ export default function AdminSettings() {
             />
             <View style={styles.divider} />
             <SettingItem
+              colors={colors}
+              styles={styles}
               icon="file-text"
               label="Disclaimers & Terms"
               subLabel="Edit platform legal content and view consent logs"
@@ -310,6 +333,8 @@ export default function AdminSettings() {
           <AdminPanel>
             <Text style={styles.sectionTitle}>System info</Text>
             <SettingItem
+              colors={colors}
+              styles={styles}
               icon="help-circle"
               label="Technical Support"
               subLabel="Get help with platform operations"
@@ -323,7 +348,7 @@ export default function AdminSettings() {
           </AdminPanel>
 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Feather name="log-out" size={20} color={adminColors.red} />
+            <Feather name="log-out" size={20} color={colors.error} />
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -348,7 +373,7 @@ export default function AdminSettings() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.backgroundAlt,
   },
   pageContent: {
     gap: 16,
@@ -359,12 +384,12 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 4,
   },
   pageTitle: {
-    color: adminColors.text,
+    color: colors.text,
     fontSize: 26,
     fontFamily: 'Montserrat-Bold',
   },
   pageSubtitle: {
-    color: adminColors.textMuted,
+    color: colors.textSecondary,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     marginTop: 4,
@@ -392,7 +417,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: '#DBEAFE',
   },
   profileInitial: {
-    color: adminColors.blue,
+    color: '#3B82F6',
     fontSize: 26,
     fontFamily: 'Montserrat-Bold',
   },
@@ -403,17 +428,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: adminColors.green,
+    backgroundColor: colors.success,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface,
   },
   profileName: {
-    color: adminColors.text,
+    color: colors.text,
     fontSize: 22,
     fontFamily: 'Montserrat-Bold',
   },
   profileRole: {
-    color: adminColors.textMuted,
+    color: colors.textSecondary,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     marginTop: 4,
@@ -428,7 +453,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   profileBadgeText: {
-    color: adminColors.blue,
+    color: '#3B82F6',
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
   },
@@ -442,7 +467,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     minWidth: 280,
   },
   sectionTitle: {
-    color: adminColors.text,
+    color: colors.text,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 10,
@@ -466,17 +491,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   settingLabel: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: adminColors.text,
+    color: colors.text,
   },
   settingSubLabel: {
     fontSize: 12,
-    color: adminColors.textMuted,
+    color: colors.textSecondary,
     fontFamily: 'Montserrat-Regular',
     marginTop: 3,
   },
   divider: {
     height: 1,
-    backgroundColor: adminColors.border,
+    backgroundColor: colors.border,
   },
   versionRow: {
     flexDirection: 'row',
@@ -486,12 +511,12 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   versionLabel: {
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
-    color: adminColors.textMuted,
+    color: colors.textSecondary,
   },
   versionValue: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: adminColors.navy,
+    color: colors.primary,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -505,7 +530,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     borderColor: '#FEE2E2',
   },
   logoutText: {
-    color: adminColors.red,
+    color: colors.error,
     fontFamily: 'Montserrat-Bold',
     fontSize: 15,
   },

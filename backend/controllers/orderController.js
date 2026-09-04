@@ -72,9 +72,11 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
 
   // "tax" here is really the buyer protection fee shown at checkout
   // (frontend/app/checkout.tsx) — must read the same config it does so the
-  // total the buyer saw matches what's actually charged.
+  // total the buyer saw matches what's actually charged. It's a percentage
+  // of this store's subtotal (clamped min/max), not a flat amount, so it
+  // scales fairly with order value.
   const protectionEnabled = await feeConfigService.get('buyer_protection_enabled', 1);
-  const tax = protectionEnabled ? Number(await feeConfigService.get('buyer_protection_fee', 2)) : 0;
+  const tax = protectionEnabled ? await feeConfigService.calcBuyerProtectionFee(subtotal) : 0;
   const store = await repositories.stores.findById(storeId);
 
   // Store pickup: the buyer collects from the store — no delivery fee, no

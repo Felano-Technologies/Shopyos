@@ -139,10 +139,12 @@ export function buildExploreItems(
   injectedAds: any[] = [],
   getStoreName: (item: any) => string = defaultStoreName,
 ): ExploreListItem[] {
-  const base = buildGridItems(products, injectedAds);
+  // Indices "consumed" by a spotlight card — never shown again as a normal
+  // grid card, so the same product can't appear twice back-to-back (once
+  // small, once big right underneath).
+  const skip = new Set<number>();
   const out: ExploreListItem[] = [];
   let col: 0 | 1 = 0; // 0 = next item starts a new row, 1 = next item fills the current row's 2nd slot
-  let productCount = 0;
 
   const closeRowIfOpen = () => {
     if (col === 1) {
@@ -150,33 +152,49 @@ export function buildExploreItems(
       col = 0;
     }
   };
-
-  base.forEach((item) => {
-    out.push(item);
+  const pushItem = (entry: ExploreListItem) => {
+    out.push(entry);
     col = col === 0 ? 1 : 0;
+  };
 
-    if (item.type !== 'product') return;
-    productCount += 1;
+  for (let i = 0; i < products.length; i++) {
+    if (skip.has(i)) continue;
+    const p = products[i];
+    const position = i + 1;
+    pushItem({ type: 'product', data: p });
 
-    if (productCount % SPOTLIGHT_EVERY === 0) {
-      closeRowIfOpen();
-      out.push({ type: 'spotlight', data: item.data, key: `spotlight-${productCount}` });
-      out.push({ type: 'spacer', key: `spotlight-pad-${productCount}` });
-      col = 0;
-    } else if (productCount % STORE_EVERY === 0) {
-      const storeId = getStoreId(item.data);
-      const storeMates = storeId ? products.filter((p) => getStoreId(p) === storeId).slice(0, 3) : [];
+    if (injectedAds.length > 0 && position % AD_EVERY === 0) {
+      const adIdx = Math.floor(position / AD_EVERY - 1) % injectedAds.length;
+      pushItem({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
+    }
+
+    if (position % SPOTLIGHT_EVERY === 0) {
+      // Feature the NEXT not-yet-shown product — never the one rendered just
+      // above — so scrolling never shows "same card, but bigger" underneath.
+      const nextIdx = i + 1;
+      if (nextIdx < products.length && !skip.has(nextIdx)) {
+        closeRowIfOpen();
+        pushItem({ type: 'spotlight', data: products[nextIdx], key: `spotlight-${position}` });
+        pushItem({ type: 'spacer', key: `spotlight-pad-${position}` });
+        skip.add(nextIdx);
+      }
+    } else if (position % STORE_EVERY === 0) {
+      const storeId = getStoreId(p);
+      // Exclude the anchor product itself from its own "more from this shop"
+      // row — otherwise it can show up a second time immediately below itself.
+      const storeMates = storeId
+        ? products.filter((mate, mi) => mi !== i && !skip.has(mi) && getStoreId(mate) === storeId).slice(0, 3)
+        : [];
       const group = storeMates.length
-        ? { storeName: getStoreName(item.data), storeLogo: item.data?.store?.logo_url || item.data?.store_logo_url || null, products: storeMates }
+        ? { storeName: getStoreName(p), storeLogo: p?.store?.logo_url || p?.store_logo_url || null, products: storeMates }
         : pickStoreGroup(products, getStoreName, 1);
       if (group) {
         closeRowIfOpen();
-        out.push({ type: 'store', ...group, key: `store-${productCount}` });
-        out.push({ type: 'spacer', key: `store-pad-${productCount}` });
-        col = 0;
+        pushItem({ type: 'store', ...group, key: `store-${position}` });
+        pushItem({ type: 'spacer', key: `store-pad-${position}` });
       }
     }
-  });
+  }
 
   return out;
 }
@@ -399,11 +417,14 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
 
 export const AdCard = React.memo(AdCardBase);
 
-// Full-width "trending / just added" feature card — same tap-through as a
-// regular product card, just bigger and visually distinct while scrolling.
+// Full-width feature card — same tap-through as a regular product card, just
+// bigger and visually distinct while scrolling. `tag` must reflect a real
+// reason the product was picked (e.g. actually sales-ranked, actually on
+// sale) — it is never inferred here, since a wrong claim like "TRENDING NOW"
+// on an arbitrary/positional pick is misleading.
 function SpotlightCardBase({
-  item, onPress, storeName,
-}: Readonly<{ item: any; onPress: (item: any) => void; storeName: (item: any) => string }>) {
+  item, onPress, storeName, tag = 'FEATURED',
+}: Readonly<{ item: any; onPress: (item: any) => void; storeName: (item: any) => string; tag?: string }>) {
   const colors = useThemeColors();
   const C = useMemo(() => buildC(colors), [colors]);
   const S = useMemo(() => getS(C), [C]);
@@ -419,7 +440,7 @@ function SpotlightCardBase({
         style={StyleSheet.absoluteFill}
       />
       <View style={S.spotlightTag}>
-        <Text style={S.spotlightTagTxt}>{item.isNew ? 'JUST ADDED' : 'TRENDING NOW'}</Text>
+        <Text style={S.spotlightTagTxt}>{item.isNew ? 'JUST ADDED' : tag}</Text>
       </View>
       <View style={S.spotlightContent}>
         <Text style={S.spotlightStore} numberOfLines={1}>{storeName(item)}</Text>

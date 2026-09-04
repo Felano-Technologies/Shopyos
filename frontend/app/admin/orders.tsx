@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -69,6 +69,8 @@ const ORDER_STATUSES = ['pending', 'processing', 'ready_for_pickup', 'in_transit
 
 export default function AdminOrders() {
   const router = useRouter();
+  const C = useAdminColors();
+  const styles = useMemo(() => getStyles(C), [C]);
   const searchQuery = '';
   const [activeStatus, setActiveStatus] = useState('All');
   const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -200,7 +202,7 @@ export default function AdminOrders() {
         <View style={styles.orderRowBottom}>
           <View style={styles.storeRowLeft}>
             <View style={styles.storeIconBg}>
-              <MaterialCommunityIcons name="storefront-outline" size={18} color="#0A2EA8" />
+              <MaterialCommunityIcons name="storefront-outline" size={18} color={C.navy} />
             </View>
             <View style={styles.storeInfo}>
               <Text style={styles.storeName}>{storeName}</Text>
@@ -220,7 +222,7 @@ export default function AdminOrders() {
               style={styles.menuBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Feather name="more-vertical" size={18} color="#64748B" />
+              <Feather name="more-vertical" size={18} color={C.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -250,7 +252,7 @@ export default function AdminOrders() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.screen}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor="#1E88E5" />
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor={C.navy} />
             }
           >
             <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroPanel}>
@@ -325,7 +327,7 @@ export default function AdminOrders() {
             <View style={styles.cardSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
-                  <Ionicons name="receipt-sharp" size={20} color="#081059" />
+                  <Ionicons name="receipt-sharp" size={20} color={C.navy} />
                   <Text style={styles.sectionTitle}>Recent orders</Text>
                 </View>
               </View>
@@ -338,7 +340,7 @@ export default function AdminOrders() {
                 ))
               ) : (
                 <View style={styles.emptyStateInner}>
-                  <MaterialCommunityIcons name="cart-off" size={44} color="#CBD5E1" />
+                  <MaterialCommunityIcons name="cart-off" size={44} color={C.textSoft} />
                   <Text style={styles.emptyTitle}>No orders found</Text>
                   <Text style={styles.emptySubtitle}>Try a different search or status filter.</Text>
                 </View>
@@ -368,7 +370,7 @@ export default function AdminOrders() {
             <View style={styles.cardSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
-                  <Ionicons name="storefront-outline" size={20} color="#081059" />
+                  <Ionicons name="storefront-outline" size={20} color={C.navy} />
                   <Text style={styles.sectionTitle}>Top Stores</Text>
                 </View>
               </View>
@@ -393,7 +395,7 @@ export default function AdminOrders() {
                 ))
               ) : (
                 <View style={styles.emptyStateInner}>
-                  <Ionicons name="storefront-outline" size={44} color="#CBD5E1" />
+                  <Ionicons name="storefront-outline" size={44} color={C.textSoft} />
                   <Text style={styles.emptyTitle}>No store data yet</Text>
                   <Text style={styles.emptySubtitle}>Store performance will appear once orders arrive.</Text>
                 </View>
@@ -403,7 +405,7 @@ export default function AdminOrders() {
             <View style={styles.cardSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
-                  <Feather name="list" size={20} color="#081059" />
+                  <Feather name="list" size={20} color={C.navy} />
                   <Text style={styles.sectionTitle}>All Orders</Text>
                 </View>
               </View>
@@ -416,7 +418,7 @@ export default function AdminOrders() {
                 ))
               ) : (
                 <View style={styles.emptyStateInner}>
-                  <MaterialCommunityIcons name="cart-off" size={44} color="#CBD5E1" />
+                  <MaterialCommunityIcons name="cart-off" size={44} color={C.textSoft} />
                   <Text style={styles.emptyTitle}>No orders found</Text>
                   <Text style={styles.emptySubtitle}>Try a different search or status filter.</Text>
                 </View>
@@ -463,7 +465,7 @@ export default function AdminOrders() {
                 </TouchableOpacity>
               );
             })}
-            {updatingStatus && <ActivityIndicator style={{ marginTop: 12 }} color="#0A2EA8" />}
+            {updatingStatus && <ActivityIndicator style={{ marginTop: 12 }} color={C.navy} />}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -482,20 +484,20 @@ function formatTime(ts: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: AdminColors) => StyleSheet.create({
   loadingWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: C.appBg,
     paddingHorizontal: 16,
   },
   scrollView: {
@@ -575,7 +577,7 @@ const styles = StyleSheet.create({
   },
   heroPill: {
     alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 999,
     paddingHorizontal: 26,
     paddingVertical: 10,
@@ -600,12 +602,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   pageTitle: {
-    color: '#1D2B73',
+    color: C.text,
     fontSize: 24,
     fontFamily: 'Montserrat-Bold',
   },
   pageDate: {
-    color: '#1D2B73',
+    color: C.text,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
     marginTop: 2,
@@ -620,11 +622,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     shadowColor: '#0C1559',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -640,14 +642,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statValue: {
-    color: '#0F172A',
+    color: C.text,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 2,
     marginTop: 8,
   },
   statLabel: {
-    color: '#64748B',
+    color: C.textMuted,
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -668,16 +670,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: adminColors.borderStrong,
+    borderColor: C.cardBorder,
   },
   filterChipActive: {
-    backgroundColor: '#0A2EA8',
-    borderColor: '#0A2EA8',
+    backgroundColor: C.navy,
+    borderColor: C.navy,
   },
   filterText: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -691,10 +693,10 @@ const styles = StyleSheet.create({
   },
   quickLink: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     alignItems: 'center',
     paddingVertical: 14,
     gap: 8,
@@ -716,13 +718,13 @@ const styles = StyleSheet.create({
   },
   cardSection: {
     marginTop: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     width: '100%',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     shadowColor: '#0C1559',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -741,7 +743,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectionTitle: {
-    color: '#081059',
+    color: C.navy,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
   },
@@ -751,12 +753,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
   },
   orderRowCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: C.border,
     shadowColor: '#0C1559',
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -773,13 +775,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   orderIdText: {
-    color: '#111827',
+    color: C.text,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 2,
   },
   timeText: {
-    color: '#9CA3AF',
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
   },
@@ -809,7 +811,7 @@ const styles = StyleSheet.create({
   },
   orderDivider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: C.border,
     marginVertical: 12,
   },
   orderRowBottom: {
@@ -828,7 +830,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#EAF0FF',
+    backgroundColor: C.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -836,18 +838,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   storeName: {
-    color: '#111827',
+    color: C.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     marginBottom: 4,
   },
   itemCount: {
-    color: '#6B7280',
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
   },
   amountBlock: {
-    backgroundColor: '#EEF4FF',
+    backgroundColor: C.surfaceMuted,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -855,14 +857,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   amountLabel: {
-    color: '#6B7280',
+    color: C.textMuted,
     fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
     textTransform: 'uppercase',
     marginBottom: 4,
   },
   amountValue: {
-    color: '#0A2EA8',
+    color: C.navy,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
   },
@@ -874,15 +876,15 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
+    borderBottomColor: C.border,
   },
   storeSummaryName: {
-    color: '#000000',
+    color: C.text,
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
   },
   storeSummaryMeta: {
-    color: '#000000',
+    color: C.textMuted,
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     marginTop: 2,
@@ -906,14 +908,14 @@ const styles = StyleSheet.create({
     paddingVertical: 26,
   },
   emptyTitle: {
-    color: adminColors.text,
+    color: C.text,
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
     marginTop: 14,
     marginBottom: 6,
   },
   emptySubtitle: {
-    color: adminColors.textMuted,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
@@ -931,7 +933,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -941,7 +943,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 20,
@@ -951,20 +953,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: C.border,
     alignSelf: 'center',
     marginBottom: 16,
   },
   modalTitle: {
     fontSize: 17,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.text,
     marginBottom: 4,
   },
   modalSubtitle: {
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.textMuted,
     marginBottom: 16,
   },
   statusOption: {
@@ -974,16 +976,16 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     marginBottom: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceMuted,
   },
   statusOptionCurrent: {
-    backgroundColor: '#0A2EA8',
+    backgroundColor: C.navy,
   },
   statusOptionText: {
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: C.text,
   },
   currentLabel: {
     fontSize: 10,

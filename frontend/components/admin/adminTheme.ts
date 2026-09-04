@@ -17,8 +17,10 @@ export type AdminColors = {
   navy: string;
   navyDeep: string;
   navyMid: string;
+  headerGradient: [string, string];
   blue: string;
   lime: string;
+  onAccent: string;
   green: string;
   amber: string;
   red: string;
@@ -41,8 +43,10 @@ export function buildAdminColors(colors: ThemeColors): AdminColors {
     navy: colors.primary,
     navyDeep: colors.primaryMid,
     navyMid: colors.primaryMid,
+    headerGradient: colors.headerGradient,
     blue: '#3B82F6',
     lime: colors.accent,
+    onAccent: '#0C1559',
     green: colors.success,
     amber: colors.warning,
     red: colors.error,

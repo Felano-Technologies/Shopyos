@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, ActivityIndicator, Modal,
@@ -16,24 +16,12 @@ import {
 } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
-const C = {
-  bg:      '#F5F7FA',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-  danger:  '#EF4444',
-};
 
 interface Category {
   id: string;
@@ -47,6 +35,8 @@ interface Category {
 export default function AdminCategories() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useAdminColors();
+  const S = useMemo(() => getS(C), [C]);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -150,7 +140,7 @@ export default function AdminCategories() {
     setModalVisible(true);
   };
 
-  const filtered = categories.filter(c => 
+  const filtered = categories.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -172,7 +162,7 @@ export default function AdminCategories() {
           <Feather name="edit-2" size={rs(16)} color={C.navy} />
         </TouchableOpacity>
         <TouchableOpacity style={[S.actionBtn, { marginLeft: 10 }]} onPress={() => handleDelete(item)}>
-          <Feather name="trash-2" size={rs(16)} color={C.danger} />
+          <Feather name="trash-2" size={rs(16)} color="#EF4444" />
         </TouchableOpacity>
       </View>
     </View>
@@ -205,10 +195,11 @@ export default function AdminCategories() {
       {/* ── Search & List ──────────────────────────────────────────────────── */}
       <View style={S.searchArea}>
           <View style={S.searchBox}>
-            <Feather name="search" size={rs(16)} color={C.subtle} />
+            <Feather name="search" size={rs(16)} color={C.textSoft} />
             <TextInput
               style={S.searchInput}
               placeholder="Search categories..."
+              placeholderTextColor={C.textSoft}
               value={search}
               onChangeText={setSearch}
             />
@@ -226,7 +217,7 @@ export default function AdminCategories() {
              <ActivityIndicator size="large" color={C.navy} style={{ marginTop: 40 }} />
           ) : (
             <View style={S.empty}>
-              <MaterialCommunityIcons name="tag-off-outline" size={rs(50)} color={C.subtle} />
+              <MaterialCommunityIcons name="tag-off-outline" size={rs(50)} color={C.textSoft} />
               <Text style={S.emptyTxt}>No categories found</Text>
             </View>
           )
@@ -238,7 +229,7 @@ export default function AdminCategories() {
         <View style={S.modalOverlay}>
           <View style={S.modalContent}>
             <Text style={S.modalTitle}>{isEditing ? 'Edit Category' : 'New Category'}</Text>
-            
+
             <View style={S.inputField}>
               <Text style={S.label}>Category Name</Text>
               <TextInput
@@ -246,6 +237,7 @@ export default function AdminCategories() {
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="e.g. Fashion"
+                placeholderTextColor={C.textSoft}
               />
             </View>
 
@@ -256,6 +248,7 @@ export default function AdminCategories() {
                 value={newDesc}
                 onChangeText={setNewDesc}
                 placeholder="Brief description..."
+                placeholderTextColor={C.textSoft}
                 multiline
               />
             </View>
@@ -279,8 +272,8 @@ export default function AdminCategories() {
   );
 }
 
-const S = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+const getS = (C: AdminColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.appBg },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 14,
@@ -298,53 +291,53 @@ const S = StyleSheet.create({
   },
   searchArea: { paddingHorizontal: rs(18), marginTop: rs(10) },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface,
     borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(46),
-    borderWidth: 1, borderColor: '#E2E8F0'
+    borderWidth: 1, borderColor: C.border
   },
-  searchInput: { flex: 1, marginLeft: rs(10), fontFamily: 'Montserrat-Medium', fontSize: rf(14) },
+  searchInput: { flex: 1, marginLeft: rs(10), fontFamily: 'Montserrat-Medium', fontSize: rf(14), color: C.text },
 
   list: { paddingHorizontal: rs(18), paddingTop: rs(15) },
   catCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface,
     borderRadius: rs(18), padding: rs(14), marginBottom: rs(12),
     elevation: 2, shadowColor: C.navy, shadowOpacity: 0.05, shadowRadius: 10,
-    borderWidth: 1, borderColor: '#E8EEF8'
+    borderWidth: 1, borderColor: C.cardBorder
   },
   catInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   catIcon: {
     width: rs(40), height: rs(40), borderRadius: rs(12),
-    backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.surfaceMuted, justifyContent: 'center', alignItems: 'center',
     marginRight: rs(12)
   },
-  catName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.body },
-  catDesc: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
+  catName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.text },
+  catDesc: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.textMuted, marginTop: rs(2) },
   catActions: { flexDirection: 'row' },
   actionBtn: {
     width: rs(34), height: rs(34), borderRadius: rs(10),
-    backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#F1F5F9'
+    backgroundColor: C.surfaceSoft, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: C.border
   },
 
   empty: { alignItems: 'center', marginTop: rs(100) },
-  emptyTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(12) },
+  emptyTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.textSoft, marginTop: rs(12) },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: rs(25) },
-  modalContent: { backgroundColor: '#fff', borderRadius: rs(24), padding: rs(24) },
+  modalContent: { backgroundColor: C.surface, borderRadius: rs(24), padding: rs(24) },
   modalTitle: { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: rs(20) },
   inputField: { marginBottom: rs(16) },
-  label: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: rs(6) },
+  label: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.textMuted, marginBottom: rs(6) },
   input: {
-    backgroundColor: '#F8FAFC', borderRadius: rs(12), padding: rs(14),
-    fontFamily: 'Montserrat-Medium', fontSize: rf(14), borderWidth: 1, borderColor: '#E2E8F0'
+    backgroundColor: C.surfaceSoft, borderRadius: rs(12), padding: rs(14),
+    fontFamily: 'Montserrat-Medium', fontSize: rf(14), borderWidth: 1, borderColor: C.border, color: C.text
   },
   modalButtons: { flexDirection: 'row', gap: rs(12), marginTop: rs(10) },
   cancelBtn: {
     flex: 1, paddingVertical: rs(15), borderRadius: rs(14),
-    backgroundColor: '#F1F5F9', alignItems: 'center'
+    backgroundColor: C.surfaceMuted, alignItems: 'center'
   },
-  cancelBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted },
+  cancelBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.textMuted },
   saveBtn: {
     flex: 2, paddingVertical: rs(15), borderRadius: rs(14),
     backgroundColor: C.navy, alignItems: 'center'
