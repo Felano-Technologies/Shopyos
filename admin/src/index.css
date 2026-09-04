@@ -7,6 +7,14 @@
  * Brand tokens are fixed in both themes (logo colors, sidebar/header chrome) —
  * do NOT give these light/dark variants, that reintroduces the exact
  * "chrome lightens in dark mode" bug the mobile app hit repeatedly.
+ *
+ * Content-area tokens (bg, card, body, border, etc.) DO adapt to theme: they
+ * get their light value here, then `.dark` below overrides the same
+ * variable names. Tailwind v4 always emits utilities as `var(--color-x)`, so
+ * overriding the variable at runtime is enough — no extra indirection layer.
+ * (An earlier attempt used a separate --content-* var aliased via
+ * `@theme inline`; Tailwind's build silently dropped the light-mode :root
+ * block in that setup, leaving only the dark values. Don't reintroduce that.)
  */
 @theme {
   --color-navy: #0C1559;
@@ -14,54 +22,32 @@
   --color-lime: #84cc16;
   --color-lime-text: #1a2e00;
   --color-sale: #EF4444;
-}
 
-/*
- * Content-area tokens DO adapt to theme. Defined as plain custom properties
- * (not inside @theme) so `.dark` can override their value at runtime; Tailwind
- * v4 still generates bg-*/text-*/border-* utilities from the @theme mapping
- * below, which simply points at these variables.
- */
-:root {
-  --content-bg: #e9f0ff;
-  --content-card: #FFFFFF;
-  --content-surface-muted: #F8FAFC;
-  --content-body: #0F172A;
-  --content-secondary: #64748B;
-  --content-subtle: #94A3B8;
-  --content-border: #E2E8F0;
-  --content-border-strong: #CBD5E1;
-  --content-success: #16A34A;
-  --content-warning: #D97706;
-  --content-error: #DC2626;
+  --color-bg: #e9f0ff;
+  --color-card: #FFFFFF;
+  --color-surface-muted: #F8FAFC;
+  --color-body: #0F172A;
+  --color-secondary: #64748B;
+  --color-subtle: #94A3B8;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
 }
 
 .dark {
-  --content-bg: #0B0F1A;
-  --content-card: #12141A;
-  --content-surface-muted: #1B1E27;
-  --content-body: #F1F5F9;
-  --content-secondary: #94A3B8;
-  --content-subtle: #64748B;
-  --content-border: #1E2230;
-  --content-border-strong: #2A2F3F;
-  --content-success: #22C55E;
-  --content-warning: #FBBF24;
-  --content-error: #F87171;
-}
-
-@theme inline {
-  --color-bg: var(--content-bg);
-  --color-card: var(--content-card);
-  --color-surface-muted: var(--content-surface-muted);
-  --color-body: var(--content-body);
-  --color-secondary: var(--content-secondary);
-  --color-subtle: var(--content-subtle);
-  --color-border: var(--content-border);
-  --color-border-strong: var(--content-border-strong);
-  --color-success: var(--content-success);
-  --color-warning: var(--content-warning);
-  --color-error: var(--content-error);
+  --color-bg: #0B0F1A;
+  --color-card: #12141A;
+  --color-surface-muted: #1B1E27;
+  --color-body: #F1F5F9;
+  --color-secondary: #94A3B8;
+  --color-subtle: #64748B;
+  --color-border: #1E2230;
+  --color-border-strong: #2A2F3F;
+  --color-success: #22C55E;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
 }
 
 @layer base {
@@ -82,7 +68,7 @@
   background: var(--color-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--content-border-strong);
+  background: var(--color-border-strong);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {

@@ -115,13 +115,13 @@ export const AdminLogin: React.FC = () => {
       </div>
 
       {/* Right Form Panel */}
-      <div className="flex flex-col justify-center w-full md:w-7/12 h-full overflow-y-auto bg-white p-8 lg:p-16">
+      <div className="flex flex-col justify-center w-full md:w-7/12 h-full overflow-y-auto bg-card p-8 lg:p-16">
         <div className="flex justify-center mb-6 md:hidden">
           <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-24 h-24 object-contain rounded-2xl shadow-sm" />
         </div>
 
-          <h2 className="font-bold text-[32px] text-[#0F172A] mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Sign in</h2>
-          <p className="text-[#64748B] mb-6 text-[16px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
+          <h2 className="font-bold text-[32px] text-body mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Sign in</h2>
+          <p className="text-secondary mb-6 text-[16px] font-medium" style={{ fontFamily: 'Inter, sans-serif' }}>
             Admin access only
           </p>
 
@@ -134,11 +134,11 @@ export const AdminLogin: React.FC = () => {
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-sm font-semibold text-[#334155]">
+              <label htmlFor="email" className="text-sm font-semibold text-body">
                 Email address
               </label>
               <div className="relative flex items-center">
-                <FiMail className="absolute left-4 w-[18px] h-[18px] text-[#64748B]" />
+                <FiMail className="absolute left-4 w-[18px] h-[18px] text-secondary" />
                 <input
                   id="email"
                   type="email"
@@ -146,17 +146,17 @@ export const AdminLogin: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[16px] text-[#0F172A] placeholder-[#94A3B8] focus:border-[#01217B] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#01217B] transition-all"
+                  className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-surface-muted border border-border text-[16px] text-body placeholder-subtle focus:border-[#01217B] focus:bg-card focus:outline-none focus:ring-1 focus:ring-[#01217B] transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-semibold text-[#334155]">
+              <label htmlFor="password" className="text-sm font-semibold text-body">
                 Password
               </label>
               <div className="relative flex items-center">
-                <FiLock className="absolute left-4 w-[18px] h-[18px] text-[#64748B]" />
+                <FiLock className="absolute left-4 w-[18px] h-[18px] text-secondary" />
                 <input
                   id="password"
                   type={showPw ? 'text' : 'password'}
@@ -164,12 +164,12 @@ export const AdminLogin: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-11 pr-12 py-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[16px] text-[#0F172A] placeholder-[#94A3B8] focus:border-[#01217B] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#01217B] transition-all"
+                  className="w-full pl-11 pr-12 py-3.5 rounded-xl bg-surface-muted border border-border text-[16px] text-body placeholder-subtle focus:border-[#01217B] focus:bg-card focus:outline-none focus:ring-1 focus:ring-[#01217B] transition-all"
                 />
                 <button 
                   type="button" 
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-4 p-1 text-[#94A3B8] hover:text-[#64748B] transition-colors"
+                  className="absolute right-4 p-1 text-subtle hover:text-secondary transition-colors"
                 >
                   {showPw ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
                 </button>
@@ -195,9 +195,9 @@ export const AdminLogin: React.FC = () => {
           {import.meta.env.DEV && (
             <div className="mt-6">
               <div className="flex items-center gap-4 mb-4">
-                <div className="flex-1 h-px bg-[#E2E8F0]"></div>
-                <span className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Dev quick-login</span>
-                <div className="flex-1 h-px bg-[#E2E8F0]"></div>
+                <div className="flex-1 h-px bg-border"></div>
+                <span className="text-xs font-bold text-subtle uppercase tracking-wider">Dev quick-login</span>
+                <div className="flex-1 h-px bg-border"></div>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -206,7 +206,7 @@ export const AdminLogin: React.FC = () => {
                     key={acc.label}
                     disabled={loading}
                     onClick={(e) => handleLogin(e, acc.email, acc.password)}
-                    className="py-3 px-4 rounded-xl border border-[#E2E8F0] text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all disabled:opacity-50"
+                    className="py-3 px-4 rounded-xl border border-border text-sm font-semibold text-secondary hover:bg-surface-muted hover:border-border-strong transition-all disabled:opacity-50"
                   >
                     Log in as {acc.label}
                   </button>

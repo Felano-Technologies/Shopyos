@@ -27,7 +27,7 @@ const iconFor = (type: string): { icon: React.ReactNode; bg: string } => {
   if (['admin_broadcast', 'holiday_celebration', 'daily_engagement'].includes(type)) return { icon: <FiSend className="w-4 h-4" />, bg: 'bg-pink-50 text-pink-600' };
   if (type.includes('verification')) return { icon: <FiShield className="w-4 h-4" />, bg: 'bg-teal-50 text-teal-600' };
   if (type === 'low_stock' || type === 'delivery_issue') return { icon: <FiAlertTriangle className="w-4 h-4" />, bg: 'bg-red-50 text-red-600' };
-  return { icon: <FiBell className="w-4 h-4" />, bg: 'bg-gray-100 text-gray-500' };
+  return { icon: <FiBell className="w-4 h-4" />, bg: 'bg-surface-muted text-secondary' };
 };
 
 const formatDate = (v: string) => new Date(v).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -107,14 +107,14 @@ export const Notifications: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-            <p className="text-sm text-gray-500 mt-1">{unreadCount > 0 ? `${unreadCount} unread` : 'You\'re all caught up'}</p>
+            <h1 className="text-2xl font-bold text-body">Notifications</h1>
+            <p className="text-sm text-secondary mt-1">{unreadCount > 0 ? `${unreadCount} unread` : 'You\'re all caught up'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={markAllAsRead} disabled={unreadCount === 0} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
+            <button onClick={markAllAsRead} disabled={unreadCount === 0} className="bg-card border border-border hover:bg-surface-muted text-body px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
               <FiCheckCircle className="w-4 h-4" /> Mark All Read
             </button>
-            <button onClick={handleDeleteAll} disabled={notifications.length === 0} className="bg-white border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-gray-700 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
+            <button onClick={handleDeleteAll} disabled={notifications.length === 0} className="bg-card border border-border hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-body px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
               <FiTrash2 className="w-4 h-4" /> Clear All
             </button>
           </div>
@@ -125,35 +125,35 @@ export const Notifications: React.FC = () => {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors capitalize ${filter === f ? 'bg-navy text-white border-navy' : 'bg-white text-gray-600 border-gray-200 hover:border-navy/30'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors capitalize ${filter === f ? 'bg-navy text-white border-navy' : 'bg-card text-secondary border-border hover:border-navy/30'}`}
             >
               {f}
             </button>
           ))}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
           {loading ? (
             <ListRowsSkeleton rows={6} />
           ) : notifications.length === 0 ? (
-            <div className="text-center p-12 text-gray-500">
-              <FiBell className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <div className="text-center p-12 text-secondary">
+              <FiBell className="w-10 h-10 mx-auto mb-3 text-subtle" />
               <p className="text-sm">{filter === 'unread' ? 'No unread notifications.' : "You're all caught up!"}</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {notifications.map((n) => {
                 const { icon, bg } = iconFor(n.type);
                 return (
-                  <div key={n.id} className={`p-4 flex items-start gap-4 hover:bg-gray-50/50 transition-colors ${!n.is_read ? 'bg-blue-50/40' : ''}`}>
+                  <div key={n.id} className={`p-4 flex items-start gap-4 hover:bg-surface-muted/50 transition-colors ${!n.is_read ? 'bg-blue-50/40' : ''}`}>
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${bg}`}>{icon}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-3">
-                        <p className={`text-sm font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
-                        <span className="text-xs text-gray-400 shrink-0">{formatDate(n.created_at)}</span>
+                        <p className={`text-sm font-medium ${!n.is_read ? 'text-body' : 'text-body'}`}>{n.title}</p>
+                        <span className="text-xs text-subtle shrink-0">{formatDate(n.created_at)}</span>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">{n.message}</p>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-300 mt-1 inline-block">{formatType(n.type)}</span>
+                      <p className="text-sm text-secondary mt-1">{n.message}</p>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-subtle mt-1 inline-block">{formatType(n.type)}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {!n.is_read && (
@@ -161,7 +161,7 @@ export const Notifications: React.FC = () => {
                           Mark Read
                         </button>
                       )}
-                      <button onClick={() => handleDelete(n.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Delete">
+                      <button onClick={() => handleDelete(n.id)} className="text-subtle hover:text-red-500 transition-colors" title="Delete">
                         <FiTrash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -172,7 +172,7 @@ export const Notifications: React.FC = () => {
           )}
 
           {hasMore && (
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 text-center">
+            <div className="px-6 py-4 border-t border-border bg-surface-muted/30 text-center">
               <button
                 onClick={() => fetchNotifications(offset + PAGE_SIZE, true)}
                 disabled={loadingMore}
