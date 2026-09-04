@@ -296,9 +296,12 @@ async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, is
   const baseFee = Number.parseFloat(store?.delivery_base_fee) || defaultBaseFee;
 
   let fee = baseFee;
-  if (store?.latitude && store?.longitude && buyerLat !== undefined && buyerLng !== undefined) {
+  const { resolveStoreCoords } = require('../utils/ghanaRegions');
+  const { lat: storeLat, lng: storeLng } = await resolveStoreCoords(store, repositories);
+
+  if (storeLat != null && storeLng != null && buyerLat !== undefined && buyerLng !== undefined) {
     const distanceKm = haversineKm(
-      Number.parseFloat(store.latitude), Number.parseFloat(store.longitude),
+      Number.parseFloat(storeLat), Number.parseFloat(storeLng),
       Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
     );
     const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);

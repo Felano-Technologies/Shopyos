@@ -6,7 +6,7 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
 const feeConfigService = require('../services/feeConfigService');
-const { resolveStoreRegion } = require('../utils/ghanaRegions');
+const { resolveStoreRegion, resolveStoreCoords } = require('../utils/ghanaRegions');
 
 /**
  * @route   GET /api/delivery/quote
@@ -18,7 +18,12 @@ async function resolveCoordinateFee(store, buyerLat, buyerLng) {
     const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
     const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
     const baseFee = Number.parseFloat(store.delivery_base_fee) || defaultBaseFee;
-    const hasStoreCoords = store.latitude !== null && store.longitude !== null;
+    // Falls back to the owner's last login coords when the seller never
+    // pinned the store's own location — same chain used for region
+    // resolution below, kept in sync so the quote here matches what
+    // orderController.js actually charges at order creation.
+    const { lat: storeLat, lng: storeLng } = await resolveStoreCoords(store, repositories);
+    const hasStoreCoords = storeLat !== null && storeLng !== null;
     const hasBuyerCoords = buyerLat !== undefined && buyerLng !== undefined;
 
     if (!hasStoreCoords || !hasBuyerCoords) {
@@ -31,7 +36,7 @@ async function resolveCoordinateFee(store, buyerLat, buyerLng) {
         return { fee: baseFee, distanceKm: null, withinRange: true, note: 'Location not provided – using base fee' };
     }
 
-    const distanceKm = haversineKm(Number.parseFloat(store.latitude), Number.parseFloat(store.longitude), lat, lng);
+    const distanceKm = haversineKm(Number.parseFloat(storeLat), Number.parseFloat(storeLng), lat, lng);
     const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
     if (calc.withinRange === false) {
         return {
@@ -88,11 +93,12 @@ const getDeliveryQuote = async (req, res, next) => {
             const minInter = await feeConfigService.get('delivery_inter_min_fee');
             const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
 
-            if (originHub?.latitude && originHub?.longitude && store.latitude && store.longitude) {
+            const { lat: storeLatForHub, lng: storeLngForHub } = await resolveStoreCoords(store, repositories);
+            if (originHub?.latitude && originHub?.longitude && storeLatForHub != null && storeLngForHub != null) {
                 // Calculate distance from store to its nearest hub (intra-regional leg)
                 const storeToHubKm = haversineKm(
-                    Number.parseFloat(store.latitude),
-                    Number.parseFloat(store.longitude),
+                    Number.parseFloat(storeLatForHub),
+                    Number.parseFloat(storeLngForHub),
                     Number.parseFloat(originHub.latitude),
                     Number.parseFloat(originHub.longitude)
                 );

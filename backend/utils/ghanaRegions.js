@@ -68,4 +68,31 @@ async function resolveStoreRegion(store, repositories) {
   return null;
 }
 
-module.exports = { REGION_CENTROIDS, nearestRegion, resolveStoreRegion };
+/**
+ * Resolve store coordinates for distance-based delivery pricing, falling
+ * back to the owner's last-known login coordinates (user_profiles.latitude/
+ * longitude, captured at login) when the seller never pinned the store's
+ * own location — same fallback chain as resolveStoreRegion above, so
+ * distance-based fees don't silently stay flat just because a store never
+ * got a map pin set.
+ * @returns {Promise<{lat: number|null, lng: number|null}>}
+ */
+async function resolveStoreCoords(store, repositories) {
+  if (!store) return { lat: null, lng: null };
+  if (store.latitude != null && store.longitude != null) {
+    return { lat: store.latitude, lng: store.longitude };
+  }
+
+  if (store.owner_id && repositories?.userProfiles) {
+    try {
+      const profile = await repositories.userProfiles.findByUserId(store.owner_id);
+      if (profile?.latitude != null && profile?.longitude != null) {
+        return { lat: profile.latitude, lng: profile.longitude };
+      }
+    } catch { /* fall through — coords stay unknown */ }
+  }
+
+  return { lat: null, lng: null };
+}
+
+module.exports = { REGION_CENTROIDS, nearestRegion, resolveStoreRegion, resolveStoreCoords };
