@@ -17,6 +17,10 @@ export const adminVerifyStore = async (storeId: string, status: string, reason?:
   const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
   return response.data;
 };
+export const adminDeleteStore = async (storeId: string) => {
+  const response = await api.delete(`/admin/stores/${storeId}`);
+  return response.data;
+};
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
 export const getAdminOrderStats = async () => { const response = await api.get('/admin/orders/stats'); return response.data; };
@@ -61,13 +65,17 @@ export const bulkProcessPayouts = async (ids: string[], action: 'approve' | 'rej
 };
 
 // Riders (driver_profiles on the backend)
-export const getDriverVerifications = async () => { const response = await api.get('/admin/driver-verifications'); return response.data; };
+export const getDriverVerifications = async (params?: { search?: string; status?: string }) => { const response = await api.get('/admin/driver-verifications', { params }); return response.data; };
 export const getDriverVerificationDetails = async (id: string) => { const response = await api.get(`/admin/driver-verifications/${id}`); return response.data; };
 export const approveDriverVerification = async (id: string) => { const response = await api.put(`/admin/driver-verifications/${id}/approve`); return response.data; };
 export const rejectDriverVerification = async (id: string, reason: string) => { const response = await api.put(`/admin/driver-verifications/${id}/reject`, { reason }); return response.data; };
 
 export const adminUpdateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned', reason?: string) => {
   const response = await api.put(`/admin/users/${userId}/status`, { status, reason });
+  return response.data;
+};
+export const adminDeleteUser = async (userId: string) => {
+  const response = await api.delete(`/admin/users/${userId}`);
   return response.data;
 };
 

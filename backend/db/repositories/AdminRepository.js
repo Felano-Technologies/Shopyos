@@ -189,7 +189,7 @@ class AdminRepository extends BaseRepository {
       LEFT JOIN users u         ON u.id = s.owner_id
       LEFT JOIN user_profiles up ON up.user_id = s.owner_id
       LEFT JOIN products p       ON p.store_id = s.id AND p.deleted_at IS NULL
-      WHERE 1=1
+      WHERE s.deleted_at IS NULL
     `;
 
     if (id) {
@@ -245,6 +245,7 @@ class AdminRepository extends BaseRepository {
         COUNT(*) FILTER (WHERE verification_status = 'pending')::int            AS pending,
         COUNT(*) FILTER (WHERE is_active = TRUE)::int                          AS active
       FROM stores
+      WHERE deleted_at IS NULL
     `);
     const s = rows[0] || {};
     return {
@@ -752,10 +753,12 @@ class AdminRepository extends BaseRepository {
   /**
    * Get driver verifications list
    */
-  async getDriverVerifications() {
+  async getDriverVerifications(options = {}) {
+    const { search, status } = options;
     const db = getPool();
+    const params = [];
 
-    const { rows } = await db.query(`
+    let sql = `
       SELECT
         dp.*,
         u.id    AS user_id_val,
@@ -766,8 +769,25 @@ class AdminRepository extends BaseRepository {
       FROM driver_profiles dp
       LEFT JOIN users u          ON u.id = dp.user_id
       LEFT JOIN user_profiles up ON up.user_id = dp.user_id
-      ORDER BY dp.created_at DESC
-    `);
+      WHERE 1=1
+    `;
+
+    if (search) {
+      params.push(`%${search}%`);
+      sql += ` AND (up.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR up.phone ILIKE $${params.length})`;
+    }
+
+    if (status === 'verified') {
+      sql += ` AND dp.is_verified = TRUE`;
+    } else if (status === 'rejected') {
+      sql += ` AND dp.is_verified = FALSE AND dp.rejection_reason IS NOT NULL`;
+    } else if (status === 'pending') {
+      sql += ` AND dp.is_verified = FALSE AND dp.rejection_reason IS NULL`;
+    }
+
+    sql += ` ORDER BY dp.created_at DESC`;
+
+    const { rows } = await db.query(sql, params);
 
     return Promise.all(rows.map(async d => {
       const driverVerificationStatus = d.rejection_reason ? 'rejected' : 'pending';

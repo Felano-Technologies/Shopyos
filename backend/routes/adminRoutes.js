@@ -38,6 +38,7 @@ const {
   refundEscrow,
   releaseEscrow,
   deleteUser,
+  deleteStore,
   resetUserSession,
   disableUserSession,
   createUserProfile,
@@ -651,6 +652,33 @@ router.put('/stores/:storeId/verify', verifyStore);
  *         description: Store not found
  */
 router.put('/stores/:storeId/status', updateStoreStatus);
+
+/**
+ * @swagger
+ * /api/v1/admin/stores/{storeId}:
+ *   delete:
+ *     summary: Delete a store (soft delete)
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: storeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the store to delete
+ *     responses:
+ *       200:
+ *         description: Store deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — admin role required
+ *       404:
+ *         description: Store not found
+ */
+router.delete('/stores/:storeId', deleteStore);
 
 // Content Moderation
 /**

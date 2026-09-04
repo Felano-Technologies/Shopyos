@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
-  FiUsers, FiCheckCircle, FiUser, FiShoppingBag, FiTruck, FiBox, FiX, FiUserPlus,
+  FiUsers, FiCheckCircle, FiUser, FiShoppingBag, FiTruck, FiBox, FiX, FiUserPlus, FiSearch, FiTrash2,
 } from 'react-icons/fi';
-import { getAdminUsers, getAdminUserStats, adminUpdateUserStatus, createAdminUser } from '../services/admin';
+import { getAdminUsers, getAdminUserStats, adminUpdateUserStatus, adminDeleteUser, createAdminUser } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
@@ -43,6 +43,8 @@ export const UserManagement: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
@@ -59,13 +61,37 @@ export const UserManagement: React.FC = () => {
     setLoading(true);
     const params: any = { limit: PAGE_SIZE, offset };
     if (roleFilter) params.role = roleFilter;
+    if (search) params.search = search;
     getAdminUsers(params)
       .then((res) => setUsers(Array.isArray(res?.users) ? res.users : []))
       .catch((err) => console.error('Failed to load users', err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchUsers, [roleFilter, offset]);
+  useEffect(fetchUsers, [roleFilter, search, offset]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOffset(0);
+    setSearch(searchInput.trim());
+  };
+
+  const handleDelete = async (user: any) => {
+    if (!window.confirm(`Permanently delete ${user.full_name || user.email}? This will deactivate their account and cannot be undone from here.`)) {
+      return;
+    }
+    setBusyUserId(user.id);
+    try {
+      await adminDeleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      getAdminUserStats().then((res) => { if (res?.stats) setStats(res.stats); }).catch(() => {});
+    } catch (err) {
+      console.error('Failed to delete user', err);
+      window.alert(extractErrorMessage(err));
+    } finally {
+      setBusyUserId(null);
+    }
+  };
 
   const toggleActive = async (user: any) => {
     const newStatus = user.account_status === 'active' ? 'suspended' : 'active';
@@ -146,6 +172,18 @@ export const UserManagement: React.FC = () => {
           ))}
         </div>
 
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name, email, or phone..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+          />
+        </form>
+
         {/* Role tabs */}
         <div className="flex flex-wrap gap-2">
           {ROLE_TABS.map((tab) => (
@@ -213,17 +251,27 @@ export const UserManagement: React.FC = () => {
                         {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => toggleActive(user)}
-                          disabled={busyUserId === user.id}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 ${
-                            user.account_status === 'active'
-                              ? 'border-red-200 text-red-600 hover:bg-red-50'
-                              : 'border-green-200 text-green-600 hover:bg-green-50'
-                          }`}
-                        >
-                          {busyUserId === user.id ? '...' : user.account_status === 'active' ? 'Suspend' : 'Activate'}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => toggleActive(user)}
+                            disabled={busyUserId === user.id}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-50 ${
+                              user.account_status === 'active'
+                                ? 'border-red-200 text-red-600 hover:bg-red-50'
+                                : 'border-green-200 text-green-600 hover:bg-green-50'
+                            }`}
+                          >
+                            {busyUserId === user.id ? '...' : user.account_status === 'active' ? 'Suspend' : 'Activate'}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user)}
+                            disabled={busyUserId === user.id}
+                            title="Delete user"
+                            className="p-1.5 rounded-lg border border-border text-subtle hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

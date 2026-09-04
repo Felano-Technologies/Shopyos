@@ -929,7 +929,8 @@ const getRevenueBreakdown = async (req, res, next) => {
  */
 const getDriverVerifications = async (req, res, next) => {
   try {
-    const drivers = await repositories.admin.getDriverVerifications();
+    const { search, status } = req.query;
+    const drivers = await repositories.admin.getDriverVerifications({ search, status });
     ApiResponse.withEntity(res, 'drivers', drivers);
   } catch (error) {
     next(error);
@@ -1096,6 +1097,41 @@ const deleteUser = async (req, res, next) => {
     });
 
     ApiResponse.success(res, null, 'User deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Store: soft-delete ───────────────────────────────────────────────────────
+const deleteStore = async (req, res, next) => {
+  try {
+    const { storeId } = req.params;
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    const store = await repositories.stores.findById(storeId);
+    if (!store) {
+      return ApiResponse.error(res, 'Store not found', 404);
+    }
+
+    await db.query(
+      `UPDATE stores SET is_active = FALSE, deleted_at = NOW() WHERE id = $1`,
+      [storeId]
+    );
+
+    await invalidateStoreVerification(storeId);
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'delete_store',
+      entityType: 'store',
+      entityId: storeId,
+      metadata: { store_name: store.store_name },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    ApiResponse.success(res, null, 'Store deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -1503,6 +1539,7 @@ module.exports = {
   releaseEscrow,
   // New
   deleteUser,
+  deleteStore,
   resetUserSession,
   disableUserSession,
   createUserProfile,

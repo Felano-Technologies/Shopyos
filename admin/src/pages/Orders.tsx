@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
-  FiShoppingCart, FiClock, FiTruck, FiCheckCircle, FiXCircle, FiX,
+  FiShoppingCart, FiClock, FiTruck, FiCheckCircle, FiXCircle, FiX, FiSearch,
 } from 'react-icons/fi';
 import { getAdminOrders, getAdminOrderStats, updateOrderStatus } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
@@ -42,6 +42,8 @@ export const Orders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const [statusTarget, setStatusTarget] = useState<any | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -57,13 +59,20 @@ export const Orders: React.FC = () => {
     setLoading(true);
     const params: any = { limit: PAGE_SIZE, offset };
     if (statusFilter) params.status = statusFilter;
+    if (search) params.search = search;
     getAdminOrders(params)
       .then((res) => setOrders(Array.isArray(res?.orders) ? res.orders : []))
       .catch((err) => console.error('Failed to load orders', err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchOrders, [statusFilter, offset]);
+  useEffect(fetchOrders, [statusFilter, search, offset]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOffset(0);
+    setSearch(searchInput.trim());
+  };
 
   const refreshStats = () => {
     getAdminOrderStats().then((res) => { if (res?.stats) setStats(res.stats); }).catch(() => {});
@@ -122,6 +131,18 @@ export const Orders: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by order number..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+          />
+        </form>
 
         {/* Status tabs */}
         <div className="flex flex-wrap gap-2">

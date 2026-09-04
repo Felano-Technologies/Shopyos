@@ -91,15 +91,13 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   const targetRegion = (deliveryState || '').trim().toLowerCase();
   const crossRegion = !!(storeRegion && targetRegion && storeRegion !== targetRegion);
 
-  const deliveryFee = isPickup ? 0 : await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, crossRegion);
-
   let transitFee = 0;
   let isInterRegional = false;
   let originHub = null;
   let destHub = null;
   let estArrivalDate = null;
 
-  if (!isPickup && storeRegion && targetRegion && storeRegion !== targetRegion) {
+  if (!isPickup && crossRegion) {
     isInterRegional = true;
     if (repositories.parcelPartner) {
       originHub = await repositories.parcelPartner.getHubByRegionName(resolvedRegion || 'Greater Accra');
@@ -123,6 +121,19 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
       estArrivalDate.setDate(estArrivalDate.getDate() + 2);
     }
   }
+
+  // Inter-regional: `deliveryFee` here is only the LOCAL leg (store → its
+  // origin hub) — the long cross-region distance is already priced by
+  // `transitFee` (hub → hub) above, and any hub → buyer leg by
+  // `lastMileCharge` below. Using the full store → buyer distance here too
+  // (as this used to) double-counts the cross-region distance on top of
+  // transitFee, wildly inflating the total. Mirrors deliveryFeeController.js's
+  // getDeliveryQuote, which already gets this right.
+  const deliveryFee = isPickup
+    ? 0
+    : isInterRegional
+      ? await calcOrderDeliveryFee(store, originHub?.latitude, originHub?.longitude, true)
+      : await calcOrderDeliveryFee(store, buyerLat, buyerLng, false);
 
   const totalSubtotal = cart.cart_items.reduce((sum, i) => sum + i.products.price * i.quantity, 0);
   const storeShare = totalSubtotal > 0 ? subtotal / totalSubtotal : 1;
@@ -290,7 +301,10 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   return order;
 }
 
-async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, isInterRegional = false) {
+// `targetLat`/`targetLng` is the far end of the leg being priced — the buyer
+// for an intra-regional order, or the store's own origin hub for the local
+// leg of an inter-regional order (see call site for why).
+async function calcOrderDeliveryFee(store, targetLat, targetLng, isInterRegional = false) {
   const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
   const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
   const baseFee = Number.parseFloat(store?.delivery_base_fee) || defaultBaseFee;
@@ -299,10 +313,10 @@ async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, is
   const { resolveStoreCoords } = require('../utils/ghanaRegions');
   const { lat: storeLat, lng: storeLng } = await resolveStoreCoords(store, repositories);
 
-  if (storeLat != null && storeLng != null && buyerLat !== undefined && buyerLng !== undefined) {
+  if (storeLat != null && storeLng != null && targetLat != null && targetLng != null) {
     const distanceKm = haversineKm(
       Number.parseFloat(storeLat), Number.parseFloat(storeLng),
-      Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
+      Number.parseFloat(targetLat), Number.parseFloat(targetLng)
     );
     const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
     fee = calc.fee ?? baseFee;

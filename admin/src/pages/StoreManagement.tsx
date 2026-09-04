@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
-  FiCheckCircle, FiXCircle, FiClock, FiShoppingBag, FiX, FiExternalLink,
+  FiCheckCircle, FiXCircle, FiClock, FiShoppingBag, FiX, FiExternalLink, FiSearch, FiTrash2,
 } from 'react-icons/fi';
-import { getAdminStores, getAdminStoreStats, adminVerifyStore } from '../services/admin';
+import { getAdminStores, getAdminStoreStats, adminVerifyStore, adminDeleteStore } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
@@ -61,6 +61,8 @@ export const StoreManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
 
   const [selectedStore, setSelectedStore] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -78,13 +80,20 @@ export const StoreManagement: React.FC = () => {
     setLoading(true);
     const params: any = { limit: PAGE_SIZE, offset };
     if (statusFilter) params.verificationStatus = statusFilter;
+    if (search) params.search = search;
     getAdminStores(params)
       .then((res) => setStores(Array.isArray(res?.stores) ? res.stores : []))
       .catch((err) => console.error('Failed to load stores', err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchStores, [statusFilter, offset]);
+  useEffect(fetchStores, [statusFilter, search, offset]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOffset(0);
+    setSearch(searchInput.trim());
+  };
 
   const refreshStats = () => {
     getAdminStoreStats().then((res) => { if (res?.stats) setStats(res.stats); }).catch(() => {});
@@ -107,6 +116,25 @@ export const StoreManagement: React.FC = () => {
       setSelectedStore((prev: any) => prev && { ...prev, verification_status: status, rejection_reason: reason || prev.rejection_reason });
       setShowRejectForm(false);
       setRejectReason('');
+      refreshStats();
+    } catch (err) {
+      setActionError(extractErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedStore) return;
+    if (!window.confirm(`Permanently delete "${selectedStore.store_name}"? This cannot be undone from here.`)) {
+      return;
+    }
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await adminDeleteStore(selectedStore.id);
+      setStores((prev) => prev.filter((s) => s.id !== selectedStore.id));
+      setSelectedStore(null);
       refreshStats();
     } catch (err) {
       setActionError(extractErrorMessage(err));
@@ -158,6 +186,18 @@ export const StoreManagement: React.FC = () => {
             </div>
           ))}
         </div>
+
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by store or business name..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+          />
+        </form>
 
         {/* Status tabs */}
         <div className="flex flex-wrap gap-2">
@@ -260,9 +300,19 @@ export const StoreManagement: React.FC = () => {
                 <h2 className="text-lg font-bold text-body">{selectedStore.store_name || 'Unnamed Store'}</h2>
                 <div className="mt-1"><StatusPill status={selectedStore.verification_status} /></div>
               </div>
-              <button onClick={() => setSelectedStore(null)} className="text-subtle hover:text-secondary">
-                <FiX className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDelete}
+                  disabled={actionLoading}
+                  title="Delete store"
+                  className="p-2 rounded-lg text-subtle hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  <FiTrash2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => setSelectedStore(null)} className="text-subtle hover:text-secondary p-2">
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {actionError && (

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
-  FiCheckCircle, FiXCircle, FiClock, FiTruck, FiX, FiUser,
+  FiCheckCircle, FiXCircle, FiClock, FiTruck, FiX, FiUser, FiSearch, FiTrash2,
 } from 'react-icons/fi';
-import { getDriverVerifications, approveDriverVerification, rejectDriverVerification } from '../services/admin';
+import { getDriverVerifications, approveDriverVerification, rejectDriverVerification, adminDeleteUser } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
@@ -48,6 +48,9 @@ export const RiderManagement: React.FC = () => {
   const [riders, setRiders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [busyRiderId, setBusyRiderId] = useState<string | null>(null);
 
   const [selectedRider, setSelectedRider] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -57,13 +60,21 @@ export const RiderManagement: React.FC = () => {
 
   const fetchRiders = () => {
     setLoading(true);
-    getDriverVerifications()
+    const params: any = {};
+    if (statusFilter) params.status = statusFilter;
+    if (search) params.search = search;
+    getDriverVerifications(params)
       .then((res) => setRiders(Array.isArray(res?.drivers) ? res.drivers : []))
       .catch((err) => console.error('Failed to load riders', err))
       .finally(() => setLoading(false));
   };
 
-  useEffect(fetchRiders, []);
+  useEffect(fetchRiders, [statusFilter, search]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+  };
 
   const stats = useMemo(() => ({
     total: riders.length,
@@ -72,7 +83,22 @@ export const RiderManagement: React.FC = () => {
     rejected: riders.filter((r) => r.verification_status === 'rejected').length,
   }), [riders]);
 
-  const filteredRiders = statusFilter ? riders.filter((r) => r.verification_status === statusFilter) : riders;
+  const handleDelete = async (rider: any) => {
+    if (!window.confirm(`Permanently delete rider ${rider.full_name || rider.email}? This will deactivate their account and cannot be undone from here.`)) {
+      return;
+    }
+    setBusyRiderId(rider.id);
+    try {
+      await adminDeleteUser(rider.user_id_val);
+      setRiders((prev) => prev.filter((r) => r.id !== rider.id));
+      setSelectedRider(null);
+    } catch (err) {
+      console.error('Failed to delete rider', err);
+      window.alert(extractErrorMessage(err));
+    } finally {
+      setBusyRiderId(null);
+    }
+  };
 
   const openReview = (rider: any) => {
     setSelectedRider(rider);
@@ -152,6 +178,18 @@ export const RiderManagement: React.FC = () => {
           ))}
         </div>
 
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name, email, or phone..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+          />
+        </form>
+
         {/* Status tabs */}
         <div className="flex flex-wrap gap-2">
           {STATUS_TABS.map((tab) => (
@@ -184,10 +222,10 @@ export const RiderManagement: React.FC = () => {
               <tbody className="divide-y divide-border">
                 {loading ? (
                   <TableRowsSkeleton columns={5} leadingIcon />
-                ) : filteredRiders.length === 0 ? (
+                ) : riders.length === 0 ? (
                   <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-secondary">No riders found.</td></tr>
                 ) : (
-                  filteredRiders.map((rider: any) => (
+                  riders.map((rider: any) => (
                     <tr key={rider.id} className="hover:bg-surface-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
@@ -211,9 +249,19 @@ export const RiderManagement: React.FC = () => {
                         {rider.created_at ? new Date(rider.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onClick={() => openReview(rider)} className="text-navy hover:text-navy/70 transition-colors font-semibold">
-                          Review
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button onClick={() => openReview(rider)} className="text-navy hover:text-navy/70 transition-colors font-semibold">
+                            Review
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rider)}
+                            disabled={busyRiderId === rider.id}
+                            title="Delete rider"
+                            className="p-1.5 rounded-lg border border-border text-subtle hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            <FiTrash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
