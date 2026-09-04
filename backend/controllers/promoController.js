@@ -1,5 +1,6 @@
 ﻿const ApiResponse = require('../utils/apiResponse');
 const { getPool } = require('../config/postgres');
+const repositories = require('../db/repositories');
 
 /**
  * @route  POST /api/v1/promo/validate
@@ -40,6 +41,19 @@ const validatePromoCode = async (req, res, next) => {
 
     if (Number.parseFloat(subtotal) < Number.parseFloat(promo.min_order)) {
       return ApiResponse.error(res, `Minimum order of â‚µ${Number.parseFloat(promo.min_order).toFixed(2)} required for this code`, 400);
+    }
+
+    // A store-scoped code only redeems when the buyer's cart actually has
+    // something from that store — otherwise the preview would show a
+    // discount that createOrder later refuses to apply to any line item.
+    if (promo.store_id) {
+      const cart = await repositories.carts.getCartWithItems(userId);
+      const cartHasStoreItem = (cart?.cart_items || []).some(
+        (item) => item.products?.store_id === promo.store_id
+      );
+      if (!cartHasStoreItem) {
+        return ApiResponse.error(res, 'This code is only valid for items from that store', 400);
+      }
     }
 
     const { rows: used } = await pool.query(

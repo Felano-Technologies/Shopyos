@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { getMyOrders } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 // --- Types ---
 interface Transaction {
   id: string;

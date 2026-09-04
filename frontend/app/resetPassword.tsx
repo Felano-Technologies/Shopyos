@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { resetPasswordWithToken } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 const ResetPasswordScreen = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { resetToken } = useLocalSearchParams();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -74,11 +78,11 @@ const ResetPasswordScreen = () => {
 
       {/* New Password Input */}
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed" size={20} color="#000" style={styles.icon} />
+        <Ionicons name="lock-closed" size={20} color={colors.text} style={styles.icon} />
         <TextInput
           style={styles.input}
           placeholder="New Password"
-          placeholderTextColor="#555"
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry={!showNewPassword}
           value={newPassword}
           onChangeText={setNewPassword}
@@ -87,18 +91,18 @@ const ResetPasswordScreen = () => {
           <Ionicons
             name={showNewPassword ? 'eye-sharp' : 'eye-off-outline'}
             size={20}
-            color="#000"
+            color={colors.text}
           />
         </TouchableOpacity>
       </View>
 
       {/* Confirm Password Input */}
       <View style={styles.inputContainer}>
-        <Ionicons name="lock-closed" size={20} color="#000" style={styles.icon} />
+        <Ionicons name="lock-closed" size={20} color={colors.text} style={styles.icon} />
         <TextInput
           style={styles.input}
           placeholder="Confirm Password"
-          placeholderTextColor="#555"
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry={!showConfirmPassword}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -107,7 +111,7 @@ const ResetPasswordScreen = () => {
           <Ionicons
             name={showConfirmPassword ? 'eye-sharp' : 'eye-off-outline'}
             size={20}
-            color="#000"
+            color={colors.text}
           />
         </TouchableOpacity>
       </View>
@@ -119,7 +123,7 @@ const ResetPasswordScreen = () => {
         onPress={handleResetPassword}
       >
         {loading ? (
-          <ActivityIndicator color="#FFF" />
+          <ActivityIndicator color={colors.accentText} />
         ) : (
           <Text style={styles.saveText}>Reset Password</Text>
         )}
@@ -150,10 +154,10 @@ const ResetPasswordScreen = () => {
 
 export default ResetPasswordScreen;
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff',
+    backgroundColor: c.backgroundAlt,
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
@@ -167,13 +171,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
+    color: c.text,
     textAlign: 'center',
     marginTop: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: '#333',
+    color: c.textSecondary,
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 20,
@@ -181,8 +185,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#84cc16',
+    backgroundColor: c.surface,
+    borderColor: c.accent,
     borderWidth: 1,
     borderRadius: 25,
     width: '85%',
@@ -195,11 +199,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#000',
+    color: c.text,
     fontSize: 14,
   },
   saveButton: {
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     borderRadius: 25,
     paddingVertical: 14,
     alignItems: 'center',
@@ -207,12 +211,12 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   saveText: {
-    color: '#fff',
+    color: c.accentText,
     fontSize: 17,
     fontWeight: '700',
   },
   errorText: {
-    color: '#EF4444',
+    color: c.error,
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',

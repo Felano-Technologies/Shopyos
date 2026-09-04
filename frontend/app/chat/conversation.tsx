@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
@@ -29,6 +29,8 @@ import MediaMessage from '../../components/chat/MediaMessage';
 import VoiceRecorder from '../../components/chat/VoiceRecorder';
 import VoiceMessage from '../../components/chat/VoiceMessage';
 import StickerPicker from '../../components/chat/StickerPicker';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
@@ -84,6 +86,7 @@ function renderReplyPreviewStatic(
   isMe: boolean,
   currentUserId: string | null,
   displayName: string,
+  styles: ReturnType<typeof getStyles>,
 ) {
   if (!item.reply_to_message) { return null; }
   const replyMsg = item.reply_to_message;
@@ -129,7 +132,7 @@ function stickerIconName({ pending, is_read }: StickerIconProps): 'time-outline'
   return 'checkmark';
 }
 
-function stickerIconColor({ pending, is_read }: StickerIconProps, colors: typeof C): string {
+function stickerIconColor({ pending, is_read }: StickerIconProps, colors: LegacyPalette): string {
   if (pending) return colors.mutedText;
   if (is_read) return colors.limeTick;
   return colors.mutedText;
@@ -141,30 +144,35 @@ function bubbleIconName(pending: boolean | undefined, is_read: boolean | undefin
   return 'checkmark';
 }
 
-function bubbleIconColor(pending: boolean | undefined, is_read: boolean | undefined): string {
+function bubbleIconColor(pending: boolean | undefined, is_read: boolean | undefined, C: LegacyPalette): string {
   if (pending) return 'rgba(255,255,255,0.3)';
   if (is_read) return C.limeTick;
   return 'rgba(255,255,255,0.55)';
 }
 
-// Shopyos design tokens
-const C = {
-  pageBg:        '#E9F0FF',
-  navyDeep:      '#0C1559',
-  navyMid:       '#1e3a8a',
-  lime:          '#84cc16',
-  limeTick:      '#84cc16',
-  cardBg:        '#FFFFFF',
-  priceGreen:    '#0d3804',
-  alertRed:      '#ff0101',
-  bodyText:      '#0F172A',
-  mutedText:     '#64748B',
-  borderLight:   'rgba(12,21,89,0.08)',
-  borderCard:    'rgba(12,21,89,0.12)',
-  onlineGreen:   '#22c55e',
-  datePillBg:    'rgba(12,21,89,0.07)',
-  datePillBorder:'rgba(12,21,89,0.1)',
+// Shopyos design tokens (theme-aware)
+type LegacyPalette = {
+  pageBg: string; navyDeep: string; navyMid: string; lime: string; limeTick: string;
+  cardBg: string; bodyText: string; mutedText: string; subtleText: string;
+  borderLight: string; borderCard: string; onlineGreen: string; alertRed: string;
+  surfaceElevated: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  pageBg: colors.background,
+  navyDeep: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeTick: colors.accent,
+  cardBg: colors.surface,
+  bodyText: colors.text,
+  mutedText: colors.textSecondary,
+  subtleText: colors.textMuted,
+  borderLight: colors.border,
+  borderCard: colors.borderStrong,
+  onlineGreen: colors.success,
+  alertRed: colors.error,
+  surfaceElevated: colors.surfaceElevated,
+});
 
 type MessageItem = {
   id: string;
@@ -201,6 +209,9 @@ type MessageItem = {
 
 export default function ConversationScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
@@ -573,7 +584,7 @@ export default function ConversationScreen() {
   // ---- Reply preview renderer ----
 
   const renderReplyPreview = (item: MessageItem, isMe: boolean) =>
-    renderReplyPreviewStatic(item, isMe, currentUserId, displayName);
+    renderReplyPreviewStatic(item, isMe, currentUserId, displayName, styles);
 
   // ---- Date helpers ----
 
@@ -693,7 +704,7 @@ export default function ConversationScreen() {
     const bubbleSideStyle = isMe ? styles.bubbleMe : [styles.bubbleThem, bubbleThemExtra];
     const gradMediaStyle = hasMedia ? { paddingVertical: 0 as const, paddingHorizontal: 0 as const } : undefined;
     const iconName = bubbleIconName(item.pending, item.is_read);
-    const iconColor = bubbleIconColor(item.pending, item.is_read);
+    const iconColor = bubbleIconColor(item.pending, item.is_read, C);
     const metaPaddingStyle = buildMetaPaddingStyle(hasMedia);
 
     return (
@@ -784,7 +795,7 @@ export default function ConversationScreen() {
       <StatusBar style="light" />
 
       {/* Header */}
-      <LinearGradient colors={[C.navyDeep, C.navyMid]} style={[styles.header, { paddingTop: insets.top }]}>
+      <LinearGradient colors={colors.headerGradient} style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerInner}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.85)" />
@@ -889,7 +900,7 @@ export default function ConversationScreen() {
                 ref={inputRef}
                 style={styles.textInput}
                 placeholder={`Message ${displayName}...`}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={C.subtleText}
                 value={text}
                 onChangeText={setText}
                 multiline
@@ -937,7 +948,7 @@ export default function ConversationScreen() {
             </TouchableOpacity>
             {selectedMsg?.sender_id === currentUserId && (
               <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
-                <Feather name="trash-2" size={16} color="#EF4444" /><Text style={[styles.ctxItemTxt, { color: '#EF4444' }]}>Unsend</Text>
+                <Feather name="trash-2" size={16} color={colors.error} /><Text style={[styles.ctxItemTxt, { color: colors.error }]}>Unsend</Text>
               </TouchableOpacity>
             )}
           </Pressable>
@@ -955,10 +966,10 @@ export default function ConversationScreen() {
               <Ionicons name="flag-outline" size={17} color={C.navyDeep} /><Text style={styles.moreItemTxt}>Report</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doBlockUser}>
-              <Ionicons name="ban-outline" size={17} color="#EF4444" /><Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Block User</Text>
+              <Ionicons name="ban-outline" size={17} color={colors.error} /><Text style={[styles.moreItemTxt, { color: colors.error }]}>Block User</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
-              <Ionicons name="trash-bin-outline" size={17} color="#EF4444" /><Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
+              <Ionicons name="trash-bin-outline" size={17} color={colors.error} /><Text style={[styles.moreItemTxt, { color: colors.error }]}>Delete chat</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1048,7 +1059,7 @@ export default function ConversationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
   body: { flex: 1 },
 
@@ -1072,7 +1083,7 @@ const styles = StyleSheet.create({
   // Loading / empty
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(12,21,89,0.06)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.borderLight, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 6 },
   emptyBody: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.mutedText, textAlign: 'center' },
 
@@ -1080,15 +1091,15 @@ const styles = StyleSheet.create({
 
   // Date separator
   dateSep: { alignItems: 'center', marginVertical: 16 },
-  datePill: { backgroundColor: 'rgba(12,21,89,0.09)', borderWidth: 1, borderColor: 'rgba(12,21,89,0.14)', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
-  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#475569', textTransform: 'uppercase', letterSpacing: 1 },
+  datePill: { backgroundColor: C.borderLight, borderWidth: 1, borderColor: C.borderCard, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
+  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.mutedText, textTransform: 'uppercase', letterSpacing: 1 },
 
   // Bubbles
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 4, maxWidth: '100%' },
   rowMe: { justifyContent: 'flex-end' },
   rowThem: { justifyContent: 'flex-start' },
-  msgAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8, marginBottom: 2, borderWidth: 1.5, borderColor: '#fff' },
-  msgAvatarFallback: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.lime, marginRight: 8, marginBottom: 2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#fff' },
+  msgAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8, marginBottom: 2, borderWidth: 1.5, borderColor: C.cardBg },
+  msgAvatarFallback: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.lime, marginRight: 8, marginBottom: 2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: C.cardBg },
   msgAvatarTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#111827' },
 
   bubble: { maxWidth: '78%', borderRadius: 22, overflow: 'hidden' },
@@ -1100,17 +1111,17 @@ const styles = StyleSheet.create({
   },
   bubbleMeGrad: { paddingVertical: 8, paddingHorizontal: 13 },
   bubbleThem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.cardBg,
     borderTopLeftRadius: 6, borderTopRightRadius: 22,
     borderBottomLeftRadius: 22, borderBottomRightRadius: 22,
     paddingVertical: 4, paddingHorizontal: 12,
     elevation: 3,
     shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.07)',
+    borderWidth: 1, borderColor: C.borderLight,
   },
   bubbleReplyPreview: { flexDirection: 'row', borderRadius: 10, overflow: 'hidden', marginBottom: 8, maxWidth: '100%' },
   bubbleReplyMe: { backgroundColor: 'rgba(255,255,255,0.14)' },
-  bubbleReplyThem: { backgroundColor: '#F0F4FF', borderWidth: 1, borderColor: '#DBEAFE' },
+  bubbleReplyThem: { backgroundColor: C.borderLight, borderWidth: 1, borderColor: C.borderCard },
   bubbleReplyAccent: { width: 4 },
   bubbleReplyAccentMe: { backgroundColor: 'rgba(255,255,255,0.8)' },
   bubbleReplyAccentThem: { backgroundColor: C.navyDeep },
@@ -1120,7 +1131,7 @@ const styles = StyleSheet.create({
   bubbleReplyLabelThem: { color: C.navyDeep },
   bubbleReplyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', lineHeight: 17 },
   bubbleReplyTextMe: { color: 'rgba(255,255,255,0.75)' },
-  bubbleReplyTextThem: { color: '#64748B' },
+  bubbleReplyTextThem: { color: C.mutedText },
   bubblePending: { opacity: 0.5 },
   bubbleFailed: { backgroundColor: '#FFF5F5', borderWidth: 1.5, borderColor: '#FCA5A5', paddingVertical: 11, paddingHorizontal: 16, borderRadius: 18 },
   bubbleFailedInner: {},
@@ -1128,22 +1139,22 @@ const styles = StyleSheet.create({
   failText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.alertRed },
 
   bubbleTxtMe: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#FFFFFF', lineHeight: 22 },
-  bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', lineHeight: 22 },
+  bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, lineHeight: 22 },
 
   typingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 10, paddingLeft: 4 },
   typingBubble: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', paddingVertical: 10, paddingHorizontal: 14,
+    backgroundColor: C.cardBg, paddingVertical: 10, paddingHorizontal: 14,
     borderRadius: 20, borderTopLeftRadius: 6,
     elevation: 3, shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.07)',
+    borderWidth: 1, borderColor: C.borderLight,
   },
   typingText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText },
   bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 22 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 5 },
   metaTimeMe: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)' },
-  metaTimeThem: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
+  metaTimeThem: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.mutedText },
 
   // Sticker
   stickerBubble: { padding: 4 },
@@ -1155,37 +1166,37 @@ const styles = StyleSheet.create({
   systemNoticeText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#DC2626' },
 
   // Input bar
-  inputBar: { paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#F0F5FF', borderTopWidth: 1, borderTopColor: 'rgba(12,21,89,0.07)' },
+  inputBar: { paddingHorizontal: 12, paddingTop: 10, backgroundColor: C.surfaceElevated, borderTopWidth: 1, borderTopColor: C.borderLight },
   replyPreview: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#DBEAFE',
+    backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.borderCard,
     borderRadius: 14, padding: 10, marginBottom: 10,
     elevation: 2, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4,
   },
   replyAccent: { width: 4, alignSelf: 'stretch', backgroundColor: C.navyDeep, borderRadius: 3, marginRight: 10 },
   replyBody: { flex: 1 },
   replyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 2 },
-  replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.mutedText },
   replyClose: { padding: 6 },
 
   // Upload progress
-  uploadBar: { height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', marginBottom: 10, overflow: 'hidden' },
+  uploadBar: { height: 5, borderRadius: 3, backgroundColor: C.borderCard, marginBottom: 10, overflow: 'hidden' },
   uploadFill: { height: '100%', backgroundColor: C.lime, borderRadius: 3 },
   uploadPct: { position: 'absolute', right: 0, top: -18, fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
 
   // Input pill
   pill: {
     flexDirection: 'row', alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.cardBg,
     borderRadius: 32, paddingHorizontal: 6, paddingVertical: 5,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)',
+    borderWidth: 1, borderColor: C.borderLight,
     elevation: 6, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 10,
     marginBottom: 4,
   },
   attachBtn: { width: 36, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 18 },
   textInput: {
     flex: 1, minHeight: 40, maxHeight: 120,
-    fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A',
+    fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText,
     paddingTop: Platform.OS === 'android' ? 9 : 11,
     paddingBottom: Platform.OS === 'android' ? 9 : 11,
     paddingHorizontal: 8, textAlignVertical: 'center',
@@ -1210,14 +1221,14 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   attachSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: C.cardBg,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingHorizontal: 24, paddingTop: 14, paddingBottom: 36,
     elevation: 24, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.18, shadowRadius: 20,
   },
   attachSheetHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#CBD5E1', alignSelf: 'center', marginBottom: 20,
+    backgroundColor: C.borderCard, alignSelf: 'center', marginBottom: 20,
   },
   attachSheetTitle: {
     fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.navyDeep,
@@ -1231,30 +1242,30 @@ const styles = StyleSheet.create({
     elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 8,
   },
   attachOptionLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.navyDeep },
-  attachOptionSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: -6 },
+  attachOptionSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.mutedText, marginTop: -6 },
   attachCancelBtn: {
-    height: 48, borderRadius: 16, backgroundColor: '#F1F5F9',
+    height: 48, borderRadius: 16, backgroundColor: C.borderLight,
     justifyContent: 'center', alignItems: 'center',
   },
-  attachCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#475569' },
+  attachCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
 
   // Modals / context menu
   overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.45)', justifyContent: 'center', alignItems: 'center' },
   contextMenu: {
-    backgroundColor: '#fff', borderRadius: 24, width: width * 0.78, overflow: 'hidden',
+    backgroundColor: C.cardBg, borderRadius: 24, width: width * 0.78, overflow: 'hidden',
     elevation: 24, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 28,
   },
-  ctxPreview: { padding: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#F8FAFF' },
-  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', lineHeight: 20 },
-  ctxItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  ctxPreview: { padding: 18, borderBottomWidth: 1, borderBottomColor: C.borderLight, backgroundColor: C.surfaceElevated },
+  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, lineHeight: 20 },
+  ctxItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
   ctxDanger: { borderBottomWidth: 0 },
 
   moreMenu: {
     position: 'absolute', right: 12,
-    backgroundColor: '#fff', borderRadius: 20, minWidth: 210, overflow: 'hidden',
+    backgroundColor: C.cardBg, borderRadius: 20, minWidth: 210, overflow: 'hidden',
     elevation: 20, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 20,
   },
-  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  moreItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: C.borderLight },
+  moreItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
 });

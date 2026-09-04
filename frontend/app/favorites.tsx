@@ -23,22 +23,25 @@ import { useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
 import { CustomInAppToast } from '@/services/api';
 import { useCart } from '@/store/cartStore';
 import Skeleton from '../components/Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2;
 
-const COLORS = {
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  bg: '#FFFFFF',
-  card: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.08)',
-};
+type LegacyPalette = { navy: string; navyMid: string; lime: string; limeText: string; bg: string; card: string; text: string; muted: string; subtle: string; border: string };
+const buildLegacyColors = (c: ThemeColors): LegacyPalette => ({
+  navy: c.primary,
+  navyMid: c.primaryMid,
+  lime: c.accent,
+  limeText: c.accentText,
+  bg: c.background,
+  card: c.surface,
+  text: c.text,
+  muted: c.textSecondary,
+  subtle: c.textMuted,
+  border: c.border,
+});
 
 const SORT_OPTIONS = [
   { label: 'Newest', value: 'newest' },
@@ -63,6 +66,9 @@ const FavoriteCard = React.memo(function FavoriteCard({
   onAddToCart: (item: any) => void;
 }) {
   const id = item.id || item._id;
+  const colors = useThemeColors();
+  const COLORS = useMemo(() => buildLegacyColors(colors), [colors]);
+  const styles = useMemo(() => getStyles(COLORS), [COLORS]);
   return (
     <TouchableOpacity
       style={styles.card}
@@ -79,7 +85,7 @@ const FavoriteCard = React.memo(function FavoriteCard({
           onPress={() => onRemove(id)}
           disabled={isRemoving}
         >
-          <Ionicons name="heart" size={18} color="#EF4444" />
+          <Ionicons name="heart" size={18} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -93,10 +99,10 @@ const FavoriteCard = React.memo(function FavoriteCard({
           disabled={addingToCartId === id}
         >
           {addingToCartId === id ? (
-            <ActivityIndicator size="small" color="#FFF" />
+            <ActivityIndicator size="small" color="#FFF" /> // white spinner on the fixed primary button
           ) : (
             <>
-              <Feather name="shopping-cart" size={14} color="#FFF" />
+              <Feather name="shopping-cart" size={14} color="#FFF" /* white icon on the fixed primary button */ />
               <Text style={styles.addToCartTxt}>Add to Cart</Text>
             </>
           )}
@@ -108,6 +114,9 @@ const FavoriteCard = React.memo(function FavoriteCard({
 
 export default function FavoritesScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const COLORS = useMemo(() => buildLegacyColors(colors), [colors]);
+  const styles = useMemo(() => getStyles(COLORS), [COLORS]);
   const addToCart = useCart((s) => s.addToCart);
   const { data: favorites, isLoading, refetch } = useFavorites();
   const { mutate: removeFavorite, isPending: isRemoving } = useRemoveFavorite();
@@ -226,7 +235,7 @@ export default function FavoritesScreen() {
       return (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconContainer}>
-            <Ionicons name="search-outline" size={52} color={COLORS.navy} />
+            <Ionicons name="search-outline" size={52} color={colors.primary} />
           </View>
           <Text style={styles.emptyTitle}>No Results Found</Text>
           <Text style={styles.emptySubtitle}>Try adjusting your search or filters.</Text>
@@ -246,7 +255,7 @@ export default function FavoritesScreen() {
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIconContainer}>
-          <MaterialCommunityIcons name="heart-outline" size={60} color={COLORS.navy} />
+          <MaterialCommunityIcons name="heart-outline" size={60} color={colors.primary} />
         </View>
         <Text style={styles.emptyTitle}>No Favorites Yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -265,7 +274,7 @@ export default function FavoritesScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <LinearGradient colors={[COLORS.navy, COLORS.navyMid]} style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -389,7 +398,7 @@ export default function FavoritesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: LegacyPalette) => StyleSheet.create({
   flex: { flex: 1 },
   container: {
     flex: 1,
@@ -425,7 +434,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.bg,
   },
   searchBox: {
     flexDirection: 'row',
@@ -528,7 +537,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: COLORS.card,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -578,7 +587,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(12,21,89,0.05)',
+    backgroundColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,

@@ -1,21 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../Skeleton';
-
-const C = {
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-};
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export const HomeSkeleton = () => {
   const insets = useSafeAreaInsets();
-  
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       {/* ── Header Skeleton ── */}
-      <LinearGradient colors={[C.navy, C.navyMid]} style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <LinearGradient colors={colors.headerGradient} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerInner}>
           <Skeleton width={120} height={14} style={{ marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.15)' }} />
           <View style={styles.headerMainRow}>
@@ -73,10 +72,10 @@ export const HomeSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: colors.backgroundAlt,
   },
   header: {
     paddingHorizontal: 16,
@@ -120,7 +119,7 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: '48%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 22,
     padding: 10,
     marginBottom: 14,

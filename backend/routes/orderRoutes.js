@@ -7,6 +7,7 @@ const { cacheMiddleware } = require('../middleware/cache');
 const {
   createOrder,
   getMyOrders,
+  deleteMyOrders,
   getStoreOrders,
   getOrderDetails,
   updateOrderStatus,
@@ -142,6 +143,68 @@ router.post('/create', requireDisclaimer('refund_policy'), validateCreateOrder, 
 // @desc    Get user's orders
 // @access  Private
 router.get('/my-orders', cacheMiddleware((req) => `shopyos:orders:user:${req.user?.id}:${req.query.page || 1}`, 30), getMyOrders);
+
+/**
+ * @swagger
+ * /api/v1/orders/my-orders:
+ *   delete:
+ *     summary: Remove completed orders from the buyer's order history
+ *     description: >
+ *       Hides one or more orders from the authenticated buyer's own order
+ *       history. Only orders already in 'completed' status are removed —
+ *       the order itself (and the seller's/admin's record of it) is not
+ *       deleted, it just no longer appears in this buyer's list. Any ids
+ *       in the request that aren't completed or don't belong to the buyer
+ *       are skipped and reported back.
+ *     tags: [Orders]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - orderIds
+ *             properties:
+ *               orderIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: IDs of the orders to remove from history
+ *     responses:
+ *       200:
+ *         description: Orders removed (some may have been skipped)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     removedIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     skippedIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       400:
+ *         description: orderIds missing, empty, or too many at once
+ *       401:
+ *         description: Unauthorized — missing or invalid token
+ */
+// @route   DELETE /api/orders/my-orders
+// @desc    Remove completed orders from buyer's order history (soft-hide)
+// @access  Private
+router.delete('/my-orders', auditLog('delete_order_history', 'order'), deleteMyOrders);
 
 /**
  * @swagger

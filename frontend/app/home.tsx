@@ -37,21 +37,15 @@ import { ProductGrid, ProductCard, AdCard, buildGridItems, GridListItem } from '
 import { SectionHeader } from '@/components/home/SectionHeader';
 import { SponsoredAdsRow } from '@/components/home/SponsoredAdsRow';
 import { RecommendedSection } from '@/components/home/RecommendedSection';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 // Show sponsored section when more than this many campaigns are active
 const AD_THRESHOLD = 0;
 
-
-const C = {
-  pageBg: '#FFFFFF',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  muted: '#64748B',
-};
+type LegacyPalette = { pageBg: string; navy: string; navyMid: string; lime: string; limeText: string; muted: string; body: string; border: string };
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -124,6 +118,18 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo<LegacyPalette>(() => ({
+    pageBg: colors.background,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    limeText: colors.accentText,
+    muted: colors.textSecondary,
+    body: colors.text,
+    border: colors.border,
+  }), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const MIN_SKELETON_MS = 450;
 
   // ── UI state ─────────────────────────────────────────────────────────────────
@@ -217,6 +223,8 @@ const { data: notifData } = useUnreadNotificationCount(false);
         price: Number.parseFloat(item.price) || 0,
         image: item.images?.[0] || 'https://via.placeholder.com/300',
         storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
+        storeName: getStoreDisplayName(item),
+        storeLogo: item.store?.logo_url || item.business?.logo_url || item.store?.logo,
       });
       CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
     } catch {
@@ -320,7 +328,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + 10 }]}>
+        <LinearGradient colors={colors.headerGradient} style={[S.header, { paddingTop: insets.top + 10 }]}>
           <View style={S.hdrGlow1} pointerEvents="none" />
           <View style={S.hdrGlow2} pointerEvents="none" />
           <View style={S.headerWatermark} pointerEvents="none">
@@ -566,7 +574,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
 
   // Header
@@ -630,7 +638,7 @@ const S = StyleSheet.create({
   exploreRow: { paddingHorizontal: 14, justifyContent: 'space-between' },
   exploreCell: { width: '48.5%' },
   exploreEmpty: { alignItems: 'center', paddingVertical: 32, gap: 10 },
-  exploreEmptyTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  exploreEmptyTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.muted },
 
   // Chat FAB
   chatFab: {
@@ -659,7 +667,7 @@ const S = StyleSheet.create({
     height: 210,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(12,21,89,0.1)',
+    borderColor: C.border,
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -669,7 +677,7 @@ const S = StyleSheet.create({
     paddingHorizontal: 24,
   },
   adPlaceholderBadge: {
-    backgroundColor: 'rgba(12,21,89,0.08)',
+    backgroundColor: C.border,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -678,13 +686,13 @@ const S = StyleSheet.create({
   },
   adPlaceholderBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
   adPlaceholderTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: 6 },
-  adPlaceholderSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: 'rgba(100,116,139,0.7)' },
+  adPlaceholderSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted },
   adPlaceholderDots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     position: 'absolute', bottom: 10, left: 0, right: 0,
   },
-  adPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.15)' },
-  adPlaceholderDotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.25)' },
+  adPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
+  adPlaceholderDotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: C.navyMid },
 
   // Sponsored ads row placeholder
   sponsoredPlaceholderWrap: { marginBottom: 12 },
@@ -692,19 +700,19 @@ const S = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 16, marginBottom: 10,
   },
-  sponsoredPlaceholderHeaderTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  sponsoredPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.15)' },
+  sponsoredPlaceholderHeaderTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body },
+  sponsoredPlaceholderDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
   sponsoredPlaceholderList: { paddingHorizontal: 16, gap: 12 },
   sponsoredPlaceholderCard: {
     width: width * 0.7, height: 130, borderRadius: 18,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)', borderStyle: 'dashed',
+    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
     overflow: 'hidden', justifyContent: 'flex-end', padding: 14,
   },
   sponsoredPlaceholderAdTag: {
-    backgroundColor: 'rgba(12,21,89,0.08)', borderRadius: 10,
+    backgroundColor: C.border, borderRadius: 10,
     paddingHorizontal: 8, paddingVertical: 3,
     alignSelf: 'flex-start', marginBottom: 5,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.08)',
+    borderWidth: 1, borderColor: C.border,
   },
   sponsoredPlaceholderAdTagTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
   sponsoredPlaceholderCardTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.muted },

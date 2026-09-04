@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TouchableOpacity, Platform, BackHandler } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -22,6 +22,9 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import { initCartForUser } from '@/store/cartStore';
+import { useThemeStore, hydrateThemeLocal, initThemeForUser } from '@/store/themeStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 import { storage } from '@/services/api';
 
 // Import task definitions once (safe to import multiple times, but only define once)
@@ -64,16 +67,16 @@ const toastConfig = {
   )
 };
 
-function getScreenBg(colorScheme: string | null | undefined, isIndexRoute: boolean, isHomeRoute: boolean): string {
-  if (colorScheme === 'dark') return '#000000';
-  if (isIndexRoute) return '#061f65';
-  if (isHomeRoute) return '#E9F0FF';
-  return '#FFFFFF';
+function getScreenBg(colors: ThemeColors, isIndexRoute: boolean, isHomeRoute: boolean): string {
+  if (isIndexRoute) return colors.indexRouteBg;
+  if (isHomeRoute) return colors.backgroundAlt;
+  return colors.background;
 }
 
 // Inner component that uses hooks requiring QueryClient
 function AppContent() {
-  const colorScheme = useColorScheme();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+  const colors = useThemeColors();
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -93,10 +96,13 @@ function AppContent() {
   };
 
 
-  // Load the cart for the already-logged-in user on app startup
+  // Load the cart and theme preference for the already-logged-in user on app startup
   useEffect(() => {
     storage.getItem('userId').then((uid) => {
-      if (uid) initCartForUser(uid);
+      if (uid) {
+        initCartForUser(uid);
+        initThemeForUser();
+      }
     }).catch(() => {});
   }, []);
 
@@ -131,10 +137,10 @@ function AppContent() {
   // Connect socket and load currentUserId into Zustand (replaces ChatProvider)
   useSocketSetup();
 
-  const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navTheme = resolvedTheme === 'dark' ? DarkTheme : DefaultTheme;
   const isIndexRoute = pathname === '/' || pathname === '/index';
   const isHomeRoute = pathname === '/home';
-  const screenBg = getScreenBg(colorScheme, isIndexRoute, isHomeRoute);
+  const screenBg = getScreenBg(colors, isIndexRoute, isHomeRoute);
 
   // --- CUSTOMER NAV LOGIC ---
   const mainCustomerTabs = ['/home', '/stores', '/search', '/settings', '/order'];
@@ -190,8 +196,8 @@ function AppContent() {
               <Stack.Screen name="admin" options={{ animation: 'fade' }} />
               
               {/* --- MAIN CUSTOMER SCREENS --- */}
-              <Stack.Screen name="index" options={{ animation: 'fade', contentStyle: { backgroundColor: '#061f65' } }} />
-              <Stack.Screen name="home" options={{ animation: 'none', contentStyle: { backgroundColor: '#E9F0FF' } }} />
+              <Stack.Screen name="index" options={{ animation: 'fade', contentStyle: { backgroundColor: colors.indexRouteBg } }} />
+              <Stack.Screen name="home" options={{ animation: 'none', contentStyle: { backgroundColor: colors.backgroundAlt } }} />
               <Stack.Screen name="search" options={{ animation: 'fade' }} />
               <Stack.Screen name="order" options={{ animation: 'none' }} />
               <Stack.Screen name="settings" options={{ animation: 'none' }} />
@@ -284,6 +290,7 @@ function AppContent() {
               <Stack.Screen name='settings/helpCenter' />
               <Stack.Screen name='settings/paymentMethods' />
               <Stack.Screen name='settings/pushNotifications' />
+              <Stack.Screen name='settings/appearance' />
               <Stack.Screen name='settings/myReviews' />
               <Stack.Screen name='settings/blockedUsers' />
 
@@ -307,7 +314,7 @@ function AppContent() {
             {isParcelPartnerRoute && showParcelPartnerNav && <ParcelPartnerBottomNav />}
 
             <OfflineBanner />
-            <StatusBar style="auto" />
+            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
             <InAppToastHost />
             <PermissionDisclosureHost />
@@ -343,14 +350,19 @@ export default function RootLayout() {
     'Montserrat-Medium': require('../assets/fonts/Montserrat-Regular.ttf'),
     'ciguatera': require('../assets/fonts/ciguatera.otf'),
   });
+  const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
+    hydrateThemeLocal().finally(() => setThemeReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (loaded && themeReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [loaded]);
+  }, [loaded, themeReady]);
 
-  if (!loaded) return null;
+  if (!loaded || !themeReady) return null;
 
   return (
     <ErrorBoundary>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { getSellerTransactions, storage } from '@/services/api';
 import { format } from 'date-fns';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 // Map a balance_logs row to the shape this screen renders
 function mapLogToItem(log: any) {
@@ -46,6 +48,8 @@ function mapLogToItem(log: any) {
 
 export default function TransactionsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filter, setFilter] = useState('All');
@@ -110,17 +114,17 @@ export default function TransactionsScreen() {
     const isPayout = item.type === 'payout';
     
     let iconName = 'arrow-down-circle';
-    let iconColor = '#16A34A'; // Green for sales
-    let bgColor = '#DCFCE7';
+    let iconColor = colors.success; // Green for sales
+    let bgColor = '#DCFCE7'; // light green tint, no themed "success background" token exists
 
     if (isPayout) {
         iconName = 'arrow-up-circle';
-        iconColor = '#0C1559'; // Blue for payout
-        bgColor = '#E0E7FF';
+        iconColor = colors.primary; // Blue for payout
+        bgColor = '#E0E7FF'; // light indigo tint, no themed "primary background" token exists
     } else if (item.type === 'refund') {
         iconName = 'refresh-circle';
-        iconColor = '#EF4444'; // Red for refund
-        bgColor = '#FEE2E2';
+        iconColor = colors.error; // Red for refund
+        bgColor = colors.errorBg;
     }
 
     return (
@@ -134,8 +138,8 @@ export default function TransactionsScreen() {
         </View>
         <View style={{ alignItems: 'flex-end' }}>
             <Text style={[
-                styles.amount, 
-                { color: isPositive ? '#16A34A' : '#0F172A' } // Green for money in, Dark for money out
+                styles.amount,
+                { color: isPositive ? colors.success : colors.text } // Green for money in, Dark for money out
             ]}>
                 {isPositive ? '+' : ''}₵{Math.abs(item.amount).toFixed(2)}
             </Text>
@@ -152,7 +156,7 @@ export default function TransactionsScreen() {
             <MaterialCommunityIcons
               name={loadError ? 'wifi-off' : 'receipt'}
               size={60}
-              color="#CBD5E1"
+              color={colors.textMuted}
             />
         </View>
         <Text style={styles.emptyTitle}>
@@ -169,8 +173,8 @@ export default function TransactionsScreen() {
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar style="light" />
-      
+      <StatusBar style="light" /> {/* header gradient is always dark navy in both themes */}
+
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
@@ -182,14 +186,14 @@ export default function TransactionsScreen() {
         
         {/* --- Header --- */}
         <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
+            colors={colors.headerGradient}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.headerContainer}
         >
             <SafeAreaView edges={['top']} style={{ width: '100%' }}>
                 <View style={styles.headerContent}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on the fixed dark header gradient */}
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Transactions</Text>
                     <View style={{ width: 40 }} /> 
@@ -201,10 +205,10 @@ export default function TransactionsScreen() {
             
             {/* Search Bar */}
             <View style={styles.searchBar}>
-                <Ionicons name="search" size={20} color="#94A3B8" />
-                <TextInput 
-                    placeholder="Search transactions..." 
-                    placeholderTextColor="#94A3B8"
+                <Ionicons name="search" size={20} color={colors.textMuted} />
+                <TextInput
+                    placeholder="Search transactions..."
+                    placeholderTextColor={colors.textMuted}
                     style={styles.searchInput}
                     value={searchText}
                     onChangeText={setSearchText}
@@ -251,7 +255,7 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
 

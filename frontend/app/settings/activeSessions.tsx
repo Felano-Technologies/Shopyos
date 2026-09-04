@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { format } from 'date-fns';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { getActiveSessions, revokeSession, logoutAllSessions, logoutUser } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 type Session = { id: string; device: string | null; ip: string | null; createdAt: string; expiresAt: string };
 
@@ -30,6 +32,8 @@ function deviceLabel(device: string | null): { name: string; icon: 'phone-androi
 
 export default function ActiveSessionsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,7 +84,7 @@ export default function ActiveSessionsScreen() {
     return (
       <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <MaterialIcons name={icon} size={22} color="#0C1559" />
+          <MaterialIcons name={icon} size={22} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.deviceName}>{name}</Text>
@@ -98,8 +102,8 @@ export default function ActiveSessionsScreen() {
           disabled={revokingId === item.id}
         >
           {revokingId === item.id
-            ? <ActivityIndicator size="small" color="#EF4444" />
-            : <Feather name="log-out" size={16} color="#EF4444" />}
+            ? <ActivityIndicator size="small" color={colors.error} />
+            : <Feather name="log-out" size={16} color={colors.error} />}
         </TouchableOpacity>
       </View>
     );
@@ -107,11 +111,11 @@ export default function ActiveSessionsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <StatusBar style="light" backgroundColor={colors.primary} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: colors.primary }}>
+        <LinearGradient colors={colors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+            <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on the fixed dark headerGradient */}
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Active Sessions</Text>
@@ -121,10 +125,10 @@ export default function ActiveSessionsScreen() {
       </SafeAreaView>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
+        <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : error ? (
         <View style={styles.center}>
-          <Feather name="wifi-off" size={44} color="#CBD5E1" />
+          <Feather name="wifi-off" size={44} color={colors.textMuted} />
           <Text style={styles.errTitle}>Couldn&apos;t load sessions</Text>
           <Text style={styles.errSub}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); load(); }}>
@@ -137,7 +141,7 @@ export default function ActiveSessionsScreen() {
           keyExtractor={s => s.id}
           renderItem={renderSession}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#0C1559" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.errSub}>No active sessions found.</Text>
@@ -146,7 +150,7 @@ export default function ActiveSessionsScreen() {
           ListFooterComponent={
             sessions.length > 0 ? (
               <TouchableOpacity style={styles.logoutAllBtn} onPress={() => setShowLogoutAll(true)}>
-                <Feather name="log-out" size={16} color="#FFF" />
+                <Feather name="log-out" size={16} color="#FFF" />{/* white icon on the fixed red logoutAllBtn */}
                 <Text style={styles.logoutAllText}>Sign out of all devices</Text>
               </TouchableOpacity>
             ) : null
@@ -169,37 +173,37 @@ export default function ActiveSessionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
-  backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
-  headerTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  headerSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 }, // translucent button on the fixed dark headerGradient
+  headerTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#FFF' }, // white text on the fixed dark headerGradient
+  headerSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 }, // translucent white on the fixed dark headerGradient
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   list: { padding: 16, paddingBottom: 40 },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: c.surface, borderRadius: 16, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: c.borderStrong,
   },
   iconWrap: {
-    width: 42, height: 42, borderRadius: 12, backgroundColor: '#F0F4FF',
+    width: 42, height: 42, borderRadius: 12, backgroundColor: c.backgroundAlt,
     alignItems: 'center', justifyContent: 'center',
   },
-  deviceName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  deviceRaw: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 1 },
-  meta: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 3 },
+  deviceName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: c.text },
+  deviceRaw: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: c.textMuted, marginTop: 1 },
+  meta: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: c.textSecondary, marginTop: 3 },
   revokeBtn: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF2F2',
+    width: 36, height: 36, borderRadius: 10, backgroundColor: c.errorBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  errTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginTop: 14 },
-  errSub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginTop: 6 },
-  retryBtn: { marginTop: 16, backgroundColor: '#0C1559', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12 },
-  retryText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  errTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: c.text, marginTop: 14 },
+  errSub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, textAlign: 'center', marginTop: 6 },
+  retryBtn: { marginTop: 16, backgroundColor: c.primary, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12 },
+  retryText: { color: c.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 13 },
   logoutAllBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#EF4444', borderRadius: 14, paddingVertical: 14, marginTop: 12,
+    backgroundColor: c.error, borderRadius: 14, paddingVertical: 14, marginTop: 12,
   },
-  logoutAllText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  logoutAllText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' }, // white text on the fixed red logoutAllBtn
 });

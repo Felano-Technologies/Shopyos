@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 type Props = Readonly<{
   title: string;
@@ -9,6 +11,8 @@ type Props = Readonly<{
 }>;
 
 export function SectionHeader({ title, onSeeAll, seeAllLabel = 'See All', marginTop = 8 }: Props) {
+  const colors = useThemeColors();
+  const S = useMemo(() => getS(colors), [colors]);
   return (
     <View style={[S.row, { marginTop }]}>
       <Text style={S.title}>{title}</Text>
@@ -21,7 +25,7 @@ export function SectionHeader({ title, onSeeAll, seeAllLabel = 'See All', margin
   );
 }
 
-const S = StyleSheet.create({
+const getS = (colors: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -29,6 +33,6 @@ const S = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  link: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#84cc16' },
+  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text },
+  link: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.accent },
 });

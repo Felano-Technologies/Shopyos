@@ -13,43 +13,49 @@ import {
 } from '@/hooks/useNotifications';
 import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-};
+const getC = (c: ThemeColors) => ({
+  bg:      c.surfaceElevated,
+  navy:    c.primary,
+  navyMid: c.primaryMid,
+  lime:    c.accent,
+  card:    c.surface,
+  body:    c.text,
+  muted:   c.textSecondary,
+  subtle:  c.textMuted,
+  border:  c.border,
+});
 
-const ICON_CFG: Record<string, { name: any; color: string; bg: string; bar: string }> = {
-  order:   { name: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' },
-  message: { name: 'mail',           color: '#8B5CF6', bg: '#F5F3FF', bar: '#8B5CF6' },
-  payment: { name: 'credit-card',    color: '#10B981', bg: '#ECFDF5', bar: '#10B981' },
-  alert:   { name: 'alert-triangle', color: '#D97706', bg: '#FFFBEB', bar: '#F59E0B' },
-  success: { name: 'check-circle',   color: '#059669', bg: '#ECFDF5', bar: '#84cc16' },
-  info:    { name: 'info',           color: C.muted,   bg: '#F1F5F9', bar: C.navy    },
-};
+const getIconCfg = (c: ThemeColors): Record<string, { name: any; color: string; bg: string; bar: string }> => ({
+  order:   { name: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' }, // fixed category accent (blue), consistent across themes
+  message: { name: 'mail',           color: '#8B5CF6', bg: '#F5F3FF', bar: '#8B5CF6' }, // fixed category accent (purple), consistent across themes
+  payment: { name: 'credit-card',    color: c.success,  bg: '#ECFDF5', bar: c.success }, // bg is a fixed pale accent, consistent across themes
+  alert:   { name: 'alert-triangle', color: '#D97706', bg: '#FFFBEB', bar: c.warning }, // icon shade + bg are fixed category accents
+  success: { name: 'check-circle',   color: '#059669', bg: '#ECFDF5', bar: c.accent }, // icon shade + bg are fixed category accents
+  info:    { name: 'info',           color: c.textSecondary, bg: c.border, bar: c.primary },
+});
 
-const getIcon = (type: string) => {
+const getIcon = (type: string, cfg: Record<string, { name: any; color: string; bg: string; bar: string }>) => {
   const t = type?.toLowerCase() || '';
-  if (t.startsWith('order') || t.includes('purchase') || t === 'new_order') return ICON_CFG.order;
-  if (t.startsWith('message') || t.includes('chat'))                        return ICON_CFG.message;
-  if (t.startsWith('payment') || t.includes('payout') || t.includes('escrow')) return ICON_CFG.payment;
-  if (t.includes('alert') || t.includes('warning'))                         return ICON_CFG.alert;
-  if (t.includes('success') || t.includes('approved'))                      return ICON_CFG.success;
-  return ICON_CFG[t] ?? ICON_CFG.info;
+  if (t.startsWith('order') || t.includes('purchase') || t === 'new_order') return cfg.order;
+  if (t.startsWith('message') || t.includes('chat'))                        return cfg.message;
+  if (t.startsWith('payment') || t.includes('payout') || t.includes('escrow')) return cfg.payment;
+  if (t.includes('alert') || t.includes('warning'))                         return cfg.alert;
+  if (t.includes('success') || t.includes('approved'))                      return cfg.success;
+  return cfg[t] ?? cfg.info;
 };
 
 function NotificationsEmpty() {
+  const colors = useThemeColors();
+  const C = useMemo(() => getC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   return (
     <View style={S.emptyWrap}>
       <View style={S.emptyCircle}>
@@ -64,6 +70,10 @@ function NotificationsEmpty() {
 export default function ParcelNotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo(() => getC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
+  const iconCfg = useMemo(() => getIconCfg(colors), [colors]);
 
   const { data, isLoading, refetch } = useNotifications();
   const markAllMutation = useMarkAllNotificationsRead();
@@ -122,7 +132,7 @@ export default function ParcelNotificationsScreen() {
   ), []);
 
   const renderItem = useCallback(({ item, index, section }: any) => {
-    const cfg = getIcon(item.type);
+    const cfg = getIcon(item.type, iconCfg);
     const isLast = index === section.data.length - 1;
     const isUnread = !isRead(item.raw);
     return (
@@ -151,7 +161,7 @@ export default function ParcelNotificationsScreen() {
         {isUnread && <View style={S.unreadDot} />}
       </TouchableOpacity>
     );
-  }, [isRead, handleItemPress]);
+  }, [isRead, handleItemPress, iconCfg, S]);
 
   return (
     <View style={S.root}>
@@ -198,7 +208,9 @@ export default function ParcelNotificationsScreen() {
   );
 }
 
-const S = StyleSheet.create({
+type LegacyPalette = { bg: string; navy: string; navyMid: string; lime: string; card: string; body: string; muted: string; subtle: string; border: string };
+
+const getS = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   header: {
@@ -243,7 +255,7 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  cardUnread: { backgroundColor: '#FAFBFF' },
+  cardUnread: { backgroundColor: C.border },
   accentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: rs(3) },
   cardContent: { flexDirection: 'row', alignItems: 'center', padding: rs(14), paddingLeft: rs(16) },
   iconBox: {
@@ -252,11 +264,11 @@ const S = StyleSheet.create({
   },
   textWrap: { flex: 1 },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(4) },
-  cardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: '#334155', flex: 1, marginRight: rs(8) },
+  cardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body, flex: 1, marginRight: rs(8) },
   cardTitleUnread: { fontFamily: 'Montserrat-Bold', color: C.body },
   timeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, flexShrink: 0 },
   messageTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Regular', lineHeight: rf(18) },
-  messageUnread: { color: '#475569' },
+  messageUnread: { color: C.body },
   messageRead: { color: C.subtle },
   unreadDot: {
     position: 'absolute', top: rs(12), right: rs(12),
@@ -266,7 +278,7 @@ const S = StyleSheet.create({
   emptyWrap: { alignItems: 'center', paddingTop: rs(80), paddingHorizontal: rs(40) },
   emptyCircle: {
     width: rs(90), height: rs(90), borderRadius: rs(45),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(18),
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: rs(18),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },

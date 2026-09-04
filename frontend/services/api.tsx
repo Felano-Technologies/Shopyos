@@ -8,8 +8,10 @@ export {
   logoutUser, loginUser, getUserData, updateProfile, updateUserRole, updateOnboardingState,
   uploadAvatar, updateUserLocation, blockUser, unblockUser, getBlockedUsers, reportEntity,
   verifyTwoFactorLogin, getSecuritySettings, updateSecuritySettings,
+  getThemePreference, updateThemePreference,
   getActiveSessions, revokeSession, logoutAllSessions, requestDataExport, requestAccountDeletion,
 } from './auth';
+export type { ThemePreference } from './auth';
 
 export {
   uploadStoreLogo, businessRegister, getMyBusinesses, updateBusiness,
@@ -25,7 +27,7 @@ export {
 } from './products';
 
 export {
-  addToCart, clearBackendCart, createOrder, confirmDelivery, getMyOrders, getStoreOrders,
+  addToCart, clearBackendCart, createOrder, confirmDelivery, getMyOrders, deleteOrders, getStoreOrders,
   getOrderDetails, updateOrderStatus, cancelOrder,
   addToFavorites, removeFromFavorites, getFavorites, checkIsFavorite,
 } from './orders';
@@ -76,6 +78,11 @@ export {
 } from './advertising';
 
 export { getLoyaltyBalance, getLoyaltyTransactions, validatePromoCode, dailyCheckin } from './loyalty';
+
+export {
+  createPromoCode, getMyPromoCodes, deactivatePromoCode, adminCreatePromoCode, getAdminPromoCodes,
+} from './promoCodes';
+export type { PromoCodePayload } from './promoCodes';
 
 export { getDisclaimerByType, acknowledgeDisclaimer } from './disclaimers';
 

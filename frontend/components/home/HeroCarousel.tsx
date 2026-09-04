@@ -1,10 +1,12 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, TouchableOpacity, ScrollView, StyleSheet,
   Dimensions, NativeSyntheticEvent, NativeScrollEvent, Text,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppImage from '@/components/AppImage';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const H_PAD = 16;
@@ -12,12 +14,14 @@ const SLIDE_W = width - H_PAD * 2;
 const SLIDE_H = 210;
 const AD_DELAY = 4000;
 
-const C = {
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-};
+type LegacyPalette = { navy: string; navyMid: string; lime: string; limeText: string; border: string };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  border: colors.border,
+});
 
 export interface HeroAd {
   id: string;
@@ -39,6 +43,9 @@ type Props = Readonly<{
 }>;
 
 export function HeroCarousel({ ads, onAdPress }: Props) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const scrollRef = useRef<ScrollView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDragging = useRef(false);
@@ -151,7 +158,7 @@ export function HeroCarousel({ ads, onAdPress }: Props) {
   );
 }
 
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   wrap: { marginBottom: 14, marginHorizontal: H_PAD },
   slide: {
     width: SLIDE_W,
@@ -188,6 +195,6 @@ const S = StyleSheet.create({
   },
   ctaTxt: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.navy },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.2)' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
   dotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: C.navy },
 });

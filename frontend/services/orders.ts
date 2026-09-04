@@ -61,6 +61,16 @@ export const getMyOrders = async (params: { status?: string; limit?: number; off
   }
 };
 
+export const deleteOrders = async (orderIds: string[]) => {
+  try {
+    const response = await api.delete('/orders/my-orders', { data: { orderIds } });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to remove orders');
+    throw new Error(error.message || 'Network error');
+  }
+};
+
 export const getStoreOrders = async (
   storeId: string,
   params: { status?: string; limit?: number; offset?: number } = {}

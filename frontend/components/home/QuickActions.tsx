@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export interface QuickAction {
   icon: string;
@@ -15,6 +17,8 @@ type Props = Readonly<{
 }>;
 
 export function QuickActions({ actions }: Props) {
+  const colors = useThemeColors();
+  const S = useMemo(() => getS(colors), [colors]);
   return (
     <View style={S.wrap}>
       {actions.map((a) => (
@@ -29,18 +33,18 @@ export function QuickActions({ actions }: Props) {
   );
 }
 
-const S = StyleSheet.create({
+const getS = (colors: ThemeColors) => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: colors.border,
   },
   item: { alignItems: 'center', gap: 8, width: 60 },
   icon: {
@@ -53,7 +57,7 @@ const S = StyleSheet.create({
   label: {
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: colors.text,
     textAlign: 'center',
   },
 });

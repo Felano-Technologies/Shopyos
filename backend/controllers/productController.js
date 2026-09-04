@@ -671,7 +671,8 @@ const searchProducts = async (req, res, next) => {
       size,
       material,
       style,
-      brand
+      brand,
+      onSale
     } = req.query;
 
     // Parse sort options
@@ -693,6 +694,8 @@ const searchProducts = async (req, res, next) => {
 
     const limitNum = Number.parseInt(limit);
     const offsetNum = Number.parseInt(offset);
+    const onSaleBool = onSale === 'true' || onSale === true;
+    const dealsMinDiscountPct = onSaleBool ? Number(await feeConfigService.get('deals_min_discount_pct', 10)) : undefined;
 
     const { data: rawProducts, count: totalCount } = await repositories.products.search({
       query,
@@ -709,7 +712,9 @@ const searchProducts = async (req, res, next) => {
       size: size || undefined,
       material: material || undefined,
       style: style || undefined,
-      brand: brand || undefined
+      brand: brand || undefined,
+      onSale: onSaleBool || undefined,
+      minDiscountPct: dealsMinDiscountPct
     });
 
     // Format response
@@ -719,6 +724,7 @@ const searchProducts = async (req, res, next) => {
       name: p.title,
       description: p.description,
       price: p.price,
+      compareAtPrice: p.compare_at_price,
       images: await resolveImageUrls((p.product_images || []).map(img => img.image_url)),
       category: p.category,
       gender: p.gender,

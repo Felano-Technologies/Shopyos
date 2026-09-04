@@ -13,26 +13,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
-// ─── Shopyos design tokens (extracted from home.tsx) ─────────────────────────
-const C = {
-  pageBg:      '#E9F0FF',   // home container background
-  navyDeep:    '#0C1559',   // primary navy — FAB, logo bg
-  navyMid:     '#1e3a8a',   // secondary navy — search bar
-  lime:        '#84cc16',   // active chip, CTA
-  limeSubtle:  'rgba(132,204,22,0.10)',
-  cardBg:      '#FFFFFF',   // product card surface
-  priceGreen:  '#0d3804',   // price text
-  alertRed:    '#ff0101',   // notification dot
-  bodyText:    '#0F172A',   // product title colour
-  mutedText:   '#64748B',   // categories / see-all
-  borderLight: 'rgba(12,21,89,0.08)',
-  borderMid:   'rgba(12,21,89,0.14)',
-  onlineGreen: '#22c55e',
+// ─── Shopyos design tokens (theme-aware) ──────────────────────────────────────
+type LegacyPalette = {
+  pageBg: string; navyDeep: string; navyMid: string; lime: string; limeSubtle: string;
+  cardBg: string; bodyText: string; mutedText: string; borderLight: string; borderMid: string;
+  onlineGreen: string; alertRed: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  pageBg: colors.background,
+  navyDeep: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeSubtle: 'rgba(132,204,22,0.10)',
+  cardBg: colors.surface,
+  bodyText: colors.text,
+  mutedText: colors.textSecondary,
+  borderLight: colors.border,
+  borderMid: colors.borderStrong,
+  onlineGreen: colors.success,
+  alertRed: colors.error,
+});
 
 export default function ChatInbox() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const C = React.useMemo(() => buildC(colors), [colors]);
+  const styles = React.useMemo(() => getStyles(C), [C]);
   const { data: buyerConversations = [] } = useAllConversations();
   const { markAsRead, refresh, deleteConversation } = useChatActions();
   const [searchQuery, setSearchQuery] = useState('');
@@ -230,7 +239,7 @@ export default function ChatInbox() {
               ? <View style={styles.badge}>
                   <Text style={styles.badgeText}>{item.unread > 9 ? '9+' : item.unread}</Text>
                 </View>
-              : <Ionicons name="checkmark-done" size={14} color="#CBD5E1" />
+              : <Ionicons name="checkmark-done" size={14} color={colors.borderStrong} />
             }
           </View>
         </View>
@@ -243,7 +252,7 @@ export default function ChatInbox() {
       <StatusBar style="light" />
 
       {/* ── Header — same navy gradient as home FAB ──────────────────────────── */}
-      <LinearGradient colors={[C.navyDeep, C.navyMid]} style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           {/* Top bar */}
           <View style={styles.headerBar}>
@@ -407,8 +416,8 @@ export default function ChatInbox() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.pageBg },
 
   // ── Header ────────────────────────────────────────────────────────────────
   header: {
@@ -459,7 +468,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
     gap: 8,
-    backgroundColor: '#fff',
+    backgroundColor: C.cardBg,
     borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
   },
   chip: {
@@ -480,7 +489,7 @@ const styles = StyleSheet.create({
 
   // ── List ──────────────────────────────────────────────────────────────────
   list: { paddingTop: 4, paddingBottom: 20 },
-  sep: { height: 1, backgroundColor: '#E2E8F0', marginLeft: 82 },
+  sep: { height: 1, backgroundColor: C.borderMid, marginLeft: 82 },
 
   row: {
     flexDirection: 'row', alignItems: 'center',
@@ -494,10 +503,10 @@ const styles = StyleSheet.create({
   },
 
   avatarWrap: { position: 'relative', marginRight: 12 },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#dbeafe' },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: C.borderLight },
   avatarFallback: {
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: '#dbeafe',
+    backgroundColor: C.borderLight,
     borderWidth: 0.5, borderColor: C.borderMid,
     justifyContent: 'center', alignItems: 'center',
   },
@@ -516,12 +525,12 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.mutedText, flex: 1, marginRight: 8 },
   nameUnread: { fontFamily: 'Montserrat-Bold', color: C.bodyText },
-  time: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
+  time: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.borderMid },
   timeUnread: { color: C.navyDeep, fontFamily: 'Montserrat-Bold' },
 
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  preview: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginRight: 8 },
-  previewUnread: { color: '#334155', fontFamily: 'Montserrat-SemiBold' },
+  preview: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.mutedText, marginRight: 8 },
+  previewUnread: { color: C.bodyText, fontFamily: 'Montserrat-SemiBold' },
 
   badge: {
     backgroundColor: C.navyDeep,
@@ -537,7 +546,7 @@ const styles = StyleSheet.create({
   },
   emptyCircle: {
     width: 78, height: 78, borderRadius: 39,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.borderLight,
     justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
   emptyTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.bodyText, marginBottom: 8 },
@@ -562,7 +571,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: C.cardBg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     height: '75%',
@@ -579,7 +588,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: C.borderMid,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -598,7 +607,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -606,9 +615,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.borderLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderMid,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
@@ -618,7 +627,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.bodyText,
   },
   modalLoading: {
     flex: 1,
@@ -648,7 +657,7 @@ const styles = StyleSheet.create({
   },
   modalSep: {
     height: 1,
-    backgroundColor: 'rgba(12,21,89,0.05)',
+    backgroundColor: C.borderLight,
   },
   modalRow: {
     flexDirection: 'row',
@@ -659,7 +668,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#dbeafe',
+    backgroundColor: C.borderLight,
   },
   modalAvatarFallback: {
     width: 44,
@@ -687,7 +696,7 @@ const styles = StyleSheet.create({
   modalSellerName: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.bodyText,
   },
   modalVerifiedBadge: {
     width: 13,
@@ -706,7 +715,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(12,21,89,0.05)',
+    backgroundColor: C.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -718,7 +727,7 @@ const styles = StyleSheet.create({
   modalEmptyTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.bodyText,
   },
   modalEmptyDesc: {
     fontSize: 12,
@@ -753,45 +762,63 @@ const styles = StyleSheet.create({
   },
 });
 
-const ConversationSeparator = () => <View style={styles.sep} />;
+const ConversationSeparator = () => {
+  const colors = useThemeColors();
+  const styles = React.useMemo(() => getStyles(buildC(colors)), [colors]);
+  return <View style={styles.sep} />;
+};
 
-const ModalSeparator = () => <View style={styles.modalSep} />;
+const ModalSeparator = () => {
+  const colors = useThemeColors();
+  const styles = React.useMemo(() => getStyles(buildC(colors)), [colors]);
+  return <View style={styles.modalSep} />;
+};
 
-const ModalEmptyComponent = () => (
-  <View style={styles.modalEmpty}>
-    <Ionicons name="people-outline" size={32} color={C.mutedText} />
-    <Text style={styles.modalEmptyTitle}>No contacts found</Text>
-    <Text style={styles.modalEmptyDesc}>No active conversations available to start.</Text>
-  </View>
-);
+const ModalEmptyComponent = () => {
+  const colors = useThemeColors();
+  const C = React.useMemo(() => buildC(colors), [colors]);
+  const styles = React.useMemo(() => getStyles(C), [C]);
+  return (
+    <View style={styles.modalEmpty}>
+      <Ionicons name="people-outline" size={32} color={C.mutedText} />
+      <Text style={styles.modalEmptyTitle}>No contacts found</Text>
+      <Text style={styles.modalEmptyDesc}>No active conversations available to start.</Text>
+    </View>
+  );
+};
 
 type ChatEmptyProps = Readonly<{
   hasConversations: boolean;
   onBrowse: () => void;
 }>;
 
-const ChatEmpty = ({ hasConversations, onBrowse }: ChatEmptyProps) => (
-  <View style={styles.emptyWrap}>
-    <View style={styles.emptyCircle}>
-      {hasConversations
-        ? <MaterialCommunityIcons name="text-box-search-outline" size={34} color={C.navyMid} />
-        : <Ionicons name="chatbubbles-outline" size={34} color={C.navyMid} />}
+const ChatEmpty = ({ hasConversations, onBrowse }: ChatEmptyProps) => {
+  const colors = useThemeColors();
+  const C = React.useMemo(() => buildC(colors), [colors]);
+  const styles = React.useMemo(() => getStyles(C), [C]);
+  return (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCircle}>
+        {hasConversations
+          ? <MaterialCommunityIcons name="text-box-search-outline" size={34} color={C.navyMid} />
+          : <Ionicons name="chatbubbles-outline" size={34} color={C.navyMid} />}
+      </View>
+      <Text style={styles.emptyTitle}>
+        {hasConversations ? 'No results' : 'No messages yet'}
+      </Text>
+      <Text style={styles.emptyBody}>
+        {hasConversations
+          ? 'Try a different search or filter.'
+          : 'Your conversations with sellers will appear here.'}
+      </Text>
+      {!hasConversations && (
+        <TouchableOpacity style={styles.browseBtn} onPress={onBrowse}>
+          <Text style={styles.browseBtnText}>Browse Products</Text>
+        </TouchableOpacity>
+      )}
     </View>
-    <Text style={styles.emptyTitle}>
-      {hasConversations ? 'No results' : 'No messages yet'}
-    </Text>
-    <Text style={styles.emptyBody}>
-      {hasConversations
-        ? 'Try a different search or filter.'
-        : 'Your conversations with sellers will appear here.'}
-    </Text>
-    {!hasConversations && (
-      <TouchableOpacity style={styles.browseBtn} onPress={onBrowse}>
-        <Text style={styles.browseBtnText}>Browse Products</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-);
+  );
+};
 
 type InboxEmptyProps = Readonly<{
   hasConversations: boolean;
@@ -815,34 +842,39 @@ const ROLE_ICON: Record<string, any> = {
   buyer: 'person-outline',
 };
 
-const ContactRow = ({ item, onPress, getInitials }: ContactRowProps) => (
-  <TouchableOpacity
-    style={styles.modalRow}
-    onPress={() => onPress(item)}
-    activeOpacity={0.7}
-  >
-    {item.avatar_url ? (
-      <AppImage uri={item.avatar_url} style={styles.modalAvatar} />
-    ) : (
-      <View style={styles.modalAvatarFallback}>
-        <Text style={styles.modalAvatarLetters}>{getInitials(item.name)}</Text>
+const ContactRow = ({ item, onPress, getInitials }: ContactRowProps) => {
+  const colors = useThemeColors();
+  const C = React.useMemo(() => buildC(colors), [colors]);
+  const styles = React.useMemo(() => getStyles(C), [C]);
+  return (
+    <TouchableOpacity
+      style={styles.modalRow}
+      onPress={() => onPress(item)}
+      activeOpacity={0.7}
+    >
+      {item.avatar_url ? (
+        <AppImage uri={item.avatar_url} style={styles.modalAvatar} />
+      ) : (
+        <View style={styles.modalAvatarFallback}>
+          <Text style={styles.modalAvatarLetters}>{getInitials(item.name)}</Text>
+        </View>
+      )}
+      <View style={styles.modalRowBody}>
+        <View style={styles.modalRowTop}>
+          <Text style={styles.modalSellerName} numberOfLines={1}>{item.name}</Text>
+          {item.isTrusted && (
+            <View style={styles.modalVerifiedBadge}>
+              <Ionicons name="checkmark" size={8} color="#fff" />
+            </View>
+          )}
+        </View>
+        {item.context ? (
+          <Text style={styles.modalSellerCat}>{item.context}</Text>
+        ) : null}
       </View>
-    )}
-    <View style={styles.modalRowBody}>
-      <View style={styles.modalRowTop}>
-        <Text style={styles.modalSellerName} numberOfLines={1}>{item.name}</Text>
-        {item.isTrusted && (
-          <View style={styles.modalVerifiedBadge}>
-            <Ionicons name="checkmark" size={8} color="#fff" />
-          </View>
-        )}
+      <View style={styles.chatActionBtn}>
+        <Ionicons name={ROLE_ICON[item.role] || 'chatbubble-ellipses-outline'} size={15} color={C.navyDeep} />
       </View>
-      {item.context ? (
-        <Text style={styles.modalSellerCat}>{item.context}</Text>
-      ) : null}
-    </View>
-    <View style={styles.chatActionBtn}>
-      <Ionicons name={ROLE_ICON[item.role] || 'chatbubble-ellipses-outline'} size={15} color={C.navyDeep} />
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};

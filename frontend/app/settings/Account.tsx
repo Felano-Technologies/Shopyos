@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { getUserData, updateProfile, getPaymentMethods, uploadAvatar, storage } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import TappableAvatar from '@/components/TappableAvatar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 // removed useCloudinaryUpload import
 // --- 1. DATA CONSTANTS ---
 const AVATAR_SEEDS = [
@@ -61,10 +63,12 @@ const ProfileField = ({
   loading = false,
   onPress
 }: any) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const renderIcon = () => {
-    if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={22} color="#0C1559" />;
-    if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={18} color="#0C1559" />;
-    return <Ionicons name={icon} size={22} color="#0C1559" />;
+    if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={22} color={colors.primary} />;
+    if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={18} color={colors.primary} />;
+    return <Ionicons name={icon} size={22} color={colors.primary} />;
   };
   const isSelectable = isCountry || isDropdown;
   // Dynamically extract prefix if it's a phone field
@@ -105,15 +109,15 @@ const ProfileField = ({
               onChangeText(t);
             }
           }}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textMuted}
           placeholder={loading ? "Loading..." : placeholder}
           editable={!isSelectable}
         />
         {isSelectable ? (
-          <Ionicons name="chevron-down" size={20} color="#64748B" style={{ marginRight: 10 }} />
+          <Ionicons name="chevron-down" size={20} color={colors.textSecondary} style={{ marginRight: 10 }} />
         ) : (
           <TouchableOpacity>
-            <FontAwesome5 name="pen" size={10} color="#0C1559" style={{ opacity: 0.6, marginRight: 10 }} />
+            <FontAwesome5 name="pen" size={10} color={colors.primary} style={{ opacity: 0.6, marginRight: 10 }} />
           </TouchableOpacity>
         )}
       </View>
@@ -129,6 +133,8 @@ function SelectionModal({ visible, onClose, title, data, onSelect, selectedCount
   selectedCountry: string;
   selectedRegion: string;
 }>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <Modal
       animationType="slide"
@@ -141,7 +147,7 @@ function SelectionModal({ visible, onClose, title, data, onSelect, selectedCount
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#64748B" />
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -152,7 +158,7 @@ function SelectionModal({ visible, onClose, title, data, onSelect, selectedCount
                 <Text style={styles.optionText}>{item}</Text>
                 {((title.includes('Country') && selectedCountry === item) ||
                   (title.includes('Region') && selectedRegion === item)) && (
-                    <Ionicons name="checkmark" size={20} color="#A3E635" />
+                    <Ionicons name="checkmark" size={20} color={colors.accent} />
                   )}
               </TouchableOpacity>
             )}
@@ -168,6 +174,8 @@ function SelectionModal({ visible, onClose, title, data, onSelect, selectedCount
 
 export default function AccountScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -322,7 +330,7 @@ export default function AccountScreen() {
   };
   return (
     <View style={styles.mainContainer}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -506,16 +514,16 @@ export default function AccountScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choose an Avatar</Text>
               <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.uploadCta}>
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImage} disabled={uploading}>
                 {uploading ? (
-                  <ActivityIndicator color="#0C1559" />
+                  <ActivityIndicator color={colors.primary} />
                 ) : (
                   <>
-                    <Ionicons name="cloud-upload-outline" size={20} color="#0C1559" />
+                    <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
                     <Text style={styles.uploadBtnTxt}>Upload from Gallery</Text>
                   </>
                 )}
@@ -587,15 +595,15 @@ export default function AccountScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: colors.background },
   // Header
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: colors.headerGradient[0],
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     paddingBottom: 7,
-    shadowColor: "#0C1559",
+    shadowColor: colors.headerGradient[0],
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -657,58 +665,58 @@ const styles = StyleSheet.create({
   fieldSkeleton: {
     height: 54,
     borderRadius: 14,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.borderStrong,
     marginBottom: 16,
   },
   saveSkeleton: {
     height: 56,
     borderRadius: 14,
-    backgroundColor: '#D7DFEA',
+    backgroundColor: colors.borderStrong,
   },
   fieldRow: { marginBottom: 14 },
   inputWrapper: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceElevated,
     borderRadius: 14,
     height: 54, paddingHorizontal: 16,
   },
   iconArea: {
     marginRight: 8,
   },
-  input: { flex: 1, fontSize: 16, color: '#000', marginLeft: 0, height: '100%' },
+  input: { flex: 1, fontSize: 16, color: colors.text, marginLeft: 0, height: '100%' },
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 4 },
   flag: { width: 24, height: 16, borderRadius: 2 },
-  phonePrefix: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },
-  verticalDivider: { width: 1, height: 20, backgroundColor: '#CBD5E1', marginLeft: 10 },
+  phonePrefix: { fontSize: 15, color: colors.text, fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },
+  verticalDivider: { width: 1, height: 20, backgroundColor: colors.borderStrong, marginLeft: 10 },
   saveButton: {
-    backgroundColor: '#0C1559', height: 56, borderRadius: 28,
+    backgroundColor: colors.primary, height: 56, borderRadius: 28,
     justifyContent: 'center', alignItems: 'center', marginTop: 10,
-    shadowColor: "#0C1559", shadowOffset: { width: 0, height: 4 },
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
-  saveButtonText: { color: '#A3E635', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  saveButtonText: { color: colors.accent, fontSize: 16, fontFamily: 'Montserrat-Bold' },
   // Selection Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, maxHeight: '60%',
   },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: colors.text },
   optionItem: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border
   },
-  optionText: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
-  emptyText: { textAlign: 'center', color: '#64748B', marginTop: 20, fontFamily: 'Montserrat-Medium' },
+  optionText: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: colors.text },
+  emptyText: { textAlign: 'center', color: colors.textSecondary, marginTop: 20, fontFamily: 'Montserrat-Medium' },
   // Avatar Grid
   avatarGrid: { alignItems: 'center', paddingBottom: 20 },
   avatarOption: {
-    margin: 8, padding: 4, borderRadius: 40, borderWidth: 2, borderColor: '#F1F5F9',
-    position: 'relative', backgroundColor: '#F8FAFC',
+    margin: 8, padding: 4, borderRadius: 40, borderWidth: 2, borderColor: colors.border,
+    position: 'relative', backgroundColor: colors.surfaceElevated,
   },
   avatarOptionSelected: { borderColor: '#A3E635', backgroundColor: '#ECFCCB' },
   avatarImage: { width: 70, height: 70, borderRadius: 35 },
@@ -722,18 +730,18 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20
   },
   successCard: {
-    backgroundColor: '#FFF', width: '100%', maxWidth: 320, borderRadius: 24, padding: 30, alignItems: 'center',
+    backgroundColor: colors.surface, width: '100%', maxWidth: 320, borderRadius: 24, padding: 30, alignItems: 'center',
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10
   },
   successIconContainer: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#A3E635',
+    width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent,
     justifyContent: 'center', alignItems: 'center', marginBottom: 20,
-    borderWidth: 4, borderColor: '#ECFCCB'
+    borderWidth: 4, borderColor: colors.border
   },
-  successTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 10, textAlign: 'center' },
-  successMessage: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  successTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 10, textAlign: 'center' },
+  successMessage: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
   successButton: {
-    backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
+    backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
   },
   successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
   // Preview Modal
@@ -765,11 +773,11 @@ const styles = StyleSheet.create({
   uploadCta: { paddingHorizontal: 20, marginBottom: 15 },
   uploadBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 14, borderRadius: 16, borderWidth: 2, borderColor: '#0C1559',
-    backgroundColor: '#EEF2FF', borderStyle: 'dashed'
+    paddingVertical: 14, borderRadius: 16, borderWidth: 2, borderColor: colors.primary,
+    backgroundColor: colors.surfaceElevated, borderStyle: 'dashed'
   },
-  uploadBtnTxt: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  uploadBtnTxt: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: colors.primary },
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 15 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#F1F5F9' },
-  orTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#94A3B8' }
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  orTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: colors.textMuted }
 });

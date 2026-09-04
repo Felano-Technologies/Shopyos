@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  Dimensions, 
-  Alert 
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+  Alert
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,13 +15,17 @@ import AppImage from '@/components/AppImage';
 import { getMySnaps, repostSnap, deleteSnap } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 export default function SnapsDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const [snaps, setSnaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,13 +135,13 @@ export default function SnapsDashboardScreen() {
           
           <View style={styles.metricsRow}>
             <View style={styles.metric}>
-              <Ionicons name="eye-outline" size={16} color="#64748B" />
+              <Ionicons name="eye-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.metricText}>{item.view_count || 0} views</Text>
             </View>
             {item.product_title && (
               <View style={styles.metric}>
-                <Ionicons name="bag-handle-outline" size={15} color="#84cc16" />
-                <Text style={[styles.metricText, { color: '#84cc16' }]} numberOfLines={1}>
+                <Ionicons name="bag-handle-outline" size={15} color={colors.accent} />
+                <Text style={[styles.metricText, { color: colors.accent }]} numberOfLines={1}>
                   {item.product_title}
                 </Text>
               </View>
@@ -153,19 +157,19 @@ export default function SnapsDashboardScreen() {
       </View>
       
       <View style={styles.cardActions}>
-        <TouchableOpacity 
-          style={styles.deleteActionBtn} 
+        <TouchableOpacity
+          style={styles.deleteActionBtn}
           onPress={() => handleDelete(item.id)}
         >
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <Ionicons name="trash-outline" size={20} color={colors.error} />
         </TouchableOpacity>
-        
+
         {activeTab === 'history' && (
-          <TouchableOpacity 
-            style={styles.repostActionBtn} 
+          <TouchableOpacity
+            style={styles.repostActionBtn}
             onPress={() => handleRepost(item.id)}
           >
-            <Ionicons name="refresh-outline" size={16} color="#FFF" />
+            <Ionicons name="refresh-outline" size={16} color={colors.accentText} />
             <Text style={styles.repostBtnText}>Repost</Text>
           </TouchableOpacity>
         )}
@@ -177,14 +181,14 @@ export default function SnapsDashboardScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Snaps</Text>
-        <TouchableOpacity 
-          style={styles.createBtn} 
+        <TouchableOpacity
+          style={styles.createBtn}
           onPress={() => router.push('/business/snaps/create')}
         >
-          <Ionicons name="add" size={24} color="#FFF" />
+          <Ionicons name="add" size={24} color={colors.accentText} />
         </TouchableOpacity>
       </View>
 
@@ -210,7 +214,7 @@ export default function SnapsDashboardScreen() {
 
       {loading && snaps.length === 0 ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#84cc16" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -223,10 +227,10 @@ export default function SnapsDashboardScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons 
-                  name={activeTab === 'active' ? "camera-outline" : "hourglass-outline"} 
-                  size={40} 
-                  color="#64748B" 
+                <Ionicons
+                  name={activeTab === 'active' ? "camera-outline" : "hourglass-outline"}
+                  size={40}
+                  color={colors.textSecondary}
                 />
               </View>
               <Text style={styles.emptyTitle}>
@@ -253,10 +257,10 @@ export default function SnapsDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
   },
   header: {
     flexDirection: 'row',
@@ -265,8 +269,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFF',
+    borderBottomColor: c.borderStrong,
+    backgroundColor: c.surface,
   },
   backBtn: {
     padding: 4,
@@ -274,10 +278,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
   },
   createBtn: {
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -286,10 +290,10 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: c.borderStrong,
   },
   tab: {
     flex: 1,
@@ -299,29 +303,29 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#84cc16',
+    borderBottomColor: c.accent,
   },
   tabText: {
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: c.textSecondary,
   },
   activeTabText: {
-    color: '#84cc16',
+    color: c.accent,
   },
   listContent: {
     padding: 16,
     paddingBottom: 40,
   },
   snapCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
     overflow: 'hidden',
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: '#000', // shadow color, theme-invariant depth cue
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -334,7 +338,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 110,
     borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.borderStrong,
   },
   infoContainer: {
     flex: 1,
@@ -344,12 +348,12 @@ const styles = StyleSheet.create({
   caption: {
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#1E293B',
+    color: c.text,
     lineHeight: 20,
   },
   noCaption: {
     fontStyle: 'italic',
-    color: '#94A3B8',
+    color: c.textMuted,
     fontFamily: 'Montserrat-Medium',
   },
   metricsRow: {
@@ -367,18 +371,18 @@ const styles = StyleSheet.create({
   metricText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
   },
   timerText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#F59E0B',
+    color: c.warning,
     marginTop: 6,
   },
   expiredText: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     marginTop: 6,
   },
   cardActions: {
@@ -386,21 +390,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: c.border,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FAFCFF',
+    backgroundColor: c.surfaceElevated,
     gap: 12,
   },
   deleteActionBtn: {
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FFF',
+    borderColor: c.errorBg,
+    backgroundColor: c.surface,
   },
   repostActionBtn: {
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
@@ -409,7 +413,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   repostBtnText: {
-    color: '#FFF',
+    color: c.accentText,
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
   },
@@ -428,7 +432,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -436,25 +440,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   emptyActionBtn: {
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 24,
   },
   emptyActionBtnTxt: {
-    color: '#FFF',
+    color: c.accentText,
     fontFamily: 'Montserrat-Bold',
     fontSize: 14,
   },

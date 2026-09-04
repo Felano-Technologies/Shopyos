@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, StyleSheet, Text, TouchableOpacity,
   Dimensions, ActivityIndicator, FlatList, TextInput,
@@ -14,21 +14,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { getAllStores } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width, height } = Dimensions.get('window');
 const CARD_W   = width * 0.72;
 const CARD_GAP = 12;
 const SNAP_W   = CARD_W + CARD_GAP;
 // ─── Tokens ───────────────────────────────────────────────────────────────────
-const C = {
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeAlt: '#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  limeAlt: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  badgeBg: string;
 };
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    limeAlt: '#1a2e00',
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    badgeBg: colors.backgroundAlt,
+  };
+}
 // ─── Radius options (km) ──────────────────────────────────────────────────────
 const RADIUS_OPTIONS = [1, 2, 5, 10];
 // ─── Category chips ───────────────────────────────────────────────────────────
@@ -88,6 +109,9 @@ function toNumber(value: unknown, fallback = 0): number {
 export default function StoresMap() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const S = useMemo(() => getStyles(C), [C]);
   const mapRef  = useRef<MapView>(null);
   const listRef = useRef<FlatList>(null);
   const [userCoords,    setUserCoords]    = useState<{ latitude: number; longitude: number } | null>(null);
@@ -386,7 +410,7 @@ export default function StoresMap() {
           <MaterialCommunityIcons
             name="radar"
             size={20}
-            color={showRadiusPicker ? C.lime : C.navy}
+            color={showRadiusPicker ? C.limeAlt : C.navy}
           />
         </TouchableOpacity>
         {/* Radius options — slide out when open */}
@@ -510,10 +534,10 @@ export default function StoresMap() {
   );
 }
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root:       { flex: 1 },
   map:        { width, height },
-  loadingWrap:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  loadingWrap:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   loadingTxt: { marginTop: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted },
   // ── Top overlay ─────────────────────────────────────────────────────────────
   topOverlay: {
@@ -523,14 +547,14 @@ const S = StyleSheet.create({
   topRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 10 },
   iconPill: {
     width: 40, height: 40, borderRadius: 13,
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     justifyContent: 'center', alignItems: 'center',
     elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 8,
   },
   searchPill: {
     flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fff', borderRadius: 13, paddingHorizontal: 12,
+    backgroundColor: C.card, borderRadius: 13, paddingHorizontal: 12,
     height: 40,
     elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1, shadowRadius: 8,
@@ -542,13 +566,13 @@ const S = StyleSheet.create({
   chipStrip: { gap: 7, flexDirection: 'row', paddingVertical: 2 },
   chip: {
     height: 32, paddingHorizontal: 14, borderRadius: 16,
-    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
     elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08, shadowRadius: 4,
   },
-  chipOn:    { backgroundColor: C.navy },
+  chipOn:    { backgroundColor: C.lime },
   chipTxt:   { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.muted },
-  chipTxtOn: { color: '#fff' },
+  chipTxtOn: { color: C.limeAlt },
   // ── FABs ────────────────────────────────────────────────────────────────────
   fabGroup: {
     position: 'absolute', right: 14, zIndex: 20,
@@ -556,15 +580,15 @@ const S = StyleSheet.create({
   },
   fab: {
     width: 42, height: 42, borderRadius: 13,
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     justifyContent: 'center', alignItems: 'center',
     elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 8,
   },
-  fabActive: { backgroundColor: C.navy },
+  fabActive: { backgroundColor: C.lime },
   // Radius picker
   radiusPicker: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 6,
+    backgroundColor: C.card, borderRadius: 14, padding: 6,
     elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12, shadowRadius: 12,
     gap: 2,
@@ -572,7 +596,7 @@ const S = StyleSheet.create({
   radiusOption: {
     paddingHorizontal: 16, paddingVertical: 9, borderRadius: 10,
   },
-  radiusOptionOn:    { backgroundColor: '#EEF2FF' },
+  radiusOptionOn:    { backgroundColor: C.badgeBg },
   radiusOptionTxt:   { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   radiusOptionTxtOn: { color: C.navy, fontFamily: 'Montserrat-Bold' },
   // ── Markers ─────────────────────────────────────────────────────────────────
@@ -619,14 +643,14 @@ const S = StyleSheet.create({
   // ── Bottom sheet ─────────────────────────────────────────────────────────────
   bottomSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     elevation: 16, shadowColor: C.navy,
     shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.1, shadowRadius: 16,
     zIndex: 20,
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
-  handle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' },
+  handle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: C.border },
   countRow: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
@@ -635,7 +659,7 @@ const S = StyleSheet.create({
   nearbyCount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body },
   radiusBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#EEF2FF', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: C.badgeBg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
   },
   radiusBadgeTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
   // Empty carousel
@@ -648,7 +672,7 @@ const S = StyleSheet.create({
   carouselContent: { paddingHorizontal: 14, paddingBottom: 8 },
   storeCard: {
     width: CARD_W,
-    backgroundColor: '#fff', borderRadius: 18,
+    backgroundColor: C.card, borderRadius: 18,
     flexDirection: 'row', alignItems: 'center',
     padding: 12, marginRight: CARD_GAP,
     borderWidth: 1.5, borderColor: 'transparent',
@@ -659,7 +683,7 @@ const S = StyleSheet.create({
     borderColor: '#84cc16',
     elevation: 8, shadowOpacity: 0.14,
   },
-  cardLogo: { width: 54, height: 54, borderRadius: 14, backgroundColor: '#dbeafe' },
+  cardLogo: { width: 54, height: 54, borderRadius: 14, backgroundColor: C.badgeBg },
   cardLogoFallback: { justifyContent: 'center', alignItems: 'center' },
   cardLogoInitials: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
   cardInfo: { flex: 1, marginLeft: 12 },
@@ -673,7 +697,7 @@ const S = StyleSheet.create({
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   distBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8,
+    backgroundColor: C.badgeBg, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8,
   },
   distBadgeTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navy },
   ratingPill: {
@@ -683,7 +707,7 @@ const S = StyleSheet.create({
   ratingPillTxt:  { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#92400E' },
   cataloguesTxt:  { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.subtle },
   visitArrow: {
-    width: 30, height: 30, borderRadius: 10, backgroundColor: '#EEF2FF',
+    width: 30, height: 30, borderRadius: 10, backgroundColor: C.badgeBg,
     justifyContent: 'center', alignItems: 'center',
   },
   visitArrowActive: { backgroundColor: '#84cc16' },

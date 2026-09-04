@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 const OtpVerificationScreen = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputs = useRef<TextInput[]>([]);
 
@@ -90,7 +94,7 @@ const OtpVerificationScreen = () => {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#84cc16', '#84cc16']}
+              colors={[colors.accent, colors.accent]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.verifyGradient}
@@ -118,10 +122,10 @@ const OtpVerificationScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: c.backgroundAlt,
   },
   scroll: {
     flexGrow: 1,
@@ -146,7 +150,7 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 15,
     textAlign: 'center',
-    color: '#111827',
+    color: c.text,
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -160,13 +164,13 @@ const styles = StyleSheet.create({
     width: 45,
     height: 50,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: c.border,
     textAlign: 'center',
     fontSize: 20,
-    color: '#111827',
+    color: c.text,
     marginHorizontal: 6,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: c.borderStrong,
   },
   verifyButton: {
     width: width * 0.85,
@@ -180,7 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   verifyText: {
-    color: '#fff',
+    color: c.accentText,
     fontSize: 17,
     fontWeight: '600',
   },

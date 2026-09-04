@@ -18,6 +18,8 @@ import { useQuery } from '@tanstack/react-query';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
 import { socketService } from '@/services/socket';
 import { getLatestLocation, fetchDrivingRoute, haversineMetres } from '@/services/delivery';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { height } = Dimensions.get('window');
 
@@ -39,10 +41,47 @@ async function computeAndSetRoute(
   }
 }
 
+type LegacyPalette = {
+  bg: string;
+  placeholderBg: string;
+  placeholderIcon: string;
+  placeholderText: string;
+  surface: string;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  border: string;
+  borderStrong: string;
+  accent: string;
+  badgeBg: string;
+  primary: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.background,
+    placeholderBg: colors.surfaceElevated,
+    placeholderIcon: colors.textMuted,
+    placeholderText: colors.textMuted,
+    surface: colors.surface,
+    text: colors.text,
+    textSecondary: colors.textSecondary,
+    textMuted: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    accent: colors.accent,
+    badgeBg: colors.backgroundAlt,
+    primary: colors.primary,
+  };
+}
+
 export default function OrderTrackingMap() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const deliveryId = params.deliveryId as string | undefined;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
@@ -240,7 +279,7 @@ export default function OrderTrackingMap() {
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
-            <MaterialCommunityIcons name="map-outline" size={64} color="#CBD5E1" />
+            <MaterialCommunityIcons name="map-outline" size={64} color={C.placeholderIcon} />
             <Text style={styles.mapPlaceholderText}>Loading map…</Text>
           </View>
         )}
@@ -251,7 +290,7 @@ export default function OrderTrackingMap() {
         />
         <View style={[styles.topSafeArea, { top: insets.top + 8 }]} pointerEvents="box-none">
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            <Ionicons name="arrow-back" size={24} color={C.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -299,14 +338,14 @@ export default function OrderTrackingMap() {
                 <AppImage uri={driverAvatar} style={styles.driverAvatarImg} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={26} color="#0C1559" />
+                  <Ionicons name="person" size={26} color={C.primary} />
                 </View>
               )}
             </View>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{driverName}</Text>
               <View style={styles.ratingRow}>
-                <MaterialCommunityIcons name="bike" size={14} color="#64748B" />
+                <MaterialCommunityIcons name="bike" size={14} color={C.textSecondary} />
                 <Text style={styles.vehicleText}> {driverVehicle || 'Vehicle'}</Text>
               </View>
               {driverPlate ? <Text style={styles.plateText}>{driverPlate}</Text> : null}
@@ -317,7 +356,7 @@ export default function OrderTrackingMap() {
                   style={styles.actionBtn}
                   onPress={() => Linking.openURL(`tel:${driverPhone}`)}
                 >
-                  <Ionicons name="call" size={22} color="#0C1559" />
+                  <Ionicons name="call" size={22} color={C.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -325,7 +364,7 @@ export default function OrderTrackingMap() {
         ) : (
           <View style={styles.noDriverCard}>
             <View style={styles.noDriverIconBg}>
-              <MaterialCommunityIcons name="bike-fast" size={30} color="#0C1559" />
+              <MaterialCommunityIcons name="bike-fast" size={30} color={C.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.noDriverTitle}>No driver assigned yet</Text>
@@ -340,7 +379,7 @@ export default function OrderTrackingMap() {
         <View style={styles.deliveryDetails}>
           <View style={styles.detailRow}>
             <View style={styles.iconBox}>
-              <Ionicons name="location" size={20} color="#0C1559" />
+              <Ionicons name="location" size={20} color={C.primary} />
             </View>
             <View style={styles.addressBox}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -358,15 +397,15 @@ export default function OrderTrackingMap() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   mapContainer: {
     ...StyleSheet.absoluteFillObject,
     height: height * 0.75,
   },
   mapPlaceholder: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.placeholderBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -374,12 +413,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: C.placeholderText,
   },
   topGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 120 },
   topSafeArea: { position: 'absolute', top: 0, left: 20, zIndex: 10 },
   backBtn: {
-    width: 44, height: 44, backgroundColor: '#FFF', borderRadius: 22,
+    width: 44, height: 44, backgroundColor: C.surface, borderRadius: 22,
     justifyContent: 'center', alignItems: 'center', marginTop: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 5, elevation: 5,
@@ -403,68 +442,68 @@ const styles = StyleSheet.create({
   },
   // Bottom sheet
   bottomSheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF',
+    position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.surface,
     borderTopLeftRadius: 30, borderTopRightRadius: 30,
     paddingHorizontal: 24, paddingTop: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.1, shadowRadius: 10, elevation: 10,
   },
   dragHandle: {
-    width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2,
+    width: 40, height: 4, backgroundColor: C.borderStrong, borderRadius: 2,
     alignSelf: 'center', marginBottom: 4,
   },
   statusHeader: { marginBottom: 1, marginTop: 0 },
-  statusTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
-  statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 6 },
+  statusTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 4 },
+  statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textSecondary, marginBottom: 6 },
   etaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 20, alignSelf: 'flex-start', marginBottom: 8,
   },
   etaText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#16A34A' },
-  staleText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 3 },
-  progressBar: { height: 4, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#84cc16', borderRadius: 2 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },
+  staleText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.textMuted, marginTop: 3 },
+  progressBar: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: C.accent, borderRadius: 2 },
+  divider: { height: 1, backgroundColor: C.border, marginBottom: 16 },
   driverCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
   driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   avatarPlaceholder: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#E0E7FF',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: C.badgeBg,
     justifyContent: 'center', alignItems: 'center',
   },
   driverInfo: { flex: 1, marginLeft: 14 },
-  driverName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
+  driverName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 4 },
   ratingRow: { flexDirection: 'row', alignItems: 'center' },
-  vehicleText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  plateText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginTop: 2 },
+  vehicleText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textSecondary },
+  plateText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.textSecondary, marginTop: 2 },
   actionButtons: { flexDirection: 'row', gap: 10 },
   actionBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
+    width: 44, height: 44, borderRadius: 22, backgroundColor: C.border,
     justifyContent: 'center', alignItems: 'center',
   },
   noDriverCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F8FAFC', borderRadius: 18,
+    backgroundColor: C.placeholderBg, borderRadius: 18,
     padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed',
+    borderWidth: 1, borderColor: C.borderStrong, borderStyle: 'dashed',
   },
   noDriverIconBg: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: '#E0E7FF',
+    width: 52, height: 52, borderRadius: 26, backgroundColor: C.badgeBg,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
-  noDriverTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
-  noDriverSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', lineHeight: 18 },
-  deliveryDetails: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16 },
+  noDriverTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.text, marginBottom: 4 },
+  noDriverSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.textSecondary, lineHeight: 18 },
+  deliveryDetails: { backgroundColor: C.placeholderBg, padding: 14, borderRadius: 16 },
   detailRow: { flexDirection: 'row', alignItems: 'center' },
   iconBox: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: '#E0E7FF',
+    width: 36, height: 36, borderRadius: 10, backgroundColor: C.badgeBg,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
   addressBox: { flex: 1 },
-  addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
-  addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  storeLogoBadge: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' },
+  addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.textSecondary, marginBottom: 2 },
+  addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.text },
+  storeLogoBadge: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.borderStrong },
   miniLogo: { width: '100%', height: '100%' },
   storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, flexShrink: 1, marginLeft: 8, maxWidth: '65%' },
 });

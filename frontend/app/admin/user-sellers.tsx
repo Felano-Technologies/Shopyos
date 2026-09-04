@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -20,7 +20,11 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
+// Status pill and avatar palettes are fixed multi-value color sets (no matching
+// success/warning background tokens exist in ThemeColors) — intentionally left hardcoded.
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   active:    { bg: '#DCFCE7', text: '#16A34A' },
   suspended: { bg: '#FEF3C7', text: '#D97706' },
@@ -55,6 +59,9 @@ function getInitials(name?: string, email?: string) {
 export default function AdminSellers() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const menuStyles = useMemo(() => getMenuStyles(colors), [colors]);
   const { isDesktop } = useAdminBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
   const [sellers, setSellers] = useState<SellerItem[]>([]);
@@ -174,7 +181,7 @@ export default function AdminSellers() {
         </View>
         {/* Three-dot menu */}
         <TouchableOpacity onPress={() => setMenuUser(item)} style={styles.menuBtn}>
-          <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
+          <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
     );
@@ -187,16 +194,17 @@ export default function AdminSellers() {
         <View style={[styles.canvasInner, isDesktop && styles.desktopCanvas]}>
         {/* Header */}
         <LinearGradient
+          // Fixed 3-stop admin brand gradient (navy → green), not the 2-stop headerGradient token — intentionally fixed across themes
           colors={['#01217B', '#0C2E8A', '#0E5E1A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={20} color="#FFFFFF" />
+            <Feather name="arrow-left" size={20} color="#FFFFFF" />{/* white icon on fixed header gradient */}
           </TouchableOpacity>
           <View style={styles.heroCenter}>
-            <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />{/* white icon on fixed header gradient */}
             <Text style={styles.heroTitle}>Sellers</Text>
           </View>
           <Text style={styles.heroCount}>{sellers.length}</Text>
@@ -204,24 +212,24 @@ export default function AdminSellers() {
 
         {/* Search */}
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#94A3B8" />
+          <Ionicons name="search" size={16} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name or email…"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
 
         {loading && !refreshing ? (
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
             <AdminScreenSkeleton metrics={4} rows={4} />
           </SafeAreaView>
         ) : (
@@ -262,14 +270,14 @@ export default function AdminSellers() {
               {menuUser?.full_name || menuUser?.email || 'Seller'}
             </Text>
             <TouchableOpacity style={menuStyles.option} onPress={() => handleResetSession(menuUser!)}>
-              <Feather name="refresh-cw" size={18} color="#3B82F6" />
+              <Feather name="refresh-cw" size={18} color={colors.info} />
               <View style={{ flex: 1 }}>
                 <Text style={menuStyles.optionLabel}>Reset Session</Text>
                 <Text style={menuStyles.optionSub}>Force re-login, tokens revoked</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={menuStyles.option} onPress={() => handleDisableSession(menuUser!)}>
-              <Feather name="lock" size={18} color="#F59E0B" />
+              <Feather name="lock" size={18} color={colors.warning} />
               <View style={{ flex: 1 }}>
                 <Text style={menuStyles.optionLabel}>Disable Session</Text>
                 <Text style={menuStyles.optionSub}>Deactivate + revoke all tokens</Text>
@@ -277,9 +285,9 @@ export default function AdminSellers() {
             </TouchableOpacity>
             <View style={menuStyles.divider} />
             <TouchableOpacity style={menuStyles.option} onPress={() => handleDeleteUser(menuUser!)}>
-              <Feather name="trash-2" size={18} color="#EF4444" />
+              <Feather name="trash-2" size={18} color={colors.error} />
               <View style={{ flex: 1 }}>
-                <Text style={[menuStyles.optionLabel, { color: '#EF4444' }]}>Delete Seller</Text>
+                <Text style={[menuStyles.optionLabel, { color: colors.error }]}>Delete Seller</Text>
                 <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
               </View>
             </TouchableOpacity>
@@ -311,19 +319,19 @@ export default function AdminSellers() {
   );
 }
 
-const menuStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
-  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 16 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 8 },
-  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 4 },
+const getMenuStyles = (c: ThemeColors) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderStrong, alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 16 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: c.surfaceElevated, marginBottom: 8 },
+  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: c.text },
+  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: c.textMuted, marginTop: 2 },
+  divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
 });
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: c.background },
   canvasInner: { flex: 1 },
   desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -339,21 +347,21 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)', // white overlay on the fixed header gradient, intentionally fixed
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroTitle: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  heroCount: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold', opacity: 0.8 },
+  heroTitle: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Montserrat-Bold' }, // white text on the fixed header gradient
+  heroCount: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold', opacity: 0.8 }, // white text on the fixed header gradient
 
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
@@ -365,13 +373,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#0F172A',
+    color: c.text,
   },
 
   list: { paddingHorizontal: 0, paddingTop: 4 },
 
   userCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 12,
@@ -380,8 +388,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    shadowColor: '#0C1559',
+    borderColor: c.border,
+    shadowColor: c.primary,
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
@@ -393,10 +401,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: 'Montserrat-Bold', fontSize: 16, color: '#FFFFFF' },
-  userName: { color: '#0F172A', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
-  userEmail: { color: '#64748B', fontSize: 12, fontFamily: 'Montserrat-Regular', marginTop: 2 },
-  storeName: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
+  avatarText: { fontFamily: 'Montserrat-Bold', fontSize: 16, color: c.textInverse },
+  userName: { color: c.text, fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+  userEmail: { color: c.textSecondary, fontSize: 12, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  storeName: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: c.textMuted, marginTop: 2 },
   menuBtn: { padding: 6 },
   pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   pillText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold' },

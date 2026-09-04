@@ -15,20 +15,9 @@ import { useStores } from '@/hooks/useStores';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
-const C = {
-  pageBg:   '#E9F0FF',
-  navy:     '#0C1559',
-  navyMid:  '#1e3a8a',
-  lime:     '#84cc16',
-  limeText: '#1a2e00',
-  card:     '#FFFFFF',
-  body:     '#0F172A',
-  muted:    '#64748B',
-  subtle:   '#94A3B8',
-  border:   'rgba(12,21,89,0.07)',
-  borderMd: 'rgba(12,21,89,0.14)',
-};
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home', 'Footwear', 'Art'];
 const SORT_OPTIONS: { label: string; value: 'rating' | 'newest' | 'name' }[] = [
   { label: 'Top rated', value: 'rating' },
@@ -38,6 +27,21 @@ const SORT_OPTIONS: { label: string; value: 'rating' | 'newest' | 'name' }[] = [
 const initials = (name: string) =>
   (name || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 export default function StoresScreen() {
+  const colors = useThemeColors();
+  const C = useMemo(() => ({
+    pageBg: colors.background,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    limeText: colors.accentText,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderMd: colors.borderStrong,
+  }), [colors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [searchQuery,    setSearchQuery]    = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [showFilter,     setShowFilter]     = useState(false);
@@ -173,13 +177,13 @@ export default function StoresScreen() {
         )}
         {/* Bottom gradient so name text below never fights the image */}
         <LinearGradient
-          colors={['transparent', 'rgba(12,21,89,0.45)']}
+          colors={['transparent', colors.overlay]}
           style={styles.popularImgGradient}
         />
         {/* Trusted badge — top right, on top of the image */}
         {item.isTrusted && (
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark" size={9} color={C.limeText} />
+            <Ionicons name="checkmark" size={9} color={colors.accentText} />
             <Text style={styles.verifiedBadgeTxt}>Trusted</Text>
           </View>
         )}
@@ -190,7 +194,7 @@ export default function StoresScreen() {
         <Text style={styles.popularCat}  numberOfLines={1}>{item.category}</Text>
         <View style={styles.popularFooter}>
           <View style={styles.ratingPill}>
-            <Ionicons name="star" size={9} color="#F59E0B" />
+            <Ionicons name="star" size={9} color={colors.warning} />
             <Text style={styles.ratingPillTxt}>{(item.rating || 0).toFixed(1)}</Text>
           </View>
           <Text style={styles.popularItems}>{item.catalogues} items</Text>
@@ -216,7 +220,7 @@ export default function StoresScreen() {
           <Text style={styles.storeRowName} numberOfLines={1}>{item.name}</Text>
           {item.isTrusted && (
             <View style={styles.inlineVerified}>
-              <Ionicons name="checkmark" size={8} color={C.limeText} />
+              <Ionicons name="checkmark" size={8} color={colors.accentText} />
             </View>
           )}
         </View>
@@ -226,7 +230,7 @@ export default function StoresScreen() {
           <Text style={styles.storeRowItems}>{item.catalogues} items</Text>
         </View>
         <View style={styles.storeRatingRow}>
-          <Ionicons name="star" size={10} color="#F59E0B" />
+          <Ionicons name="star" size={10} color={colors.warning} />
           <Text style={styles.storeRatingTxt}>
             {(item.rating || 0).toFixed(1)} · {item.reviewCount} reviews
           </Text>
@@ -234,14 +238,14 @@ export default function StoresScreen() {
       </View>
       <TouchableOpacity style={styles.visitBtn} onPress={() => handleVisitStore(item)}>
         <Text style={styles.visitTxt}>Visit</Text>
-        <Ionicons name="chevron-forward" size={12} color={C.navy} />
+        <Ionicons name="chevron-forward" size={12} color={colors.primary} />
       </TouchableOpacity>
     </TouchableOpacity>
   ), [handleVisitStore]);
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyWrap}>
       <View style={styles.emptyCircle}>
-        <MaterialCommunityIcons name="storefront-outline" size={40} color={C.navy} />
+        <MaterialCommunityIcons name="storefront-outline" size={40} color={colors.primary} />
       </View>
       <Text style={styles.emptyTitle}>No stores found</Text>
       <Text style={styles.emptyBody}>
@@ -254,7 +258,7 @@ export default function StoresScreen() {
   // Only show the full skeleton loader during initial boot with NO data
   if (loading && stores.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <StatusBar style="light" />
         <StoresSkeleton />
         <BottomNav />
@@ -266,7 +270,7 @@ export default function StoresScreen() {
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
+        <LinearGradient colors={colors.headerGradient} style={styles.hdrGradient}>
           <View style={styles.hdrGlow} pointerEvents="none" />
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.hdrInner}>
@@ -275,8 +279,8 @@ export default function StoresScreen() {
                   <Text style={styles.hdrEye}>{headingEye}</Text>
                   <Text style={styles.hdrTitle} numberOfLines={1}>
                     {searchQuery.length > 0
-                      ? <>{'"'}<Text style={{ color: C.lime }}>{searchQuery}</Text>{'"'}</>
-                      : <>{'Discover '}<Text style={{ color: C.lime }}>{'Stores'}</Text></>
+                      ? <>{'"'}<Text style={{ color: colors.accent }}>{searchQuery}</Text>{'"'}</>
+                      : <>{'Discover '}<Text style={{ color: colors.accent }}>{'Stores'}</Text></>
                     }
                   </Text>
                 </View>
@@ -298,7 +302,7 @@ export default function StoresScreen() {
                     autoCapitalize="none"
                   />
                   {isRefreshing ? (
-                    <ActivityIndicator size="small" color={C.lime} style={{ marginRight: 4 }} />
+                    <ActivityIndicator size="small" color={colors.accent} style={{ marginRight: 4 }} />
                   ) : searchQuery.length > 0 && (
                     <TouchableOpacity
                       style={styles.clearBtn}
@@ -316,7 +320,7 @@ export default function StoresScreen() {
                   ref={refFilter}
                   onLayout={() => measureElement(refFilter, 'filter')}
                 >
-                  <Feather name="sliders" size={16} color={C.limeText} />
+                  <Feather name="sliders" size={16} color={colors.accentText} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -490,8 +494,10 @@ export default function StoresScreen() {
     </Pressable>
   );
 }
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
+type LegacyPalette = { pageBg: string; navy: string; navyMid: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string; borderMd: string };
+
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.pageBg },
   hdrGradient: {
     position: 'relative', paddingBottom: 28, zIndex: 20,
     elevation: 12, shadowColor: C.navy,
@@ -549,7 +555,7 @@ const styles = StyleSheet.create({
   },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 28,
-    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: C.pageBg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
   },
   listContent: { paddingBottom: 120 },
   chipStrip: {
@@ -577,7 +583,7 @@ const styles = StyleSheet.create({
   popularCard: {
     width: 148, backgroundColor: C.card, borderRadius: 22,
     overflow: 'hidden', marginRight: 12,
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   // The image wrapper — logo fills this area entirely
   popularImgWrap: {
@@ -632,10 +638,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.card, borderRadius: 20, padding: 13,
     marginHorizontal: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   storeRowLogo: {
-    width: 56, height: 56, borderRadius: 16, resizeMode: 'cover', backgroundColor: '#dbeafe',
+    width: 56, height: 56, borderRadius: 16, resizeMode: 'cover', backgroundColor: C.border,
   },
   storeRowLogoFallback: { backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
   storeRowLogoTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#fff' },
@@ -648,13 +654,13 @@ const styles = StyleSheet.create({
   },
   storeRowMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   storeRowCat:  { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.subtle },
-  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#CBD5E1' },
+  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: C.borderMd },
   storeRowItems: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.lime },
   storeRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   storeRatingTxt: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.navy },
   visitBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12,
+    backgroundColor: C.border, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12,
   },
   visitTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
   mapFab: {
@@ -669,7 +675,7 @@ const styles = StyleSheet.create({
   mapFabTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff' },
   emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyCircle: {
-    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
+    width: 90, height: 90, borderRadius: 45, backgroundColor: C.border,
     justifyContent: 'center', alignItems: 'center', marginBottom: 16,
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8,
@@ -678,14 +684,14 @@ const styles = StyleSheet.create({
   emptyBody: {
     fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', lineHeight: 20,
   },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,21,89,0.4)' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalBackdrop: { flex: 1 },
   modalSheet: {
     backgroundColor: C.card, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     padding: 20, paddingBottom: 40,
   },
   sheetHandle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0',
+    width: 36, height: 4, borderRadius: 2, backgroundColor: C.borderMd,
     alignSelf: 'center', marginBottom: 16,
   },
   modalHeader: {
@@ -695,7 +701,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.body },
   modalClose: {
     width: 32, height: 32, borderRadius: 10,
-    backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center',
   },
   modalSectionLbl: {
     fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.subtle,
@@ -704,14 +710,14 @@ const styles = StyleSheet.create({
   sortRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   sortChip: {
     flex: 1, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: C.border, alignItems: 'center',
+    backgroundColor: C.pageBg, borderWidth: 0.5, borderColor: C.border, alignItems: 'center',
   },
-  sortChipOn:    { backgroundColor: '#EEF2FF', borderColor: C.navyMid },
+  sortChipOn:    { backgroundColor: C.border, borderColor: C.navyMid },
   sortChipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   sortChipTxtOn: { color: C.navy, fontFamily: 'Montserrat-Bold' },
   switchRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 28, backgroundColor: '#F8FAFC', padding: 14,
+    marginBottom: 28, backgroundColor: C.pageBg, padding: 14,
     borderRadius: 14, borderWidth: 0.5, borderColor: C.border,
   },
   switchLbl: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 2 },

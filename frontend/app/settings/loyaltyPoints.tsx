@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,30 @@ import { useRouter } from 'expo-router';
 import { getLoyaltyBalance, getLoyaltyTransactions } from '@/services/api';
 import { getCachedUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+  };
+}
 
 interface LoyaltyTransaction {
   id: string;
@@ -31,6 +55,9 @@ interface LoyaltyTransaction {
 }
 
 function ReferralCard({ code }: Readonly<{ code: string }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const copyCode = async () => {
     await Clipboard.setStringAsync(code);
     CustomInAppToast.show({ type: 'success', title: 'Copied!', message: 'Referral code copied to clipboard.' });
@@ -69,6 +96,9 @@ function ListHeader({ balance, redeemableValue, lifetimeEarned, referralCode }: 
   lifetimeEarned: number;
   referralCode: string | null;
 }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <View>
       {/* Balance Card */}
@@ -130,9 +160,12 @@ function ListHeader({ balance, redeemableValue, lifetimeEarned, referralCode }: 
 }
 
 function ListEmpty() {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <View style={styles.emptyContainer}>
-      <Feather name="star" size={48} color="#CBD5E1" />
+      <Feather name="star" size={48} color={C.subtle} />
       <Text style={styles.emptyTitle}>No transactions yet</Text>
       <Text style={styles.emptySubtitle}>Start shopping to earn loyalty points</Text>
     </View>
@@ -140,13 +173,18 @@ function ListEmpty() {
 }
 
 function ListFooter({ loadingMore }: Readonly<{ loadingMore: boolean }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
   return loadingMore ? (
-    <ActivityIndicator size="small" color="#0C1559" style={{ marginVertical: 16 }} />
+    <ActivityIndicator size="small" color={C.navy} style={{ marginVertical: 16 }} />
   ) : null;
 }
 
 export default function LoyaltyPointsScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -266,27 +304,27 @@ export default function LoyaltyPointsScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-        <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
+        <StatusBar barStyle="light-content" backgroundColor={C.headerBg} />
+        <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
           {headerBlock}
         </SafeAreaView>
-        <View style={[styles.loadingContainer, { backgroundColor: '#F8FAFC' }]}>
-          <ActivityIndicator size="large" color="#0C1559" />
+        <View style={[styles.loadingContainer, { backgroundColor: C.bg }]}>
+          <ActivityIndicator size="large" color={C.navy} />
         </View>
-        <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+        <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
+      <StatusBar barStyle="light-content" backgroundColor={C.headerBg} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
         {headerBlock}
       </SafeAreaView>
 
       <FlatList
-        style={{ flex: 1, backgroundColor: '#F8FAFC' }}
+        style={{ flex: 1, backgroundColor: C.bg }}
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={renderTransaction}
@@ -301,23 +339,23 @@ export default function LoyaltyPointsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#0C1559']}
-            tintColor="#0C1559"
+            colors={[C.navy]}
+            tintColor={C.navy}
           />
         }
       />
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.headerBg,
   },
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.headerBg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -346,12 +384,12 @@ const styles = StyleSheet.create({
   },
   // Balance card
   balanceCard: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.headerBg,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#0C1559',
+    shadowColor: C.headerBg,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -433,7 +471,7 @@ const styles = StyleSheet.create({
   shareBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
   // How it works
   howCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -446,7 +484,7 @@ const styles = StyleSheet.create({
   howTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 12,
   },
   howRow: {
@@ -464,20 +502,20 @@ const styles = StyleSheet.create({
   },
   howText: {
     fontSize: 13,
-    color: '#475569',
+    color: C.muted,
     flex: 1,
   },
   // Section title
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: C.body,
     marginTop: 15,
     marginBottom: 15,
   },
   // Transaction items
   txCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,17 +541,17 @@ const styles = StyleSheet.create({
   txDescription: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 2,
   },
   txOrderNum: {
     fontSize: 12,
-    color: '#64748B',
+    color: C.muted,
     marginBottom: 2,
   },
   txDate: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: C.subtle,
   },
   txPoints: {
     fontSize: 15,
@@ -529,12 +567,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#64748B',
+    color: C.muted,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: C.subtle,
     marginTop: 4,
     textAlign: 'center',
   },

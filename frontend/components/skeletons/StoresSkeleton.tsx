@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export const StoresSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -69,10 +73,10 @@ export const StoresSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff',
+    backgroundColor: colors.backgroundAlt,
   },
   safeArea: {
     flex: 1,
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
   },
   popularCard: {
     width: 140,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 10,
     marginRight: 16,
@@ -117,7 +121,7 @@ const styles = StyleSheet.create({
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginBottom: 12,
     padding: 12,

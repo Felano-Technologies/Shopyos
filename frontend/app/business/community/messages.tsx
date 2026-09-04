@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,16 @@ import AppImage from '@/components/AppImage';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useSellerConversations, useChatActions } from '@/hooks/useChat';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { height } = Dimensions.get('window');
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { data: sellerConversations = [] } = useSellerConversations();
   const { markAsRead, refresh } = useChatActions();
 
@@ -122,17 +126,17 @@ export default function MessagesScreen() {
       {/* Search & Filter Header */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" />
+          <Feather name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search customers or messages..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -166,7 +170,7 @@ export default function MessagesScreen() {
               <MaterialCommunityIcons
                 name={searchQuery ? 'text-box-search-outline' : 'message-text-outline'}
                 size={40}
-                color="#94A3B8"
+                color={colors.textMuted}
               />
             </View>
             <Text style={styles.emptyTitle}>
@@ -184,35 +188,35 @@ export default function MessagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.background,
   },
 
   searchSection: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: c.borderStrong,
     zIndex: 10
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 48,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: c.borderStrong
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
-    color: '#0F172A'
+    color: c.text
   },
   filterScroll: {
     flexDirection: 'row',
@@ -223,21 +227,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: c.borderStrong
   },
   filterChipActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559'
+    backgroundColor: c.primary,
+    borderColor: c.primary
   },
   filterText: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B'
+    color: c.textSecondary
   },
   filterTextActive: {
-    color: '#FFF'
+    color: c.textInverse
   },
 
   listContent: {
@@ -246,19 +250,19 @@ const styles = StyleSheet.create({
 
   separator: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     marginLeft: 88,
   },
 
   chatCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
   chatCardBot: {
-    backgroundColor: '#F8FAFF',
+    backgroundColor: c.surfaceElevated,
   },
 
   avatarContainer: {
@@ -269,18 +273,18 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
   },
   onlineDot: {
     width: 13,
     height: 13,
     borderRadius: 7,
-    backgroundColor: '#22C55E',
+    backgroundColor: c.success,
     position: 'absolute',
     bottom: 0,
     right: 0,
     borderWidth: 2,
-    borderColor: '#FFF'
+    borderColor: c.surface
   },
 
   content: { flex: 1 },
@@ -300,11 +304,11 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
     flexShrink: 1,
   },
   botBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: c.border,
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -312,12 +316,12 @@ const styles = StyleSheet.create({
   botBadgeText: {
     fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
+    color: c.primary,
   },
   time: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8'
+    color: c.textMuted
   },
 
   footer: {
@@ -329,16 +333,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     marginRight: 10
   },
   messageBold: {
-    color: '#0F172A',
+    color: c.text,
     fontFamily: 'Montserrat-Bold'
   },
 
   badge: {
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
@@ -347,7 +351,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5
   },
   badgeText: {
-    color: '#FFF',
+    color: c.textInverse,
     fontSize: 10,
     fontFamily: 'Montserrat-Bold'
   },
@@ -362,7 +366,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -370,13 +374,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 8,
   },
   emptySub: {
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },

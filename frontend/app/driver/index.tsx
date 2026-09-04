@@ -1,11 +1,15 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getDriverProfile } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 export default function DriverGatekeeper() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const checkStatus = useCallback(async () => {
     try {
       const response = await getDriverProfile();
@@ -34,24 +38,24 @@ export default function DriverGatekeeper() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      
+      <StatusBar style="light" backgroundColor={colors.primary} />
+
       <View style={styles.content}>
         <AppImage
           source={require('../../assets/images/splash-icon.png')}
           style={styles.logo}
           contentFit="contain"
         />
-        <ActivityIndicator size="large" color="#A3E635" style={styles.loader} />
+        <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
         <Text style={styles.text}>Verifying Driver Profile...</Text>
       </View>
     </View>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -68,7 +72,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   text: {
-    color: '#FFF',
+    color: c.textInverse, // inverse of primary bg, stays readable in both themes
     fontFamily: 'Montserrat-Medium',
     fontSize: 16,
   }

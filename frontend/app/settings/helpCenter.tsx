@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -60,6 +62,8 @@ const CATEGORIES = ['All', 'Account', 'Orders', 'Payments', 'General'];
 
 export default function HelpCenterScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -93,26 +97,26 @@ export default function HelpCenterScreen() {
       {/* --- Header --- */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
+            colors={colors.headerGradient}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
         >
             <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                 <View style={styles.headerContent}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on the fixed dark headerGradient */}
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Help Center</Text>
                     <View style={{ width: 40 }} />
                 </View>
-                
+
                 {/* Search Bar Inside Header */}
                 <View style={styles.searchContainer}>
-                    <Feather name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
-                    <TextInput 
+                    <Feather name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
+                    <TextInput
                         style={styles.searchInput}
                         placeholder="Search for help..."
-                        placeholderTextColor="#94A3B8"
+                        placeholderTextColor={colors.textMuted}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
@@ -155,10 +159,10 @@ export default function HelpCenterScreen() {
                             onPress={() => toggleExpand(item.id)}
                         >
                             <Text style={styles.questionText}>{item.question}</Text>
-                            <Feather 
-                                name={isExpanded ? "minus" : "plus"} 
-                                size={18} 
-                                color={isExpanded ? "#0C1559" : "#64748B"} 
+                            <Feather
+                                name={isExpanded ? "minus" : "plus"}
+                                size={18}
+                                color={isExpanded ? colors.primary : colors.textSecondary}
                             />
                         </TouchableOpacity>
                         
@@ -172,7 +176,7 @@ export default function HelpCenterScreen() {
             })
         ) : (
             <View style={styles.emptyState}>
-                <Feather name="help-circle" size={40} color="#CBD5E1" />
+                <Feather name="help-circle" size={40} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No results found.</Text>
             </View>
         )}
@@ -193,9 +197,9 @@ export default function HelpCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: c.surfaceElevated },
+
   // Background Watermark
   bottomLogos: {
     position: 'absolute',
@@ -214,41 +218,41 @@ const styles = StyleSheet.create({
   headerGradient: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerSafeArea: { paddingHorizontal: 20 },
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 10 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }, // translucent button on the fixed dark headerGradient
+  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' }, // white text on the fixed dark headerGradient
+
   // Search
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 16, height: 50, paddingHorizontal: 15 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 16, height: 50, paddingHorizontal: 15 },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-Medium', color: c.text },
 
   // Content
   contentContainer: { flex: 1, paddingHorizontal: 20 },
-  
+
   // Categories
   categoryScroll: { flexDirection: 'row', marginBottom: 20, maxHeight: 40 },
-  catPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E2E8F0', marginRight: 10 },
-  catPillActive: { backgroundColor: '#0C1559' },
-  catText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  catTextActive: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
+  catPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: c.borderStrong, marginRight: 10 },
+  catPillActive: { backgroundColor: c.primary },
+  catText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary },
+  catTextActive: { color: c.textInverse, fontFamily: 'Montserrat-Bold' },
 
-  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15, marginTop: 10 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 15, marginTop: 10 },
 
   // FAQ Card
-  faqCard: { backgroundColor: '#FFF', borderRadius: 16, marginBottom: 12, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  faqCard: { backgroundColor: c.surface, borderRadius: 16, marginBottom: 12, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 }, // shadowColor stays black; RN shadows always composite against black
   questionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  questionText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', flex: 1, marginRight: 10, lineHeight: 22 },
-  answerContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  answerText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 22 },
+  questionText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: c.text, flex: 1, marginRight: 10, lineHeight: 22 },
+  answerContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border },
+  answerText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: c.textSecondary, lineHeight: 22 },
 
   // Empty State
   emptyState: { alignItems: 'center', marginTop: 30, marginBottom: 30 },
-  emptyText: { marginTop: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+  emptyText: { marginTop: 10, color: c.textMuted, fontFamily: 'Montserrat-Medium' },
 
   // Support Box
-  supportBox: { backgroundColor: '#E0E7FF', borderRadius: 20, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  supportTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 4 },
-  supportText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#4338ca' },
-  contactBtn: { backgroundColor: '#0C1559', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  contactBtnText: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
+  supportBox: { backgroundColor: c.backgroundAlt, borderRadius: 20, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  supportTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: c.primary, marginBottom: 4 },
+  supportText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: c.primaryMid },
+  contactBtn: { backgroundColor: c.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  contactBtnText: { color: c.textInverse, fontSize: 12, fontFamily: 'Montserrat-Bold' },
 });

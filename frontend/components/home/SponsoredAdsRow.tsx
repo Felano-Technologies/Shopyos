@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const CARD_W = width * 0.7;
 
-const C = { navy: '#0C1559', navyMid: '#1e3a8a' };
+type LegacyPalette = { navy: string; navyMid: string; text: string; accent: string; border: string };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  text: colors.text,
+  accent: colors.accent,
+  border: colors.border,
+});
 
 type Props = Readonly<{
   campaigns: any[];
@@ -16,6 +25,9 @@ type Props = Readonly<{
 }>;
 
 export function SponsoredAdsRow({ campaigns, onPress }: Props) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   if (campaigns.length === 0) return null;
 
   return (
@@ -69,7 +81,7 @@ export function SponsoredAdsRow({ campaigns, onPress }: Props) {
   );
 }
 
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   wrap: { marginBottom: 12 },
   headerRow: {
     flexDirection: 'row',
@@ -78,10 +90,10 @@ const S = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 10,
   },
-  headerTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  headerTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.text },
   dot: {
     width: 6, height: 6, borderRadius: 3,
-    backgroundColor: '#84cc16',
+    backgroundColor: C.accent,
   },
   list: { paddingHorizontal: 16, gap: 12 },
   card: {
@@ -91,7 +103,7 @@ const S = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: C.navy,
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: C.border,
   },
   // Explicit dimensions so the image/gradient fills the card fully
   cardImg: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },

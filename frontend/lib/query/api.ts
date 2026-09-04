@@ -55,6 +55,7 @@ export const productsApi = {
       material: filters?.material,
       style: filters?.style,
       brand: filters?.brand,
+      onSale: filters?.onSale,
       limit,
       offset,
     });

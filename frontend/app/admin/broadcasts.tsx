@@ -20,6 +20,8 @@ import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin
 import { api } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
 type CampaignType = 'manual' | 'holiday' | 'daily_engagement';

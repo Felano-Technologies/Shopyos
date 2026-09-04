@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import TappableAvatar from '@/components/TappableAvatar';
 import { APP_VERSION } from '@/constants/appVersion';
 import {
@@ -21,7 +21,11 @@ import {  Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage, baseURL } from '@/services/api';
+import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage, baseURL, updateUserRole } from '@/services/api';
+import { cacheUserProfile } from '@/services/storage';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const LOCAL_AVATAR_CACHE_KEY = 'lastUploadedAvatarUri';
 const toDisplayAvatarUrl = (raw?: string | null) => {
@@ -50,10 +54,14 @@ const isLocalhostLikeUrl = (value?: string | null) =>
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [username, setUsername] = useState('User');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [becomingDriver, setBecomingDriver] = useState(false);
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -134,6 +142,7 @@ export default function SettingsScreen() {
             setUsername(profile.name || 'User');
             setEmail(profile.email || '');
             setAvatarUrl(resolvedAvatar);
+            setRoles((profile.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name)));
           }
           const prefs = await getNotificationPreferences();
           if (prefs?.success) {
@@ -158,6 +167,42 @@ export default function SettingsScreen() {
       setNotificationsEnabled(!value);
     }
   };
+  const handleBecomeDriver = async () => {
+    if (becomingDriver) return;
+    setBecomingDriver(true);
+    try {
+      try {
+        await updateUserRole('driver');
+      } catch (error: any) {
+        // The role may already be saved server-side (lost response + retry) — treat as success
+        if (!/already have the .* role/i.test(error?.message || '')) {
+          let confirmed = false;
+          try {
+            const me: any = await getUserData();
+            const user = me?.user || me;
+            const userRoles = (user?.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name));
+            confirmed = userRoles.includes('driver');
+          } catch { /* verification unavailable — surface the original error */ }
+          if (!confirmed) throw error;
+        }
+      }
+
+      // Refresh the cached profile so routing sees the new role
+      try {
+        const me: any = await getUserData();
+        const user = me?.user || me;
+        await cacheUserProfile(user);
+        setRoles((user?.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name)));
+      } catch {}
+
+      CustomInAppToast.show({ type: 'success', title: 'Success! 🎉', message: 'You are now a Driver!' });
+      setTimeout(() => router.replace('/driver/dashboard'), 800);
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error?.message || 'Failed to become a driver.' });
+    } finally {
+      setBecomingDriver(false);
+    }
+  };
   const handleLogout = async () => {
     setLogoutModalVisible(true);
   };
@@ -180,7 +225,6 @@ export default function SettingsScreen() {
     icon,
     label,
     onPress,
-    color = '#0F172A',
     isDestructive = false,
     rightElement = null
   }: any) => (
@@ -192,22 +236,22 @@ export default function SettingsScreen() {
       activeOpacity={0.7}
       disabled={!!rightElement && !onPress} // Disable press if it's a switch row only
     >
-      <View style={[styles.iconBox, { backgroundColor: isDestructive ? '#FEF2F2' : '#F1F5F9' }]}>
-        <Feather name={icon} size={20} color={isDestructive ? '#EF4444' : '#0C1559'} />
+      <View style={[styles.iconBox, { backgroundColor: isDestructive ? colors.errorBg : colors.border }]}>
+        <Feather name={icon} size={20} color={isDestructive ? colors.error : colors.primary} />
       </View>
       <Text style={[styles.settingLabel, isDestructive && styles.destructiveLabel]}>
         {label}
       </Text>
       {rightElement ?? (
-        <Feather name="chevron-right" size={20} color="#CBD5E1" />
+        <Feather name="chevron-right" size={20} color={colors.textMuted} />
       )}
     </TouchableOpacity>
   );
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
+      <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.primary} />
       {/* --- HEADER --- */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.headerContainer}>
+      <LinearGradient colors={colors.headerGradient} style={styles.headerContainer}>
         <View style={styles.hdrGlow1} pointerEvents="none" />
         <View style={styles.hdrGlow2} pointerEvents="none" />
         <AppImage
@@ -333,6 +377,30 @@ export default function SettingsScreen() {
             onPress: () => router.push('/settings/blockedUsers' as any)
           })}
         </View>
+        {/* Section: Account Type — self-service upgrade to seller/driver.
+            Adding a role never removes the buyer role, and there's no
+            self-service downgrade — matches existing "shop as buyer" design. */}
+        {(!roles.includes('seller') || !roles.includes('driver')) && (
+          <>
+            <Text style={styles.sectionHeader}>Account Type</Text>
+            <View style={styles.sectionCard}>
+              {!roles.includes('seller') && renderSettingItem({
+                icon: 'shopping-bag',
+                label: 'Become a Seller',
+                onPress: () => router.push('/business/register' as any)
+              })}
+              {!roles.includes('seller') && !roles.includes('driver') && (
+                <View style={styles.separator} />
+              )}
+              {!roles.includes('driver') && renderSettingItem({
+                icon: 'truck',
+                label: 'Become a Driver',
+                onPress: handleBecomeDriver,
+                rightElement: becomingDriver ? <ActivityIndicator size="small" color={colors.primary} /> : null
+              })}
+            </View>
+          </>
+        )}
         {/* Section: Preferences */}
         <Text style={styles.sectionHeader}>Preferences</Text>
         <View style={styles.sectionCard}>
@@ -346,12 +414,17 @@ export default function SettingsScreen() {
                 accessibilityRole="switch"
                 value={notificationsEnabled}
                 onValueChange={handleNotificationToggle}
-                trackColor={{ false: '#E2E8F0', true: '#84cc16' }}
-                thumbColor={'#FFF'}
+                trackColor={{ false: colors.borderStrong, true: colors.accent }}
+                thumbColor="#FFFFFF" // native switch thumb stays white in both themes
               />
             )
           })}
           <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'moon',
+            label: 'Appearance',
+            onPress: () => router.push('/settings/appearance')
+          })}
         </View>
         {/* Section: Support & Legal */}
         <Text style={styles.sectionHeader}>Support</Text>
@@ -395,7 +468,7 @@ export default function SettingsScreen() {
         {/* Logout */}
         <View style={styles.logoutContainer}>
           <TouchableOpacity accessibilityLabel="Log out" accessibilityRole="button" style={styles.logoutButton} onPress={handleLogout}>
-            <Feather name="log-out" size={20} color="#EF4444" />
+            <Feather name="log-out" size={20} color={colors.error} />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
           <Text style={styles.versionText}>Version {APP_VERSION}</Text>
@@ -418,7 +491,7 @@ export default function SettingsScreen() {
           <Pressable accessibilityLabel="Close logout dialog" accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setLogoutModalVisible(false)} />
           <View style={styles.logoutModalCard}>
             <View style={styles.logoutModalIcon}>
-              <Feather name="log-out" size={22} color="#EF4444" />
+              <Feather name="log-out" size={22} color={colors.error} />
             </View>
             <Text style={styles.logoutModalTitle}>Log Out?</Text>
             <Text style={styles.logoutModalBody}>
@@ -450,10 +523,10 @@ export default function SettingsScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.background,
   },
   // Header
   headerContainer: {
@@ -463,7 +536,7 @@ const styles = StyleSheet.create({
   },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 26,
-    backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    backgroundColor: c.background, borderTopLeftRadius: 26, borderTopRightRadius: 26,
   },
   hdrGlow1: {
     position: 'absolute', top: -30, right: -30,
@@ -511,11 +584,11 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#84cc16', // Lime Green
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2.5,
-    borderColor: '#FFF',
+    borderColor: '#FFF', // ring over the header gradient, intentionally fixed
     overflow: 'hidden',
   },
   avatarImage: {
@@ -526,7 +599,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.accentText,
   },
   
   // Skeleton Styles
@@ -583,7 +656,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#94A3B8',
+    color: c.textMuted,
     marginBottom: 6,
     marginTop: 24,
     paddingHorizontal: 20,
@@ -591,9 +664,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   sectionCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: c.border,
     borderRadius: 16,
     marginHorizontal: 16,
     marginBottom: 24,
@@ -601,7 +674,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     marginLeft: 60,
   },
   // Setting Item
@@ -623,10 +696,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: c.text,
   },
   destructiveLabel: {
-    color: '#EF4444',
+    color: c.error,
   },
   // Logout
   logoutContainer: {
@@ -638,12 +711,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     paddingVertical: 14,
     paddingHorizontal: 30,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: c.error,
     gap: 8,
     width: '100%',
     marginBottom: 16,
@@ -651,16 +724,16 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#EF4444',
+    color: c.error,
   },
   logoutModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.45)',
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   logoutModalCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 22,
     paddingHorizontal: 20,
     paddingVertical: 22,
@@ -669,7 +742,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: c.errorBg,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
@@ -677,7 +750,7 @@ const styles = StyleSheet.create({
   },
   logoutModalTitle: {
     fontSize: 20,
-    color: '#0F172A',
+    color: c.text,
     fontFamily: 'Montserrat-Bold',
     textAlign: 'center',
     marginBottom: 6,
@@ -685,7 +758,7 @@ const styles = StyleSheet.create({
   logoutModalBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: '#64748B',
+    color: c.textSecondary,
     fontFamily: 'Montserrat-Medium',
     textAlign: 'center',
     marginBottom: 18,
@@ -698,12 +771,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoutCancelText: {
-    color: '#334155',
+    color: c.text,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
   },
@@ -711,18 +784,18 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#DC2626',
+    backgroundColor: c.error,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoutConfirmText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the red confirm button, intentionally fixed
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },
   versionText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: c.textMuted,
   },
 });

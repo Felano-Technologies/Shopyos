@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,18 @@ import { StatusBar } from 'expo-status-bar';
 import { DealsSkeleton } from '@/components/skeletons/DealsSkeleton';
 import { useProducts } from '@/hooks/useProducts';
 import { getActiveFlashSale } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 export default function DealsScreen() {
   const router = useRouter();
-  
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   // --- TanStack Query Hook ---
-  const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc' });
+  const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc', onSale: true });
   const [refreshing, setRefreshing] = React.useState(false);
 
   const [flashSale, setFlashSale] = React.useState<any | null>(null);
@@ -78,19 +82,22 @@ export default function DealsScreen() {
     }
   }, [refetch]);
   
-  const deals = data?.products?.map((p: any) => {
-    const priceNum = Number(p.price) || 0;
-    const oldPriceNum = p.oldPrice ? Number(p.oldPrice) : priceNum * 1.25;
-    return {
-      id: p._id,
-      title: p.name,
-      price: priceNum,
-      oldPrice: oldPriceNum,
-      image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
-      category: p.category || 'General',
-      tag: priceNum < 100 ? 'Hot' : 'Sale',
-    };
-  }) || [];
+  const deals = data?.products
+    ?.filter((p: any) => Number(p.compareAtPrice) > Number(p.price))
+    ?.map((p: any) => {
+      const priceNum = Number(p.price) || 0;
+      const oldPriceNum = Number(p.compareAtPrice);
+      const discountPct = Math.round(((oldPriceNum - priceNum) / oldPriceNum) * 100);
+      return {
+        id: p._id,
+        title: p.name,
+        price: priceNum,
+        oldPrice: oldPriceNum,
+        image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+        category: p.category || 'General',
+        tag: `-${discountPct}%`,
+      };
+    }) || [];
 
   const loading = isLoading;
 
@@ -127,7 +134,7 @@ export default function DealsScreen() {
 
         {/* Favorite Icon */}
         <TouchableOpacity style={styles.favBtn}>
-            <Ionicons name="heart-outline" size={18} color="#0C1559" />
+            <Ionicons name="heart-outline" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -143,6 +150,7 @@ export default function DealsScreen() {
         {/* Grab Deal Button */}
         <View style={styles.addBtn}>
             <Text style={styles.addBtnText}>Grab Deal</Text>
+            {/* white icon on the fixed-primary button */}
             <Feather name="arrow-right" size={14} color="#FFF" />
         </View>
       </View>
@@ -158,14 +166,16 @@ export default function DealsScreen() {
       <StatusBar style="light" />
       
       {/* --- Header --- */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.headerContent}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    {/* white icon on the header gradient, fixed dark navy in both themes */}
                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Deals For You</Text>
                 <TouchableOpacity style={styles.iconBtn}>
+                    {/* white icon on the header gradient, fixed dark navy in both themes */}
                     <Ionicons name="search" size={24} color="#FFF" />
                 </TouchableOpacity>
             </View>
@@ -193,7 +203,7 @@ export default function DealsScreen() {
               <View style={styles.flashHeader}>
                 <Text style={styles.flashTitleHeader}>⚡ Flash Sale</Text>
                 <View style={styles.timerContainer}>
-                  <Feather name="clock" size={12} color="#EF4444" />
+                  <Feather name="clock" size={12} color={colors.error} />
                   <Text style={styles.timerText}>{countdownText}</Text>
                 </View>
               </View>
@@ -250,7 +260,7 @@ export default function DealsScreen() {
         }
         ListEmptyComponent={
           <View style={{ alignItems: 'center', marginTop: 50 }}>
-            <Text style={{ color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No deals available at the moment.</Text>
+            <Text style={{ color: colors.textMuted, fontFamily: 'Montserrat-Medium' }}>No deals available at the moment.</Text>
           </View>
         }
       />
@@ -258,12 +268,12 @@ export default function DealsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: c.background
   },
-  
+
   // Header
   header: {
     paddingBottom: 20,
@@ -280,13 +290,13 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)', // translucent button on the fixed-dark header gradient
     borderRadius: 12,
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
+    color: '#FFF', // white text on the header gradient, fixed dark navy in both themes
   },
   iconBtn: {
     padding: 8,
@@ -305,10 +315,10 @@ const styles = StyleSheet.create({
   // Card
   card: {
     width: (width - 44) / 2,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: "#0C1559",
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -319,7 +329,7 @@ const styles = StyleSheet.create({
     height: 140,
     width: '100%',
     position: 'relative',
-    backgroundColor: '#F1F5F9', // Fallback color
+    backgroundColor: c.border, // Fallback color
   },
   dealImage: {
     width: '100%',
@@ -330,13 +340,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: c.overlay,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   tagText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the dark tag overlay
     fontSize: 10,
     fontFamily: 'Montserrat-Medium',
   },
@@ -344,7 +354,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -362,7 +372,7 @@ const styles = StyleSheet.create({
   dealTitle: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 6,
   },
   priceRow: {
@@ -373,38 +383,38 @@ const styles = StyleSheet.create({
   dealPrice: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#cf1302', // Lime Green
+    color: c.error,
     marginRight: 8,
   },
   oldPrice: {
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: c.textMuted,
     textDecorationLine: 'line-through',
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     paddingVertical: 8,
     borderRadius: 10,
     gap: 4,
   },
   addBtnText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the fixed-primary button
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
   },
 
   // Flash sale styles
   flashSection: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
   },
   flashHeader: {
     flexDirection: 'row',
@@ -415,36 +425,36 @@ const styles = StyleSheet.create({
   flashTitleHeader: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.primary,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: c.errorBg,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: c.errorBg,
   },
   timerText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#EF4444',
+    color: c.error,
     marginLeft: 4,
   },
   flashCard: {
     width: 140,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 12,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: c.border,
     overflow: 'hidden',
   },
   flashImageContainer: {
     height: 100,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
     position: 'relative',
   },
   flashImage: {
@@ -456,13 +466,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     left: 6,
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   flashDiscountText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the fixed-error badge
     fontSize: 9,
     fontFamily: 'Montserrat-Bold',
   },
@@ -472,7 +482,7 @@ const styles = StyleSheet.create({
   flashTitle: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#1E293B',
+    color: c.text,
   },
   flashPriceRow: {
     flexDirection: 'row',
@@ -483,41 +493,41 @@ const styles = StyleSheet.create({
   flashPrice: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#EF4444',
+    color: c.error,
     marginRight: 6,
   },
   flashOldPrice: {
     fontSize: 10,
     fontFamily: 'Montserrat-Regular',
-    color: '#94A3B8',
+    color: c.textMuted,
     textDecorationLine: 'line-through',
   },
   stockBarBg: {
     height: 4,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.borderStrong,
     borderRadius: 2,
     overflow: 'hidden',
   },
   stockBarFill: {
     height: '100%',
-    backgroundColor: '#EF4444',
+    backgroundColor: c.error,
     borderRadius: 2,
   },
   stockLabel: {
     fontSize: 9,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     marginTop: 4,
   },
   sectionTitleHeader: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.primary,
     marginBottom: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     marginVertical: 14,
   },
 });

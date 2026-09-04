@@ -96,7 +96,7 @@ class OrderRepository extends BaseRepository {
   async getBuyerOrders(buyerId, options = {}) {
     const { status, limit = 20, offset = 0 } = options;
 
-    const where = { buyer_id: buyerId };
+    const where = { buyer_id: buyerId, buyer_hidden_at: null };
     if (status) where.status = status;
 
     const result = await this.findAll({
@@ -250,6 +250,27 @@ class OrderRepository extends BaseRepository {
     }
 
     return orderResponse;
+  }
+
+  /**
+   * Remove completed orders from a buyer's own order history (soft-hide).
+   * Only orders owned by the buyer AND already in 'completed' status are
+   * affected — anything else in orderIds is silently skipped.
+   * @param {string} buyerId
+   * @param {string[]} orderIds
+   * @returns {Promise<Array<{id: string}>>} Orders actually hidden
+   */
+  async hideForBuyer(buyerId, orderIds) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .update({ buyer_hidden_at: new Date().toISOString() })
+      .eq('buyer_id', buyerId)
+      .eq('status', 'completed')
+      .in('id', orderIds)
+      .select('id');
+
+    if (error) throw error;
+    return data || [];
   }
 
   /**

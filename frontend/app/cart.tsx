@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
   Animated, PanResponder,
@@ -16,6 +16,8 @@ import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { getActiveBanners, recordAdClick } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 type CartItem = {
   id: string;
@@ -38,6 +40,8 @@ type SwipeableProps = {
 };
 
 const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const SWIPE_THRESHOLD = -60;
@@ -81,7 +85,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
     <View style={styles.swipeContainer}>
       <View style={styles.deleteBackground}>
         <TouchableOpacity accessibilityLabel="Remove item from cart" accessibilityRole="button" onPress={handleDelete} style={styles.deleteAction}>
-          <Feather name="trash-2" size={22} color="#FFF" />
+          <Feather name="trash-2" size={22} color="#FFF" />{/* white icon on the fixed error-colored delete background */}
           <Text style={styles.deleteActionText}>Remove</Text>
         </TouchableOpacity>
       </View>
@@ -98,7 +102,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
           <View style={styles.titleRow}>
             <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
             <TouchableOpacity accessibilityLabel="Delete item" accessibilityRole="button" onPress={handleDelete} style={styles.deleteBtn}>
-              <Feather name="trash-2" size={16} color="#EF4444" />
+              <Feather name="trash-2" size={16} color={colors.error} />
             </TouchableOpacity>
           </View>
           <Text style={styles.itemCategory}>{item.category}</Text>
@@ -128,8 +132,8 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
                                                 onPress={handleDecrement}
                                               >
                 {item.quantity === 1
-                  ? <Feather name="trash-2" size={12} color="#EF4444" />
-                  : <Feather name="minus" size={14} color="#0C1559" />}
+                  ? <Feather name="trash-2" size={12} color={colors.error} />
+                  : <Feather name="minus" size={14} color={colors.primary} />}
               </TouchableOpacity>
               <Text style={styles.qtyText}>{item.quantity}</Text>
 <TouchableOpacity
@@ -138,7 +142,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
                                                 style={[styles.qtyBtn, styles.qtyBtnActive]}
                                                 onPress={() => updateQuantity(item.id, 1)}
                                               >
-                <Feather name="plus" size={14} color="#FFF" />
+                <Feather name="plus" size={14} color="#FFF" />{/* white icon on primary-colored button, readable in both themes */}
               </TouchableOpacity>
             </View>
           </View>
@@ -162,6 +166,8 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const cartItems = useCart((s) => s.items);
   const removeFromCart = useCart((s) => s.removeFromCart);
   const updateQuantity = useCart((s) => s.updateQuantity);
@@ -233,12 +239,12 @@ export default function CartScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <StatusBar style="light" backgroundColor={colors.primary} />
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
           <View style={styles.headerRow}>
             <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
+              <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on header gradient, fixed dark navy in both themes */}
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Cart</Text>
             <View style={styles.cartCountBadge}>
@@ -272,7 +278,7 @@ export default function CartScreen() {
         windowSize={8}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />
+            <MaterialCommunityIcons name="cart-outline" size={80} color={colors.textMuted} />
             <Text style={styles.emptyText}>Your cart is empty</Text>
             <TouchableOpacity accessibilityLabel="Start shopping" accessibilityRole="button" style={styles.shopBtn} onPress={() => router.back()}>
               <Text style={styles.shopBtnText}>Start Shopping</Text>
@@ -297,7 +303,7 @@ export default function CartScreen() {
               ref={refCheckout}
               onLayout={() => measureElement(refCheckout, 'checkout')}
             >
-              <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
+              <LinearGradient colors={colors.headerGradient} style={styles.checkoutGradient}>
                 <Text style={styles.checkoutText}>Checkout</Text>
                 <Feather name="arrow-right" size={20} color="#FFF" />
               </LinearGradient>
@@ -315,18 +321,18 @@ export default function CartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { paddingBottom: 25 },
   headerSafe: { width: '100%' },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 10,
   },
-  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  cartCountBadge: { backgroundColor: '#A3E635', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  cartCountText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 }, // on the fixed header gradient
+  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' }, // header text, fixed navy gradient
+  cartCountBadge: { backgroundColor: '#A3E635', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }, // fixed accent badge on header
+  cartCountText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' }, // text on the fixed accent badge
 
   listContent: { paddingVertical: 12, paddingBottom: 200 },
 
@@ -334,51 +340,51 @@ const styles = StyleSheet.create({
   swipeContainer: { marginBottom: 10, overflow: 'hidden' },
   deleteBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.error,
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingRight: 8,
   },
   deleteAction: { alignItems: 'center', justifyContent: 'center', width: 70, paddingVertical: 12 },
-  deleteActionText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-Bold', marginTop: 4 },
+  deleteActionText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-Bold', marginTop: 4 }, // white text on the fixed error-red background
 
   // Cart item
   cartItem: {
-    flexDirection: 'row', backgroundColor: '#FFF',
+    flexDirection: 'row', backgroundColor: colors.surface,
     padding: 12, elevation: 1,
-    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  itemImage: { width: 95, height: 95, borderRadius: 10, backgroundColor: '#F1F5F9' },
+  itemImage: { width: 95, height: 95, borderRadius: 10, backgroundColor: colors.border },
   itemDetails: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  itemTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', lineHeight: 18 },
-  deleteBtn: { padding: 4, backgroundColor: '#FEF2F2', borderRadius: 6, marginLeft: 6 },
-  itemCategory: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 2 },
+  itemTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text, lineHeight: 18 },
+  deleteBtn: { padding: 4, backgroundColor: colors.errorBg, borderRadius: 6, marginLeft: 6 },
+  itemCategory: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 2 },
   priceControlRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginTop: 6,
   },
-  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  itemPriceStrikethrough: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textDecorationLine: 'line-through' },
-  itemPriceBargained: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#16a34a' },
-  itemSubtotal: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 1 },
+  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
+  itemPriceStrikethrough: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, textDecorationLine: 'line-through' },
+  itemPriceBargained: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.success },
+  itemSubtotal: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 1 },
   qtyContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
-    borderRadius: 10, padding: 3, borderWidth: 1, borderColor: '#F1F5F9',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceElevated,
+    borderRadius: 10, padding: 3, borderWidth: 1, borderColor: colors.border,
   },
   qtyBtn: {
     width: 26, height: 26, borderRadius: 7,
-    justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF',
+    justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface,
   },
-  qtyBtnActive: { backgroundColor: '#0C1559' },
-  qtyBtnDanger: { backgroundColor: '#FEF2F2' },
-  qtyText: { marginHorizontal: 10, fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  qtyBtnActive: { backgroundColor: colors.primary },
+  qtyBtnDanger: { backgroundColor: colors.errorBg },
+  qtyText: { marginHorizontal: 10, fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text },
 
   // Summary panel
   summaryContainer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    backgroundColor: colors.surface,
+    borderTopWidth: 1, borderTopColor: colors.border,
     paddingHorizontal: 20, paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 36 : 20,
     elevation: 25,
@@ -387,18 +393,18 @@ const styles = StyleSheet.create({
 
   // Total row
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  totalValue: { fontSize: 19, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  summaryLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textSecondary },
+  totalValue: { fontSize: 19, fontFamily: 'Montserrat-Bold', color: colors.primary },
   checkoutBtn: { borderRadius: 10, overflow: 'hidden', flex: 1, marginLeft: 20 },
   checkoutGradient: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     paddingVertical: 16, gap: 10,
   },
-  checkoutText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  checkoutText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' }, // white text on the fixed accent gradient button
 
   // Empty state
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 },
-  emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 20, marginBottom: 30 },
-  shopBtn: { backgroundColor: '#0C1559', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
-  shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
+  emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: colors.textMuted, marginTop: 20, marginBottom: 30 },
+  shopBtn: { backgroundColor: colors.primary, paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
+  shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' }, // white text on the fixed primary button
 });

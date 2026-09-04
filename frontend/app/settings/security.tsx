@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,9 +23,39 @@ import {
   storage, getSecuritySettings, updateSecuritySettings,
   requestDataExport, requestAccountDeletion, logoutUser,
 } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  card: string;
+  body: string;
+  muted: string;
+  border: string;
+  pillBg: string;
+  badgeBg: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textMuted,
+    border: colors.border,
+    pillBg: colors.border,
+    badgeBg: colors.backgroundAlt,
+    textInverse: colors.textInverse,
+  };
 }
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -55,6 +85,9 @@ function SectionPill({
   active: boolean;
   onPress: () => void;
 }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <TouchableOpacity
       accessibilityLabel={label}
@@ -80,6 +113,9 @@ function ToggleRow({
   value: boolean;
   onValueChange: (v: boolean) => void;
 }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <View style={styles.rowCard}>
       <View style={styles.rowInner}>
@@ -93,9 +129,9 @@ function ToggleRow({
           accessibilityRole="switch"
           value={value}
           onValueChange={onValueChange}
-          trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
+          trackColor={{ false: C.border, true: '#A3E635' }}
           thumbColor="#fff"
-          ios_backgroundColor="#E2E8F0"
+          ios_backgroundColor={C.border}
         />
       </View>
     </View>
@@ -117,6 +153,9 @@ function LinkRow({
   badge?: string;
   danger?: boolean;
 }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   return (
     <TouchableOpacity accessibilityLabel={title} accessibilityRole="button" style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowInner}>
@@ -132,7 +171,7 @@ function LinkRow({
             <Text style={styles.linkBadgeText}>{badge}</Text>
           </View>
         ) : (
-          <Feather name="chevron-right" size={17} color={danger ? '#EF4444' : '#CBD5E1'} />
+          <Feather name="chevron-right" size={17} color={danger ? '#EF4444' : themeColors.textMuted} />
         )}
       </View>
     </TouchableOpacity>
@@ -140,6 +179,9 @@ function LinkRow({
 }
 
 function ScoreBanner({ score }: Readonly<{ score: number }>) {
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   let color: string;
   if (score >= 80) { color = '#A3E635'; }
   else if (score >= 50) { color = '#F59E0B'; }
@@ -186,6 +228,9 @@ const TOGGLE_KEYS: ToggleKey[] = [
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function SecurityPrivacySettings() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [activeSection, setActiveSection] = useState<Section>('Security');
 
   const [toggles, setToggles] = useState<TogglesState>({
@@ -346,7 +391,7 @@ export default function SecurityPrivacySettings() {
       {/* ── Header ── */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={themeColors.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -394,28 +439,28 @@ export default function SecurityPrivacySettings() {
             <>
               <Text style={styles.sectionTitle}>Account Security</Text>
               <LinkRow
-                icon={<Ionicons name="key" size={18} color="#0C1559" />}
+                icon={<Ionicons name="key" size={18} color={C.navy} />}
                 title="Change Password"
                 subtitle="Last updated 30+ days ago"
                 badge="Update"
                 onPress={() => router.push('/settings/changePassword')}
               />
               <ToggleRow
-                icon={<MaterialCommunityIcons name="shield-account" size={19} color="#0C1559" />}
+                icon={<MaterialCommunityIcons name="shield-account" size={19} color={C.navy} />}
                 title="Two-Factor Authentication"
                 subtitle="Require a verification code on every new login"
                 value={toggles.twoFactorEnabled}
                 onValueChange={(v) => setToggle('twoFactorEnabled', v)}
               />
               <ToggleRow
-                icon={<MaterialIcons name="fingerprint" size={20} color="#0C1559" />}
+                icon={<MaterialIcons name="fingerprint" size={20} color={C.navy} />}
                 title="Biometric Login"
                 subtitle="Sign in with Face ID or fingerprint"
                 value={toggles.biometricEnabled}
                 onValueChange={(v) => setToggle('biometricEnabled', v)}
               />
               <ToggleRow
-                icon={<Ionicons name="notifications-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="notifications-outline" size={18} color={C.navy} />}
                 title="Login Alerts"
                 subtitle="Get notified whenever a new device signs in"
                 value={toggles.loginAlerts}
@@ -424,7 +469,7 @@ export default function SecurityPrivacySettings() {
 
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Devices</Text>
               <LinkRow
-                icon={<MaterialIcons name="devices" size={19} color="#0C1559" />}
+                icon={<MaterialIcons name="devices" size={19} color={C.navy} />}
                 title="Active Sessions"
                 subtitle="View and remove logged-in devices"
                 onPress={() => router.push('/settings/activeSessions' as any)}
@@ -437,21 +482,21 @@ export default function SecurityPrivacySettings() {
             <>
               <Text style={styles.sectionTitle}>Data & Tracking</Text>
               <ToggleRow
-                icon={<Ionicons name="bar-chart-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="bar-chart-outline" size={18} color={C.navy} />}
                 title="Activity Tracking"
                 subtitle="Helps us improve your shopping experience"
                 value={toggles.activityTracking}
                 onValueChange={(v) => setToggle('activityTracking', v)}
               />
               <ToggleRow
-                icon={<MaterialCommunityIcons name="bullhorn-outline" size={18} color="#0C1559" />}
+                icon={<MaterialCommunityIcons name="bullhorn-outline" size={18} color={C.navy} />}
                 title="Personalised Ads"
                 subtitle="See ads relevant to your browsing history"
                 value={toggles.personalizedAds}
                 onValueChange={(v) => setToggle('personalizedAds', v)}
               />
               <ToggleRow
-                icon={<MaterialCommunityIcons name="handshake-outline" size={19} color="#0C1559" />}
+                icon={<MaterialCommunityIcons name="handshake-outline" size={19} color={C.navy} />}
                 title="Partner Data Sharing"
                 subtitle="Share anonymised data with trusted partners"
                 value={toggles.dataSharingPartners}
@@ -460,14 +505,14 @@ export default function SecurityPrivacySettings() {
 
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Location & Comms</Text>
               <ToggleRow
-                icon={<Ionicons name="location-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="location-outline" size={18} color={C.navy} />}
                 title="Location Access"
                 subtitle="Used for delivery estimates and nearby stores"
                 value={toggles.locationTracking}
                 onValueChange={(v) => setToggle('locationTracking', v)}
               />
               <ToggleRow
-                icon={<Ionicons name="mail-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="mail-outline" size={18} color={C.navy} />}
                 title="Marketing Emails"
                 subtitle="Receive deals, offers, and updates via email"
                 value={toggles.marketingEmails}
@@ -476,7 +521,7 @@ export default function SecurityPrivacySettings() {
 
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Legal</Text>
               <LinkRow
-                icon={<Ionicons name="document-text-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="document-text-outline" size={18} color={C.navy} />}
                 title="Privacy Policy"
                 subtitle="Read our full privacy terms"
                 onPress={() => router.push('/settings/privacyPolicy' as any)}
@@ -489,7 +534,7 @@ export default function SecurityPrivacySettings() {
             <>
               <Text style={styles.sectionTitle}>Your Data</Text>
               <LinkRow
-                icon={<Ionicons name="download-outline" size={18} color="#0C1559" />}
+                icon={<Ionicons name="download-outline" size={18} color={C.navy} />}
                 title="Download My Data"
                 subtitle="Get a copy of everything we hold about you"
                 onPress={handleDownloadData}
@@ -511,7 +556,7 @@ export default function SecurityPrivacySettings() {
               </View>
 
               <View style={styles.infoNote}>
-                <Feather name="info" size={13} color="#94A3B8" />
+                <Feather name="info" size={13} color={C.muted} />
                 <Text style={styles.infoNoteText}>
                   Account deletions are processed after a 7-day grace period, once any outstanding orders and wallet balances are settled. Contact support within that window to cancel.
                 </Text>
@@ -558,8 +603,8 @@ export default function SecurityPrivacySettings() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: C.bg },
 
   watermarkWrap: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
@@ -633,25 +678,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderRadius: 20,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: C.pillBg,
     marginRight: 10,
   },
-  catPillActive: { backgroundColor: '#0C1559' },
-  catText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  catTextActive: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
+  catPillActive: { backgroundColor: C.navy },
+  catText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+  catTextActive: { color: C.textInverse, fontFamily: 'Montserrat-Bold' },
 
   sectionContent: { paddingHorizontal: 20 },
   sectionTitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
     fontWeight: '700',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 12,
   },
 
   // Row card (matches help center faqCard style)
   rowCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     marginBottom: 10,
     paddingHorizontal: 14,
@@ -667,7 +712,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F0F4FF',
+    backgroundColor: C.badgeBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -676,24 +721,24 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: C.body,
     fontWeight: '600',
   },
   rowSubtitle: {
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
+    color: C.muted,
     marginTop: 2,
     lineHeight: 15,
   },
   linkBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.badgeBg,
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 4,
   },
   linkBadgeText: {
-    color: '#0C1559',
+    color: C.navy,
     fontSize: 11,
     fontFamily: 'Montserrat-Bold',
     fontWeight: '700',
@@ -732,7 +777,7 @@ const styles = StyleSheet.create({
   },
   infoNoteText: {
     flex: 1,
-    color: '#94A3B8',
+    color: C.muted,
     fontSize: 11,
     fontFamily: 'Montserrat-Medium',
     lineHeight: 16,

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  useColorScheme,
   Switch,
   TouchableOpacity,
   Platform,
@@ -15,6 +14,7 @@ import * as Notifications from 'expo-notifications';
 import { getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,12 +26,11 @@ Notifications.setNotificationHandler({
   }),
 });
 export default function PushNotificationsScreen() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
-  const bgColor = isDark ? '#121212' : '#F8F8F8';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#222222';
-  const secondaryText = isDark ? '#AAA' : '#666666';
+  const colors = useThemeColors();
+  const bgColor = colors.backgroundAlt;
+  const cardBg = colors.surface;
+  const primaryText = colors.text;
+  const secondaryText = colors.textSecondary;
   const [pushEnabled, setPushEnabled] = useState(false);
   const [, setExpoPushToken] = useState<string | null>(null);
   const notificationListener = useRef<any>(null);
@@ -171,7 +170,7 @@ export default function PushNotificationsScreen() {
           <Switch
             value={pushEnabled}
             onValueChange={togglePush}
-            trackColor={{ false: '#767577', true: '#4F46E5' }}
+            trackColor={{ false: colors.border, true: '#4F46E5' }}
             thumbColor="#FFFFFF"
           />
         </View>
@@ -179,11 +178,11 @@ export default function PushNotificationsScreen() {
           <TouchableOpacity
             style={[
               styles.button,
-              { backgroundColor: isDark ? '#4F46E5' : '#222222' },
+              { backgroundColor: colors.primary },
             ]}
             onPress={sendTestNotification}
           >
-            <Text style={styles.buttonText}>Send Test Notification</Text>
+            <Text style={[styles.buttonText, { color: colors.textInverse }]}>Send Test Notification</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -211,5 +210,5 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
+  buttonText: { fontSize: 16, fontWeight: '500' },
 });

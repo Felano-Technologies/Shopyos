@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ScrollView, Animated,
@@ -6,14 +6,8 @@ import {
 import AppImage from '@/components/AppImage';
 import Skeleton from '@/components/Skeleton';
 import { SectionHeader } from './SectionHeader';
-
-const C = {
-  navy: '#0C1559',
-  lime: '#84cc16',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  subtle: '#94A3B8',
-};
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 type Props = Readonly<{
   title: string;
@@ -32,6 +26,8 @@ function defaultStoreName(item: any) {
 }
 
 function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, getStoreName }: Props) {
+  const colors = useThemeColors();
+  const S = useMemo(() => getS(colors), [colors]);
   // useRef keeps animated values stable across renders — no new allocations in renderItem
   const animValsRef = useRef<Animated.Value[]>([]);
   const storeName = getStoreName ?? defaultStoreName;
@@ -107,23 +103,23 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
 
 export const ProductRow = React.memo(ProductRowBase);
 
-const S = StyleSheet.create({
-  wrap: { marginBottom: 8, backgroundColor: '#fff' },
+const getS = (colors: ThemeColors) => StyleSheet.create({
+  wrap: { marginBottom: 8, backgroundColor: colors.background },
   list: { paddingLeft: 16, paddingBottom: 20, paddingRight: 4 },
   card: {
     width: 152,
     borderRadius: 18,
-    backgroundColor: C.card,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: colors.border,
   },
   img: { width: '100%', height: 116 },
   info: { padding: 10 },
   store: {
-    fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle,
+    fontSize: 9, fontFamily: 'Montserrat-Bold', color: colors.textMuted,
     textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3,
   },
-  name: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 5 },
-  price: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
+  name: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 5 },
+  price: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.accent },
 });

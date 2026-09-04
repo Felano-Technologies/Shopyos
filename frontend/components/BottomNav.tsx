@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { safeReplace } from '@/lib/navigation';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -22,6 +24,8 @@ const { width } = Dimensions.get('window');
 
 const BottomNav = () => {
   const pathname = usePathname();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const navItems = [
     { name: 'Home', icon: 'home-outline', activeIcon: 'home', route: '/home' },
@@ -58,7 +62,7 @@ const BottomNav = () => {
               {/* This is the background layer */}
               {isActive && (
                 <LinearGradient
-                  colors={['#0C1559', '#1e3a8a']}
+                  colors={colors.headerGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={StyleSheet.absoluteFillObject}
@@ -67,10 +71,10 @@ const BottomNav = () => {
 
               {/* Only ONE icon component used per item */}
               <View style={styles.contentRow}>
-                <Ionicons 
-                  name={(isActive ? item.activeIcon : item.icon) as any} 
-                  size={isActive ? 20 : 22} 
-                  color={isActive ? "#FFF" : "#64748B"} 
+                <Ionicons
+                  name={(isActive ? item.activeIcon : item.icon) as any}
+                  size={isActive ? 20 : 22}
+                  color={isActive ? "#FFF" : colors.textSecondary}
                 />
                 
                 {isActive && (
@@ -87,7 +91,7 @@ const BottomNav = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 18 : 10,
@@ -98,7 +102,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: c.surfaceElevated,
     width: width * 0.88,
     height: 60,
     borderRadius: 30,
@@ -106,7 +110,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
+    borderColor: c.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,

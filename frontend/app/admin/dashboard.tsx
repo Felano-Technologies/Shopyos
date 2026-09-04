@@ -163,6 +163,15 @@ export default function AdminDashboard() {
         accentColor: '#DC2626',
       },
       {
+        label: 'Promo Codes',
+        value: 'Manage',
+        route: '/admin/promo-codes',
+        icon: 'pricetags-outline',
+        iconBg: '#CCFBF1',
+        iconColor: '#0D9488',
+        accentColor: '#0D9488',
+      },
+      {
         label: 'Payouts',
         value: 'Manage',
         route: '/admin/payouts',

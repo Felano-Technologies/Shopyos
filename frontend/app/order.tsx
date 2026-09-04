@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
@@ -12,12 +12,16 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
-import { useOrders } from '@/hooks/useOrders';
+import { useOrders, useDeleteOrders } from '@/hooks/useOrders';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getActiveBanners, recordAdClick } from '@/services/api';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -31,28 +35,19 @@ const BOTTOM_BUFFER = rs(24);
 
 const PAGE_SIZE = 10;
 
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-  border:  'rgba(12,21,89,0.07)',
-};
-
 type StatusConfig = {
   color: string; bg: string; bar: string;
   timelineStep: number; label: string;
 };
 
-const STATUS_CONFIG: Record<string, StatusConfig> = {
-  pending:            { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', timelineStep: 0,  label: 'Pending'    },
-  paid:               { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', timelineStep: 1,  label: 'Paid'       },
-  confirmed:          { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', timelineStep: 1,  label: 'Confirmed'  },
+// Status badge colors: slots with a matching theme token (bar accents,
+// errorBg) use it; the rest are semantic status shades (amber/blue/purple
+// text + pale badge backgrounds) with no equivalent theme token, so they
+// stay as fixed literals in both themes.
+const buildStatusConfig = (c: ThemeColors): Record<string, StatusConfig> => ({
+  pending:            { color: '#B45309', bg: '#FEF3C7', bar: c.warning, timelineStep: 0,  label: 'Pending'    },
+  paid:               { color: '#15803D', bg: '#DCFCE7', bar: c.success, timelineStep: 1,  label: 'Paid'       },
+  confirmed:          { color: '#15803D', bg: '#DCFCE7', bar: c.success, timelineStep: 1,  label: 'Confirmed'  },
   processing:         { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 1,  label: 'Processing' },
   'ready for pickup': { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'Ready'      },
   'in transit':       { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'In Transit' },
@@ -61,13 +56,13 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
   'in transit regional': { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 2, label: 'In Transit'      },
   'at destination hub':  { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2, label: 'At Dest. Hub'     },
   'awaiting last mile':  { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2, label: 'Awaiting Pickup'  },
-  delivered:          { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', timelineStep: 3,  label: 'Delivered'  },
-  cancelled:          { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', timelineStep: -1, label: 'Cancelled'  },
-};
+  delivered:          { color: '#166534', bg: '#DCFCE7', bar: c.accent, timelineStep: 3,  label: 'Delivered'  },
+  cancelled:          { color: '#B91C1C', bg: c.errorBg, bar: c.error, timelineStep: -1, label: 'Cancelled'  },
+});
 
-const getStatusConfig = (status: string): StatusConfig =>
-  STATUS_CONFIG[status.toLowerCase().replaceAll('_', ' ')] ?? {
-    color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', timelineStep: 0, label: status,
+const getStatusConfig = (status: string, map: Record<string, StatusConfig>): StatusConfig =>
+  map[status.toLowerCase().replaceAll('_', ' ')] ?? {
+    color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', timelineStep: 0, label: status, // unmapped status fallback, neutral grays with no theme token
   };
 
 const TIMELINE_STEPS = ['Placed', 'Paid', 'Transit', 'Done'];
@@ -87,6 +82,26 @@ interface Order {
 const OrdersScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo(() => ({
+    bg: colors.background,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    // colors.primary is theme-adaptive (a light tint in dark mode, meant for
+    // text/icon accents) — unusable as a solid fill behind white text/icons.
+    // navyFixed stays dark navy in both themes (same as the header gradient)
+    // for anything that needs guaranteed contrast with white content.
+    navyFixed: colors.headerGradient[0],
+    lime: colors.accent,
+    limeText: colors.accentText,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+  }), [colors]);
+  const S = useMemo(() => getS(C), [C]);
+  const statusConfigMap = useMemo(() => buildStatusConfig(colors), [colors]);
 
   const listBottomPadding = BOTTOM_NAV_H + BOTTOM_BUFFER + insets.bottom;
 
@@ -154,6 +169,38 @@ const OrdersScreen = () => {
   });
 
   const handleFilterChange = (f: string) => { setActiveFilter(f); setPage(1); };
+
+  // ── Multi-select delete (buyer can only remove completed orders) ──────────
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const hasCompletedOrders = orders.some((o) => o.status === 'completed');
+  const deleteOrdersMutation = useDeleteOrders();
+
+  const exitSelectMode = () => { setSelectMode(false); setSelectedIds(new Set()); };
+  const toggleSelectMode = () => (selectMode ? exitSelectMode() : setSelectMode(true));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const confirmDeleteSelected = () => {
+    setShowDeleteConfirm(false);
+    const ids = Array.from(selectedIds);
+    deleteOrdersMutation.mutate(ids, {
+      onSuccess: (res: any) => {
+        CustomInAppToast.show({ type: 'success', title: 'Removed', message: res?.message || 'Orders removed from your history' });
+        exitSelectMode();
+      },
+      onError: (e: any) => {
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: e?.message || 'Failed to remove orders' });
+      },
+    });
+  };
 
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
@@ -227,34 +274,57 @@ const OrdersScreen = () => {
 
   // ── Order card ──────────────────────────────────────────────────────────────
   const renderOrder = ({ item }: { item: Order }) => {
-    const cfg       = getStatusConfig(item.status);
+    const cfg       = getStatusConfig(item.status, statusConfigMap);
     const showTrack = cfg.timelineStep >= 0 && cfg.timelineStep <= 2;
+    const isEligible = item.status === 'completed';
+    const isSelected = selectedIds.has(item.id);
 
     let dateStr = '';
     try { dateStr = format(new Date(item.date), 'MMM dd, yyyy'); } catch (e) { console.error('Failed to format order date:', e); }
 
     return (
       <TouchableOpacity
-        style={S.card}
+        style={[S.card, selectMode && !isEligible && S.cardDisabled]}
         activeOpacity={0.82}
-        onPress={() => router.push(`/order/${item.id}` as any)}
+        onPress={() => {
+          if (selectMode) {
+            if (isEligible) {
+              toggleSelected(item.id);
+            } else {
+              CustomInAppToast.show({
+                type: 'info',
+                title: 'Not removable',
+                message: 'Only completed orders can be removed from your history.',
+              });
+            }
+            return;
+          }
+          router.push(`/order/${item.id}` as any);
+        }}
         ref={filteredOrders[0]?.id === item.id ? refFirstOrder : undefined}
         onLayout={filteredOrders[0]?.id === item.id ? () => measureElement(refFirstOrder, 'order') : undefined}
       >
         <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
         <View style={S.cardBody}>
           <View style={S.cardTop}>
-            <View style={S.storeRow}>
-              <View style={S.storeIcon}>
-                {item.storeLogo ? (
-                  <AppImage uri={item.storeLogo} style={S.storeLogoImg} />
-                ) : (
-                  <MaterialCommunityIcons name="store-outline" size={rs(14)} color={C.navy} />
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
-                <Text style={S.storeCat}>{item.storeCategory || 'General'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: rs(8) }}>
+              {selectMode && (
+                <View style={[S.checkCircle, isSelected && S.checkCircleOn, !isEligible && S.checkCircleOff]}>
+                  {isSelected && <Ionicons name="checkmark" size={rs(12)} color="#fff" />}
+                </View>
+              )}
+              <View style={S.storeRow}>
+                <View style={S.storeIcon}>
+                  {item.storeLogo ? (
+                    <AppImage uri={item.storeLogo} style={S.storeLogoImg} />
+                  ) : (
+                    <MaterialCommunityIcons name="store-outline" size={rs(14)} color={colors.primary} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
+                  <Text style={S.storeCat}>{item.storeCategory || 'General'}</Text>
+                </View>
               </View>
             </View>
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
@@ -282,7 +352,7 @@ const OrdersScreen = () => {
             </Text>
             <View style={S.viewBtn}>
               <Text style={S.viewBtnTxt}>View Details</Text>
-              <Ionicons name="chevron-forward" size={rs(12)} color={C.navy} />
+              <Ionicons name="chevron-forward" size={rs(12)} color={colors.primary} />
             </View>
           </View>
         </View>
@@ -315,7 +385,7 @@ const OrdersScreen = () => {
             onPress={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1 || isFetching}
           >
-            <Ionicons name="chevron-back" size={rs(16)} color={page <= 1 ? '#CBD5E1' : C.navy} />
+            <Ionicons name="chevron-back" size={rs(16)} color={page <= 1 ? colors.textMuted : colors.primary} />
           </TouchableOpacity>
 
           {withEllipsis.map((n, i) =>
@@ -341,14 +411,14 @@ const OrdersScreen = () => {
             <Ionicons
               name="chevron-forward"
               size={rs(16)}
-              color={page >= totalPages ? '#CBD5E1' : C.navy}
+              color={page >= totalPages ? colors.textMuted : colors.primary}
             />
           </TouchableOpacity>
         </View>
 
         {isFetching && !isLoading && (
           <View style={S.fetchingRow}>
-            <ActivityIndicator size="small" color={C.navy} />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={S.fetchingTxt}>Loading…</Text>
           </View>
         )}
@@ -361,35 +431,50 @@ const OrdersScreen = () => {
     <View style={S.root}>
       <StatusBar style="light" />
 
-      <LinearGradient colors={[C.navy, C.navyMid]} style={S.hdrGradient}>
+      <LinearGradient colors={colors.headerGradient} style={S.hdrGradient}>
         <View style={S.hdrGlow} pointerEvents="none" />
 
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={S.hdrInner}>
             <View style={S.hdrTop}>
               <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
-                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
+                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" /* translucent white on the fixed navy header */ />
               </TouchableOpacity>
 
               <View style={S.hdrCenter}>
                 <Text style={S.hdrEye}>Track your</Text>
                 <Text style={S.hdrTitle}>
-                  My <Text style={{ color: C.lime }}>Orders</Text>
+                  My <Text style={{ color: colors.accent }}>Orders</Text>
                 </Text>
               </View>
 
-              <View style={S.hdrStatPill}>
-                <Text style={S.hdrStatN}>{totalItems}</Text>
-                <Text style={S.hdrStatLbl}>orders</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(8) }}>
+                {hasCompletedOrders && (
+                  <TouchableOpacity
+                    accessibilityLabel={selectMode ? 'Cancel selection' : 'Select orders to remove'}
+                    style={S.backBtn}
+                    onPress={toggleSelectMode}
+                  >
+                    <Ionicons
+                      name={selectMode ? 'close' : 'checkbox-outline'}
+                      size={rs(18)}
+                      color="rgba(255,255,255,0.85)" /* translucent white on the fixed navy header */
+                    />
+                  </TouchableOpacity>
+                )}
+                <View style={S.hdrStatPill}>
+                  <Text style={S.hdrStatN}>{totalItems}</Text>
+                  <Text style={S.hdrStatLbl}>orders</Text>
+                </View>
               </View>
             </View>
 
             <View style={[S.searchPill, searchQuery.length > 0 && S.searchPillActive]} ref={refSearch} onLayout={() => measureElement(refSearch, 'search')}>
-              <Feather name="search" size={rs(14)} color="rgba(255,255,255,0.5)" />
+              <Feather name="search" size={rs(14)} color="rgba(255,255,255,0.5)" /* translucent white on the fixed navy header */ />
               <TextInput
                 style={S.searchInput}
                 placeholder="Search by order ID or store…"
-                placeholderTextColor="rgba(255,255,255,0.32)"
+                placeholderTextColor="rgba(255,255,255,0.32)" // translucent white on the fixed navy header
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 returnKeyType="search"
@@ -401,7 +486,7 @@ const OrdersScreen = () => {
                   onPress={() => setSearchQuery('')}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="close" size={rs(10)} color="#fff" />
+                  <Ionicons name="close" size={rs(10)} color="#fff" /* white icon on the fixed navy header */ />
                 </TouchableOpacity>
               )}
             </View>
@@ -443,6 +528,13 @@ const OrdersScreen = () => {
         })}
       </ScrollView>
 
+      {selectMode && (
+        <View style={S.selectHint}>
+          <Ionicons name="information-circle" size={rs(14)} color={colors.primary} />
+          <Text style={S.selectHintTxt}>Only completed orders can be removed from your history</Text>
+        </View>
+      )}
+
       {isLoading ? (
         <OrdersSkeleton />
       ) : (
@@ -460,6 +552,7 @@ const OrdersScreen = () => {
               ) : (
                 <View style={S.adPlaceholder}>
                   <LinearGradient
+                    // decorative low-opacity navy tint, unaffected by theme
                     colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={StyleSheet.absoluteFill}
@@ -484,8 +577,8 @@ const OrdersScreen = () => {
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refetch}
-              tintColor={C.navy}
-              colors={[C.navy]}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           ListFooterComponent={renderFooter}
@@ -493,7 +586,7 @@ const OrdersScreen = () => {
             rawOrders.length > 0 ? (
               <View style={S.emptyWrap}>
                 <View style={S.emptyCircle}>
-                  <Ionicons name="search-outline" size={rs(40)} color={C.navy} />
+                  <Ionicons name="search-outline" size={rs(40)} color={colors.primary} />
                 </View>
                 <Text style={S.emptyTitle}>No matches</Text>
                 <Text style={S.emptyBody}>Try a different order ID, store name, or filter.</Text>
@@ -501,7 +594,7 @@ const OrdersScreen = () => {
             ) : (
               <View style={S.emptyWrap}>
                 <View style={S.emptyCircle}>
-                  <MaterialCommunityIcons name="package-variant-closed" size={rs(44)} color={C.navy} />
+                  <MaterialCommunityIcons name="package-variant-closed" size={rs(44)} color={colors.primary} />
                 </View>
                 <Text style={S.emptyTitle}>No orders yet</Text>
                 <Text style={S.emptyBody}>
@@ -516,17 +609,45 @@ const OrdersScreen = () => {
         />
       )}
 
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'orders'} 
+      <SpotlightTour
+        visible={isTourActive && activeScreen === 'orders'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
+      />
+
+      {selectMode && selectedIds.size > 0 && (
+        <View style={[S.selectionBar, { bottom: BOTTOM_NAV_H + insets.bottom + rs(10) }]}>
+          <Text style={S.selectionBarTxt}>{selectedIds.size} selected</Text>
+          <TouchableOpacity
+            style={S.selectionDeleteBtn}
+            onPress={() => setShowDeleteConfirm(true)}
+            disabled={deleteOrdersMutation.isPending}
+          >
+            <Ionicons name="trash-outline" size={rs(14)} color="#fff" />
+            <Text style={S.selectionDeleteTxt}>Remove</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Remove orders?"
+        message={`${selectedIds.size} order${selectedIds.size === 1 ? '' : 's'} will be removed from your order history. This won't affect the order itself.`}
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },
+          { label: 'Remove', onPress: confirmDeleteSelected, variant: 'destructive', loading: deleteOrdersMutation.isPending },
+        ]}
       />
     </View>
   );
 };
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+type LegacyPalette = { bg: string; navy: string; navyMid: string; navyFixed: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string };
+
+const getS = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
   hdrGradient: {
@@ -603,7 +724,7 @@ const S = StyleSheet.create({
     paddingHorizontal: rs(16),
     borderRadius: 18,
     borderWidth: 0.5,
-    borderColor: 'rgba(12,21,89,0.14)',
+    borderColor: C.border,
     backgroundColor: C.card,
     justifyContent: 'center',
     alignItems: 'center',
@@ -617,6 +738,15 @@ const S = StyleSheet.create({
   chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: '#fff' },
 
+  // Select-mode hint banner
+  selectHint: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(6),
+    marginHorizontal: rs(14), marginBottom: rs(8),
+    paddingVertical: rs(8), paddingHorizontal: rs(12), borderRadius: rs(10),
+    backgroundColor: C.border,
+  },
+  selectHintTxt: { flex: 1, fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted },
+
   // ── Spacer between chips and first card ───────────────────────────────────
   chipToCardSpacer: {
     height: rs(12),
@@ -627,7 +757,7 @@ const S = StyleSheet.create({
     marginBottom: rs(12),
     height: rs(80),
     borderWidth: 1,
-    borderColor: 'rgba(12,21,89,0.1)',
+    borderColor: C.border,
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -635,19 +765,19 @@ const S = StyleSheet.create({
     flex: 1, justifyContent: 'center', paddingHorizontal: rs(24),
   },
   adPlaceholderBadge: {
-    backgroundColor: 'rgba(12,21,89,0.08)', borderRadius: rs(10),
+    backgroundColor: C.border, borderRadius: rs(10),
     paddingHorizontal: rs(8), paddingVertical: rs(3),
     alignSelf: 'flex-start', marginBottom: rs(8),
   },
   adPlaceholderBadgeTxt: { fontSize: rf(8), fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
   adPlaceholderTitle:     { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(2) },
-  adPlaceholderSub:       { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: 'rgba(100,116,139,0.7)' },
+  adPlaceholderSub:       { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle },
   adPlaceholderDots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     position: 'absolute', bottom: rs(10), left: 0, right: 0,
   },
-  adPlaceholderDot:       { width: rs(6),  height: rs(6), borderRadius: rs(3), backgroundColor: 'rgba(12,21,89,0.15)' },
-  adPlaceholderDotActive: { width: rs(24), height: rs(6), borderRadius: rs(3), backgroundColor: 'rgba(12,21,89,0.25)' },
+  adPlaceholderDot:       { width: rs(6),  height: rs(6), borderRadius: rs(3), backgroundColor: C.border },
+  adPlaceholderDotActive: { width: rs(24), height: rs(6), borderRadius: rs(3), backgroundColor: C.navyMid },
 
   // List
   listContent: { paddingHorizontal: 0 },
@@ -656,8 +786,16 @@ const S = StyleSheet.create({
   card: {
     backgroundColor: C.card, borderRadius: rs(22),
     marginHorizontal: rs(14), marginBottom: rs(12), overflow: 'hidden',
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
+  cardDisabled: { opacity: 0.5 },
+  checkCircle: {
+    width: rs(20), height: rs(20), borderRadius: rs(10), marginRight: rs(10),
+    borderWidth: 1.5, borderColor: C.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  checkCircleOn: { backgroundColor: C.navyFixed, borderColor: C.navyFixed },
+  checkCircleOff: { borderColor: C.border, backgroundColor: 'transparent' },
   cardBar:  { height: rs(3) },
   cardBody: { padding: rs(14) },
 
@@ -668,11 +806,11 @@ const S = StyleSheet.create({
   storeRow: { flexDirection: 'row', alignItems: 'center', gap: rs(7), flex: 1, marginRight: rs(8) },
   storeIcon: {
     width: rs(28), height: rs(28), borderRadius: rs(9),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden'
   },
   storeLogoImg: { width: '100%', height: '100%', resizeMode: 'cover' },
-  storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#334155' },
+  storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body },
   storeCat: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(1) },
   statusPill: {
     height: 26, paddingHorizontal: rs(10), borderRadius: 13,
@@ -687,7 +825,7 @@ const S = StyleSheet.create({
     marginBottom: rs(12), paddingHorizontal: rs(2),
   },
   tlStep:       { alignItems: 'center', minWidth: rs(36) },
-  tlDot:        { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: '#E2E8F0' },
+  tlDot:        { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: C.border },
   tlDotDone:    { backgroundColor: C.lime },
   tlDotActive:  {
     backgroundColor: C.navy,
@@ -697,13 +835,13 @@ const S = StyleSheet.create({
   tlLbl:        { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(3), textAlign: 'center' },
   tlLblDone:    { color: C.lime },
   tlLblActive:  { color: C.navy, fontFamily: 'Montserrat-Bold' },
-  tlLine:       { flex: 1, height: rs(2), backgroundColor: '#E2E8F0', marginTop: rs(4), marginBottom: rs(14) },
+  tlLine:       { flex: 1, height: rs(2), backgroundColor: C.border, marginTop: rs(4), marginBottom: rs(14) },
   tlLineDone:   { backgroundColor: C.lime },
 
   cardMid: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: rs(11), borderTopWidth: 0.5, borderBottomWidth: 0.5,
-    borderColor: '#F1F5F9', marginBottom: rs(11),
+    borderColor: C.border, marginBottom: rs(11),
   },
   orderNum:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.navy,   marginBottom: rs(3) },
   orderDate:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
@@ -715,7 +853,7 @@ const S = StyleSheet.create({
   itemsLbl:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
   viewBtn: {
     flexDirection: 'row', alignItems: 'center', gap: rs(3),
-    backgroundColor: '#EEF2FF', paddingHorizontal: rs(11), paddingVertical: rs(7), borderRadius: rs(10),
+    backgroundColor: C.border, paddingHorizontal: rs(11), paddingVertical: rs(7), borderRadius: rs(10),
   },
   viewBtnTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.navy },
 
@@ -725,15 +863,15 @@ const S = StyleSheet.create({
   pageControls: { flexDirection: 'row', alignItems: 'center', gap: rs(6) },
   pageBtn: {
     width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    borderWidth: 0.5, borderColor: C.border,
     justifyContent: 'center', alignItems: 'center',
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
-  pageBtnOff:   { borderColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
+  pageBtnOff:   { borderColor: C.border, backgroundColor: C.bg },
   pageNum: {
     width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    borderWidth: 0.5, borderColor: C.border,
     justifyContent: 'center', alignItems: 'center',
   },
   pageNumOn:    { backgroundColor: C.navy, borderColor: C.navy },
@@ -746,7 +884,7 @@ const S = StyleSheet.create({
   // Empty
   emptyWrap: { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
   emptyCircle: {
-    width: rs(90), height: rs(90), borderRadius: rs(45), backgroundColor: '#EEF2FF',
+    width: rs(90), height: rs(90), borderRadius: rs(45), backgroundColor: C.border,
     justifyContent: 'center', alignItems: 'center', marginBottom: rs(16),
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
@@ -762,6 +900,23 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.2, shadowRadius: rs(8),
   },
   shopBtnTxt: { color: '#fff', fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
+
+  // Multi-select delete bar
+  selectionBar: {
+    position: 'absolute', left: rs(14), right: rs(14),
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: C.navyFixed, borderRadius: rs(16),
+    paddingVertical: rs(12), paddingHorizontal: rs(16),
+    elevation: 8, shadowColor: '#000',
+    shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.25, shadowRadius: rs(10),
+  },
+  selectionBarTxt: { color: '#fff', fontSize: rf(13), fontFamily: 'Montserrat-SemiBold' },
+  selectionDeleteBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(6),
+    backgroundColor: '#EF4444', borderRadius: rs(10),
+    paddingVertical: rs(8), paddingHorizontal: rs(14),
+  },
+  selectionDeleteTxt: { color: '#fff', fontSize: rf(12), fontFamily: 'Montserrat-Bold' },
 });
 
 export default OrdersScreen;

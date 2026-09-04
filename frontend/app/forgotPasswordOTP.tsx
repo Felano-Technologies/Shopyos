@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { requestPasswordResetOTP, verifyPasswordResetOTP } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const RESEND_COOLDOWN = 60;
@@ -30,6 +32,8 @@ const ForgotPasswordOTPScreen = () => {
     maskedTarget: string;
   }>();
 
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -153,11 +157,11 @@ const ForgotPasswordOTPScreen = () => {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#84cc16', '#84cc16']}
+              colors={[colors.accent, colors.accent]}
               style={styles.verifyGradient}
             >
               {verifying ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.accentText} />
               ) : (
                 <Text style={styles.verifyText}>Verify</Text>
               )}
@@ -171,7 +175,7 @@ const ForgotPasswordOTPScreen = () => {
             activeOpacity={0.7}
           >
             {resending ? (
-              <ActivityIndicator size="small" color="#1e3a8a" />
+              <ActivityIndicator size="small" color={colors.primaryMid} />
             ) : (
               <Text style={[styles.resendText, countdown === 0 && styles.resendTextActive]}>
                 {resendLabel}
@@ -199,10 +203,10 @@ const ForgotPasswordOTPScreen = () => {
 
 export default ForgotPasswordOTPScreen;
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: c.backgroundAlt,
   },
   scroll: {
     flexGrow: 1,
@@ -220,21 +224,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0F172A',
+    color: c.text,
     textAlign: 'center',
     marginTop: 8,
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#475569',
+    color: c.textSecondary,
     marginTop: 8,
     lineHeight: 22,
     marginBottom: 28,
   },
   target: {
     fontWeight: '700',
-    color: '#1e3a8a',
+    color: c.primaryMid,
   },
   otpContainer: {
     flexDirection: 'row',
@@ -245,17 +249,17 @@ const styles = StyleSheet.create({
     width: 45,
     height: 52,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     textAlign: 'center',
     fontSize: 22,
-    color: '#0F172A',
+    color: c.text,
     marginHorizontal: 6,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: c.textMuted,
   },
   otpInputFilled: {
-    borderColor: '#1e3a8a',
-    backgroundColor: '#EEF2FF',
+    borderColor: c.primaryMid,
+    backgroundColor: c.surfaceElevated,
   },
   verifyButton: {
     width: width * 0.85,
@@ -269,7 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   verifyText: {
-    color: '#fff',
+    color: c.accentText,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -280,11 +284,11 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: c.textMuted,
     textAlign: 'center',
   },
   resendTextActive: {
-    color: '#1e3a8a',
+    color: c.primaryMid,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

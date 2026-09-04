@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import SpotlightIndicator from './SpotlightIndicator';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { height } = Dimensions.get('window');
 interface SpotlightStep {
   targetLayout: LayoutRectangle;
@@ -29,6 +31,8 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
   onComplete,
   visible,
 }) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [bounceAnim] = useState(new Animated.Value(0));
@@ -108,7 +112,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
             transform: [{ translateY: bounceAnim }]
           }]}>
             <LinearGradient
-              colors={['#ffffff', '#f8f9fa']}
+              colors={[colors.surface, colors.surfaceElevated]}
               style={styles.gradient}
             >
               <Text style={styles.title}>{currentStep.title}</Text>
@@ -131,7 +135,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
     </Modal>
   );
 };
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -154,17 +158,17 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: colors.border,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#061f65',
+    color: colors.text,
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
-    color: '#4B5563',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -175,11 +179,11 @@ const styles = StyleSheet.create({
   },
   stepCounter: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   nextButton: {
-    backgroundColor: '#061f65',
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,

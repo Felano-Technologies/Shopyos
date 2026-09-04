@@ -1,5 +1,5 @@
 // app/settings/changePassword.tsx
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,16 @@ import {
   SafeAreaView,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   ActivityIndicator,
 } from 'react-native';
 import { api } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function ChangePasswordScreen() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
-
-  const bgColor = isDark ? '#121212' : '#F8F8F8';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#222222';
-  const secondaryText = isDark ? '#AAA' : '#666666';
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -52,57 +48,58 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-      <View style={[styles.card, { backgroundColor: cardBg }]}>
-        <Text style={[styles.title, { color: primaryText }]}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.card}>
+        <Text style={styles.title}>
           Change Password
         </Text>
 
         <TextInput
-          style={[styles.input, { color: primaryText, borderColor: secondaryText }]}
+          style={styles.input}
           placeholder="Current Password"
-          placeholderTextColor={secondaryText}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={currentPw}
           onChangeText={setCurrentPw}
         />
         <TextInput
-          style={[styles.input, { color: primaryText, borderColor: secondaryText }]}
+          style={styles.input}
           placeholder="New Password"
-          placeholderTextColor={secondaryText}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={newPw}
           onChangeText={setNewPw}
         />
         <TextInput
-          style={[styles.input, { color: primaryText, borderColor: secondaryText }]}
+          style={styles.input}
           placeholder="Confirm New Password"
-          placeholderTextColor={secondaryText}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={confirmPw}
           onChangeText={setConfirmPw}
         />
 
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: isDark ? '#4F46E5' : '#222222' }]}
+          style={styles.button}
           onPress={handleChangePassword}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Submit</Text>}
+          {loading ? <ActivityIndicator color={colors.textInverse} /> : <Text style={styles.buttonText}>Submit</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: c.background },
   card: {
     borderRadius: 12,
     padding: 16,
     elevation: 2,
+    backgroundColor: c.surface,
   },
-  title: { fontSize: 20, fontWeight: '600', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: '600', marginBottom: 16, color: c.text },
   input: {
     width: '100%',
     height: 48,
@@ -110,6 +107,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     marginBottom: 12,
+    color: c.text,
+    borderColor: c.textSecondary,
   },
   button: {
     marginTop: 8,
@@ -117,6 +116,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: c.primary,
   },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
+  buttonText: { color: c.textInverse, fontSize: 16, fontWeight: '500' },
 });

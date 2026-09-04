@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getBusinessDashboard, storage } from '@/services/api';
 import { useSellerUnreadCount } from '@/hooks/useChat';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -13,14 +15,20 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width } = Dimensions.get('window');
 
-const Badge = ({ count }: Readonly<{ count: number }>) => (
-  <View style={styles.badgeContainer}>
-    <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-  </View>
-);
+const Badge = ({ count }: Readonly<{ count: number }>) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  return (
+    <View style={styles.badgeContainer}>
+      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
+    </View>
+  );
+};
 
 const BusinessBottomNav = () => {
   const pathname = usePathname();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [orderCount, setOrderCount] = useState(0); // Default to 0
   const { data: chatCount = 0 } = useSellerUnreadCount();
 
@@ -78,7 +86,7 @@ const BusinessBottomNav = () => {
             >
               {isActive ? (
                 <LinearGradient
-                  colors={['#0C1559', '#1e3a8a']}
+                  colors={colors.headerGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.activePill}
@@ -94,7 +102,7 @@ const BusinessBottomNav = () => {
                 </LinearGradient>
               ) : (
                 <View style={styles.iconWrapper}>
-                  <Feather name={item.icon as any} size={22} color="#94A3B8" />
+                  <Feather name={item.icon as any} size={22} color={colors.textSecondary} />
                   {item.hasBadge && (item.count || 0) > 0 && <Badge count={item.count || 0} />}
                 </View>
               )}
@@ -106,7 +114,7 @@ const BusinessBottomNav = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   wrapper: {
     position: 'absolute',
     bottom: 25, // Floating effect
@@ -117,7 +125,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: c.surface,
     width: width - 40, // 20px padding on each side
     height: 70, // Slightly taller for better touch targets
     borderRadius: 35,
@@ -125,13 +133,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     // Premium Shadow
-    shadowColor: '#0C1559',
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: c.border,
   },
 
   // --- Flex Logic ---
@@ -181,7 +189,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -8,
-    backgroundColor: '#EF4444', // Alert Red
+    backgroundColor: c.error,
     borderRadius: 10,
     minWidth: 16,
     height: 16,

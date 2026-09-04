@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,14 @@ import QRScanner from '@/components/QRScanner';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function ScanScreen() {
   const router = useRouter();
-  
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const [scannerVisible, setScannerVisible] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [searching, setSearching] = useState(false);
@@ -93,12 +97,12 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <StatusBar style="light" backgroundColor={colors.primary} />
+      <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on header gradient, intentionally fixed */}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan / Search</Text>
         <View style={{ width: 24 }} />
@@ -106,15 +110,15 @@ export default function ScanScreen() {
       </SafeAreaView>
       </LinearGradient>
 
-      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={{ flex: 1, backgroundColor: colors.surfaceElevated }}>
       <View style={styles.content}>
         {/* QR Scanner Trigger */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.scanCard}
           onPress={() => setScannerVisible(true)}
         >
           <View style={styles.qrIconFrame}>
-            <Ionicons name="qr-code-outline" size={60} color="#0C1559" />
+            <Ionicons name="qr-code-outline" size={60} color={colors.primary} />
           </View>
           <Text style={styles.scanTitle}>Open Camera Scanner</Text>
           <Text style={styles.scanSub}>Scan parcel receipt QR codes for quick check-in</Text>
@@ -133,20 +137,20 @@ export default function ScanScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter Order # or Tracking Number"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textMuted}
               value={manualInput}
               onChangeText={setManualInput}
               autoCapitalize="characters"
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.searchBtn, searching && styles.disabledBtn]}
               onPress={() => lookupOrder(manualInput)}
               disabled={searching}
             >
               {searching ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator size="small" color="#FFF" /> // white on primary-colored button, intentionally fixed
               ) : (
-                <Feather name="search" size={20} color="#FFF" />
+                <Feather name="search" size={20} color="#FFF" /> // white on primary-colored button, intentionally fixed
               )}
             </TouchableOpacity>
           </View>
@@ -160,15 +164,15 @@ export default function ScanScreen() {
         onScanned={handleScanned}
       />
       </View>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.surfaceElevated }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
   },
   header: {
     flexDirection: 'row',
@@ -183,7 +187,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
+    color: '#FFF', // white text on header gradient, intentionally fixed
   },
   content: {
     flex: 1,
@@ -191,13 +195,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scanCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
+    borderColor: c.borderStrong,
+    shadowColor: '#000', // decorative shadow, theme-invariant
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.02,
     shadowRadius: 5,
@@ -207,7 +211,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -215,12 +219,12 @@ const styles = StyleSheet.create({
   scanTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.primary,
   },
   scanSub: {
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 18,
@@ -233,25 +237,25 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: c.textMuted,
   },
   orText: {
     marginHorizontal: 15,
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: '#94A3B8',
+    color: c.textMuted,
   },
   manualCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
   },
   manualLabel: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.primary,
     marginBottom: 10,
   },
   inputContainer: {
@@ -259,16 +263,16 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 48,
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#1E293B',
+    color: c.text,
   },
   searchBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     width: 48,
     height: 48,
     borderRadius: 10,

@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export const OrderDetailsSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
@@ -122,18 +126,18 @@ export const OrderDetailsSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { padding: 20, paddingBottom: 110 },
   section: { marginBottom: 25 },
-  card: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 15 },
+  card: { backgroundColor: colors.surface, borderRadius: 20, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 15 },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  
+
   // Progress specific
   progressContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, paddingHorizontal: 5 },
-  stepConnector: { position: 'absolute', top: 18, left: '50%', right: '-50%', height: 2, backgroundColor: '#F1F5F9', zIndex: 1 },
-  
+  stepConnector: { position: 'absolute', top: 18, left: '50%', right: '-50%', height: 2, backgroundColor: colors.border, zIndex: 1 },
+
   // Map specific
-  liveTrackingCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, backgroundColor: '#E2E8F0' },
+  liveTrackingCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, backgroundColor: colors.border },
   mapOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: 60 },
 });

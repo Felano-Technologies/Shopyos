@@ -1143,6 +1143,35 @@ const updateSecuritySettings = async (req, res, next) => {
   }
 };
 
+// ── Theme preference ────────────────────────────────────────────────────────
+
+const THEME_PREFERENCES = ['light', 'dark', 'system'];
+
+// GET /api/v1/auth/theme-preference
+const getThemePreference = async (req, res, next) => {
+  try {
+    const user = await repositories.users.findById(req.user.id);
+    ApiResponse.success(res, { theme_preference: user?.theme_preference || 'system' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/v1/auth/theme-preference
+const updateThemePreference = async (req, res, next) => {
+  try {
+    const { theme_preference } = req.body;
+    if (!THEME_PREFERENCES.includes(theme_preference)) {
+      return ApiResponse.error(res, `theme_preference must be one of: ${THEME_PREFERENCES.join(', ')}`, 400);
+    }
+
+    const user = await repositories.users.update(req.user.id, { theme_preference });
+    ApiResponse.success(res, { theme_preference: user.theme_preference }, 'Theme preference updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // POST /api/v1/auth/export-data — emails the user a JSON copy of their data
 const requestDataExport = async (req, res, next) => {
   try {
@@ -1243,5 +1272,6 @@ module.exports = {
   resetPassword, confirmResetPassword, forceResetPassword,
   addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState,
   googleAuth,
-  verifyTwoFactor, getSecuritySettings, updateSecuritySettings, requestDataExport, requestAccountDeletion
+  verifyTwoFactor, getSecuritySettings, updateSecuritySettings, requestDataExport, requestAccountDeletion,
+  getThemePreference, updateThemePreference
 };

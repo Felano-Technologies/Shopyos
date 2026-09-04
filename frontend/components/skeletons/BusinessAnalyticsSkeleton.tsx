@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 export const BusinessAnalyticsSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* --- Header Skeleton --- */}
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={colors.headerGradient}
           style={styles.headerContainer}
         >
           <SafeAreaView edges={['top']}>
@@ -88,8 +92,8 @@ export const BusinessAnalyticsSkeleton = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surfaceElevated },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },
   headerContainer: {
     paddingTop: 10,
@@ -102,16 +106,16 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   bodyContainer: { paddingHorizontal: 16, paddingTop: 10 },
   toggleContainer: { flexDirection: 'row', marginBottom: 16 },
-  card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 16 },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  statCard: { backgroundColor: '#FFF', width: '48%', borderRadius: 16, padding: 16 },
-  productCard: { backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginBottom: 10 },
-  scoreBanner: { 
-      backgroundColor: '#0C1559', 
-      marginTop: 10, 
-      borderRadius: 16, 
-      padding: 20, 
-      flexDirection: 'row', 
-      alignItems: 'center' 
+  statCard: { backgroundColor: colors.surface, width: '48%', borderRadius: 16, padding: 16 },
+  productCard: { backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginBottom: 10 },
+  scoreBanner: {
+      backgroundColor: colors.primary,
+      marginTop: 10,
+      borderRadius: 16,
+      padding: 20,
+      flexDirection: 'row',
+      alignItems: 'center'
     },
 });

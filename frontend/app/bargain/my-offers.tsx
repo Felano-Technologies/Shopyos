@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,35 +26,68 @@ import {
   BargainOffer,
 } from '@/services/bargain';
 import { useCart } from '@/store/cartStore';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  card: '#FFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.07)',
-  red: '#EF4444',
-  redBg: '#FEF2F2',
-  green: '#16A34A',
-  greenBg: '#F0FDF4',
-  amber: '#D97706',
-  amberBg: '#FEF3C7',
-  blue: '#2563EB',
-  blueBg: '#EFF6FF',
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  overlay: string;
+  red: string;
+  redBg: string;
+  green: string;
+  greenBg: string;
+  amber: string;
+  amberBg: string;
+  blue: string;
+  blueBg: string;
 };
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    overlay: colors.overlay,
+    red: '#EF4444',
+    redBg: '#FEF2F2',
+    green: '#16A34A',
+    greenBg: '#F0FDF4',
+    amber: '#D97706',
+    amberBg: '#FEF3C7',
+    blue: '#2563EB',
+    blueBg: '#EFF6FF',
+  };
+}
 
 export default function MyOffersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [offers, setOffers] = useState<BargainOffer[]>([]);
@@ -219,13 +252,13 @@ export default function MyOffersScreen() {
       case 'rejected':
         return { label: 'Rejected', color: C.red, bg: C.redBg };
       case 'checked_out':
-        return { label: 'Checked Out', color: C.navy, bg: '#F1F5F9' };
+        return { label: 'Checked Out', color: C.navy, bg: C.border };
       case 'withdrawn':
-        return { label: 'Withdrawn', color: C.subtle, bg: '#F1F5F9' };
+        return { label: 'Withdrawn', color: C.subtle, bg: C.border };
       case 'expired':
-        return { label: 'Expired', color: C.subtle, bg: '#F1F5F9' };
+        return { label: 'Expired', color: C.subtle, bg: C.border };
       default:
-        return { label: status, color: C.muted, bg: '#F1F5F9' };
+        return { label: status, color: C.muted, bg: C.border };
     }
   };
 
@@ -357,7 +390,7 @@ export default function MyOffersScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+      <LinearGradient colors={themeColors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
@@ -487,7 +520,7 @@ export default function MyOffersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: C.bg,
@@ -513,7 +546,7 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
@@ -552,7 +585,7 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
   },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
@@ -570,7 +603,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
   },
   storeName: {
     fontSize: rf(12),
@@ -594,7 +627,7 @@ const styles = StyleSheet.create({
     width: rs(60),
     height: rs(60),
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
   },
   productInfo: {
     flex: 1,
@@ -636,7 +669,7 @@ const styles = StyleSheet.create({
     color: C.blue,
   },
   messagesBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     borderRadius: 10,
     padding: 8,
     marginBottom: 10,
@@ -661,7 +694,7 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: C.border,
     paddingTop: 10,
   },
   btnRow: {
@@ -676,8 +709,8 @@ const styles = StyleSheet.create({
   },
   btnOutline: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFF',
+    borderColor: C.borderStrong,
+    backgroundColor: C.card,
     width: '100%',
   },
   btnTextOutline: {
@@ -686,7 +719,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
   },
   btnSecondary: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.border,
   },
   btnTextSecondary: {
     color: C.navy,
@@ -732,11 +765,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -747,7 +780,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: C.border,
     paddingBottom: 12,
     marginBottom: 12,
   },
@@ -782,10 +815,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
   },
   modalPrefix: {
     fontSize: rf(16),
@@ -802,11 +835,11 @@ const styles = StyleSheet.create({
   },
   modalMsgInput: {
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     height: 70,
     fontSize: rf(13),
     fontFamily: 'Montserrat-Regular',

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 // Single shared animation — all blocks pulse in perfect sync
 const _pulse = new Animated.Value(0.35);
@@ -26,26 +28,30 @@ interface BlockProps {
 }
 export function SkeletonBlock({ w = '100%', h = 16, r = 8, style }: BlockProps) {
   const pulse = usePulse();
+  const colors = useThemeColors();
   return (
     <Animated.View
-      style={[{ width: w as any, height: h, borderRadius: r, backgroundColor: '#DDE3EF', opacity: pulse }, style]}
+      style={[{ width: w as any, height: h, borderRadius: r, backgroundColor: colors.borderStrong, opacity: pulse }, style]}
     />
   );
 }
 
 // ── Hero banner (matches the dark-gradient header every admin screen has) ─────
 export function SkeletonHero({ h = 110 }: { h?: number }) {
+  const colors = useThemeColors();
   return (
     <SkeletonBlock
       h={h}
       r={36}
-      style={{ marginHorizontal: 12, marginTop: 8, backgroundColor: '#C6CEDF' }}
+      style={{ marginHorizontal: 12, marginTop: 8, backgroundColor: colors.primaryMid }}
     />
   );
 }
 
 // ── A single list row ─────────────────────────────────────────────────────────
 export function SkeletonRow({ last = false }: { last?: boolean }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={[styles.row, !last && styles.rowBorder]}>
       <SkeletonBlock w={40} h={40} r={10} />
@@ -60,6 +66,8 @@ export function SkeletonRow({ last = false }: { last?: boolean }) {
 
 // ── A card with optional title + N rows ───────────────────────────────────────
 export function SkeletonCard({ rows = 3, titleWidth = '40%' }: { rows?: number; titleWidth?: string }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.card}>
       <SkeletonBlock w={titleWidth} h={16} style={{ marginBottom: 14 }} />
@@ -72,6 +80,8 @@ export function SkeletonCard({ rows = 3, titleWidth = '40%' }: { rows?: number; 
 
 // ── A mini stat/metric card ───────────────────────────────────────────────────
 export function SkeletonMetric() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.metric}>
       <SkeletonBlock w={32} h={32} r={9} />
@@ -88,6 +98,8 @@ interface AdminScreenSkeletonProps {
   cards?: number;     // additional content cards
 }
 export default function AdminScreenSkeleton({ metrics = 4, rows = 4, cards = 1 }: AdminScreenSkeletonProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <ScrollView scrollEnabled={false} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <SkeletonHero />
@@ -106,7 +118,7 @@ export default function AdminScreenSkeleton({ metrics = 4, rows = 4, cards = 1 }
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingBottom: 120,
   },
@@ -120,21 +132,21 @@ const styles = StyleSheet.create({
   metric: {
     flexBasis: '47%',
     flexGrow: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
   },
   card: {
     margin: 12,
     marginTop: 0,
     marginBottom: 12,
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: colors.border,
   },
   row: {
     flexDirection: 'row',
@@ -144,6 +156,6 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: colors.border,
   },
 });

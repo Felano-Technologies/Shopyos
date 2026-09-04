@@ -357,6 +357,26 @@ export const updateSecuritySettings = async (settings: {
   }
 };
 
+export type ThemePreference = 'light' | 'dark' | 'system';
+
+export const getThemePreference = async (): Promise<{ theme_preference: ThemePreference }> => {
+  try {
+    const response = await api.get('/auth/theme-preference');
+    return response.data?.data || response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateThemePreference = async (theme_preference: ThemePreference) => {
+  try {
+    const response = await api.patch('/auth/theme-preference', { theme_preference });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getActiveSessions = async (): Promise<{
   sessions: { id: string; device: string | null; ip: string | null; createdAt: string; expiresAt: string }[];
   count: number;

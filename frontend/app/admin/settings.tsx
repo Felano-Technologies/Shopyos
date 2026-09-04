@@ -24,6 +24,8 @@ import { getUserData } from '@/services/api';
 import { getAdminPlatformSettings, updateAdminPlatformSettings } from '@/services/admin';
 import { storage } from '@/services/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 function SettingItem({
   icon,
@@ -34,6 +36,7 @@ function SettingItem({
   onValueChange,
   onPress,
   color = adminColors.navy,
+  styles,
 }: any) {
   return (
     <TouchableOpacity
@@ -67,6 +70,8 @@ function SettingItem({
 export default function AdminSettings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
@@ -340,7 +345,7 @@ export default function AdminSettings() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: '#F5F7FA',

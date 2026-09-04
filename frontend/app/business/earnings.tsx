@@ -12,20 +12,18 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { getSellerTransactions, storage } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+
+// Converts a themed hex color into an rgba() string for react-native-chart-kit,
+// which requires a (opacity) => string function rather than a plain color.
+const hexToRgba = (hex: string, opacity: number) => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${opacity})`;
 };
 type Range = 'Week' | 'Month' | 'Quarter';
 const RANGE_DAYS: Record<Range, number> = { Week: 7, Month: 28, Quarter: 90 };
@@ -92,6 +90,8 @@ function buildBreakdown(logs: any[], range: Range) {
     return { label: `${pct >= 0 ? '+' : ''}${pct}%`, up: pct >= 0 };
   };
 
+  // Category badge tints — fixed brand/status accents per transaction type,
+  // intentionally not tokenized (decorative categorical distinction).
   return [
     { key: 'sale',       label: 'Orders',  icon: 'cart-outline',     iconBg: '#DBEAFE', iconColor: '#1E40AF' },
     { key: 'withdrawal', label: 'Payouts', icon: 'wallet-outline',   iconBg: '#E0E7FF', iconColor: '#0C1559' },
@@ -105,6 +105,8 @@ function buildBreakdown(logs: any[], range: Range) {
 }
 const EarningsScreen = () => {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(colors), [colors]);
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [range, setRange] = useState<Range>('Week');
@@ -143,22 +145,22 @@ const EarningsScreen = () => {
   const breakdown = useMemo(() => buildBreakdown(logs, range), [logs, range]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   if (isChecking || !isVerified || loading) {
-    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+    return <View style={S.centred}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
   if (loadError) {
     return (
       <View style={S.centred}>
-        <Text style={{ fontFamily: 'Montserrat-Bold', fontSize: rf(16), color: C.body, marginBottom: rs(8) }}>
+        <Text style={{ fontFamily: 'Montserrat-Bold', fontSize: rf(16), color: colors.text, marginBottom: rs(8) }}>
           Couldn&apos;t load earnings
         </Text>
-        <Text style={{ fontFamily: 'Montserrat-Medium', fontSize: rf(13), color: C.muted, marginBottom: rs(16), textAlign: 'center', paddingHorizontal: rs(40) }}>
+        <Text style={{ fontFamily: 'Montserrat-Medium', fontSize: rf(13), color: colors.textSecondary, marginBottom: rs(16), textAlign: 'center', paddingHorizontal: rs(40) }}>
           {loadError}
         </Text>
         <TouchableOpacity
-          style={{ backgroundColor: C.navy, paddingVertical: rs(10), paddingHorizontal: rs(24), borderRadius: rs(12) }}
+          style={{ backgroundColor: colors.primary, paddingVertical: rs(10), paddingHorizontal: rs(24), borderRadius: rs(12) }}
           onPress={() => { setLoading(true); loadData(); }}
         >
-          <Text style={{ color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) }}>Retry</Text>
+          <Text style={{ color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) }}>{/* white text on the fixed-brand retry button */}Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -166,13 +168,13 @@ const EarningsScreen = () => {
   const totalEarnings = breakdown.reduce((s, i) => s + i.value, 0);
   const chartData     = series.data.some((v) => v > 0) ? series.data : [0];
   const chartConfig = {
-    backgroundGradientFrom: '#fff',
-    backgroundGradientTo:   '#fff',
+    backgroundGradientFrom: colors.surface,
+    backgroundGradientTo:   colors.surface,
     decimalPlaces: 0,
-    color: (o = 1) => `rgba(12,21,89,${o})`,
-    labelColor: (o = 1) => `rgba(100,116,139,${o})`,
-    propsForDots: { r: '4', strokeWidth: '2', stroke: C.lime },
-    propsForBackgroundLines: { strokeDasharray: '4', stroke: 'rgba(0,0,0,0.05)' },
+    color: (o = 1) => hexToRgba(colors.primary, o),
+    labelColor: (o = 1) => hexToRgba(colors.textSecondary, o),
+    propsForDots: { r: '4', strokeWidth: '2', stroke: colors.accent },
+    propsForBackgroundLines: { strokeDasharray: '4', stroke: colors.border },
     propsForLabels: { fontFamily: 'Montserrat-Medium', fontSize: 10 },
   };
   return (
@@ -186,12 +188,12 @@ const EarningsScreen = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} colors={[C.navy]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
           }
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
-            colors={[C.navy, C.navyMid]}
+            colors={colors.headerGradient}
             style={[S.header, { paddingTop: insets.top + rs(16) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
@@ -249,16 +251,16 @@ const EarningsScreen = () => {
                   <Text style={S.earnCount}>{item.amount} transactions</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[S.earnAmt, { color: item.value < 0 ? '#EF4444' : C.body }]}>
+                  <Text style={[S.earnAmt, { color: item.value < 0 ? colors.error : colors.text }]}>
                     {item.value < 0 ? '-' : ''}₵{Math.abs(item.value).toFixed(2)}
                   </Text>
                   <View style={S.trendRow}>
                     <Feather
                       name={item.up ? 'trending-up' : 'trending-down'}
                       size={rs(11)}
-                      color={item.up ? '#15803D' : '#EF4444'}
+                      color={item.up ? colors.success : colors.error}
                     />
-                    <Text style={[S.trendTxt, { color: item.up ? '#15803D' : '#EF4444' }]}>
+                    <Text style={[S.trendTxt, { color: item.up ? colors.success : colors.error }]}>
                       {item.trend}
                     </Text>
                   </View>
@@ -272,65 +274,65 @@ const EarningsScreen = () => {
     </View>
   );
 };
-const S = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  root:   { flex: 1, backgroundColor: c.border },
+  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.border },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
   header: {
     paddingHorizontal: rs(20), paddingBottom: rs(28), position: 'relative',
-    elevation: 10, shadowColor: C.navy,
+    elevation: 10, shadowColor: c.primary,
     shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
   },
   hdrGlow: {
     position: 'absolute', top: -rs(30), right: -rs(30),
     width: rs(150), height: rs(150), borderRadius: rs(75),
-    backgroundColor: 'rgba(132,204,22,0.12)',
+    backgroundColor: 'rgba(132,204,22,0.12)', // decorative low-opacity glow, fixed regardless of theme
   },
   hdrRow:   { marginBottom: rs(12) },
   logo:     { width: 110, height: 34 },
-  hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' },
-  hdrSub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3), marginBottom: rs(16) },
+  hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' }, // white text on the fixed dark-navy headerGradient
+  hdrSub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3), marginBottom: rs(16) }, // translucent white on the fixed headerGradient
   totalPill: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.1)', // glass overlay on the fixed headerGradient
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', // glass overlay border on the fixed headerGradient
     borderRadius: rs(16), padding: rs(14),
   },
-  totalPillLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) },
-  totalPillVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff' },
+  totalPillLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) }, // translucent white on the fixed headerGradient
+  totalPillVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff' }, // white text on the fixed headerGradient
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+    backgroundColor: c.border, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
   body: { paddingHorizontal: rs(16), paddingTop: rs(8) },
   toggleRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(16), marginTop: rs(4) },
   toggleBtn: {
     paddingVertical: rs(8), paddingHorizontal: rs(20), borderRadius: rs(20),
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card,
-    elevation: 1, shadowColor: C.navy,
+    borderWidth: 0.5, borderColor: c.border, backgroundColor: c.surface,
+    elevation: 1, shadowColor: c.primary,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
-  toggleBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
-  toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
-  toggleTxtOn: { color: '#fff' },
+  toggleBtnOn: { backgroundColor: c.primary, borderColor: c.primary },
+  toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: c.textSecondary },
+  toggleTxtOn: { color: '#fff' }, // white text on the fixed-brand active toggle
   card: {
-    backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(16),
-    elevation: 3, shadowColor: C.navy,
+    backgroundColor: c.surface, borderRadius: rs(18), padding: rs(14), marginBottom: rs(16),
+    elevation: 3, shadowColor: c.primary,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
     alignItems: 'center',
   },
-  secTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: rs(12) },
+  secTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: c.primary, marginBottom: rs(12) },
   earnCard: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
-    backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(10),
-    elevation: 3, shadowColor: C.navy,
+    backgroundColor: c.surface, borderRadius: rs(18), padding: rs(14), marginBottom: rs(10),
+    elevation: 3, shadowColor: c.primary,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
   earnIcon:  { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center' },
-  earnLbl:   { fontSize: rf(14), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(3) },
-  earnCount: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
-  earnAmt:   { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body },
+  earnLbl:   { fontSize: rf(14), fontFamily: 'Montserrat-Bold',   color: c.text, marginBottom: rs(3) },
+  earnCount: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: c.textMuted },
+  earnAmt:   { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: c.text },
   trendRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(3), marginTop: rs(3) },
   trendTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold' },
 });

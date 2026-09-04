@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, Dimensions,
@@ -12,37 +12,44 @@ import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { getRouteFromNotification } from '@/utils/notificationRouting';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg:      '#E9F0FF',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-  border:  '#E2E8F0',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; muted: string; subtle: string; border: string; borderStrong: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.backgroundAlt,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+});
 
 // ─── Icon config per notification type ────────────────────────────────────────
-const TYPE_CFG: Record<string, { icon: any; color: string; bg: string }> = {
+const buildTypeCfg = (C: LegacyPalette): Record<string, { icon: any; color: string; bg: string }> => ({
   order:     { icon: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF' },
   message:   { icon: 'mail',           color: '#8B5CF6', bg: '#F5F3FF' },
   payment:   { icon: 'credit-card',    color: '#10B981', bg: '#ECFDF5' },
   review:    { icon: 'star',           color: '#F59E0B', bg: '#FFFBEB' },
   promotion: { icon: 'award',          color: '#EC4899', bg: '#FDF2F8' },
   stock:     { icon: 'alert-triangle', color: '#EF4444', bg: '#FEF2F2' },
-  info:      { icon: 'info',           color: C.muted,   bg: '#F8FAFC' },
-};
+  info:      { icon: 'info',           color: C.muted,   bg: C.border },
+});
 
-const getTypeCfg = (type: string) => {
+const getTypeCfg = (type: string, TYPE_CFG: Record<string, { icon: any; color: string; bg: string }>) => {
   const t = type?.toLowerCase() || '';
   if (t.startsWith('order') || t.includes('purchase')) return TYPE_CFG.order;
   if (t.startsWith('message') || t.includes('chat'))   return TYPE_CFG.message;
@@ -52,7 +59,7 @@ const getTypeCfg = (type: string) => {
   if (t.startsWith('promotion'))                       return TYPE_CFG.promotion;
   if (t.startsWith('low_stock') || t.includes('alert')) return TYPE_CFG.stock;
   if (t.startsWith('delivery'))                        return TYPE_CFG.order;
-  
+
   return TYPE_CFG[t] ?? TYPE_CFG.info;
 };
 
@@ -87,6 +94,10 @@ function groupNotifications(notifications: any[]): { title: string; data: any[] 
 
 const NotificationScreen = () => {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
+  const TYPE_CFG = useMemo(() => buildTypeCfg(C), [C]);
 
   const { data, isLoading, isError, error, refetch } = useNotifications();
   const markAllMutation = useMarkAllNotificationsRead();
@@ -130,7 +141,7 @@ const NotificationScreen = () => {
 
   // ── Render: REFINED NOTIFICATION CARD ───────────────────────────────────────
   const renderItem = useCallback((item: any) => {
-    const cfg    = getTypeCfg(item.type);
+    const cfg    = getTypeCfg(item.type, TYPE_CFG);
     const unread = !isRead(item);
 
     return (
@@ -165,7 +176,7 @@ const NotificationScreen = () => {
         </View>
       </TouchableOpacity>
     );
-  }, [isRead, handleItemPress]);
+  }, [isRead, handleItemPress, TYPE_CFG, S]);
 
   // ── Render: section header ─────────────────────────────────────────────────
   const renderSectionHeader = (title: string) => (
@@ -192,7 +203,7 @@ const NotificationScreen = () => {
     return (
       <View style={S.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+        <LinearGradient colors={colors.headerGradient} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
           <View style={S.hdrRow}>
             <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -222,7 +233,7 @@ const NotificationScreen = () => {
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <LinearGradient
-          colors={[C.navy, C.navyMid]}
+          colors={colors.headerGradient}
           style={[S.header, { paddingTop: insets.top + rs(12) }]}
         >
           <View style={S.hdrGlow} pointerEvents="none" />
@@ -306,7 +317,7 @@ const NotificationScreen = () => {
 };
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -361,22 +372,22 @@ const S = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: C.card, 
-    borderRadius: rs(16), 
+    backgroundColor: C.card,
+    borderRadius: rs(16),
     marginBottom: rs(12),
     padding: rs(16),
     borderWidth: 1,
-    borderColor: '#FFF', // Invisible on read
+    borderColor: C.card, // invisible on read — matches the card's own background
     // Minimalist, modern shadow
-    elevation: 2, 
+    elevation: 2,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: rs(2) }, 
-    shadowOpacity: 0.03, 
+    shadowOffset: { width: 0, height: rs(2) },
+    shadowOpacity: 0.03,
     shadowRadius: rs(8),
   },
-  cardUnread: { 
-    backgroundColor: '#F8FAFC', // Very subtle tint for unread
-    borderColor: C.border,      // Crisp 1px border
+  cardUnread: {
+    backgroundColor: C.border, // subtle tint for unread
+    borderColor: C.borderStrong,
   },
   
   iconBox: {
@@ -389,7 +400,7 @@ const S = StyleSheet.create({
   textWrap:  { flex: 1, justifyContent: 'center' },
   titleRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(4) },
   
-  cardTitle: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155', flex: 1, marginRight: rs(8) },
+  cardTitle: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body, flex: 1, marginRight: rs(8) },
   cardTitleUnread: { fontFamily: 'Montserrat-Bold', color: C.body },
   
   timeWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: rs(2) },
@@ -403,8 +414,8 @@ const S = StyleSheet.create({
   },
 
   messageTxt:    { fontSize: rf(13), fontFamily: 'Montserrat-Medium', lineHeight: rf(18) },
-  messageUnread: { color: '#475569' },
-  messageRead:   { color: '#94A3B8', fontFamily: 'Montserrat-Regular' },
+  messageUnread: { color: C.body },
+  messageRead:   { color: C.subtle, fontFamily: 'Montserrat-Regular' },
 
   // Empty state (Original)
   emptyWrap: {
@@ -413,7 +424,7 @@ const S = StyleSheet.create({
   },
   emptyCircle: {
     width: rs(92), height: rs(92), borderRadius: rs(46),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center',
     marginBottom: rs(20), elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },

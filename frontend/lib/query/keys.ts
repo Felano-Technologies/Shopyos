@@ -133,6 +133,12 @@ export const queryKeys = {
     feed: () => ['snaps', 'feed'] as const,
     mySnaps: (status?: string) => ['snaps', 'my-snaps', status] as const,
   },
+
+  promoCodes: {
+    all: ['promoCodes'] as const,
+    mine: () => ['promoCodes', 'mine'] as const,
+    admin: (filters?: { storeId?: string; isActive?: boolean }) => ['promoCodes', 'admin', filters] as const,
+  },
 };
 
 export interface ProductFilters {
@@ -148,6 +154,7 @@ export interface ProductFilters {
   material?: string;
   style?: string;
   brand?: string;
+  onSale?: boolean;
 }
 
 export interface StoreFilters {

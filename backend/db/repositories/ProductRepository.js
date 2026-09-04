@@ -88,7 +88,9 @@ class ProductRepository extends BaseRepository {
       size,
       material,
       style,
-      brand
+      brand,
+      onSale,
+      minDiscountPct = 10
     } = params;
 
     const verifiedStoreIds = await this._getVerifiedStoreIds();
@@ -115,6 +117,27 @@ class ProductRepository extends BaseRepository {
         [query]
       );
       searchProductIds = rows.map(r => r.id);
+      if (!searchProductIds.length) return { data: [], count: 0 };
+    }
+
+    // "On sale" = the seller set a real compare_at_price that beats the
+    // current price by at least minDiscountPct — comparing two columns of
+    // the same row isn't expressible via the Supabase query builder, so we
+    // resolve the matching ids with a raw query first, same as the
+    // full-text search block above.
+    if (onSale) {
+      const { rows: dealRows } = await this.db.query(
+        `SELECT id FROM products
+         WHERE compare_at_price IS NOT NULL
+           AND compare_at_price > price
+           AND ((compare_at_price - price) / compare_at_price) * 100 >= $1`,
+        [minDiscountPct]
+      );
+      const dealIds = dealRows.map(r => r.id);
+      if (!dealIds.length) return { data: [], count: 0 };
+      searchProductIds = searchProductIds
+        ? searchProductIds.filter(id => dealIds.includes(id))
+        : dealIds;
       if (!searchProductIds.length) return { data: [], count: 0 };
     }
 

@@ -1,5 +1,5 @@
 // app/userProfile.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
 import TappableAvatar from '@/components/TappableAvatar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 interface User {
   name: string;
@@ -32,12 +34,14 @@ export default function UserProfile() {
   const theme = useColorScheme();
   const isDark = theme === 'dark';
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
-  const bgColor = isDark ? '#121212' : '#F8F8F8';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#222222';
-  const secondaryText = isDark ? '#AAA' : '#666666';
-  const highlightColor = '#4F46E5';
+  const bgColor = colors.background;
+  const cardBg = colors.surface;
+  const primaryText = colors.text;
+  const secondaryText = colors.textSecondary;
+  const highlightColor = colors.primary;
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,8 +146,8 @@ export default function UserProfile() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#4F46E5']}
-            tintColor="#4F46E5"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
       >
@@ -160,14 +164,14 @@ export default function UserProfile() {
           
           <View style={{ marginTop: 16, alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: secondaryText, fontWeight: 'bold' }}>Wallet Balance</Text>
-            <Text style={{ fontSize: 22, color: '#16a34a', fontWeight: 'bold' }}>₵{user.wallet_balance?.toFixed(2) || '0.00'}</Text>
+            <Text style={{ fontSize: 22, color: colors.success, fontWeight: 'bold' }}>₵{user.wallet_balance?.toFixed(2) || '0.00'}</Text>
           </View>
           
           {user.referral_code && (
             <TouchableOpacity
               accessibilityLabel="Copy referral code"
               accessibilityRole="button"
-              style={{ marginTop: 16, alignItems: 'center', backgroundColor: isDark ? '#2D2D2D' : '#F1F5F9', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
+              style={{ marginTop: 16, alignItems: 'center', backgroundColor: colors.border, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
               onPress={async () => {
                 await Clipboard.setStringAsync(user.referral_code!);
                 CustomInAppToast.show({ type: 'success', title: 'Copied!', message: 'Referral code copied to clipboard.' });
@@ -240,10 +244,10 @@ export default function UserProfile() {
             <Ionicons
               name="log-out-outline"
               size={20}
-              color="#E11D48"
+              color={colors.error}
               style={styles.logoutIcon}
             />
-            <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>Log Out</Text>
+            <Text style={[styles.logoutLabel, { color: colors.error }]}>Log Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -263,7 +267,7 @@ export default function UserProfile() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 16,
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#CCC',
+    borderBottomColor: c.border,
   },
   itemIcon: { marginRight: 12 },
   itemLabel: { fontSize: 16, flex: 1 },

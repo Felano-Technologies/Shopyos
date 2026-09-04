@@ -1,5 +1,5 @@
 // app/business/community/_layout.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -10,6 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -23,6 +25,8 @@ export const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function CommunityLayout() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
 
@@ -30,14 +34,14 @@ export default function CommunityLayout() {
   const [showSwitcher, setShowSwitcher] = useState(false);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
-      
+    <View style={{ flex: 1, backgroundColor: colors.border }}>
+
       {/* Custom Header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.headerContainer}>
+      <LinearGradient colors={colors.headerGradient} style={styles.headerContainer}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => router.push('/business/dashboard')} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
+              <Ionicons name="arrow-back" size={24} color="#FFF" />{/* white icon on the fixed dark headerGradient */}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -56,12 +60,12 @@ export default function CommunityLayout() {
                 <Text style={styles.storeTitle} numberOfLines={1}>{activeBusiness?.businessName || 'Store'}</Text>
                 <Text style={styles.storeSubTitle}>Community Zone</Text>
               </View>
-              <Ionicons name="chevron-down" size={14} color="#A3E635" style={{ marginLeft: 4 }} />
+              <Ionicons name="chevron-down" size={14} color={colors.accent} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
 
             <View style={styles.topIcons}>
               <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
-                <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                <Ionicons name="notifications-outline" size={20} color="#FFF" />{/* white icon on the fixed dark headerGradient */}
                 {unreadCount > 0 && (
                   <View style={styles.badgeContainer}>
                     <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -69,7 +73,7 @@ export default function CommunityLayout() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
-                <Ionicons name="settings-outline" size={20} color="#FFF" />
+                <Ionicons name="settings-outline" size={20} color="#FFF" />{/* white icon on the fixed dark headerGradient */}
               </TouchableOpacity>
             </View>
           </View>
@@ -79,9 +83,9 @@ export default function CommunityLayout() {
       {/* Top Tabs */}
       <MaterialTopTabs
         screenOptions={{
-          tabBarStyle: { 
-            backgroundColor: '#0C1559', 
-            elevation: 0, 
+          tabBarStyle: {
+            backgroundColor: colors.headerGradient[0], // matches the fixed dark headerGradient above it
+            elevation: 0,
             shadowOpacity: 0,
             borderBottomWidth: 0,
           },
@@ -90,10 +94,10 @@ export default function CommunityLayout() {
             fontSize: 14,
             textTransform: 'capitalize',
           },
-          tabBarActiveTintColor: '#A3E635', // Lime Green
-          tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
+          tabBarActiveTintColor: colors.accent, // Lime Green
+          tabBarInactiveTintColor: 'rgba(255,255,255,0.6)', // translucent white on the fixed-dark tab bar
           tabBarIndicatorStyle: {
-            backgroundColor: '#A3E635',
+            backgroundColor: colors.accent,
             height: 3,
             borderRadius: 3,
           },
@@ -114,7 +118,7 @@ export default function CommunityLayout() {
             <View style={styles.switcherHeader}>
               <Text style={styles.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity onPress={() => setShowSwitcher(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             
@@ -144,9 +148,9 @@ export default function CommunityLayout() {
                       <Text style={styles.switcherCat}>{biz.category}</Text>
                     </View>
                     {active ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                      <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                      <Ionicons name="ellipse-outline" size={22} color={colors.textMuted} />
                     )}
                   </TouchableOpacity>
                 );
@@ -161,7 +165,7 @@ export default function CommunityLayout() {
                   }}
                 >
                   <View style={styles.switcherAddIcon}>
-                    <Ionicons name="add" size={22} color="#0C1559" />
+                    <Ionicons name="add" size={22} color={colors.primary} />
                   </View>
                   <Text style={styles.switcherAddText}>Register Another Store</Text>
                 </TouchableOpacity>
@@ -174,7 +178,7 @@ export default function CommunityLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   headerContainer: {
     paddingBottom: 10,
   },

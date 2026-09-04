@@ -17,6 +17,10 @@ jest.mock('../../services/feeConfigService', () => ({
     if (key === 'delivery_intra_max_fee') return Promise.resolve(30);
     if (key === 'delivery_inter_min_fee') return Promise.resolve(40);
     if (key === 'driver_earnings_percentage') return Promise.resolve(85);
+    // Loyalty config — must be non-zero or calcPointsDiscount divides by zero
+    if (key === 'loyalty_points_per_currency') return Promise.resolve(1);
+    if (key === 'loyalty_points_to_currency') return Promise.resolve(100);
+    if (key === 'loyalty_max_redeem_percent') return Promise.resolve(20);
     return Promise.resolve(0);
   }),
 }));
@@ -38,6 +42,14 @@ jest.mock('../../utils/distance', () => ({
   calculateDeliveryFee: jest.fn().mockReturnValue({ fee: 10.0, withinRange: true }),
 }));
 
+// Only createOrder's promo-code path touches the raw pool directly (everything
+// else in these tests goes through the mocked repositories above); default to
+// empty result sets so tests that don't care about promo codes are unaffected.
+const mockPoolQuery = jest.fn().mockResolvedValue({ rows: [] });
+jest.mock('../../config/postgres', () => ({
+  getPool: () => ({ query: mockPoolQuery }),
+}));
+
 const mockDbChain = {
   from: jest.fn().mockReturnThis(),
   update: jest.fn().mockReturnThis(),
@@ -56,6 +68,7 @@ jest.mock('../../db/repositories', () => ({
   orders: {
     createOrderWithItems: jest.fn(),
     getBuyerOrders: jest.fn(),
+    hideForBuyer: jest.fn(),
     getStoreOrders: jest.fn(),
     getOrderDetails: jest.fn(),
     findById: jest.fn(),
@@ -89,6 +102,7 @@ const _rabbitMQService = require('../../services/rabbitmq');
 const {
   createOrder,
   getMyOrders,
+  deleteMyOrders,
   getStoreOrders,
   getOrderDetails,
   updateOrderStatus,
@@ -251,6 +265,75 @@ describe('OrderController Unit Tests', () => {
         orders: [mockCreatedOrder],
       }));
     });
+
+    test('test_createOrder_storeScopedPromo_onlyDiscountsMatchingStoreInMultiStoreCart', async () => {
+      // Arrange — a cart split across two stores, and a promo code scoped to
+      // store-A only. Store-A's order should get the discount; store-B's
+      // order (same checkout) should not.
+      const mockCart = {
+        cart_items: [
+          { product_id: 'p-A', quantity: 1, products: { store_id: 'store-A', price: 100, title: 'Item A' } },
+          { product_id: 'p-B', quantity: 1, products: { store_id: 'store-B', price: 100, title: 'Item B' } },
+        ],
+      };
+      const storeA = { id: 'store-A', owner_id: 'seller-A', store_name: 'Store A', latitude: 5.5, longitude: -0.1, delivery_base_fee: 10, state_province: 'Greater Accra' };
+      const storeB = { id: 'store-B', owner_id: 'seller-B', store_name: 'Store B', latitude: 5.5, longitude: -0.1, delivery_base_fee: 10, state_province: 'Greater Accra' };
+
+      repositories.carts.getCartWithItems.mockResolvedValueOnce(mockCart);
+      repositories.stores.findById.mockImplementation((id) =>
+        Promise.resolve(id === 'store-A' ? storeA : storeB)
+      );
+      repositories.users.findById.mockResolvedValue({ email: 'x@test.com' });
+      repositories.userProfiles.findByUserId.mockResolvedValue({ phone: '+233999' });
+
+      const capturedOrderData = [];
+      repositories.orders.createOrderWithItems.mockImplementation((orderData) => {
+        capturedOrderData.push(orderData);
+        return Promise.resolve({
+          id: `order-${orderData.store_id}`,
+          order_number: `ORD-${orderData.store_id}`,
+          total_amount: orderData.total_amount,
+        });
+      });
+
+      mockPoolQuery.mockImplementation((sql) => {
+        if (sql.includes('SELECT * FROM promo_codes')) {
+          return Promise.resolve({
+            rows: [{
+              id: 'promo-1', code: 'STOREA10', type: 'fixed', value: 20,
+              min_order: 0, max_uses: null, uses_count: 0, expires_at: null,
+              store_id: 'store-A',
+            }],
+          });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = mockReq({
+        body: {
+          deliveryAddress: '123 St',
+          deliveryCity: 'Accra',
+          deliveryState: 'Greater Accra',
+          deliveryPhone: '020',
+          buyerLat: 5.51,
+          buyerLng: -0.11,
+          paymentMethod: 'paystack',
+          promoCode: 'STOREA10',
+        },
+      });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await createOrder(req, res, next);
+
+      // Assert
+      const orderDataA = capturedOrderData.find((o) => o.store_id === 'store-A');
+      const orderDataB = capturedOrderData.find((o) => o.store_id === 'store-B');
+      expect(orderDataA.discount_amount).toBeCloseTo(10); // min(20, 200) * storeShare(0.5)
+      expect(orderDataB.discount_amount).toBe(0);
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
   });
 
   // ── getMyOrders ────────────────────────────────────────────────────
@@ -289,6 +372,102 @@ describe('OrderController Unit Tests', () => {
           hasPrev: false,
         },
       });
+    });
+  });
+
+  // ── deleteMyOrders ────────────────────────────────────────────────
+  describe('deleteMyOrders', () => {
+    test('test_deleteMyOrders_missingOrderIds_returns400', async () => {
+      // Arrange
+      const req = mockReq({ body: {} });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await deleteMyOrders(req, res, next);
+
+      // Assert
+      expect(repositories.orders.hideForBuyer).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'orderIds must be a non-empty array',
+      });
+    });
+
+    test('test_deleteMyOrders_tooManyOrderIds_returns400', async () => {
+      // Arrange
+      const req = mockReq({ body: { orderIds: Array.from({ length: 101 }, (_, i) => `order-${i}`) } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await deleteMyOrders(req, res, next);
+
+      // Assert
+      expect(repositories.orders.hideForBuyer).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Cannot remove more than 100 orders at once',
+      });
+    });
+
+    test('test_deleteMyOrders_allCompleted_removesAllAndReturns200', async () => {
+      // Arrange
+      repositories.orders.hideForBuyer.mockResolvedValueOnce([{ id: 'order-1' }, { id: 'order-2' }]);
+
+      const req = mockReq({ body: { orderIds: ['order-1', 'order-2'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await deleteMyOrders(req, res, next);
+
+      // Assert
+      expect(repositories.orders.hideForBuyer).toHaveBeenCalledWith('buyer-user-id', ['order-1', 'order-2']);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: '2 orders removed from your history',
+        data: { removedIds: ['order-1', 'order-2'], skippedIds: [] },
+      });
+    });
+
+    test('test_deleteMyOrders_someNotCompleted_skipsThoseAndReportsBoth', async () => {
+      // Arrange
+      repositories.orders.hideForBuyer.mockResolvedValueOnce([{ id: 'order-1' }]);
+
+      const req = mockReq({ body: { orderIds: ['order-1', 'order-2-still-pending'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await deleteMyOrders(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: '1 order removed. 1 skipped — only completed orders can be removed.',
+        data: { removedIds: ['order-1'], skippedIds: ['order-2-still-pending'] },
+      });
+    });
+
+    test('test_deleteMyOrders_repositoryThrows_callsNext', async () => {
+      // Arrange
+      const boom = new Error('db down');
+      repositories.orders.hideForBuyer.mockRejectedValueOnce(boom);
+
+      const req = mockReq({ body: { orderIds: ['order-1'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await deleteMyOrders(req, res, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledWith(boom);
     });
   });
 

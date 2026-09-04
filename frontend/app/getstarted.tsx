@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,12 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 const GetStartedScreen = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const carouselRef = useRef<ScrollView>(null);
   const carouselImages = [
     require('../assets/images/slide1.jpg'),
@@ -84,10 +88,10 @@ const GetStartedScreen = () => {
       </View>
   );
 };
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: c.background,
     alignItems: 'center',
   },
   carousel: {
@@ -110,19 +114,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     marginHorizontal: 3,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: c.text,
     marginTop: 90,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#444',
+    color: c.textSecondary,
     textAlign: 'center',
     marginTop: 70,
     marginBottom: 20,
@@ -135,7 +139,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   createButton: {
-    backgroundColor: '#1e3a8a',
+    backgroundColor: c.primaryMid,
     borderRadius: 25,
     paddingVertical: 14,
     alignItems: 'center',
@@ -143,19 +147,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   createText: {
-    color: '#fff',
+    color: c.textInverse,
     fontSize: 18,
     fontWeight: '700',
   },
   loginLink: {
     borderWidth: 1.5,
-    borderColor: '#1e3a8a',
+    borderColor: c.primaryMid,
     borderRadius: 25,
     paddingVertical: 14,
     alignItems: 'center',
   },
   loginText: {
-    color: '#1e3a8a',
+    color: c.primaryMid,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   bottomBrand: {
-    color: '#1e3a8a',
+    color: c.primaryMid,
     fontSize: 20,
     fontWeight: '700',
     marginLeft: 6,

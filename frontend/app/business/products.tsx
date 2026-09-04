@@ -18,23 +18,13 @@ import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { getStoreProducts, deleteProduct } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
-const C = {
-  bg:      '#FFFFFF',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
-};
 
 const isFashionCategory = (cat: string) => {
   const c = String(cat || '').toLowerCase();
@@ -47,6 +37,21 @@ const FILTERS: FilterType[] = ['All', 'Active', 'Inactive'];
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
   const { isChecking, isVerified } = useSellerGuard();
+  const colors = useThemeColors();
+  const C = useMemo(() => ({
+    bg: colors.background,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    limeText: colors.accentText,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    errorBg: colors.errorBg,
+  }), [colors]);
+  const S = useMemo(() => getS(C), [C]);
 
   const [filter, setFilter] = useState<FilterType>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,8 +153,8 @@ export default function ProductsScreen() {
           )}
         </View>
         <View style={S.productStatusRow}>
-          <View style={[S.statusDot, { backgroundColor: item.isActive ? '#22c55e' : '#ef4444' }]} />
-          <Text style={[S.statusLabel, { color: item.isActive ? '#15803D' : '#DC2626' }]}>
+          <View style={[S.statusDot, { backgroundColor: item.isActive ? colors.success : colors.error }]} />
+          <Text style={[S.statusLabel, { color: item.isActive ? colors.success : colors.error }]}>
             {item.isActive ? 'Active' : 'Inactive'}
           </Text>
           <Text style={S.stockLabel}>· Stock: {item.stock}</Text>
@@ -171,7 +176,7 @@ export default function ProductsScreen() {
           style={S.actionDelete}
           onPress={() => confirmDeleteProduct(item.id)}
         >
-          <Feather name="trash-2" size={rs(14)} color="#EF4444" />
+          <Feather name="trash-2" size={rs(14)} color={colors.error} />
         </TouchableOpacity>
       </View>
     </View>
@@ -277,8 +282,8 @@ export default function ProductsScreen() {
               <View style={S.statRow}>
                 {[
                   { label: 'Total', value: totalProducts, color: C.navy },
-                  { label: 'Active', value: activeCount, color: '#84cc16' },
-                  { label: 'Inactive', value: inactiveCount, color: '#EF4444' },
+                  { label: 'Active', value: activeCount, color: colors.accent },
+                  { label: 'Inactive', value: inactiveCount, color: colors.error },
                 ].map((s) => (
                   <View key={s.label} style={S.statCard}>
                     <Text style={[S.statNum, { color: s.color }]}>{s.value}</Text>
@@ -354,7 +359,7 @@ export default function ProductsScreen() {
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
-                  <Ionicons name="close" size={24} color="#64748B" />
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -386,9 +391,9 @@ export default function ProductsScreen() {
                         <Text style={S.switcherCat}>{biz.category}</Text>
                       </View>
                       {active ? (
-                        <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                        <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
                       ) : (
-                        <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                        <Ionicons name="ellipse-outline" size={22} color={colors.borderStrong} />
                       )}
                     </TouchableOpacity>
                   );
@@ -401,7 +406,7 @@ export default function ProductsScreen() {
                     onPress={() => { setShowSwitcher(false); router.push('/business/register'); }}
                   >
                     <View style={S.switcherAddIcon}>
-                      <Ionicons name="add" size={22} color="#0C1559" />
+                      <Ionicons name="add" size={22} color={colors.primary} />
                     </View>
                     <Text style={S.switcherAddText}>Register Another Store</Text>
                   </TouchableOpacity>
@@ -427,9 +432,11 @@ export default function ProductsScreen() {
   );
 }
 
-const S = StyleSheet.create({
+type LegacyPalette = { bg: string; navy: string; navyMid: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string; errorBg: string };
+
+const getS = (C: LegacyPalette) => StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
-  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
@@ -440,7 +447,7 @@ const S = StyleSheet.create({
   hdrLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: rs(20) },
 
   storeSelectorPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.12)', paddingHorizontal: rs(10), paddingVertical: rs(6), borderRadius: rs(16), borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.18)', maxWidth: SW * 0.48 },
-  storePillLogo: { width: rs(28), height: rs(28), borderRadius: rs(14), backgroundColor: '#F1F5F9' },
+  storePillLogo: { width: rs(28), height: rs(28), borderRadius: rs(14), backgroundColor: 'rgba(255,255,255,0.15)' },
   storePillPlaceholder: { width: rs(28), height: rs(28), borderRadius: rs(14), backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   storePillInitial: { color: '#FFF', fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
   storePillTextWrap: { marginLeft: rs(8), justifyContent: 'center' },
@@ -469,8 +476,8 @@ const S = StyleSheet.create({
   statLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: rs(6) },
   statBar: { width: rs(20), height: rs(3), borderRadius: rs(2) },
 
-  bargainCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: rs(16), padding: rs(14), marginHorizontal: rs(16), marginBottom: rs(14), gap: rs(12), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8), borderWidth: 1, borderColor: '#EEF2FF' },
-  bargainIconWrap: { width: rs(40), height: rs(40), borderRadius: rs(12), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+  bargainCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: rs(16), padding: rs(14), marginHorizontal: rs(16), marginBottom: rs(14), gap: rs(12), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8), borderWidth: 1, borderColor: C.border },
+  bargainIconWrap: { width: rs(40), height: rs(40), borderRadius: rs(12), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
   bargainCardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body },
   bargainCardSub: { fontSize: rf(11), fontFamily: 'Montserrat-Regular', color: C.muted, marginTop: rs(2) },
 
@@ -482,50 +489,50 @@ const S = StyleSheet.create({
 
   chipScrollView: { flexGrow: 0, flexShrink: 0 },
   chipStrip: { paddingHorizontal: rs(16), paddingVertical: rs(4), gap: rs(8), flexDirection: 'row', flexGrow: 0, alignItems: 'center' },
-  chip: { height: 36, paddingHorizontal: rs(16), borderRadius: 18, borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card, justifyContent: 'center', alignItems: 'center', elevation: 1, shadowColor: C.navy, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2) },
+  chip: { height: 36, paddingHorizontal: rs(16), borderRadius: 18, borderWidth: 0.5, borderColor: C.border, backgroundColor: C.card, justifyContent: 'center', alignItems: 'center', elevation: 1, shadowColor: C.navy, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2) },
   chipOn:    { backgroundColor: C.navy, borderColor: C.navy },
   chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: '#fff' },
 
   listWrap: { paddingHorizontal: rs(16) },
   productRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12), backgroundColor: C.card, borderRadius: rs(16), padding: rs(12), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.05, shadowRadius: rs(6) },
-  productImg: { width: rs(60), height: rs(60), borderRadius: rs(12), backgroundColor: '#F1F5F9' },
+  productImg: { width: rs(60), height: rs(60), borderRadius: rs(12), backgroundColor: C.border },
   productImgFallback: { justifyContent: 'center', alignItems: 'center' },
   productInfo: { flex: 1 },
   productName: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(3) },
   productMeta: { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(3) },
   productPrice: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
   productWas: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, textDecorationLine: 'line-through' },
-  genderBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: rs(6), paddingVertical: rs(2), borderRadius: rs(4) },
+  genderBadge: { backgroundColor: C.border, paddingHorizontal: rs(6), paddingVertical: rs(2), borderRadius: rs(4) },
   genderBadgeTxt: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.navyMid, textTransform: 'uppercase' },
   productStatusRow: { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
   statusDot: { width: rs(6), height: rs(6), borderRadius: rs(3) },
   statusLabel: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
   stockLabel: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
   productActions: { flexDirection: 'column', gap: rs(8) },
-  actionEdit: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
-  actionDelete: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' },
+  actionEdit: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  actionDelete: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: C.errorBg, justifyContent: 'center', alignItems: 'center' },
 
   emptyWrap: { alignItems: 'center', paddingTop: rs(48), paddingHorizontal: rs(40) },
-  emptyCircle: { width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8) },
+  emptyCircle: { width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', marginBottom: rs(16), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8) },
   emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
   emptySub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'center', lineHeight: rf(20) },
 
   switcherOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', justifyContent: 'flex-end' },
   switcherDismiss: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  switcherSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: rs(30), borderTopRightRadius: rs(30), padding: rs(24), paddingBottom: rs(40), shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 25 },
+  switcherSheet: { backgroundColor: C.card, borderTopLeftRadius: rs(30), borderTopRightRadius: rs(30), padding: rs(24), paddingBottom: rs(40), shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 25 },
   switcherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(20) },
-  switcherTitle: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  switcherTitle: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.body },
   switcherList: { gap: rs(12) },
-  switcherCard: { flexDirection: 'row', alignItems: 'center', padding: rs(14), borderRadius: rs(18), backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
-  switcherCardActive: { borderColor: '#0C1559', backgroundColor: '#F1F5F9' },
+  switcherCard: { flexDirection: 'row', alignItems: 'center', padding: rs(14), borderRadius: rs(18), backgroundColor: C.border, borderWidth: 1, borderColor: C.border },
+  switcherCardActive: { borderColor: C.navy, backgroundColor: C.border },
   switcherLogoWrapper: { width: rs(40), height: rs(40), borderRadius: rs(20), overflow: 'hidden' },
   switcherLogo: { width: '100%', height: '100%' },
   switcherLogoPlaceholder: { backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   switcherLogoInitial: { color: '#FFF', fontSize: rf(18), fontFamily: 'Montserrat-Bold' },
-  switcherName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  switcherCat: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: rs(2) },
-  switcherAddCard: { flexDirection: 'row', alignItems: 'center', padding: rs(14), borderRadius: rs(18), backgroundColor: '#FFF', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#CBD5E1', marginTop: rs(6) },
-  switcherAddIcon: { width: rs(40), height: rs(40), borderRadius: rs(20), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
-  switcherAddText: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#0C1559', marginLeft: rs(12) },
+  switcherName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.body },
+  switcherCat: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
+  switcherAddCard: { flexDirection: 'row', alignItems: 'center', padding: rs(14), borderRadius: rs(18), backgroundColor: C.bg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.border, marginTop: rs(6) },
+  switcherAddIcon: { width: rs(40), height: rs(40), borderRadius: rs(20), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  switcherAddText: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy, marginLeft: rs(12) },
 });

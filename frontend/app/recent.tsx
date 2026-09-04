@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/store/cartStore';
 import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
 import { useProducts } from '@/hooks/useProducts';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
@@ -36,6 +38,8 @@ interface RecentProduct {
 
 export default function RecentScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const addToCart = useCart((s) => s.addToCart);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,7 +146,7 @@ export default function RecentScreen() {
           <Text style={styles.newText}>NEW</Text>
         </View>
         <TouchableOpacity style={styles.favBtn}>
-          <Ionicons name="heart-outline" size={16} color="#0C1559" />
+          <Ionicons name="heart-outline" size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -156,13 +160,14 @@ export default function RecentScreen() {
 
         <View style={styles.footerRow}>
           <View style={styles.timeBadge}>
-            <Feather name="clock" size={10} color="#64748B" />
+            <Feather name="clock" size={10} color={colors.textSecondary} />
             <Text style={styles.timeText}>{item.timestamp}</Text>
           </View>
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => handleAddToCart(item)}
           >
+            {/* white icon on the fixed-primary button */}
             <Ionicons name="add" size={18} color="#FFF" />
           </TouchableOpacity>
         </View>
@@ -186,25 +191,27 @@ export default function RecentScreen() {
 
       {/* --- Header --- */}
       <View style={styles.headerWrapper}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+        <LinearGradient colors={colors.headerGradient} style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.headerContent}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                {/* white icon on the header gradient, fixed dark navy in both themes */}
                 <Ionicons name="arrow-back" size={24} color="#FFF" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Just Arrived</Text>
               <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
+                {/* white icon on the header gradient, fixed dark navy in both themes */}
                 <Ionicons name="filter" size={22} color="#FFF" />
               </TouchableOpacity>
             </View>
 
             {/* Search Bar */}
             <View style={styles.searchContainer}>
-              <Feather name="search" size={18} color="#94A3B8" />
+              <Feather name="search" size={18} color={colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search recent items..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
@@ -235,7 +242,7 @@ export default function RecentScreen() {
           onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="box" size={40} color="#CBD5E1" />
+              <Feather name="box" size={40} color={colors.textMuted} />
               <Text style={styles.emptyText}>No items found.</Text>
             </View>
           }
@@ -252,6 +259,7 @@ export default function RecentScreen() {
         >
           <View style={styles.toastContent}>
             <View style={styles.checkCircle}>
+              {/* white icon on the fixed-accent circle */}
               <Ionicons name="checkmark" size={14} color="#FFF" />
             </View>
             <Text style={styles.toastText} numberOfLines={1}>{toastMessage}</Text>
@@ -274,7 +282,7 @@ export default function RecentScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sort Products</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalDivider} />
@@ -293,13 +301,13 @@ export default function RecentScreen() {
                   <MaterialIcons
                     name={opt.icon as any}
                     size={22}
-                    color={activeSort === opt.id ? "#0C1559" : "#64748B"}
+                    color={activeSort === opt.id ? colors.primary : colors.textSecondary}
                   />
                   <Text style={[styles.optionText, activeSort === opt.id && styles.optionTextActive]}>
                     {opt.label}
                   </Text>
                 </View>
-                {activeSort === opt.id && <Ionicons name="checkmark-circle" size={22} color="#84cc16" />}
+                {activeSort === opt.id && <Ionicons name="checkmark-circle" size={22} color={colors.accent} />}
               </TouchableOpacity>
             ))}
             <View style={{ height: 20 }} />
@@ -310,10 +318,10 @@ export default function RecentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: c.background
   },
 
   // Background Watermark
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
     paddingBottom: 25,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: "#0C1559",
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -353,23 +361,23 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)', // translucent button on the fixed-dark header gradient
     borderRadius: 12,
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
+    color: '#FFF', // white text on the header gradient, fixed dark navy in both themes
   },
   iconBtn: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)', // translucent button on the fixed-dark header gradient
     borderRadius: 12,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     marginHorizontal: 20,
     borderRadius: 14,
     paddingHorizontal: 12,
@@ -380,7 +388,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: c.text,
   },
 
   // List
@@ -401,7 +409,7 @@ const styles = StyleSheet.create({
   // Card
   card: {
     width: (width - 44) / 2,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     marginBottom: 16,
     shadowColor: "#000",
@@ -415,7 +423,7 @@ const styles = StyleSheet.create({
     height: 140,
     width: '100%',
     position: 'relative',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
   },
   productImage: {
     width: '100%',
@@ -426,13 +434,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
   },
   newText: {
-    color: '#0F172A',
+    color: c.accentText,
     fontSize: 9,
     fontFamily: 'Montserrat-Bold',
   },
@@ -440,7 +448,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -458,14 +466,14 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 10,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: c.textSecondary,
     marginBottom: 2,
     textTransform: 'uppercase',
   },
   productTitle: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 6,
   },
   priceRow: {
@@ -476,7 +484,7 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: c.primary,
     marginRight: 8,
   },
   footerRow: {
@@ -487,7 +495,7 @@ const styles = StyleSheet.create({
   timeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 6,
@@ -495,11 +503,11 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 10,
-    color: '#64748B',
+    color: c.textSecondary,
     fontFamily: 'Montserrat-Medium',
   },
   addBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -517,7 +525,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   toastContent: {
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
@@ -533,13 +541,13 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   toastText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the fixed-primary toast
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
     flex: 1,
@@ -549,13 +557,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: c.overlay,
   },
   modalBackdrop: {
     flex: 1,
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -574,11 +582,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
   },
   modalDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.borderStrong,
     marginBottom: 10,
   },
   filterOption: {
@@ -587,7 +595,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: c.border,
   },
   optionRow: {
     flexDirection: 'row',
@@ -597,10 +605,10 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 15,
     fontFamily: 'Montserrat-Medium',
-    color: '#334155',
+    color: c.text,
   },
   optionTextActive: {
-    color: '#0C1559',
+    color: c.primary,
     fontFamily: 'Montserrat-Bold',
   },
   emptyState: {
@@ -609,7 +617,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 10,
-    color: '#94A3B8',
+    color: c.textMuted,
     fontFamily: 'Montserrat-Medium',
   },
 });

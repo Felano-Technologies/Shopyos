@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator
@@ -7,8 +7,12 @@ import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useBusinessReviews, useReplyToReview, useActiveBusiness } from '@/hooks/useBusiness';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function ReviewsScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [replyModalVisible, setReplyModalVisible] = useState(false);
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
@@ -64,7 +68,7 @@ export default function ReviewsScreen() {
   const renderStars = (rating: number) => (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map(star => (
-        <FontAwesome key={star} name="star" size={12} color={star <= rating ? "#FACC15" : "#E2E8F0"} />
+        <FontAwesome key={star} name="star" size={12} color={star <= rating ? colors.warning : colors.borderStrong} />
       ))}
     </View>
   );
@@ -89,14 +93,14 @@ export default function ReviewsScreen() {
       {item.reply ? (
         <View style={styles.adminReplyBox}>
           <View style={styles.adminReplyHeader}>
-            <Ionicons name="return-down-forward" size={16} color="#0C1559" />
+            <Ionicons name="return-down-forward" size={16} color={colors.primary} />
             <Text style={styles.replyTitle}>Your Response</Text>
           </View>
           <Text style={styles.adminReplyText}>{item.reply}</Text>
         </View>
       ) : (
         <TouchableOpacity style={styles.replyBtn} onPress={() => openReplyModal(item)}>
-          <Feather name="message-circle" size={16} color="#0C1559" />
+          <Feather name="message-circle" size={16} color={colors.primary} />
           <Text style={styles.replyBtnText}>Reply</Text>
         </TouchableOpacity>
       )}
@@ -109,17 +113,17 @@ export default function ReviewsScreen() {
       {/* --- NEW: Search & Filter Header --- */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" />
+          <Feather name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search reviews or customers..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -141,7 +145,7 @@ export default function ReviewsScreen() {
 
       {isLoading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -154,9 +158,9 @@ export default function ReviewsScreen() {
           <View style={styles.emptyState}>
             <View style={styles.emptyIconBg}>
               <MaterialCommunityIcons 
-                name={searchQuery ? "text-box-search-outline" : "star-outline"} 
-                size={40} 
-                color="#94A3B8" 
+                name={searchQuery ? "text-box-search-outline" : "star-outline"}
+                size={40}
+                color={colors.textMuted}
               />
             </View>
             <Text style={styles.emptyTitle}>
@@ -179,7 +183,7 @@ export default function ReviewsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reply to {selectedReview?.user}</Text>
               <TouchableOpacity onPress={() => setReplyModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.originalComment}>
@@ -199,7 +203,7 @@ export default function ReviewsScreen() {
               disabled={isReplying}
             >
               {isReplying ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color="#FFF" /> // white spinner on the fixed navy send button
               ) : (
                 <Text style={styles.sendText}>Post Reply</Text>
               )}
@@ -211,32 +215,32 @@ export default function ReviewsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
 
   searchSection: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: c.borderStrong,
     zIndex: 10
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 48,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: c.borderStrong
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontFamily: 'Montserrat-Medium',
     fontSize: 14,
-    color: '#0F172A'
+    color: c.text
   },
   filterScroll: {
     flexDirection: 'row',
@@ -247,50 +251,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: c.borderStrong
   },
   filterChipActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559'
+    backgroundColor: c.primary,
+    borderColor: c.primary
   },
   filterText: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B'
+    color: c.textSecondary
   },
   filterTextActive: {
-    color: '#FFF'
+    color: '#FFF' // white text on the fixed primary-colored active chip
   },
 
   listContent: { paddingBottom: 100 },
-  card: { backgroundColor: '#FFF', padding: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  card: { backgroundColor: c.surface, padding: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: c.border },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9' },
-  userName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  productBadge: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#B45309', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start', marginTop: 4 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.border },
+  userName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: c.text },
+  productBadge: {
+    fontSize: 11, fontFamily: 'Montserrat-SemiBold',
+    // no warning-background token exists yet in the theme system; kept as fixed amber
+    color: '#B45309', backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start', marginTop: 4
+  },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  dateText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  commentText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 20 },
-  
-  adminReplyBox: { marginTop: 14, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#0C1559' },
+  dateText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: c.textMuted },
+  commentText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, lineHeight: 20 },
+
+  adminReplyBox: { marginTop: 14, backgroundColor: c.surfaceElevated, padding: 12, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: c.primary },
   adminReplyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 },
-  replyTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  adminReplyText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 20 },
-  
-  replyBtn: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  replyBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  replyTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: c.primary },
+  adminReplyText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, lineHeight: 20 },
+
+  replyBtn: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, backgroundColor: c.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: c.borderStrong },
+  replyBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: c.primary },
 
   // Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContainer: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 300, elevation: 10 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.overlay },
+  modalContainer: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 300, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  originalComment: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', fontStyle: 'italic', marginBottom: 20, padding: 15, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', lineHeight: 20 },
-  input: { backgroundColor: '#F1F5F9', borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', marginBottom: 20 },
-  sendBtn: { backgroundColor: '#0C1559', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  sendText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 },
+  modalTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: c.text },
+  originalComment: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, fontStyle: 'italic', marginBottom: 20, padding: 15, backgroundColor: c.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: c.borderStrong, lineHeight: 20 },
+  input: { backgroundColor: c.border, borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.text, marginBottom: 20 },
+  sendBtn: { backgroundColor: c.primary, paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  sendText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 }, // white text on the fixed navy send button
 
   // Empty State
   emptyState: {
@@ -303,7 +312,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: c.borderStrong,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -311,13 +320,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: c.text,
     marginBottom: 8,
   },
   emptySub: {
     fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },

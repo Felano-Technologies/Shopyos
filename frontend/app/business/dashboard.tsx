@@ -384,6 +384,7 @@ const BusinessDashboard = () => {
                       { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'] as [string, string], accent: '#F59E0B', label: 'Promote', sub: 'Run a deal', route: '/business/promotions' },
                       { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'] as [string, string], accent: '#2563EB', label: 'Analytics', sub: 'Performance', route: '/business/analytics' },
                       { icon: 'zap', family: 'Feather', bg: ['#EF4444', '#DC2626'] as [string, string], accent: '#EF4444', label: 'Flash Sales', sub: 'Run limited deals', route: '/business/flash-sales' },
+                      { icon: 'tag', family: 'Feather', bg: ['#0D9488', '#0F766E'] as [string, string], accent: '#0D9488', label: 'Promo Codes', sub: 'Discount codes', route: '/business/promo-codes' },
                     ].map((item) => (
                       <TouchableOpacity
                         accessibilityLabel={item.label}

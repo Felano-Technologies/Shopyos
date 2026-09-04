@@ -25,24 +25,12 @@ import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavo
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 52) / 2;
 const RECENT_KEY = 'SHOPYOS_RECENT_SEARCHES';
 const MAX_RECENT = 6;
-// ─── Design tokens ────────────────────────────────────────────────────────────
-const C = {
-  bg: '#E9F0FF',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.08)',
-  borderMd: 'rgba(12,21,89,0.14)',
-};
 
 const isFashionCategory = (cat: string | null) => {
   const c = String(cat || '').toLowerCase();
@@ -108,6 +96,8 @@ async function addItemToCart(
       price: Number.parseFloat(item.price) || 0,
       image: item.images?.[0] || 'https://via.placeholder.com/300',
       storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
+      storeName: item.store?.store_name || item.store?.name || item.business?.businessName,
+      storeLogo: item.store?.logo_url || item.business?.logo_url || item.store?.logo,
     });
     CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
   } catch {
@@ -118,25 +108,29 @@ async function addItemToCart(
 }
 
 function AdPlaceholder({ style }: { style?: any }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={[styles.searchAdPlaceholder, style]}>
       <LinearGradient
-        colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+        colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']} // decorative low-opacity navy tint, subtle in both themes
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.searchAdContent}>
-        <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
-          <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
+        <View style={[styles.searchAdBadge, { backgroundColor: colors.border }]}>
+          <Text style={[styles.searchAdBadgeTxt, { color: colors.textSecondary }]}>ADS</Text>
         </View>
-        <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
-        <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
+        <Text style={[styles.searchAdTitle, { color: colors.textSecondary }]}>Your campaign here</Text>
+        <Text style={[styles.searchAdSub, { color: colors.textMuted }]}>Promote your store to buyers →</Text>
       </View>
     </View>
   );
 }
 
 function StoreList({ stores }: { stores: any[] }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   if (!stores || stores.length === 0) return null;
   return (
     <View style={styles.storesSection}>
@@ -157,7 +151,7 @@ function StoreList({ stores }: { stores: any[] }) {
               <AppImage uri={store.logo || 'https://via.placeholder.com/60'} style={styles.storeLogo} />
               {store.verified && (
                 <View style={styles.verifiedBadgeSmall}>
-                  <Ionicons name="checkmark-circle" size={10} color={C.lime} />
+                  <Ionicons name="checkmark-circle" size={10} color={colors.accent} />
                 </View>
               )}
             </View>
@@ -170,6 +164,8 @@ function StoreList({ stores }: { stores: any[] }) {
 }
 
 const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isFavorite, onToggleFavorite, favoriteBusy }: { item: any; addingId: string | null; onAddToCart: (item: any) => void; isFavorite: boolean; onToggleFavorite: (item: any) => void; favoriteBusy: boolean }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity accessibilityLabel={`View ${item.name}`} accessibilityRole="button" style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <View style={styles.gridImgWrap}>
@@ -182,7 +178,7 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isF
           disabled={favoriteBusy}
           onPress={(e: any) => { e?.stopPropagation?.(); onToggleFavorite(item); }}
         >
-          <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={13} color={isFavorite ? '#EF4444' : C.navy} />
+          <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={13} color={isFavorite ? colors.error : colors.primary} />
         </TouchableOpacity>
         {item.isNew && <View style={styles.badgeNew}><Text style={styles.badgeNewTxt}>NEW</Text></View>}
       </View>
@@ -199,8 +195,8 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isF
             disabled={addingId === item._id}
           >
             {addingId === item._id
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="add" size={14} color="#fff" />
+              ? <ActivityIndicator size="small" color="#fff" /* white icon on the fixed navy add button */ />
+              : <Ionicons name="add" size={14} color="#fff" /* white icon on the fixed navy add button */ />
             }
           </TouchableOpacity>
         </View>
@@ -210,6 +206,8 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isF
 });
 
 const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity accessibilityLabel={`View featured ${item.name}`} accessibilityRole="button" style={styles.featCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.featImg} />
@@ -227,8 +225,8 @@ const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToC
         disabled={addingId === item._id}
       >
         {addingId === item._id
-          ? <ActivityIndicator size="small" color={C.limeText} />
-          : <Ionicons name="add" size={18} color={C.limeText} />
+          ? <ActivityIndicator size="small" color={colors.accentText} />
+          : <Ionicons name="add" size={18} color={colors.accentText} />
         }
       </TouchableOpacity>
     </TouchableOpacity>
@@ -236,13 +234,15 @@ const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToC
 });
 
 const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity accessibilityLabel={`View ${item.name}`} accessibilityRole="button" style={styles.listCard} activeOpacity={0.85} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.listImg} />
       <View style={styles.listInfo}>
         <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
         <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
-        <Text style={[styles.priceLbl, { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime }]}>
+        <Text style={[styles.priceLbl, { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.accent }]}>
           ₵{Number.parseFloat(item.price).toFixed(2)}
         </Text>
       </View>
@@ -254,8 +254,8 @@ const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: {
         disabled={addingId === item._id}
       >
         {addingId === item._id
-          ? <ActivityIndicator size="small" color="#fff" />
-          : <Ionicons name="add" size={16} color="#fff" />
+          ? <ActivityIndicator size="small" color="#fff" /* white icon on the fixed navy add button */ />
+          : <Ionicons name="add" size={16} color="#fff" /* white icon on the fixed navy add button */ />
         }
       </TouchableOpacity>
     </TouchableOpacity>
@@ -283,6 +283,8 @@ function DiscoveryView({
   setCategory: (c: string | null) => void;
   inputRef: React.RefObject<TextInput>;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.discoveryScroll} keyboardShouldPersistTaps="handled">
       {recentSearches.length > 0 && (
@@ -293,9 +295,9 @@ function DiscoveryView({
           </View>
           {recentSearches.map(term => (
             <TouchableOpacity accessibilityLabel={`Search for ${term}`} accessibilityRole="button" key={term} style={styles.recentRow} onPress={() => { setQuery(term); inputRef.current?.focus(); }}>
-              <View style={styles.recentIcon}><Ionicons name="time-outline" size={14} color={C.navy} /></View>
+              <View style={styles.recentIcon}><Ionicons name="time-outline" size={14} color={colors.primary} /></View>
               <Text style={styles.recentTxt}>{term}</Text>
-              <Feather name="arrow-up-right" size={13} color={C.subtle} />
+              <Feather name="arrow-up-right" size={13} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -324,12 +326,12 @@ function DiscoveryView({
                     <View style={styles.catTileInner}>
                       {catImg
                         ? <AppImage source={catImg} style={styles.catTileBgImg} />
-                        : <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />
+                        : <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' /* dark placeholder for a missing category image, decorative fallback */ }]} />
                       }
-                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']} style={styles.catTileScrim} />
+                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']} style={styles.catTileScrim} /* black scrim over the tile image for text legibility, fixed in both themes */ />
                       {isOn && <View style={styles.catTileActiveTint} />}
                       <View style={styles.catTileTextWrap}>
-                        {isOn && <View style={styles.catTileCheckmark}><Ionicons name="checkmark" size={9} color="#fff" /></View>}
+                        {isOn && <View style={styles.catTileCheckmark}><Ionicons name="checkmark" size={9} color="#fff" /* white icon on the fixed lime checkmark badge */ /></View>}
                         <Text style={styles.catTileTxtLeft} numberOfLines={2}>{cat.name}</Text>
                       </View>
                     </View>
@@ -345,10 +347,12 @@ function DiscoveryView({
 }
 
 function EmptyResults({ setQuery, setCategory, setSortBy }: { setQuery: (q: string) => void; setCategory: (c: string | null) => void; setSortBy: (s: string) => void }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.emptyWrap}>
       <View style={styles.emptyCircle}>
-        <MaterialCommunityIcons name="archive-search-outline" size={44} color={C.navy} />
+        <MaterialCommunityIcons name="archive-search-outline" size={44} color={colors.primary} />
       </View>
       <Text style={styles.emptyTitle}>Nothing found</Text>
       <Text style={styles.emptyBody}>Try different keywords or remove active filters.</Text>
@@ -360,7 +364,10 @@ function EmptyResults({ setQuery, setCategory, setSortBy }: { setQuery: (q: stri
 }
 
 export default function SearchScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const addToCart = useCart((s) => s.addToCart);
+  const cartCount = useCart((s) => s.cartCount);
   const params = useLocalSearchParams();
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
@@ -557,7 +564,7 @@ export default function SearchScreen() {
     <Pressable onPress={() => { Keyboard.dismiss(); setSortOpen(false); }} style={{ flex: 1 }}>
       <View style={styles.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
+        <LinearGradient colors={colors.headerGradient} style={styles.hdrGradient}>
           <View style={styles.hdrGlow} pointerEvents="none" />
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.hdrInner}>
@@ -566,26 +573,31 @@ export default function SearchScreen() {
                   <Text style={styles.hdrEyebrow}>{headingTop}</Text>
                   <Text style={styles.hdrTitle} numberOfLines={1}>
                     {isActive
-                      ? <>{'"'}<Text style={{ color: C.lime }}>{query}</Text>{'"'}</>
-                      : <>{'Find your '}<Text style={{ color: C.lime }}>{'match'}</Text></>
+                      ? <>{'"'}<Text style={{ color: colors.accent }}>{query}</Text>{'"'}</>
+                      : <>{'Find your '}<Text style={{ color: colors.accent }}>{'match'}</Text></>
                     }
                   </Text>
                 </View>
                 <View style={styles.hdrActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                   <TouchableOpacity accessibilityLabel="Open cart" accessibilityRole="button" style={styles.hdrBtn} onPress={() => safePush('/cart')}>
-                    <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" />
+                    <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" /* white icon on the fixed navy header */ />
+                    {cartCount > 0 && (
+                      <View style={[styles.hdrBadge, { borderColor: colors.headerGradient[0] }]}>
+                        <Text style={styles.hdrBadgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
               <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]} ref={refSearchPill} onLayout={() => measureElement(refSearchPill, 'search')}>
-                <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
+                <Feather name="search" size={15} color="rgba(255,255,255,0.5)" /* white icon on the fixed navy header */ />
                 <TextInput
                   accessibilityLabel="Search for products"
                   accessibilityRole="none"
                   ref={inputRef}
                   style={styles.searchInput}
                   placeholder="Search products, brands…"
-                  placeholderTextColor="rgba(255,255,255,0.32)"
+                  placeholderTextColor="rgba(255,255,255,0.32)" // white placeholder on the fixed navy header
                   value={query}
                   onChangeText={handleChangeText}
                   onSubmitEditing={handleSubmit}
@@ -595,7 +607,7 @@ export default function SearchScreen() {
                 />
                 {query.length > 0 ? (
                   <TouchableOpacity accessibilityLabel="Clear search" accessibilityRole="button" style={styles.clearBtn} onPress={() => { setQuery(''); setCategory(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close" size={10} color="#fff" />
+                    <Ionicons name="close" size={10} color="#fff" /* white icon on the fixed navy header */ />
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.kbdHint}><Text style={styles.kbdHintTxt}>⌘K</Text></View>
@@ -608,7 +620,7 @@ export default function SearchScreen() {
         {(loading && products.length === 0 && !isActive && !category) ? (
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
         ) : (
-          <View style={{ flex: 1, backgroundColor: '#ffffff', zIndex: 10 }}>
+          <View style={{ flex: 1, backgroundColor: colors.background, zIndex: 10 }}>
             {!isActive && !category ? (
               <DiscoveryView
                 recentSearches={recentSearches}
@@ -642,16 +654,16 @@ export default function SearchScreen() {
                   <View style={styles.toolbarRight}>
                     <View style={styles.viewToggle}>
                       <TouchableOpacity accessibilityLabel="Switch to grid view" accessibilityRole="button" style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]} onPress={() => setViewMode('grid')}>
-                        <MaterialCommunityIcons name="view-grid-outline" size={15} color={viewMode === 'grid' ? '#fff' : C.muted} />
+                        <MaterialCommunityIcons name="view-grid-outline" size={15} color={viewMode === 'grid' ? '#fff' : colors.textSecondary} /* white icon on the fixed navy active toggle */ />
                       </TouchableOpacity>
                       <TouchableOpacity accessibilityLabel="Switch to list view" accessibilityRole="button" style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]} onPress={() => setViewMode('list')}>
-                        <MaterialCommunityIcons name="view-list-outline" size={15} color={viewMode === 'list' ? '#fff' : C.muted} />
+                        <MaterialCommunityIcons name="view-list-outline" size={15} color={viewMode === 'list' ? '#fff' : colors.textSecondary} /* white icon on the fixed navy active toggle */ />
                       </TouchableOpacity>
                     </View>
                     <TouchableOpacity accessibilityLabel="Open sort options" accessibilityRole="button" style={styles.sortBtn} onPress={() => setSortOpen(v => !v)}>
-                      <Ionicons name="funnel-outline" size={11} color={C.navy} />
+                      <Ionicons name="funnel-outline" size={11} color={colors.primary} />
                       <Text style={styles.sortBtnTxt}>{SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}</Text>
-                      <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={C.navy} />
+                      <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={colors.primary} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       accessibilityLabel="Open filters"
@@ -673,7 +685,7 @@ export default function SearchScreen() {
                         brand: params.brand,
                       })}
                     >
-                      <MaterialCommunityIcons name="tune-variant" size={13} color={C.navy} />
+                      <MaterialCommunityIcons name="tune-variant" size={13} color={colors.primary} />
                       <Text style={styles.sortBtnTxt}>Filters</Text>
                     </TouchableOpacity>
                   </View>
@@ -682,17 +694,17 @@ export default function SearchScreen() {
                   <Animated.View style={[styles.sortDropdown, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
                     {SORT_OPTIONS.map(opt => (
                       <TouchableOpacity accessibilityLabel={`Sort by ${opt.label}`} accessibilityRole="button" key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
-                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: C.navy }]}>{opt.label}</Text>
-                        {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={C.lime} />}
+                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: colors.primary }]}>{opt.label}</Text>
+                        {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={colors.accent} />}
                       </TouchableOpacity>
                     ))}
                   </Animated.View>
                 )}
                 <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
                   {viewMode === 'grid' ? (
-                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
+                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={colors.primary} /> : null} />
                   ) : (
-                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
+                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={colors.primary} /> : null} />
                   )}
                 </Animated.View>
               </View>
@@ -710,20 +722,23 @@ export default function SearchScreen() {
   );
 }
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const C2 = {
-  bg: '#FFFFFF',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.08)',
-  borderMd: 'rgba(12,21,89,0.14)',
-};
-const styles = StyleSheet.create({
+type LegacyPalette = { bg: string; navy: string; navyMid: string; lime: string; limeText: string; card: string; body: string; muted: string; subtle: string; border: string; borderMd: string };
+
+const getStyles = (colors: ThemeColors) => {
+  const C2: LegacyPalette = {
+    bg: colors.background,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    limeText: colors.accentText,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderMd: colors.borderStrong,
+  };
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: C2.bg },
   // ── Header ─────────────────────────────────────────────────────────────────
   hdrGradient: {
@@ -777,7 +792,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.16)',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
+  hdrBadge: {
+    position: 'absolute', top: -3, right: -3,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#ff0101', borderWidth: 1.5,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3,
+  },
+  hdrBadgeTxt: { fontSize: 8, fontFamily: 'Montserrat-Bold', color: '#fff' },
   // Search pill — embedded in header
   searchPill: {
     flexDirection: 'row',
@@ -820,14 +843,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: 'rgba(255,255,255,0.45)',
   },
-  // White arc at bottom of header
+  // Arc at bottom of header that blends into the content area below
   hdrArc: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 28,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },
@@ -845,8 +868,8 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 1,
@@ -861,7 +884,7 @@ const styles = StyleSheet.create({
     shadowColor: C2.lime,
     shadowOpacity: 0.2,
   },
-  chipTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  chipTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.textSecondary },
   chipTxtOn: { color: C2.limeText },
   // ── Toolbar ────────────────────────────────────────────────────────────────
   toolbar: {
@@ -871,10 +894,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     zIndex: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: colors.border,
   },
   resultCount: {
     fontSize: 12,
@@ -884,7 +907,7 @@ const styles = StyleSheet.create({
   toolbarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   viewToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(12,21,89,0.06)',
+    backgroundColor: colors.border,
     borderRadius: 10,
     padding: 2,
     gap: 2,
@@ -945,32 +968,32 @@ const styles = StyleSheet.create({
   filterChipStrip: {
     paddingHorizontal: 12, paddingVertical: 8, gap: 8,
     flexDirection: 'row', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(12,21,89,0.06)',
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 20, borderWidth: 1, borderColor: C2.borderMd,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   filterChipOn: { backgroundColor: C2.lime, borderColor: C2.lime },
   filterChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.navy },
   filterChipTxtOn: { color: C2.limeText },
   // ── Filter bottom sheet ────────────────────────────────────────────────────
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay },
   filterSheet: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 20, paddingBottom: 36,
   },
   filterSheetHandle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0',
+    width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong,
     alignSelf: 'center', marginBottom: 16,
   },
   filterSheetTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C2.navy, marginBottom: 14 },
   filterSheetSubtitle: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.muted, marginBottom: 8 },
   filterSheetRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   filterSheetRowOn: { backgroundColor: 'rgba(132,204,22,0.07)' },
   filterSheetRowTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C2.body },
@@ -997,7 +1020,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: colors.border,
   },
   gridImgWrap: { width: '100%', height: 136, position: 'relative' },
   gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -1006,7 +1029,7 @@ const styles = StyleSheet.create({
     top: 9, right: 9,
     width: 28, height: 28,
     borderRadius: 14,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
@@ -1059,7 +1082,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   // Stores section
-  storesSection: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)', marginBottom: 8 },
+  storesSection: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 8 },
   storesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1079,9 +1102,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: '#fff',
+    borderColor: colors.surface,
     padding: 0,
     elevation: 4,
     shadowColor: '#000',
@@ -1095,7 +1118,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 1,
     elevation: 2,
@@ -1114,7 +1137,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: colors.border,
   },
   featImg: {
     width: 78,
@@ -1159,12 +1182,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: colors.border,
   },
   listImg: {
     width: 72, height: 72,
     borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.border,
   },
   listInfo: { flex: 1 },
   listAddBtn: {
@@ -1209,11 +1232,11 @@ const styles = StyleSheet.create({
   recentIcon: {
     width: 34, height: 34,
     borderRadius: 11,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  recentTxt: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
+  recentTxt: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: colors.text },
   trendWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   trendChip: {
     backgroundColor: C2.card,
@@ -1228,7 +1251,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
   },
-  trendChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#334155' },
+  trendChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: colors.text },
   catTileGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1313,7 +1336,7 @@ catTileFallback: {   // keep for safety, though now unused
   emptyCircle: {
     width: 96, height: 96,
     borderRadius: 48,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 18,
@@ -1350,27 +1373,27 @@ catTileFallback: {   // keep for safety, though now unused
     paddingTop: 10,
     paddingBottom: 6,
     gap: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   genderFilterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 0.5,
-    borderColor: 'rgba(12,21,89,0.08)',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
   },
   genderFilterChipActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   genderFilterChipTxt: {
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: colors.textSecondary,
   },
   genderFilterChipTxtActive: {
-    color: '#ffffff',
+    color: '#ffffff', // white text on the active primary-colored chip
   },
   searchAdBanner: {
     marginHorizontal: 16,
@@ -1381,7 +1404,7 @@ catTileFallback: {   // keep for safety, though now unused
     overflow: 'hidden',
     position: 'relative',
     elevation: 3,
-    shadowColor: '#0C1559',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -1395,7 +1418,7 @@ catTileFallback: {   // keep for safety, though now unused
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
-    borderColor: 'rgba(12,21,89,0.1)',
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   searchAdImg: {
@@ -1411,7 +1434,7 @@ catTileFallback: {   // keep for safety, though now unused
     zIndex: 10,
   },
   searchAdBadge: {
-    backgroundColor: '#84cc16',
+    backgroundColor: colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1421,7 +1444,7 @@ catTileFallback: {   // keep for safety, though now unused
   searchAdBadgeTxt: {
     fontSize: 8,
     fontFamily: 'Montserrat-Bold',
-    color: '#1a2e00',
+    color: colors.accentText,
   },
   searchAdTitle: {
     fontSize: 15,
@@ -1435,4 +1458,5 @@ catTileFallback: {   // keep for safety, though now unused
     color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
   },
-});
+  });
+};

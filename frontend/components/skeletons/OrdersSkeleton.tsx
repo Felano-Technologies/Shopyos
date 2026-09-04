@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export const OrdersSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <ScrollView 
       contentContainerStyle={styles.listContent} 
@@ -44,38 +48,38 @@ export const OrdersSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  listContent: { 
-    padding: 20, 
-    paddingBottom: 40 
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  listContent: {
+    padding: 20,
+    paddingBottom: 40
   },
-  card: { 
-    backgroundColor: '#FFF', 
-    borderRadius: 20, 
-    marginBottom: 16, 
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    marginBottom: 16,
     padding: 16,
     // Optional: Add shadow to match real card if desired
-    shadowColor: "#000", 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 10, 
-    elevation: 4 
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4
   },
-  cardHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 12 
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
   },
-  cardBody: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingVertical: 12, 
-    borderTopWidth: 1, 
-    borderBottomWidth: 1, 
-    borderColor: '#F1F5F9', 
-    marginBottom: 0 
+  cardBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 0
   },
   cardFooter: { 
     flexDirection: 'row', 

@@ -8,19 +8,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '@/components/Skeleton';
 import { SectionHeader } from './SectionHeader';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 42) / 2;
 
-const C = {
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  subtle: '#94A3B8',
+type LegacyPalette = {
+  navy: string; navyMid: string; lime: string; limeText: string;
+  card: string; body: string; subtle: string; bg: string; border: string; borderStrong: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  subtle: colors.textMuted,
+  bg: colors.background,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+});
 
 type Props = Readonly<{
   title?: string;
@@ -68,6 +77,9 @@ function ProductGridBase({
   addingId, favoriteIds, onToggleFavorite, favoriteBusyId,
   onSeeAll, getStoreName, injectedAds = [], emptyTitle, emptyIcon,
 }: Props) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const storeName = getStoreName ?? defaultStoreName;
 
   // Build display list with ad injection — memoized to avoid rebuilding every render
@@ -146,6 +158,9 @@ function ProductCardBase({
   item, onPressProduct, onAddToCart, addingId,
   favoriteIds, onToggleFavorite, favoriteBusyId, storeName,
 }: CardProps) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   {
     const productId = String(item._id || item.id || '');
     const isFav = favoriteIds.has(productId);
@@ -236,6 +251,9 @@ function ProductCardBase({
 export const ProductCard = React.memo(ProductCardBase);
 
 function AdCardBase({ ad }: Readonly<{ ad: any }>) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   if (ad.isPlaceholder) {
     return (
       <View style={[S.card, S.adCard, S.adPlaceholderCard]}>
@@ -275,8 +293,8 @@ export const AdCard = React.memo(AdCardBase);
 
 export const ProductGrid = React.memo(ProductGridBase);
 
-const S = StyleSheet.create({
-  section: { marginBottom: 8, backgroundColor: '#fff' },
+const getS = (C: LegacyPalette) => StyleSheet.create({
+  section: { marginBottom: 8, backgroundColor: C.bg },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -290,7 +308,7 @@ const S = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: C.border,
     marginBottom: 14,
   },
   // Ad cards need an explicit height so absoluteFill children render correctly
@@ -301,7 +319,7 @@ const S = StyleSheet.create({
   favBtn: {
     position: 'absolute', top: 9, right: 9,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4,
   },
   discBadge: {
@@ -343,7 +361,7 @@ const S = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4,
   },
-  addBtnDisabled: { backgroundColor: '#CBD5E1' },
+  addBtnDisabled: { backgroundColor: C.borderStrong },
   // Ad card overlay content
   adContent: {
     position: 'absolute', bottom: 12, left: 12, right: 12,
@@ -358,15 +376,15 @@ const S = StyleSheet.create({
   adTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff', lineHeight: 18 },
   adPlaceholderCard: {
     backgroundColor: 'transparent',
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)', borderStyle: 'dashed',
+    borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
   },
   adPlaceholderTag: {
-    backgroundColor: 'rgba(12,21,89,0.08)',
-    borderColor: 'rgba(12,21,89,0.08)',
+    backgroundColor: C.border,
+    borderColor: C.border,
   },
-  adPlaceholderTagTxt: { color: '#64748B' },
-  adPlaceholderTitle: { color: '#64748B' },
+  adPlaceholderTagTxt: { color: C.subtle },
+  adPlaceholderTitle: { color: C.subtle },
   // Empty state
   empty: { width: '100%', alignItems: 'center', paddingVertical: 32, gap: 10 },
-  emptyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  emptyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.subtle },
 });

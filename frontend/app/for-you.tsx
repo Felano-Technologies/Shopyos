@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/store/cartStore';
 import { usePersonalizedRecommendations, useTrendingRecommendations } from '@/hooks/useRecommendations';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 44) / 2;
@@ -24,6 +26,8 @@ const CARD_WIDTH = (width - 44) / 2;
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void }>) {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(colors), [colors]);
   return (
     <TouchableOpacity style={S.card} activeOpacity={0.9} onPress={onPress}>
       <View style={S.imageContainer}>
@@ -32,7 +36,7 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart
           style={S.productImage}
         />
         <View style={S.forYouBadge}>
-          <Ionicons name="star" size={8} color="#0C1559" />
+          <Ionicons name="star" size={8} color={colors.accentText} />
           <Text style={S.forYouText}>FOR YOU</Text>
         </View>
       </View>
@@ -49,12 +53,12 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart
         <View style={S.footerRow}>
           {item.averageRating > 0 && (
             <View style={S.ratingBadge}>
-              <Ionicons name="star" size={9} color="#F59E0B" />
+              <Ionicons name="star" size={9} color={colors.warning} />
               <Text style={S.ratingText}>{Number(item.averageRating).toFixed(1)}</Text>
             </View>
           )}
           <TouchableOpacity style={S.addBtn} onPress={onAddToCart}>
-            <Ionicons name="add" size={18} color="#FFF" />
+            <Ionicons name="add" size={18} color="#FFF" /* white icon on the fixed-navy add button */ />
           </TouchableOpacity>
         </View>
       </View>
@@ -65,6 +69,8 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
 function GridSkeleton() {
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(colors), [colors]);
   const shimmer = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -95,6 +101,8 @@ function GridSkeleton() {
 
 export default function ForYouScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(colors), [colors]);
   const addToCart = useCart((s) => s.addToCart);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -154,11 +162,11 @@ export default function ForYouScreen() {
 
       {/* Header */}
       <View style={S.headerWrapper}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={S.header}>
+        <LinearGradient colors={colors.headerGradient} style={S.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={S.headerContent}>
               <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
-                <Ionicons name="arrow-back" size={24} color="#FFF" />
+                <Ionicons name="arrow-back" size={24} color="#FFF" /* white icon on the fixed-navy header gradient */ />
               </TouchableOpacity>
               <View style={S.headerCenter}>
                 <Text style={S.headerTitle}>For You</Text>
@@ -186,10 +194,10 @@ export default function ForYouScreen() {
           windowSize={10}
           removeClippedSubviews
           renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor="#0C1559" />}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListEmptyComponent={
             <View style={S.emptyState}>
-              <Feather name="star" size={40} color="#CBD5E1" />
+              <Feather name="star" size={40} color={colors.textMuted} />
               <Text style={S.emptyTitle}>Nothing yet</Text>
               <Text style={S.emptyText}>Browse and buy products to get personalised picks.</Text>
             </View>
@@ -202,7 +210,7 @@ export default function ForYouScreen() {
         <Animated.View style={[S.toast, { opacity: fadeAnim }]}>
           <View style={S.toastInner}>
             <View style={S.toastCheck}>
-              <Ionicons name="checkmark" size={14} color="#FFF" />
+              <Ionicons name="checkmark" size={14} color="#FFF" /* white icon on the fixed accent toast-check circle */ />
             </View>
             <Text style={S.toastText} numberOfLines={1}>{toastMessage}</Text>
           </View>
@@ -214,8 +222,8 @@ export default function ForYouScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const S = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
 
   // Header
   headerWrapper: { marginBottom: 10 },
@@ -224,7 +232,7 @@ const S = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     elevation: 8,
-    shadowColor: '#0C1559',
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -239,14 +247,14 @@ const S = StyleSheet.create({
   },
   backBtn: {
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)', // translucent overlay on the fixed-navy header gradient
     borderRadius: 12,
     width: 40,
     alignItems: 'center',
   },
   headerCenter: { alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  headerSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' }, // white text on the fixed-navy header gradient
+  headerSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 2 }, // translucent white on the fixed-navy header gradient
 
   // List
   listContainer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 40 },
@@ -255,20 +263,20 @@ const S = StyleSheet.create({
   // Card
   card: {
     width: CARD_WIDTH,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: c.border,
     overflow: 'hidden',
   },
-  imageContainer: { height: 140, width: '100%', backgroundColor: '#F1F5F9', position: 'relative' },
+  imageContainer: { height: 140, width: '100%', backgroundColor: c.border, position: 'relative' },
   productImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   forYouBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#84cc16',
+    backgroundColor: c.accent,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
@@ -276,27 +284,28 @@ const S = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  forYouText: { color: '#0C1559', fontSize: 8, fontFamily: 'Montserrat-Bold' },
+  forYouText: { color: c.accentText, fontSize: 8, fontFamily: 'Montserrat-Bold' },
   productInfo: { padding: 10 },
   categoryText: {
-    fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B',
+    fontSize: 10, fontFamily: 'Montserrat-Medium', color: c.textSecondary,
     marginBottom: 2, textTransform: 'uppercase',
   },
-  productTitle: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 6 },
+  productTitle: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: c.text, marginBottom: 6 },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  currentPrice: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  currentPrice: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: c.primary },
   oldPrice: {
-    fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#94A3B8',
+    fontSize: 12, fontFamily: 'Montserrat-Regular', color: c.textMuted,
     textDecorationLine: 'line-through',
   },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ratingBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
+    // Amber rating-badge palette has no matching theme token; kept fixed for both themes.
     backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6,
   },
-  ratingText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#92400E' },
+  ratingText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#92400E' }, // paired with the fixed amber ratingBadge background above
   addBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: c.primary,
     width: 28, height: 28, borderRadius: 14,
     justifyContent: 'center', alignItems: 'center',
   },
@@ -307,29 +316,29 @@ const S = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 10, gap: 12,
   },
   skeletonCard: {
-    width: CARD_WIDTH, borderRadius: 16, backgroundColor: '#E2E8F0', overflow: 'hidden',
+    width: CARD_WIDTH, borderRadius: 16, backgroundColor: c.borderStrong, overflow: 'hidden',
   },
-  skeletonImg: { width: '100%', height: 140, backgroundColor: '#CBD5E1' },
+  skeletonImg: { width: '100%', height: 140, backgroundColor: c.textMuted },
   skeletonLine: {
-    height: 12, backgroundColor: '#CBD5E1', borderRadius: 6,
+    height: 12, backgroundColor: c.textMuted, borderRadius: 6,
     marginHorizontal: 10, marginTop: 10, width: '80%',
   },
 
   // Empty
   emptyState: { alignItems: 'center', marginTop: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 16, marginBottom: 8 },
-  emptyText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: c.text, marginTop: 16, marginBottom: 8 },
+  emptyText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: c.textMuted, textAlign: 'center', lineHeight: 20 },
 
   // Toast
   toast: { position: 'absolute', bottom: 40, left: 20, right: 20, alignItems: 'center', zIndex: 100 },
   toastInner: {
-    backgroundColor: '#0C1559', flexDirection: 'row', alignItems: 'center',
+    backgroundColor: c.primary, flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
   },
   toastCheck: {
-    width: 20, height: 20, borderRadius: 10, backgroundColor: '#84cc16',
+    width: 20, height: 20, borderRadius: 10, backgroundColor: c.accent,
     justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
-  toastText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Bold', flex: 1 },
+  toastText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Bold', flex: 1 }, // white text on the fixed-navy toast background
 });

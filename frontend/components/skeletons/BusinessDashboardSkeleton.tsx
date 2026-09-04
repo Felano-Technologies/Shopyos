@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton'; // Assuming your Skeleton base component is here
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 export const BusinessDashboardSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* --- Hero Header Skeleton --- */}
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={colors.headerGradient}
           style={styles.heroContainer}
         >
           <SafeAreaView edges={['top']}>
@@ -91,8 +95,8 @@ export const BusinessDashboardSkeleton = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surfaceElevated },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },
   heroContainer: {
     paddingTop: 10,
@@ -104,7 +108,7 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
   floatingStats: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginTop: -35,
     borderRadius: 16,
@@ -114,16 +118,16 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   statItem: { alignItems: 'center', flex: 1 },
-  divider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
+  divider: { width: 1, height: 30, backgroundColor: colors.border },
   section: { paddingHorizontal: 20, marginTop: 25 },
   grid: { flexDirection: 'row', justifyContent: 'space-between' },
   actionCard: { width: '23%', alignItems: 'center' },
-  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 20, borderRadius: 20, padding: 16 },
+  chartCard: { backgroundColor: colors.surface, marginHorizontal: 20, marginTop: 20, borderRadius: 20, padding: 16 },
   orderCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     padding: 14,
     borderRadius: 14,
     marginBottom: 10,

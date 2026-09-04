@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     TextInput, ActivityIndicator, RefreshControl,
@@ -13,13 +13,17 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { exportAdminData } from '@/utils/adminExport';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
+// Fixed dark navy/green admin header gradient (3-stop), intentionally not theme-tied — no matching token shape.
 const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as const;
 
 const ROLE_FILTERS = ['All', 'admin', 'seller', 'driver', 'buyer'];
 const STATUS_FILTERS = ['All', 'success', 'failed'];
 const PAGE_SIZE = 100;
 
+// Fixed categorical role-badge colors (paired bg/text), intentionally not theme-tied — no bg tokens exist for these roles.
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
     admin:  { bg: '#0C1559', text: '#FFFFFF' },
     seller: { bg: '#DBEAFE', text: '#1E40AF' },
@@ -29,6 +33,8 @@ const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function AdminAuditLogs() {
     const router = useRouter();
+    const colors = useThemeColors();
+    const styles = useMemo(() => getStyles(colors), [colors]);
     const [searchQuery, setSearchQuery] = useState('');
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -104,12 +110,13 @@ export default function AdminAuditLogs() {
         }
     };
 
+    // Fixed categorical action-type colors (paired color/bg), intentionally not theme-tied — no success/info bg tokens exist.
     const getActionTheme = (action: string) => {
         const a = (action || '').toLowerCase();
         if (a.includes('verif') || a.includes('approv') || a.includes('complet'))
             return { color: '#10b981', bg: '#DCFCE7', icon: 'checkmark-circle-outline' as const };
         if (a.includes('reject') || a.includes('deactiv') || a.includes('ban') || a.includes('delet'))
-            return { color: '#ef4444', bg: '#FEE2E2', icon: 'alert-circle-outline' as const };
+            return { color: colors.error, bg: colors.errorBg, icon: 'alert-circle-outline' as const };
         if (a.includes('update') || a.includes('edit') || a.includes('change'))
             return { color: '#3b82f6', bg: '#DBEAFE', icon: 'create-outline' as const };
         return { color: '#6366f1', bg: '#EEF2FF', icon: 'information-circle-outline' as const };
@@ -139,6 +146,7 @@ export default function AdminAuditLogs() {
             {/* Header */}
             <LinearGradient colors={DARK_GRADIENT} end={{ x: 1, y: 1 }} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>
+                    {/* Header row/icons sit on the fixed DARK_GRADIENT chrome above — intentionally fixed white, not theme-tied */}
                     <View style={styles.headerRow}>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <Ionicons name="arrow-back" size={22} color="#FFF" />
@@ -153,18 +161,18 @@ export default function AdminAuditLogs() {
 
                     {/* Search */}
                     <View style={styles.searchBar}>
-                        <Feather name="search" size={16} color="#94A3B8" />
+                        <Feather name="search" size={16} color={colors.textMuted} />
                         <TextInput
                             placeholder="Search action..."
                             style={styles.searchInput}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             onSubmitEditing={() => loadLogs()}
-                            placeholderTextColor="#94A3B8"
+                            placeholderTextColor={colors.textMuted}
                         />
                         {searchQuery.length > 0 && (
                             <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -210,7 +218,7 @@ export default function AdminAuditLogs() {
             {/* Desktop canvas */}
             <View style={styles.desktopCanvas}>
                 {loading && !refreshing ? (
-                    <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+                    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
                         <AdminScreenSkeleton metrics={4} rows={4} />
                     </SafeAreaView>
                 ) : (
@@ -218,12 +226,12 @@ export default function AdminAuditLogs() {
                         data={logs}
                         keyExtractor={(item, index) => item.id || index.toString()}
                         contentContainerStyle={styles.listContent}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLogs(true)} tintColor="#0C1559" />}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLogs(true)} tintColor={colors.primary} />}
                         onEndReached={loadMore}
                         onEndReachedThreshold={0.3}
                         ListFooterComponent={
                             loadingMore
-                                ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0C1559" />
+                                ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
                                 : hasMore && logs.length >= PAGE_SIZE
                                     ? <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
                                         <Text style={styles.loadMoreText}>Load more</Text>
@@ -233,7 +241,7 @@ export default function AdminAuditLogs() {
                         renderItem={({ item }) => {
                             const theme = getActionTheme(item.action);
                             const actorRole = getActorRole(item);
-                            const roleStyle = ROLE_COLORS[actorRole] || { bg: '#F1F5F9', text: '#475569' };
+                            const roleStyle = ROLE_COLORS[actorRole] || { bg: colors.border, text: colors.textSecondary };
                             const isFailed = item.status === 'failed';
 
                             return (
@@ -271,7 +279,7 @@ export default function AdminAuditLogs() {
                                         ) : null}
                                     </View>
                                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                                        <View style={[styles.statusDot, { backgroundColor: isFailed ? '#DC2626' : '#16A34A' }]} />
+                                        <View style={[styles.statusDot, { backgroundColor: isFailed ? colors.error : colors.success }]} />
                                         <Text style={styles.logTime}>{formatDate(item.timestamp || item.created_at)}</Text>
                                     </View>
                                 </View>
@@ -279,7 +287,7 @@ export default function AdminAuditLogs() {
                         }}
                         ListEmptyComponent={
                             <View style={styles.emptyState}>
-                                <MaterialCommunityIcons name="clipboard-text-search-outline" size={60} color="#CBD5E1" />
+                                <MaterialCommunityIcons name="clipboard-text-search-outline" size={60} color={colors.textMuted} />
                                 <Text style={styles.emptyTitle}>No Records Found</Text>
                                 <Text style={styles.emptySubtitle}>Adjust your filters to find specific logs.</Text>
                             </View>
@@ -291,15 +299,15 @@ export default function AdminAuditLogs() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F5F7FA' },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
     watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
     fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
     desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%', flex: 1 },
 
-    // Header
+    // Header (sits on the fixed DARK_GRADIENT chrome — colors below are intentionally fixed, not theme-tied)
     header: { paddingBottom: 4, elevation: 8 },
     headerRow: {
         flexDirection: 'row',
@@ -324,14 +332,14 @@ const styles = StyleSheet.create({
     },
     headerIconBtn: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center' },
 
-    // Search bar
+    // Search bar (a content card resting on the header, so it follows the theme)
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: c.borderStrong,
         paddingHorizontal: 12,
         paddingVertical: 10,
         gap: 8,
@@ -342,10 +350,10 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 14,
         fontFamily: 'Montserrat-Regular',
-        color: '#0F172A',
+        color: c.text,
     },
 
-    // Filter chips
+    // Filter chips (rest on the fixed header chrome, intentionally fixed white/translucent)
     filterRow: {
         flexDirection: 'row',
         gap: 8,
@@ -366,8 +374,8 @@ const styles = StyleSheet.create({
         borderColor: '#FFFFFF',
     },
     filterChipFailed: {
-        backgroundColor: '#FEE2E2',
-        borderColor: '#FEE2E2',
+        backgroundColor: c.errorBg,
+        borderColor: c.errorBg,
     },
     filterChipText: {
         fontSize: 12,
@@ -375,7 +383,7 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.85)',
     },
     filterChipTextActive: {
-        color: '#0C1559',
+        color: c.primary,
     },
 
     listContent: { padding: 12, paddingBottom: 40 },
@@ -387,7 +395,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         gap: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: c.border,
     },
     logIcon: {
         width: 32,
@@ -398,25 +406,25 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     logActor: {
-        color: '#0F172A',
+        color: c.text,
         fontSize: 13,
         fontFamily: 'Montserrat-SemiBold',
     },
     logAction: {
-        color: '#64748B',
+        color: c.textSecondary,
         fontSize: 12,
         fontFamily: 'Montserrat-Regular',
         textTransform: 'capitalize',
         marginTop: 2,
     },
     logMeta: {
-        color: '#94A3B8',
+        color: c.textMuted,
         fontSize: 11,
         fontFamily: 'Montserrat-Regular',
         marginTop: 2,
     },
     logTime: {
-        color: '#94A3B8',
+        color: c.textMuted,
         fontSize: 11,
         fontFamily: 'Montserrat-Regular',
     },
@@ -437,16 +445,16 @@ const styles = StyleSheet.create({
     },
 
     failureBox: {
-        backgroundColor: '#FEF2F2',
+        backgroundColor: c.errorBg,
         padding: 8,
         borderRadius: 8,
         marginTop: 4,
         borderLeftWidth: 3,
-        borderLeftColor: '#ef4444',
+        borderLeftColor: c.error,
     },
     failureText: {
         fontSize: 11,
-        color: '#ef4444',
+        color: c.error,
         fontFamily: 'Montserrat-Regular',
         fontStyle: 'italic',
     },
@@ -456,19 +464,19 @@ const styles = StyleSheet.create({
         margin: 12,
         paddingVertical: 12,
         borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: c.surface,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: c.borderStrong,
         alignItems: 'center',
     },
     loadMoreText: {
-        color: '#0C1559',
+        color: c.primary,
         fontSize: 14,
         fontFamily: 'Montserrat-SemiBold',
     },
 
     // Empty
     emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
-    emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 15 },
-    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 5, textAlign: 'center' },
+    emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: c.text, marginTop: 15 },
+    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: c.textMuted, marginTop: 5, textAlign: 'center' },
 });

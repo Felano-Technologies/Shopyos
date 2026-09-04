@@ -17,6 +17,7 @@ import {
   updateProduct,
   deleteProduct,
   uploadProductImages,
+  deleteOrders,
 } from '../services/api';
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -42,6 +43,18 @@ export const useOrderDetail = (id: string, options?: Record<string, any>) => {
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
     ...options,
+  });
+};
+
+// Removes one or more completed orders from the buyer's own order history
+// (soft-hide server-side — the order itself is untouched).
+export const useDeleteOrders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderIds: string[]) => deleteOrders(orderIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+    },
   });
 };
 

@@ -377,6 +377,8 @@ router.put('/force-reset-password', protect, authController.forceResetPassword);
  */
 router.get('/security-settings', protect, authController.getSecuritySettings);
 router.put('/security-settings', protect, authController.updateSecuritySettings);
+router.get('/theme-preference', protect, authController.getThemePreference);
+router.patch('/theme-preference', protect, authController.updateThemePreference);
 router.post('/export-data', protect, authController.requestDataExport);
 router.post('/delete-account', protect, authController.requestAccountDeletion);
 

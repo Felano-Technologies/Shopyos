@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export const ReviewSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       
@@ -62,11 +66,11 @@ export const ReviewSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 },
   section: { marginBottom: 30 },
-  card: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, elevation: 3, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10 },
+  card: { backgroundColor: colors.surface, padding: 20, borderRadius: 24, elevation: 3, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10 },
   entityHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   starRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,35 +23,19 @@ import {
   respondToBargain,
   BargainOffer,
 } from '@/services/bargain';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  card: '#FFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.07)',
-  red: '#EF4444',
-  redBg: '#FEF2F2',
-  green: '#16A34A',
-  greenBg: '#F0FDF4',
-  amber: '#D97706',
-  amberBg: '#FEF3C7',
-  blue: '#2563EB',
-  blueBg: '#EFF6FF',
-};
-
 export default function SellerBargainsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [offers, setOffers] = useState<BargainOffer[]>([]);
@@ -170,21 +154,24 @@ export default function SellerBargainsScreen() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return { label: 'New Offer', color: C.amber, bg: C.amberBg };
+        // No dedicated warning-tint background token exists; kept as a light literal for badge chip contrast.
+        return { label: 'New Offer', color: colors.warning, bg: '#FEF3C7' };
       case 'countered':
-        return { label: 'Countered', color: C.blue, bg: C.blueBg };
+        // No dedicated info-tint background token exists; kept as a light literal for badge chip contrast.
+        return { label: 'Countered', color: '#2563EB', bg: '#EFF6FF' };
       case 'accepted':
-        return { label: 'Accepted', color: C.green, bg: C.greenBg };
+        // No dedicated success-tint background token exists; kept as a light literal for badge chip contrast.
+        return { label: 'Accepted', color: colors.success, bg: '#F0FDF4' };
       case 'rejected':
-        return { label: 'Rejected', color: C.red, bg: C.redBg };
+        return { label: 'Rejected', color: colors.error, bg: colors.errorBg };
       case 'checked_out':
-        return { label: 'Checked Out', color: C.navy, bg: '#F1F5F9' };
+        return { label: 'Checked Out', color: colors.primary, bg: colors.border };
       case 'withdrawn':
-        return { label: 'Withdrawn', color: C.subtle, bg: '#F1F5F9' };
+        return { label: 'Withdrawn', color: colors.textMuted, bg: colors.border };
       case 'expired':
-        return { label: 'Expired', color: C.subtle, bg: '#F1F5F9' };
+        return { label: 'Expired', color: colors.textMuted, bg: colors.border };
       default:
-        return { label: status, color: C.muted, bg: '#F1F5F9' };
+        return { label: status, color: colors.textSecondary, bg: colors.border };
     }
   };
 
@@ -197,7 +184,7 @@ export default function SellerBargainsScreen() {
         {/* Header */}
         <View style={styles.cardHeader}>
           <Text style={styles.buyerName}>
-            <Feather name="user" size={12} color={C.muted} /> {buyerName}
+            <Feather name="user" size={12} color={colors.textSecondary} /> {buyerName}
           </Text>
           <View style={[styles.badge, { backgroundColor: badge.bg }]}>
             <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
@@ -244,7 +231,7 @@ export default function SellerBargainsScreen() {
             )}
             {item.seller_message && (
               <Text style={styles.msgLine} numberOfLines={1}>
-                <Text style={{ fontFamily: 'Montserrat-Bold', color: C.navy }}>Me: </Text>
+                <Text style={{ fontFamily: 'Montserrat-Bold', color: colors.primary }}>Me: </Text>
                 {item.seller_message}
               </Text>
             )}
@@ -287,7 +274,7 @@ export default function SellerBargainsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={C.navy} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Incoming Bargains</Text>
         <View style={{ width: 40 }} />
@@ -316,7 +303,7 @@ export default function SellerBargainsScreen() {
       {/* Main List */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={C.navy} size="large" />
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={styles.loadingTxt}>Loading incoming offers...</Text>
         </View>
       ) : (
@@ -326,11 +313,11 @@ export default function SellerBargainsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.navy]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Feather name="tag" size={48} color={C.subtle} />
+              <Feather name="tag" size={48} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>No Bargains</Text>
               <Text style={styles.emptyDesc}>
                 {activeTab === 'pending'
@@ -349,7 +336,7 @@ export default function SellerBargainsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seller Counter Offer</Text>
               <TouchableOpacity onPress={() => setCounterModalVisible(false)} disabled={submittingCounter}>
-                <Feather name="x" size={24} color={C.muted} />
+                <Feather name="x" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -395,13 +382,13 @@ export default function SellerBargainsScreen() {
                 disabled={submittingCounter}
               >
                 <LinearGradient
-                  colors={[C.navy, C.navyMid]}
+                  colors={colors.headerGradient}
                   style={styles.modalSubmitGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
                   {submittingCounter ? (
-                    <ActivityIndicator color="#FFF" />
+                    <ActivityIndicator color="#FFF" /> // white spinner on the fixed dark-navy headerGradient button
                   ) : (
                     <Text style={styles.modalSubmitText}>Send Counter Offer</Text>
                   )}
@@ -415,10 +402,10 @@ export default function SellerBargainsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: c.surfaceElevated,
   },
   header: {
     flexDirection: 'row',
@@ -426,9 +413,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: c.border,
   },
   headerBtn: {
     width: 40,
@@ -440,14 +427,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: rf(18),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: c.border,
   },
   tab: {
     flex: 1,
@@ -457,15 +444,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: C.navy,
+    borderBottomColor: c.primary,
   },
   tabText: {
     fontSize: rf(13),
     fontFamily: 'Montserrat-SemiBold',
-    color: C.muted,
+    color: c.textSecondary,
   },
   tabTextActive: {
-    color: C.navy,
+    color: c.primary,
     fontFamily: 'Montserrat-Bold',
   },
   loadingContainer: {
@@ -475,7 +462,7 @@ const styles = StyleSheet.create({
   },
   loadingTxt: {
     marginTop: 12,
-    color: C.navy,
+    color: c.primary,
     fontFamily: 'Montserrat-Medium',
   },
   listContent: {
@@ -483,13 +470,13 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
   },
   card: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: c.border,
     padding: 14,
     marginBottom: 16,
-    shadowColor: C.navy,
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.02,
     shadowRadius: 8,
@@ -501,12 +488,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: c.border,
   },
   buyerName: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   badge: {
     paddingHorizontal: 8,
@@ -525,7 +512,7 @@ const styles = StyleSheet.create({
     width: rs(60),
     height: rs(60),
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
   },
   productInfo: {
     flex: 1,
@@ -534,7 +521,7 @@ const styles = StyleSheet.create({
   productTitle: {
     fontSize: rf(13),
     fontFamily: 'Montserrat-SemiBold',
-    color: C.body,
+    color: c.text,
     marginBottom: 6,
   },
   priceContainer: {
@@ -547,27 +534,27 @@ const styles = StyleSheet.create({
   priceLabel: {
     fontSize: rf(9),
     fontFamily: 'Montserrat-Medium',
-    color: C.muted,
+    color: c.textSecondary,
     marginBottom: 2,
   },
   originalPrice: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Regular',
-    color: C.muted,
+    color: c.textSecondary,
     textDecorationLine: 'line-through',
   },
   offeredPrice: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   counterPriceText: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
-    color: C.blue,
+    color: '#2563EB', // distinct info-blue; c.info equals c.primary (navy) in light mode and would be indistinguishable here
   },
   messagesBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
     borderRadius: 10,
     padding: 8,
     marginBottom: 10,
@@ -575,13 +562,13 @@ const styles = StyleSheet.create({
   msgLine: {
     fontSize: rf(11),
     fontFamily: 'Montserrat-Regular',
-    color: C.body,
+    color: c.text,
     lineHeight: 16,
     marginVertical: 1,
   },
   actionsContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: c.border,
     paddingTop: 10,
   },
   btnRow: {
@@ -595,27 +582,27 @@ const styles = StyleSheet.create({
   },
   btnOutline: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFF',
+    borderColor: c.textMuted,
+    backgroundColor: c.surface,
   },
   btnTextOutline: {
-    color: C.muted,
+    color: c.textSecondary,
     fontSize: rf(12),
     fontFamily: 'Montserrat-SemiBold',
   },
   btnSecondary: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: c.border,
   },
   btnTextSecondary: {
-    color: C.navy,
+    color: c.primary,
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
   },
   btnPrimary: {
-    backgroundColor: C.navy,
+    backgroundColor: c.primary,
   },
   btnTextPrimary: {
-    color: '#FFF',
+    color: c.textInverse,
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
   },
@@ -628,24 +615,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: rf(16),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
     marginTop: 16,
     marginBottom: 6,
   },
   emptyDesc: {
     fontSize: rf(13),
     fontFamily: 'Montserrat-Regular',
-    color: C.muted,
+    color: c.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: c.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: c.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -656,14 +643,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: c.border,
     paddingBottom: 12,
     marginBottom: 12,
   },
   modalTitle: {
     fontSize: rf(16),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   modalSubHeader: {
     marginBottom: 16,
@@ -671,13 +658,13 @@ const styles = StyleSheet.create({
   modalProductTitle: {
     fontSize: rf(14),
     fontFamily: 'Montserrat-SemiBold',
-    color: C.body,
+    color: c.text,
     marginBottom: 4,
   },
   modalPrices: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Medium',
-    color: C.muted,
+    color: c.textSecondary,
   },
   modalBody: {
     gap: 12,
@@ -685,21 +672,21 @@ const styles = StyleSheet.create({
   modalLabel: {
     fontSize: rf(12),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   modalInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
   },
   modalPrefix: {
     fontSize: rf(16),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
     marginRight: 6,
   },
   modalInput: {
@@ -707,19 +694,19 @@ const styles = StyleSheet.create({
     height: 44,
     fontSize: rf(16),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: c.primary,
   },
   modalMsgInput: {
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: c.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: c.surfaceElevated,
     height: 70,
     fontSize: rf(13),
     fontFamily: 'Montserrat-Regular',
-    color: C.body,
+    color: c.text,
     textAlignVertical: 'top',
   },
   modalSubmitBtn: {
@@ -733,7 +720,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSubmitText: {
-    color: '#FFF',
+    color: '#FFF', // white text on the fixed dark-navy headerGradient button
     fontSize: rf(13),
     fontFamily: 'Montserrat-Bold',
   },

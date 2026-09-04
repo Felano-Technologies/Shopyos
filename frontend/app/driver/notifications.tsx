@@ -1,5 +1,5 @@
 // app/driver/notifications.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 type Notification = {
     id: string;
@@ -28,6 +30,8 @@ type Notification = {
 };
 export default function DriverNotificationsScreen() {
     const router = useRouter();
+    const colors = useThemeColors();
+    const styles = useMemo(() => getStyles(colors), [colors]);
     const { data, refetch, isRefetching } = useNotifications();
     const markReadMutation = useMarkNotificationRead();
     const notifications = data?.notifications || [];
@@ -49,26 +53,26 @@ export default function DriverNotificationsScreen() {
         switch (type) {
             case 'new_delivery_available':
             case 'delivery_assigned':
-                return { name: 'notifications-active', color: '#84cc16' };
+                return { name: 'notifications-active', color: colors.accent };
             case 'delivery_update':
             case 'delivery_in_transit':
             case 'delivery_picked_up':
-                return { name: 'local-shipping', color: '#2563EB' };
+                return { name: 'local-shipping', color: colors.info };
             case 'delivery_completed':
             case 'order_delivered':
-                return { name: 'check-circle', color: '#10B981' };
+                return { name: 'check-circle', color: colors.success };
             case 'delivery_cancelled':
             case 'delivery_issue':
-                return { name: 'cancel', color: '#EF4444' };
+                return { name: 'cancel', color: colors.error };
             case 'new_message':
             case 'message_received':
-                return { name: 'chat-bubble', color: '#3B82F6' };
+                return { name: 'chat-bubble', color: colors.primary };
             case 'payment_received':
-                return { name: 'payments', color: '#10B981' };
+                return { name: 'payments', color: colors.success };
             case 'driver_verification':
-                return { name: 'verified-user', color: '#8B5CF6' };
+                return { name: 'verified-user', color: colors.warning };
             default:
-                return { name: 'notifications', color: '#64748B' };
+                return { name: 'notifications', color: colors.textSecondary };
         }
     };
     const formatTime = (timestamp: string) => {
@@ -107,14 +111,14 @@ export default function DriverNotificationsScreen() {
                     </Text>
                     <Text style={styles.time}>{formatTime(item.created_at)}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
         );
     };
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-                <MaterialIcons name="notifications-none" size={80} color="#CBD5E1" />
+                <MaterialIcons name="notifications-none" size={80} color={colors.textMuted} />
             </View>
             <Text style={styles.emptyTitle}>No Notifications Yet</Text>
             <Text style={styles.emptySubtitle}>
@@ -125,13 +129,13 @@ export default function DriverNotificationsScreen() {
                 onPress={() => router.push('/driver/dashboard')}
             >
                 <LinearGradient
-                    colors={['#84cc16', '#65a30d']}
+                    colors={[colors.accent, colors.accent]} // single-tone; no darker-accent token exists for a true gradient
                     style={styles.gradientButton}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                 >
                     <Text style={styles.buttonText}>Go to Dashboard</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                    <Ionicons name="arrow-forward" size={20} color={colors.accentText} />
                 </LinearGradient>
             </TouchableOpacity>
         </View>
@@ -142,7 +146,7 @@ export default function DriverNotificationsScreen() {
             {/* Header */}
             <SafeAreaView edges={['top']} style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#0F172A" />
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notifications</Text>
                 <View style={styles.placeholder} />
@@ -161,8 +165,8 @@ export default function DriverNotificationsScreen() {
                     <RefreshControl
                         refreshing={isRefetching}
                         onRefresh={onRefresh}
-                        tintColor="#84cc16"
-                        colors={['#84cc16']}
+                        tintColor={colors.accent}
+                        colors={[colors.accent]}
                     />
                 }
                 showsVerticalScrollIndicator={false}
@@ -170,10 +174,10 @@ export default function DriverNotificationsScreen() {
         </View>
     );
 }
-const styles = StyleSheet.create({
+const getStyles = (c: ThemeColors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC'
+        backgroundColor: c.surfaceElevated
     },
     // Header
     header: {
@@ -182,22 +186,22 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFF',
+        backgroundColor: c.surface,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9'
+        borderBottomColor: c.border
     },
     backBtn: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: c.surfaceElevated,
         justifyContent: 'center',
         alignItems: 'center'
     },
     headerTitle: {
         fontSize: 18,
         fontFamily: 'Montserrat-Bold',
-        color: '#0F172A'
+        color: c.text
     },
     placeholder: {
         width: 40
@@ -213,22 +217,22 @@ const styles = StyleSheet.create({
     notificationCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF',
+        backgroundColor: c.surface,
         padding: 16,
         borderRadius: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
+        borderColor: c.border,
+        shadowColor: '#000', // neutral shadow, low-impact decorative in both themes
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 1
     },
     unreadCard: {
-        borderColor: '#84cc16',
+        borderColor: c.accent,
         borderWidth: 1.5,
-        backgroundColor: '#F7FEE7'
+        backgroundColor: `${c.accent}1A` // subtle accent-tinted highlight, adapts per theme
     },
     iconContainer: {
         width: 48,
@@ -250,27 +254,27 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 15,
         fontFamily: 'Montserrat-Bold',
-        color: '#0F172A',
+        color: c.text,
         flex: 1
     },
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#84cc16',
+        backgroundColor: c.accent,
         marginLeft: 8
     },
     message: {
         fontSize: 13,
         fontFamily: 'Montserrat-Regular',
-        color: '#64748B',
+        color: c.textSecondary,
         lineHeight: 18,
         marginBottom: 6
     },
     time: {
         fontSize: 11,
         fontFamily: 'Montserrat-Medium',
-        color: '#94A3B8'
+        color: c.textMuted
     },
     // Empty State
     emptyContainer: {
@@ -283,7 +287,7 @@ const styles = StyleSheet.create({
         width: 120,
         height: 120,
         borderRadius: 60,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: c.surfaceElevated,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 24
@@ -291,14 +295,14 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 20,
         fontFamily: 'Montserrat-Bold',
-        color: '#0F172A',
+        color: c.text,
         marginBottom: 8,
         textAlign: 'center'
     },
     emptySubtitle: {
         fontSize: 14,
         fontFamily: 'Montserrat-Regular',
-        color: '#64748B',
+        color: c.textSecondary,
         textAlign: 'center',
         lineHeight: 20,
         marginBottom: 32
@@ -307,7 +311,7 @@ const styles = StyleSheet.create({
         width: width - 80,
         borderRadius: 16,
         overflow: 'hidden',
-        shadowColor: '#84cc16',
+        shadowColor: c.accent,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -321,7 +325,7 @@ const styles = StyleSheet.create({
         gap: 8
     },
     buttonText: {
-        color: '#FFF',
+        color: c.accentText, // pairs with the fixed accent-colored button background
         fontSize: 16,
         fontFamily: 'Montserrat-Bold'
     }

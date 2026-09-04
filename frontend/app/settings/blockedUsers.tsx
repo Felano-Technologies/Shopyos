@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,19 +14,13 @@ import { useRouter } from 'expo-router';
 import AppImage from '@/components/AppImage';
 import { getBlockedUsers, unblockUser, CustomInAppToast } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
-
-const COLORS = {
-  navy: '#0C1559',
-  bg: '#FFFFFF',
-  card: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  border: 'rgba(12,21,89,0.08)',
-};
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function BlockedUsersScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [blocked, setBlocked] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
@@ -78,7 +72,7 @@ export default function BlockedUsersScreen() {
           disabled={unblockingId === id}
         >
           {unblockingId === id ? (
-            <ActivityIndicator size="small" color={COLORS.navy} />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <Text style={styles.unblockTxt}>Unblock</Text>
           )}
@@ -93,7 +87,7 @@ export default function BlockedUsersScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color={COLORS.navy} />
+            <Ionicons name="chevron-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Blocked Users</Text>
           <View style={{ width: 44 }} />
@@ -101,7 +95,7 @@ export default function BlockedUsersScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={COLORS.navy} />
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
           <FlatList
@@ -113,7 +107,7 @@ export default function BlockedUsersScreen() {
             refreshing={loading}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="account-off-outline" size={56} color={COLORS.navy} />
+                <MaterialCommunityIcons name="account-off-outline" size={56} color={colors.primary} />
                 <Text style={styles.emptyTitle}>No Blocked Users</Text>
                 <Text style={styles.emptySubtitle}>
                   Anyone you block from a chat will show up here, so you can unblock them later.
@@ -139,8 +133,8 @@ export default function BlockedUsersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.background },
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -150,24 +144,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backBtn: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF',
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border,
+    width: 44, height: 44, borderRadius: 12, backgroundColor: c.surface,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border,
   },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: COLORS.navy },
+  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: c.primary },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 16, paddingBottom: 40, flexGrow: 1 },
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.card,
-    borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border,
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface,
+    borderRadius: 16, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: c.border,
   },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9' },
-  name: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: COLORS.text },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.border },
+  name: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: c.text },
   unblockBtn: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: c.border, borderWidth: 1, borderColor: c.border,
   },
-  unblockTxt: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: COLORS.navy },
+  unblockTxt: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: c.primary },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: COLORS.navy, marginTop: 16, textAlign: 'center' },
-  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: COLORS.muted, marginTop: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: c.primary, marginTop: 16, textAlign: 'center' },
+  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, marginTop: 6, textAlign: 'center' },
 });

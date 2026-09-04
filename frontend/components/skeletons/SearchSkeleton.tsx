@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 export const SearchSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
@@ -58,13 +62,13 @@ export const SearchSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#e9f0ff' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 20, marginBottom: 20 },
   searchWrapper: { paddingHorizontal: 20, marginBottom: 25 },
   categoriesSection: { marginBottom: 20 },
   catList: { paddingHorizontal: 20 },
   gridContent: { paddingHorizontal: 20, paddingBottom: 100 },
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  card: { width: (width - 55) / 2, backgroundColor: '#FFF', borderRadius: 20, marginBottom: 15, overflow: 'hidden' },
+  card: { width: (width - 55) / 2, backgroundColor: colors.surface, borderRadius: 20, marginBottom: 15, overflow: 'hidden' },
 });

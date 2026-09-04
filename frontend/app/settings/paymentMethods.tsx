@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { getPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod, addPaymentMethod } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  headerBg: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  borderStrong: string;
+  surfaceElevated: string;
+  overlay: string;
+  textInverse: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    headerBg: colors.headerGradient[0],
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    borderStrong: colors.borderStrong,
+    surfaceElevated: colors.surfaceElevated,
+    overlay: colors.overlay,
+    textInverse: colors.textInverse,
+  };
+}
 // --- Types ---
 interface PaymentMethod {
   id: string;
@@ -38,6 +72,9 @@ async function confirmDeleteMethod(id: string, setMethods: React.Dispatch<React.
 
 export default function PaymentMethodsScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -148,7 +185,7 @@ export default function PaymentMethodsScreen() {
       case 'mastercard': return <FontAwesome5 name="cc-mastercard" size={24} color="#EB001B" />;
       case 'mtn': return <Text style={{ fontWeight: '900', color: '#FFCC00' }}>MTN</Text>; // Or use an image
       case 'vodafone': return <Text style={{ fontWeight: '900', color: '#E60000' }}>VODA</Text>;
-      default: return <Ionicons name="wallet" size={24} color="#0C1559" />;
+      default: return <Ionicons name="wallet" size={24} color={C.navy} />;
     }
   };
   const renderItem = ({ item }: { item: PaymentMethod }) => (
@@ -184,7 +221,7 @@ export default function PaymentMethodsScreen() {
   );
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" backgroundColor={themeColors.headerGradient[0]} />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Add Method Modal --- */}
       <Modal
@@ -210,7 +247,7 @@ export default function PaymentMethodsScreen() {
                   onPress={() => setShowAddModal(false)} 
                   style={styles.closeBtn}
                 >
-                  <Ionicons name="close" size={24} color="#64748B" />
+                  <Ionicons name="close" size={24} color={C.muted} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalTitle}>Add Payment Method</Text>
@@ -221,10 +258,10 @@ export default function PaymentMethodsScreen() {
                     style={[styles.typeBtn, newMethod.type === 'momo' && styles.typeBtnActive]}
                     onPress={() => setNewMethod({ ...newMethod, type: 'momo', provider: 'mtn' })}
                   >
-                    <MaterialCommunityIcons 
-                      name="cellphone-wireless" 
-                      size={20} 
-                      color={newMethod.type === 'momo' ? '#FFF' : '#0C1559'} 
+                    <MaterialCommunityIcons
+                      name="cellphone-wireless"
+                      size={20}
+                      color={newMethod.type === 'momo' ? C.textInverse : C.navy}
                     />
                     <Text style={[styles.typeText, newMethod.type === 'momo' && styles.typeTextActive]}>Mobile Money</Text>
                   </TouchableOpacity>
@@ -232,10 +269,10 @@ export default function PaymentMethodsScreen() {
                     style={[styles.typeBtn, newMethod.type === 'card' && styles.typeBtnActive]}
                     onPress={() => setNewMethod({ ...newMethod, type: 'card', provider: 'visa' })}
                   >
-                    <Ionicons 
-                      name="card" 
-                      size={20} 
-                      color={newMethod.type === 'card' ? '#FFF' : '#0C1559'} 
+                    <Ionicons
+                      name="card"
+                      size={20}
+                      color={newMethod.type === 'card' ? C.textInverse : C.navy}
                     />
                     <Text style={[styles.typeText, newMethod.type === 'card' && styles.typeTextActive]}>Card</Text>
                   </TouchableOpacity>
@@ -277,9 +314,9 @@ export default function PaymentMethodsScreen() {
                   <TextInput 
                     style={styles.input}
                     placeholder={newMethod.type === 'card' ? 'e.g. John Doe' : 'e.g. My MTN Wallet'}
-                    placeholderTextColor="#94A3B8"
-                    selectionColor="#0C1559"
-                    cursorColor="#0C1559"
+                    placeholderTextColor={C.subtle}
+                    selectionColor={C.navy}
+                    cursorColor={C.navy}
                     autoCapitalize="words"
                     value={newMethod.title}
                     onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
@@ -291,9 +328,9 @@ export default function PaymentMethodsScreen() {
                   <TextInput 
                     style={styles.input}
                     placeholder={newMethod.type === 'card' ? '**** **** **** ****' : '05XXXXXXXX'}
-                    placeholderTextColor="#94A3B8"
-                    selectionColor="#0C1559"
-                    cursorColor="#0C1559"
+                    placeholderTextColor={C.subtle}
+                    selectionColor={C.navy}
+                    cursorColor={C.navy}
                     value={newMethod.identifier}
                     keyboardType="numeric"
                     onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}
@@ -306,7 +343,7 @@ export default function PaymentMethodsScreen() {
                   disabled={adding}
                 >
                   {adding ? (
-                    <ActivityIndicator color="#FFF" />
+                    <ActivityIndicator color={C.textInverse} />
                   ) : (
                     <Text style={styles.submitBtnText}>Add Payment Method</Text>
                   )}
@@ -338,7 +375,7 @@ export default function PaymentMethodsScreen() {
       <View style={styles.contentContainer}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0C1559" />
+            <ActivityIndicator size="large" color={C.navy} />
           </View>
         ) : (
           <FlatList
@@ -350,7 +387,7 @@ export default function PaymentMethodsScreen() {
             onRefresh={onRefresh}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color="#E2E8F0" />
+                <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color={C.subtle} />
                 <Text style={styles.emptyText}>No payment methods added yet.</Text>
                 <TouchableOpacity
                   style={styles.emptyAddBtn}
@@ -378,14 +415,14 @@ export default function PaymentMethodsScreen() {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.bg,
   },
   // Header
   header: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.headerBg,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
     paddingBottom: 20,
@@ -417,11 +454,11 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: C.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
@@ -442,13 +479,13 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: C.border,
     borderRadius: 2,
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -463,23 +500,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceElevated,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
   typeBtnActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
+    backgroundColor: C.navy,
+    borderColor: C.navy,
   },
   typeText: {
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
+    color: C.navy,
   },
   typeTextActive: {
-    color: '#FFF',
+    color: C.textInverse,
   },
   inputGroup: {
     marginBottom: 20,
@@ -487,19 +524,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: C.muted,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: C.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
     fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    color: C.body,
   },
   providerList: {
     flexDirection: 'row',
@@ -510,9 +547,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: C.borderStrong,
   },
   providerBtnActive: {
     backgroundColor: '#A3E635',
@@ -521,20 +558,20 @@ const styles = StyleSheet.create({
   providerText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
+    color: C.muted,
   },
   providerTextActive: {
     color: '#0C1559',
   },
   submitBtn: {
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
   },
   submitBtnText: {
-    color: '#FFF',
+    color: C.textInverse,
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
   },
@@ -542,19 +579,19 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 24,
     borderStyle: 'dashed',
     borderWidth: 1.5,
-    borderColor: '#0C1559',
+    borderColor: C.navy,
   },
   addIconBg: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -562,13 +599,13 @@ const styles = StyleSheet.create({
   addBtnText: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
   },
   // Card Item
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
@@ -588,7 +625,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: C.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -599,13 +636,13 @@ const styles = StyleSheet.create({
   methodTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+    color: C.body,
     marginBottom: 2,
   },
   methodIdentifier: {
     fontSize: 13,
     fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+    color: C.muted,
   },
   defaultBadge: {
     marginTop: 4,
@@ -632,13 +669,13 @@ const styles = StyleSheet.create({
   },
   setDefaultText: {
     fontSize: 11,
-    color: '#0C1559',
+    color: C.navy,
     fontFamily: 'Montserrat-Bold',
     textDecorationLine: 'underline',
   },
   emptyText: {
     textAlign: 'center',
-    color: '#94A3B8',
+    color: C.subtle,
     marginTop: 12,
     fontSize: 14,
     fontFamily: 'Montserrat-Medium',
@@ -654,13 +691,13 @@ const styles = StyleSheet.create({
   },
   emptyAddBtn: {
     marginTop: 20,
-    backgroundColor: '#0C1559',
+    backgroundColor: C.navy,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   emptyAddBtnText: {
-    color: '#A3E635',
+    color: C.textInverse,
     fontFamily: 'Montserrat-Bold',
     fontSize: 14,
   }

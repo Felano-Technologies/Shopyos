@@ -27,9 +27,14 @@ jest.mock('../../config/cacheInvalidation', () => ({
   invalidateProduct: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../services/feeConfigService', () => ({
+  get: jest.fn().mockResolvedValue(10),
+}));
+
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url || ''),
   resolveImageUrl: jest.fn(async (url) => url || null),
+  resolveImageUrls: jest.fn(async (urls) => (Array.isArray(urls) ? urls : [])),
 }));
 
 jest.mock('../../utils/uploadHelpers', () => ({
@@ -84,6 +89,7 @@ jest.mock('../../db/repositories', () => ({
 }));
 
 const repositories = require('../../db/repositories');
+const feeConfigService = require('../../services/feeConfigService');
 const {
   createProduct,
   getProductById,
@@ -497,6 +503,70 @@ describe('ProductController Unit Tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ success: true, data: expect.any(Array) }),
+      );
+    });
+
+    test('test_searchProducts_includesCompareAtPriceInResponse', async () => {
+      // Arrange
+      repositories.products.search.mockResolvedValueOnce({
+        data: [
+          {
+            id: 'p1',
+            title: 'Shoes',
+            price: 50,
+            compare_at_price: 70,
+            store_id: 'store-1',
+            product_images: [],
+            stores: null,
+          },
+        ],
+        count: 1,
+      });
+      const req = mockReq({ query: { limit: '10', offset: '0' } });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [expect.objectContaining({ price: 50, compareAtPrice: 70 })],
+        }),
+      );
+    });
+
+    test('test_searchProducts_onSaleTrue_passesMinDiscountPctFromConfigToRepository', async () => {
+      // Arrange
+      feeConfigService.get.mockResolvedValueOnce(15);
+      repositories.products.search.mockResolvedValueOnce({ data: [], count: 0 });
+      const req = mockReq({ query: { onSale: 'true', limit: '10', offset: '0' } });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(feeConfigService.get).toHaveBeenCalledWith('deals_min_discount_pct', 10);
+      expect(repositories.products.search).toHaveBeenCalledWith(
+        expect.objectContaining({ onSale: true, minDiscountPct: 15 }),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('test_searchProducts_onSaleOmitted_neverCallsFeeConfig', async () => {
+      // Arrange
+      repositories.products.search.mockResolvedValueOnce({ data: [], count: 0 });
+      const req = mockReq({ query: { limit: '10', offset: '0' } });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(feeConfigService.get).not.toHaveBeenCalled();
+      expect(repositories.products.search).toHaveBeenCalledWith(
+        expect.objectContaining({ onSale: undefined, minDiscountPct: undefined }),
       );
     });
 

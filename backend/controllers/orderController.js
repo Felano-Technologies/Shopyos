@@ -126,7 +126,12 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   const storeShare = totalSubtotal > 0 ? subtotal / totalSubtotal : 1;
 
   let promoDiscount = 0;
-  if (validatedPromo) {
+  // A store-scoped code (store_id set) only discounts that store's own
+  // share of a multi-store checkout — a platform-wide code (store_id null)
+  // still applies to every store.
+  const promoAppliesToStore = validatedPromo
+    && (!validatedPromo.store_id || validatedPromo.store_id === storeId);
+  if (promoAppliesToStore) {
     const rawPromoDiscount = validatedPromo.type === 'percentage'
       ? (totalSubtotal * Number.parseFloat(validatedPromo.value)) / 100
       : Number.parseFloat(validatedPromo.value);
@@ -406,6 +411,45 @@ const getMyOrders = async (req, res, next) => {
       hasNext: currentPage < totalPages,
       hasPrev: currentPage > 1
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   DELETE /api/orders/my-orders
+ * @desc    Remove one or more completed orders from the buyer's own order
+ *          history. Only orders in 'completed' status can be removed this
+ *          way — the order, and the seller/admin's record of it, is not
+ *          deleted, only hidden from this buyer's list.
+ * @access  Private
+ */
+const deleteMyOrders = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { orderIds } = req.body;
+
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return ApiResponse.error(res, 'orderIds must be a non-empty array', 400);
+    }
+    if (orderIds.length > 100) {
+      return ApiResponse.error(res, 'Cannot remove more than 100 orders at once', 400);
+    }
+
+    const removed = await repositories.orders.hideForBuyer(userId, orderIds);
+    const removedIds = removed.map((o) => o.id);
+    const skippedIds = orderIds.filter((id) => !removedIds.includes(id));
+
+    const { cacheDelPattern } = require('../config/redis');
+    if (cacheDelPattern) {
+      await cacheDelPattern(`shopyos:orders:user:${userId}*`);
+    }
+
+    const message = skippedIds.length > 0
+      ? `${removedIds.length} order${removedIds.length === 1 ? '' : 's'} removed. ${skippedIds.length} skipped — only completed orders can be removed.`
+      : `${removedIds.length} order${removedIds.length === 1 ? '' : 's'} removed from your history`;
+
+    ApiResponse.success(res, { removedIds, skippedIds }, message);
   } catch (error) {
     next(error);
   }
@@ -980,6 +1024,7 @@ const confirmDelivery = async (req, res, next) => {
 module.exports = {
   createOrder,
   getMyOrders,
+  deleteMyOrders,
   getStoreOrders,
   getOrderDetails,
   updateOrderStatus,

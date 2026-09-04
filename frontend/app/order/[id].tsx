@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Dimensions, ActivityIndicator, Alert, Linking,
@@ -18,6 +18,8 @@ import { createReturnRequest } from '@/services/orders';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const CANCEL_WINDOW_MS = 5 * 60 * 1000;
 const { width: SW } = Dimensions.get('window');
@@ -50,16 +52,35 @@ async function submitReturnRequest(orderId: string, reason: string | undefined) 
     CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to submit return request' });
   }
 }
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  navyMid: string;
+  lime: string;
+  card: string;
+  body: string;
+  muted: string;
+  subtle: string;
+  border: string;
+  badgeBg: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    navyMid: colors.primaryMid,
+    lime: colors.accent,
+    card: colors.surface,
+    body: colors.text,
+    muted: colors.textSecondary,
+    subtle: colors.textMuted,
+    border: colors.border,
+    badgeBg: colors.backgroundAlt,
+  };
+}
 const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  card: '#FFFFFF',
-  body: '#0F172A',
   muted: '#64748B',
-  subtle: '#94A3B8',
 };
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon: any; label: string }> = {
@@ -105,6 +126,9 @@ const OrderDetailsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const themeColors = useThemeColors();
+  const Cx = useMemo(() => buildC(themeColors), [themeColors]);
+  const S = useMemo(() => getStyles(Cx), [Cx]);
 
   const orderId = id as string;
   const { data: orderRaw, isLoading: loading } = useOrderDetail(orderId, {
@@ -195,7 +219,7 @@ const OrderDetailsScreen = () => {
     return (
       <View style={S.root}>
         <StatusBar style="light" />
-        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+        <LinearGradient colors={themeColors.headerGradient} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
           <View style={S.hdrRow}>
             <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -214,7 +238,7 @@ const OrderDetailsScreen = () => {
     return (
       <View style={[S.root, S.centred]}>
         <View style={S.emptyCircle}>
-          <Feather name="alert-circle" size={rs(36)} color={C.navy} />
+          <Feather name="alert-circle" size={rs(36)} color={Cx.navy} />
         </View>
         <Text style={S.emptyTitle}>Order not found</Text>
         <TouchableOpacity style={S.retryBtn} onPress={() => router.back()}>
@@ -292,7 +316,7 @@ const OrderDetailsScreen = () => {
     <View style={S.root}>
       <StatusBar style="light" />
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+      <LinearGradient colors={[Cx.navy, Cx.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
         <View style={S.hdrGlow} pointerEvents="none" />
         <View style={S.hdrRow}>
           <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
@@ -343,7 +367,7 @@ const OrderDetailsScreen = () => {
                   <Ionicons
                     name={step.icon as any}
                     size={rs(16)}
-                    color={isComplete ? '#fff' : C.subtle}
+                    color={isComplete ? '#fff' : Cx.subtle}
                   />
                 </View>
                 <Text style={[S.stepLbl, isComplete && S.stepLblDone, isActive && S.stepLblActive]}>
@@ -357,13 +381,13 @@ const OrderDetailsScreen = () => {
         {(order.status.toLowerCase() === 'picked_up' || order.status.toLowerCase() === 'in_transit') && order.verification_pin && (
           <View style={S.pinCard}>
             <LinearGradient
-              colors={[C.navy, C.navyMid]}
+              colors={[Cx.navy, Cx.navyMid]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={S.pinCardGrad}
             >
               <View style={S.pinHeader}>
-                <MaterialCommunityIcons name="shield-key-outline" size={rs(20)} color={C.lime} />
+                <MaterialCommunityIcons name="shield-key-outline" size={rs(20)} color={Cx.lime} />
                 <Text style={S.pinTitle}>Delivery Verification PIN</Text>
               </View>
               <Text style={S.pinDigits}>{order.verification_pin}</Text>
@@ -381,13 +405,13 @@ const OrderDetailsScreen = () => {
             onPress={handleTrack}
           >
             <View style={S.trackingHintIcon}>
-              <Ionicons name="map-outline" size={rs(22)} color={C.limeText} />
+              <Ionicons name="map-outline" size={rs(22)} color="#1a2e00" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={S.trackingHintTitle}>Live Tracking Available</Text>
               <Text style={S.trackingHintSub}>Tap to track your order live on the map</Text>
             </View>
-            <Feather name="arrow-up-right" size={rs(18)} color={C.muted} />
+            <Feather name="arrow-up-right" size={rs(18)} color={Cx.muted} />
           </TouchableOpacity>
         )}
         {/* ── Driver ──────────────────────────────────────────────────────── */}
@@ -410,7 +434,7 @@ const OrderDetailsScreen = () => {
                 style={S.chatCircle}
                 onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
               >
-                <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
+                <Ionicons name="call-outline" size={rs(18)} color={Cx.navy} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={S.chatCircle}
@@ -425,9 +449,9 @@ const OrderDetailsScreen = () => {
                 )}
               >
                 {driverChatLoading ? (
-                  <ActivityIndicator size="small" color={C.navy} />
+                  <ActivityIndicator size="small" color={Cx.navy} />
                 ) : (
-                  <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+                  <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={Cx.navy} />
                 )}
               </TouchableOpacity>
             </View>
@@ -437,18 +461,18 @@ const OrderDetailsScreen = () => {
         <View style={S.section}>
           <Text style={S.sectionLbl}>Store</Text>
           <View style={S.card}>
-            <View style={[S.storeIconWrap, { backgroundColor: '#EEF2FF' }]}>
+            <View style={S.storeIconWrap}>
               {order.store?.logo || order.store?.logo_url ? (
                 <AppImage uri={order.store.logo || order.store.logo_url} style={S.storeLogo} />
               ) : (
-                <MaterialCommunityIcons name="store" size={rs(22)} color={C.navy} />
+                <MaterialCommunityIcons name="store" size={rs(22)} color={Cx.navy} />
               )}
             </View>
             <View style={S.storeInfo}>
               <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6), marginTop: rs(2) }}>
                 <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
-                <Text style={{ fontSize: rf(11), color: C.subtle }}>•</Text>
+                <Text style={{ fontSize: rf(11), color: Cx.subtle }}>•</Text>
                 <Text style={{ fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: '#16a34a' }}>
                   {formatStoreAge(order.store?.created_at)}
                 </Text>
@@ -459,7 +483,7 @@ const OrderDetailsScreen = () => {
                 style={S.chatCircle}
                 onPress={() => Linking.openURL(`tel:${order.store?.phone || order.store?.store_phone}`)}
               >
-                <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
+                <Ionicons name="call-outline" size={rs(18)} color={Cx.navy} />
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity
@@ -474,9 +498,9 @@ const OrderDetailsScreen = () => {
               )}
             >
               {chatLoading ? (
-                <ActivityIndicator size="small" color={C.navy} />
+                <ActivityIndicator size="small" color={Cx.navy} />
               ) : (
-                <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+                <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={Cx.navy} />
               )}
             </TouchableOpacity>
           </View>
@@ -571,7 +595,7 @@ const OrderDetailsScreen = () => {
               <MaterialCommunityIcons 
                 name={order.status.toLowerCase() === 'paid' ? 'check-decagram' : 'credit-card-outline'} 
                 size={rs(15)} 
-                color={order.status.toLowerCase() === 'paid' ? C.lime : C.muted} 
+                color={order.status.toLowerCase() === 'paid' ? Cx.lime : Cx.muted} 
               />
               <Text style={S.methodTxt}>
                 {order.status.toLowerCase() === 'paid' ? 'Paid via' : 'Payment Method:'} {order.payments?.[0]?.payment_method || 'MoMo'}
@@ -583,7 +607,7 @@ const OrderDetailsScreen = () => {
                 style={S.receiptRow}
                 onPress={() => router.push(`/receipt/${order.id}` as any)}
               >
-                <Ionicons name="receipt-outline" size={rs(15)} color={C.navy} />
+                <Ionicons name="receipt-outline" size={rs(15)} color={Cx.navy} />
                 <Text style={S.receiptTxt}>View Digital Receipt</Text>
               </TouchableOpacity>
             )}
@@ -597,8 +621,8 @@ const OrderDetailsScreen = () => {
               onPress={() => router.push(`/review/${order.id}` as any)}
               activeOpacity={0.88}
             >
-              <LinearGradient colors={[C.navy, C.navyMid]} style={S.reviewBtnGrad}>
-                <Ionicons name="star-outline" size={rs(18)} color={C.lime} />
+              <LinearGradient colors={[Cx.navy, Cx.navyMid]} style={S.reviewBtnGrad}>
+                <Ionicons name="star-outline" size={rs(18)} color={Cx.lime} />
                 <Text style={S.reviewBtnTxt}>Leave a Review</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -622,7 +646,7 @@ const OrderDetailsScreen = () => {
               } as any)}
               activeOpacity={0.88}
             >
-              <LinearGradient colors={[C.lime, '#65a30d']} style={S.payNowBtnGrad}>
+              <LinearGradient colors={[Cx.lime, '#65a30d']} style={S.payNowBtnGrad}>
                 <Ionicons name="card-outline" size={rs(18)} color="#fff" />
                 <Text style={S.payNowBtnTxt}>Pay Now</Text>
               </LinearGradient>
@@ -638,8 +662,8 @@ const OrderDetailsScreen = () => {
                 <ActivityIndicator color="#EF4444" />
               ) : (
                 <>
-                  <Ionicons name="close-circle-outline" size={rs(18)} color={cancelWindowExpired ? C.muted : '#EF4444'} />
-                  <Text style={[S.cancelBtnTxt, cancelWindowExpired && { color: C.muted }]}>
+                  <Ionicons name="close-circle-outline" size={rs(18)} color={cancelWindowExpired ? Cx.muted : '#EF4444'} />
+                  <Text style={[S.cancelBtnTxt, cancelWindowExpired && { color: Cx.muted }]}>
                     {cancelWindowExpired ? 'Cancel window expired' : 'Cancel Order'}
                   </Text>
                 </>
@@ -664,12 +688,12 @@ const OrderDetailsScreen = () => {
   );
 };
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const S = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   emptyCircle: {
     width: rs(90), height: rs(90), borderRadius: rs(45),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14),
+    backgroundColor: C.badgeBg, justifyContent: 'center', alignItems: 'center', marginBottom: rs(14),
   },
   emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(16) },
   retryBtn: {
@@ -722,12 +746,12 @@ const S = StyleSheet.create({
   timelineStep: { alignItems: 'center', flex: 1, position: 'relative' },
   connector: {
     position: 'absolute', top: rs(17), right: '50%', left: '-50%',
-    height: rs(2), backgroundColor: '#E2E8F0', zIndex: 0,
+    height: rs(2), backgroundColor: C.border, zIndex: 0,
   },
   connectorDone: { backgroundColor: C.lime },
   stepCircle: {
     width: rs(36), height: rs(36), borderRadius: rs(18),
-    backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 1,
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center', zIndex: 1,
   },
   stepCircleDone: { backgroundColor: C.lime },
   stepCircleActive: {
@@ -736,7 +760,7 @@ const S = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: rs(6), elevation: 4,
   },
   stepLbl: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(6), textAlign: 'center' },
-  stepLblDone: { color: C.limeText, fontFamily: 'Montserrat-Bold' },
+  stepLblDone: { color: C.lime, fontFamily: 'Montserrat-Bold' },
   stepLblActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
   // Live tracking hint
   trackingHint: {
@@ -748,7 +772,7 @@ const S = StyleSheet.create({
     width: rs(44), height: rs(44), borderRadius: rs(22),
     backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
   },
-  trackingHintTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.limeText },
+  trackingHintTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#1a2e00' },
   trackingHintSub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: '#3f6212', marginTop: rs(2) },
   // Section label
   section: { marginBottom: rs(20) },
@@ -760,69 +784,69 @@ const S = StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   // Driver
-  driverAvatar: { width: rs(50), height: rs(50), borderRadius: rs(25), backgroundColor: '#F1F5F9' },
+  driverAvatar: { width: rs(50), height: rs(50), borderRadius: rs(25), backgroundColor: C.border },
   driverInfo: { flex: 1 },
   driverName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.body },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: rs(4), marginTop: rs(3) },
   ratingTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   actionBtns: { flexDirection: 'row', gap: rs(8) },
-  actionBtn: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' },
+  actionBtn: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center', backgroundColor: C.border },
   // Store
-  storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center', overflow: 'hidden', backgroundColor: C.badgeBg },
   storeLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
   storeInfo: { flex: 1 },
   storeName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.navy },
   storeCat: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
   chatCircle: {
     width: rs(38), height: rs(38), borderRadius: rs(19),
-    backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.border, justifyContent: 'center', alignItems: 'center',
   },
   // Info card
   infoCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
   infoIcon: { width: rs(36), height: rs(36), borderRadius: rs(11), justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   infoLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
-  infoVal: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
-  infoDivider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
+  infoVal: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body },
+  infoDivider: { height: 0.5, backgroundColor: C.border, marginVertical: rs(12) },
   // Items card
   itemsCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
-  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
+  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: C.border },
   itemInfo: { flex: 1 },
   itemName: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
   itemQty: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(3) },
   itemPrice: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
-  itemDivider: { height: 0.5, backgroundColor: '#F8FAFC', marginVertical: rs(12) },
+  itemDivider: { height: 0.5, backgroundColor: C.border, marginVertical: rs(12) },
   // Payment card
   payCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(16),
-    borderWidth: 1, borderColor: '#fdfdfd',
+    borderWidth: 1, borderColor: C.border,
   },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
   priceLbl: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
   priceVal: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
-  payDivider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
+  payDivider: { height: 0.5, backgroundColor: C.border, marginVertical: rs(12) },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16) },
   totalLbl: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
   totalVal: { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: C.lime },
   methodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(6),
-    backgroundColor: '#F8FAFC', paddingVertical: rs(10), borderRadius: rs(12),
+    backgroundColor: C.border, paddingVertical: rs(10), borderRadius: rs(12),
   },
   methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   receiptRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(8),
     marginTop: rs(12), paddingTop: rs(12),
-    borderTopWidth: 0.5, borderTopColor: '#F1F5F9',
+    borderTopWidth: 0.5, borderTopColor: C.border,
   },
   receiptTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
   // Actions
@@ -865,7 +889,7 @@ const S = StyleSheet.create({
     borderRadius: rs(20),
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: C.border,
   },
   pinCardGrad: {
     padding: rs(18),

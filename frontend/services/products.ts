@@ -26,6 +26,7 @@ export const searchProducts = async (params: {
   material?: string;
   style?: string;
   brand?: string;
+  onSale?: boolean;
 }) => {
   try {
     const response = await api.get('/products/search', { params });

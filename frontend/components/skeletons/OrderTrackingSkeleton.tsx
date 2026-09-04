@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { height } = Dimensions.get('window');
 
 export const OrderTrackingSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       
@@ -67,17 +71,17 @@ export const OrderTrackingSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E2E8F0' },
-  mapBg: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E2E8F0' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.borderStrong },
+  mapBg: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.borderStrong },
   topSafeArea: { position: 'absolute', top: 0, left: 20 },
-  backBtn: { marginTop: 10, backgroundColor: '#FFF' },
+  backBtn: { marginTop: 10, backgroundColor: colors.surface },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 24,
@@ -88,13 +92,13 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.borderStrong,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 20,
   },
   addressBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceElevated,
     padding: 16,
     borderRadius: 16,
     flexDirection: 'row',

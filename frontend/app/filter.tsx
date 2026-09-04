@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Dimensions,
@@ -9,24 +9,32 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useCategories } from '@/hooks/useCategories';
 import { useProductFilterOptions } from '@/hooks/useProducts';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  bg:       '#FFFFFF',
-  pageBg:   '#F8FAFC',
-  navy:     '#0C1559',
-  navyMid:  '#1e3a8a',
-  lime:     '#84cc16',
-  limeText: '#1a2e00',
-  body:     '#0F172A',
-  muted:    '#64748B',
-  subtle:   '#94A3B8',
-  border:   'rgba(12,21,89,0.07)',
-  borderMd: 'rgba(12,21,89,0.14)',
-  surface:  '#F8FAFC',
+type LegacyPalette = {
+  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  body: string; muted: string; subtle: string; border: string; borderMd: string;
+  surface: string; error: string; errorBg: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  bg: colors.background,
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  body: colors.text,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  border: colors.border,
+  borderMd: colors.borderStrong,
+  surface: colors.surfaceElevated,
+  error: colors.error,
+  errorBg: colors.errorBg,
+});
 
 // ─── Static options ─────────────────────────────────────────────────────────────
 const SORT_OPTIONS = [
@@ -110,6 +118,9 @@ function applyRemoveFilter(key: string, s: FilterSetters) {
 }
 
 function AttributeChips({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: Setter }) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   if (!options.length) return null;
   return (
     <>
@@ -140,6 +151,9 @@ function AttributeChips({ label, options, value, onChange }: { label: string; op
 
 export default function FilterScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
   const params = useLocalSearchParams();
 
   const { data: categoriesData } = useCategories();
@@ -147,7 +161,7 @@ export default function FilterScreen() {
   const allCategories = ['All', ...dynamicCategories];
 
   const { data: filterOptions } = useProductFilterOptions();
-  const colors = filterOptions?.colors || [];
+  const colorOptions = filterOptions?.colors || [];
   const sizes = filterOptions?.sizes || [];
   const materials = filterOptions?.materials || [];
   const productStyles = filterOptions?.styles || [];
@@ -398,7 +412,7 @@ export default function FilterScreen() {
             </View>
           </View>
 
-          <AttributeChips label="Color" options={colors} value={color} onChange={setColor} />
+          <AttributeChips label="Color" options={colorOptions} value={color} onChange={setColor} />
           <AttributeChips label="Size" options={sizes} value={size} onChange={setSize} />
           <AttributeChips label="Material" options={materials} value={material} onChange={setMaterial} />
           <AttributeChips label="Style" options={productStyles} value={style} onChange={setStyle} />
@@ -437,7 +451,7 @@ export default function FilterScreen() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   safe: { flex: 1 },
 
@@ -467,7 +481,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   resetBtn: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: C.errorBg,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -475,7 +489,7 @@ const styles = StyleSheet.create({
   resetTxt: {
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#EF4444',
+    color: C.error,
   },
 
   // ── Active badge strip ─────────────────────────────────────────────────────
@@ -491,9 +505,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: C.border,
     borderWidth: 0.5,
-    borderColor: 'rgba(12,21,89,0.14)',
+    borderColor: C.borderMd,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -506,7 +520,7 @@ const styles = StyleSheet.create({
   badgeX: {
     width: 15, height: 15,
     borderRadius: 8,
-    backgroundColor: 'rgba(12,21,89,0.1)',
+    backgroundColor: C.borderMd,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -538,13 +552,13 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   sortRowOn: {
-    backgroundColor: '#EEF2FF',
-    borderColor: 'rgba(12,21,89,0.18)',
+    backgroundColor: C.border,
+    borderColor: C.borderMd,
   },
   sortIconWrap: {
     width: 32, height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(12,21,89,0.06)',
+    backgroundColor: C.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -553,7 +567,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
+    color: C.body,
   },
   sortLblOn: {
     color: C.navy,
@@ -563,7 +577,7 @@ const styles = StyleSheet.create({
     width: 20, height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: C.borderMd,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -605,7 +619,7 @@ const styles = StyleSheet.create({
   trackBg: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: C.borderMd,
     marginHorizontal: 8,
     marginTop: 6,
     marginBottom: 4,

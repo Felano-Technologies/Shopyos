@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { storage, getCachedUserProfile } from '@/services/storage';
 import { updateOnboardingState, getUserData } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +44,8 @@ const POINTS_BY_ROLE: Record<string, Point[]> = {
  * or logging out and back in never brings it back.
  */
 export default function WelcomeCard() {
+  const colors = useThemeColors();
+  const S = useMemo(() => getS(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const [points, setPoints] = useState<Point[]>(POINTS_BY_ROLE.buyer);
 
@@ -94,7 +98,7 @@ export default function WelcomeCard() {
           {points.map((p) => (
             <View key={p.title} style={S.pointRow}>
               <View style={S.pointIcon}>
-                <Ionicons name={p.icon} size={18} color="#0C1559" />
+                <Ionicons name={p.icon} size={18} color={colors.primary} />
               </View>
               <View style={S.pointBody}>
                 <Text style={S.pointTitle}>{p.title}</Text>
@@ -125,7 +129,7 @@ export default function WelcomeCard() {
   );
 }
 
-const S = StyleSheet.create({
+const getS = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(6, 12, 50, 0.62)',
@@ -135,7 +139,7 @@ const S = StyleSheet.create({
   },
   card: {
     width: Math.min(width - 48, 400),
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     paddingHorizontal: 22,
     paddingVertical: 26,
@@ -144,21 +148,21 @@ const S = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 16,
   },
   logo: { width: 130, height: 34, marginBottom: 14 },
-  title: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 6, textAlign: 'center' },
-  subtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#64748B', marginBottom: 18, textAlign: 'center' },
+  title: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 6, textAlign: 'center' },
+  subtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, marginBottom: 18, textAlign: 'center' },
   pointRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14, width: '100%' },
   pointIcon: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: '#EEF2FF',
+    width: 36, height: 36, borderRadius: 12, backgroundColor: colors.border,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
   pointBody: { flex: 1 },
-  pointTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 2 },
-  pointText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 17 },
+  pointTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 2 },
+  pointText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: colors.textSecondary, lineHeight: 17 },
   primaryBtn: {
-    width: '100%', backgroundColor: '#0C1559', borderRadius: 26,
+    width: '100%', backgroundColor: colors.primary, borderRadius: 26,
     paddingVertical: 14, alignItems: 'center', marginTop: 8,
   },
   primaryBtnTxt: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
   secondaryBtn: { paddingVertical: 12 },
-  secondaryBtnTxt: { color: '#64748B', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
+  secondaryBtnTxt: { color: colors.textSecondary, fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
 });

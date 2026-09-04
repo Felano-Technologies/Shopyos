@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -17,13 +17,18 @@ import { adminColors } from '@/components/admin/adminTheme';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { getAdminUserStats } from '@/services/api';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
+// Fixed 3-stop admin brand gradient (navy → green), not the 2-stop headerGradient token — intentionally fixed across themes
 const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
 type Stats = { total: number; active: number; sellers: number; drivers: number; buyers?: number; parcel_partners?: number };
 
 export default function AdminUsers() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const [stats, setStats] = useState<Stats>({ total: 0, active: 0, sellers: 0, drivers: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +51,7 @@ export default function AdminUsers() {
   const buyerCount = stats.buyers ?? Math.max(stats.total - stats.sellers - stats.drivers - (stats.parcel_partners ?? 0), 0);
   const parcelPartnerCount = stats.parcel_partners ?? 0;
 
+  // Categorical stat palette — one distinct color per metric, no matching single theme token — intentionally fixed
   const summaryItems = [
     { label: 'Total',    value: stats.total,        icon: 'people-outline' as const,              color: '#3B82F6' },
     { label: 'Active',   value: stats.active,        icon: 'checkmark-circle-outline' as const,    color: '#22C55E' },
@@ -55,6 +61,7 @@ export default function AdminUsers() {
     { label: 'Parcels',  value: parcelPartnerCount,   icon: 'cube-outline' as const,                color: '#0891B2' },
   ];
 
+  // Categorical group palette — one distinct bg/icon pair per user group, no matching single theme token — intentionally fixed
   const groupItems = [
     { title: 'Buyers',          count: buyerCount,          icon: 'person-outline' as const,      bg: '#DBEAFE', color: '#2563EB', route: '/admin/user-buyers' as any },
     { title: 'Sellers',         count: stats.sellers,        icon: 'storefront-outline' as const,  bg: '#FEF3C7', color: '#D97706', route: '/admin/user-sellers' as any },
@@ -256,7 +263,7 @@ export default function AdminUsers() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F5F7FA',

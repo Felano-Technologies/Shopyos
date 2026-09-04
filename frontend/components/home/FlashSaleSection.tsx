@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
-const C = {
-  navy: '#0C1559',
-  lime: '#84cc16',
-  limeText: '#1a2e00',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  subtle: '#94A3B8',
-  sale: '#EF4444',
+type LegacyPalette = {
+  navy: string; lime: string; limeText: string; card: string;
+  body: string; subtle: string; sale: string; bg: string; border: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  navy: colors.primary,
+  lime: colors.accent,
+  limeText: colors.accentText,
+  card: colors.surface,
+  body: colors.text,
+  subtle: colors.textMuted,
+  sale: colors.error,
+  bg: colors.background,
+  border: colors.border,
+});
 
 function getTimeLeft(endsAt: string) {
   const diff = Math.max(0, new Date(endsAt).getTime() - Date.now());
@@ -39,6 +47,9 @@ type Props = Readonly<{
 }>;
 
 export const FlashSaleSection = React.memo(function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, endsAt, saleTitle }: Props) {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const [time, setTime] = useState(endsAt ? getTimeLeft(endsAt) : { h: 0, m: 0, s: 0, expired: false });
 
   useEffect(() => {
@@ -139,10 +150,10 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
 
 const CARD_W = 138;
 
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   wrap: { marginBottom: 10 },
   header: {
-    backgroundColor: '#EF4444',
+    backgroundColor: C.sale,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -153,13 +164,13 @@ const S = StyleSheet.create({
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginRight: 10 },
   timerLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.8)', marginRight: 3 },
   timerBox: {
-    backgroundColor: '#0C1559', borderRadius: 4,
+    backgroundColor: C.navy, borderRadius: 4,
     paddingHorizontal: 5, paddingVertical: 2, minWidth: 26, alignItems: 'center',
   },
   timerNum: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff' },
   colon: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#fff' },
   seeAll: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#fff' },
-  scroll: { backgroundColor: '#fff' },
+  scroll: { backgroundColor: C.bg },
   list: { paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
   card: {
     width: CARD_W,
@@ -167,7 +178,7 @@ const S = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#fdfdfd',
+    borderColor: C.border,
   },
   imgWrap: { width: '100%', height: 120, position: 'relative' },
   img: { width: '100%', height: '100%' },
@@ -186,7 +197,7 @@ const S = StyleSheet.create({
     textDecorationLine: 'line-through', marginTop: 2,
   },
   stockWrap: { marginTop: 7, gap: 3 },
-  stockTrack: { height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, overflow: 'hidden' },
-  stockBar: { height: '100%', backgroundColor: '#EF4444', borderRadius: 2 },
+  stockTrack: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
+  stockBar: { height: '100%', backgroundColor: C.sale, borderRadius: 2 },
   stockTxt: { fontSize: 9, fontFamily: 'Montserrat-SemiBold', color: C.sale },
 });

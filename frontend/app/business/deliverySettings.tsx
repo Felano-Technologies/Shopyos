@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
@@ -11,20 +11,13 @@ import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getDeliverySettings, updateDeliverySettings } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
-
-const C = {
-  bg: '#F8FAFC',
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  card: '#FFFFFF',
-  body: '#0F172A',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-};
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 export default function DeliverySettingsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const S = useMemo(() => getStyles(colors), [colors]);
   const { activeBusiness } = useActiveBusiness();
   const storeId = activeBusiness?._id;
 
@@ -113,11 +106,11 @@ export default function DeliverySettingsScreen() {
       <StatusBar style="light" />
       
       {/* Header */}
-      <LinearGradient colors={[C.navy, C.navyMid]} style={S.header}>
+      <LinearGradient colors={colors.headerGradient} style={S.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={S.headerRow}>
             <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
-              <Ionicons name="arrow-back" size={22} color="#FFF" />
+              <Ionicons name="arrow-back" size={22} color="#FFF" />{/* white icon on fixed dark header gradient */}
             </TouchableOpacity>
             <Text style={S.headerTitle}>Delivery Settings</Text>
             <View style={{ width: 40 }} />
@@ -127,14 +120,14 @@ export default function DeliverySettingsScreen() {
 
       {isLoading ? (
         <View style={S.centred}>
-          <ActivityIndicator size="large" color={C.navy} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
             
             <View style={S.infoCard}>
-              <Ionicons name="information-circle" size={24} color="#0284C7" style={{ marginTop: 2 }} />
+              <Ionicons name="information-circle" size={24} color={colors.info} style={{ marginTop: 2 }} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={S.infoTitle}>How delivery fees work</Text>
                 <Text style={S.infoDesc}>
@@ -152,7 +145,7 @@ export default function DeliverySettingsScreen() {
                 <TextInput
                   style={S.input}
                   placeholder="0.00"
-                  placeholderTextColor={C.subtle}
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
                   value={baseFee}
                   onChangeText={setBaseFee}
@@ -168,7 +161,7 @@ export default function DeliverySettingsScreen() {
                 <TextInput
                   style={S.input}
                   placeholder="0.00"
-                  placeholderTextColor={C.subtle}
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="decimal-pad"
                   value={perKmFee}
                   onChangeText={setPerKmFee}
@@ -188,7 +181,7 @@ export default function DeliverySettingsScreen() {
                 }}
               >
                 <View style={[S.checkbox, noLimit && S.checkboxChecked]}>
-                  {noLimit && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                  {noLimit && <Ionicons name="checkmark" size={14} color={colors.textInverse} />}
                 </View>
                 <Text style={S.checkboxLabel}>No limit (deliver anywhere)</Text>
               </TouchableOpacity>
@@ -198,7 +191,7 @@ export default function DeliverySettingsScreen() {
                   <TextInput
                     style={S.input}
                     placeholder="e.g. 15"
-                    placeholderTextColor={C.subtle}
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="decimal-pad"
                     value={maxKm}
                     onChangeText={setMaxKm}
@@ -213,9 +206,9 @@ export default function DeliverySettingsScreen() {
               onPress={handleSave}
               disabled={isSaving}
             >
-              <LinearGradient colors={[C.navy, C.navyMid]} style={S.saveBtnGradient}>
+              <LinearGradient colors={colors.headerGradient} style={S.saveBtnGradient}>
                 {isSaving ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#FFF" />/* white spinner on fixed dark gradient button */
                 ) : (
                   <Text style={S.saveBtnTxt}>Save Settings</Text>
                 )}
@@ -230,42 +223,44 @@ export default function DeliverySettingsScreen() {
   );
 }
 
-const S = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+const getStyles = (c: ThemeColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.surfaceElevated },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  
+
   header: { paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }, // translucent glass button on fixed dark header gradient
+  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' }, // white text on fixed dark header gradient
 
   scroll: { padding: 16 },
-  
-  infoCard: { flexDirection: 'row', backgroundColor: '#E0F2FE', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#BAE6FD' },
-  infoTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0369A1', marginBottom: 4 },
-  infoDesc: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#0C4A6E', lineHeight: 20 },
 
-  card: { backgroundColor: C.card, borderRadius: 20, padding: 20, elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, marginBottom: 24 },
-  
-  inputLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 4 },
-  inputHelp: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: 12 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 16 },
-  currencyPrefix: { fontSize: 16, fontFamily: 'Montserrat-SemiBold', color: C.muted, marginRight: 8 },
-  suffix: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted, marginLeft: 8 },
-  input: { flex: 1, paddingVertical: 14, fontSize: 16, fontFamily: 'Montserrat-SemiBold', color: C.body },
-  
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 20 },
+  // Info banner: no themed info-bg/border tokens exist yet, so neutral surface/border tokens
+  // stand in for the background/border and the brand info token carries the title color.
+  infoCard: { flexDirection: 'row', backgroundColor: c.surfaceElevated, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: c.border },
+  infoTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: c.info, marginBottom: 4 },
+  infoDesc: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, lineHeight: 20 },
+
+  card: { backgroundColor: c.surface, borderRadius: 20, padding: 20, elevation: 2, shadowColor: c.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, marginBottom: 24 },
+
+  inputLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 4 },
+  inputHelp: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: c.textSecondary, marginBottom: 12 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: c.borderStrong, paddingHorizontal: 16 },
+  currencyPrefix: { fontSize: 16, fontFamily: 'Montserrat-SemiBold', color: c.textSecondary, marginRight: 8 },
+  suffix: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.textSecondary, marginLeft: 8 },
+  input: { flex: 1, paddingVertical: 14, fontSize: 16, fontFamily: 'Montserrat-SemiBold', color: c.text },
+
+  divider: { height: 1, backgroundColor: c.border, marginVertical: 20 },
 
   checkboxRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  checkboxChecked: { backgroundColor: C.navy, borderColor: C.navy },
-  checkboxLabel: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: c.textMuted, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  checkboxChecked: { backgroundColor: c.primary, borderColor: c.primary },
+  checkboxLabel: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.text },
 
-  saveBtn: { borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: C.lime, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  saveBtn: { borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: c.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   saveBtnGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
-  saveBtnTxt: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  saveBtnTxt: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' }, // white text on fixed dark header gradient button
 
-  errorTxt: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginBottom: 20 },
-  backBtnFallback: { backgroundColor: C.navy, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
-  backBtnFallbackTxt: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
+  errorTxt: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: c.textSecondary, textAlign: 'center', marginBottom: 20 },
+  backBtnFallback: { backgroundColor: c.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 },
+  backBtnFallbackTxt: { color: c.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 14 },
 });

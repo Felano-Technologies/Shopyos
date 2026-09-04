@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import AppImage from '@/components/AppImage';
 
 import { useCart } from '@/store/cartStore';
 import {
@@ -20,17 +21,30 @@ import {
 } from '@/services/api';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
-const C = {
-  navy: '#0C1559',
-  navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  bg: '#F8FAFC',
-  card: '#FFFFFF',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  body: '#0F172A',
+type LegacyPalette = {
+  navy: string; navyMid: string; lime: string; bg: string; card: string;
+  muted: string; subtle: string; body: string; border: string; borderStrong: string;
+  surfaceElevated: string; error: string; errorBg: string; success: string;
 };
+const buildC = (colors: ThemeColors): LegacyPalette => ({
+  navy: colors.primary,
+  navyMid: colors.primaryMid,
+  lime: colors.accent,
+  bg: colors.background,
+  card: colors.surface,
+  muted: colors.textSecondary,
+  subtle: colors.textMuted,
+  body: colors.text,
+  border: colors.border,
+  borderStrong: colors.borderStrong,
+  surfaceElevated: colors.surfaceElevated,
+  error: colors.error,
+  errorBg: colors.errorBg,
+  success: colors.success,
+});
 
 import { GHANA_REGIONS, nearestGhanaRegion, mapTextToGhanaRegion } from '@/utils/ghanaRegions';
 
@@ -72,6 +86,9 @@ function groupByStore(items: any[], resolvedIds: Record<string, string> = {}): S
 
 export default function CheckoutScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const cartItems = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clearCart);
 
@@ -409,7 +426,7 @@ export default function CheckoutScreen() {
       <StatusBar style="light" />
 
       {/* Header */}
-      <LinearGradient colors={[C.navy, C.navyMid]} style={S.header}>
+      <LinearGradient colors={colors.headerGradient} style={S.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={S.headerRow}>
             <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={S.backBtn}>
@@ -438,12 +455,16 @@ export default function CheckoutScreen() {
                   {/* Store header */}
                   <View style={S.storeHeader}>
                     <View style={S.storeAvatar}>
-                      <Text style={S.storeAvatarText}>{group.storeName.charAt(0).toUpperCase()}</Text>
+                      {group.storeLogo ? (
+                        <AppImage uri={group.storeLogo} style={S.storeAvatarImg} />
+                      ) : (
+                        <Text style={S.storeAvatarText}>{group.storeName.charAt(0).toUpperCase()}</Text>
+                      )}
                     </View>
                     <Text style={S.storeNameTxt} numberOfLines={1}>{group.storeName}</Text>
                     {quote?.isInterRegional && (
                       <View style={S.interRegBadge}>
-                        <Ionicons name="bus-outline" size={10} color="#1E3A8A" />
+                        <Ionicons name="bus-outline" size={10} color={C.navy} />
                         <Text style={S.interRegBadgeText}>Cross-region</Text>
                       </View>
                     )}
@@ -511,7 +532,7 @@ export default function CheckoutScreen() {
             {/* Multi-store notice */}
             {storeGroups.length > 1 && (
               <View style={S.multiStoreBanner}>
-                <Ionicons name="information-circle-outline" size={16} color="#1E40AF" />
+                <Ionicons name="information-circle-outline" size={16} color={C.navy} />
                 <Text style={S.multiStoreBannerText}>
                   {storeGroups.length} stores · {storeGroups.length} separate deliveries
                 </Text>
@@ -550,16 +571,16 @@ export default function CheckoutScreen() {
               )}
               {totalDiscount > 0 && (
                 <View style={S.summaryRow}>
-                  <Text style={[S.summaryItemName, { color: '#16a34a' }]}>
+                  <Text style={[S.summaryItemName, { color: C.success }]}>
                     Discount{appliedPromo ? ` (${appliedPromo.code})` : ''}{usePoints && pointsDiscount > 0 ? `${appliedPromo ? ' + ' : ''}Points` : ''}
                   </Text>
-                  <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalDiscount.toFixed(2)}</Text>
+                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−₵{totalDiscount.toFixed(2)}</Text>
                 </View>
               )}
               {totalBargainDiscount > 0 && (
                 <View style={S.summaryRow}>
-                  <Text style={[S.summaryItemName, { color: '#16a34a' }]}>Bargain Discount</Text>
-                  <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalBargainDiscount.toFixed(2)}</Text>
+                  <Text style={[S.summaryItemName, { color: C.success }]}>Bargain Discount</Text>
+                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−₵{totalBargainDiscount.toFixed(2)}</Text>
                 </View>
               )}
               <View style={S.divider} />
@@ -581,28 +602,28 @@ export default function CheckoutScreen() {
                   <TouchableOpacity
                     accessibilityLabel="Pick up from hub"
                     accessibilityRole="button"
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: !requestLastMile ? C.navy : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: !requestLastMile ? C.navy : C.borderStrong, borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
                     onPress={() => setRequestLastMile(false)}
                     activeOpacity={0.7}
                   >
-                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: !requestLastMile ? C.navy : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: !requestLastMile ? C.navy : C.borderStrong, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                       {!requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.navy }} />}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Pick up from hub</Text>
                       <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>Collect your parcel from the regional hub — no extra charge</Text>
                     </View>
-                    <Text style={{ fontFamily: 'Montserrat-Bold', color: '#16a34a', fontSize: 13 }}>Free</Text>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: C.success, fontSize: 13 }}>Free</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     accessibilityLabel="Home delivery by rider"
                     accessibilityRole="button"
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: requestLastMile ? C.lime : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: requestLastMile ? C.lime : C.borderStrong, borderRadius: 10, paddingHorizontal: 12 }}
                     onPress={() => setRequestLastMile(true)}
                     activeOpacity={0.7}
                   >
-                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: requestLastMile ? C.lime : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: requestLastMile ? C.lime : C.borderStrong, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                       {requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.lime }} />}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -620,7 +641,7 @@ export default function CheckoutScreen() {
             <View style={S.card}>
               {appliedPromo ? (
                 <View style={S.promoApplied}>
-                  <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+                  <Ionicons name="checkmark-circle" size={20} color={C.success} />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={S.promoAppliedCode}>{appliedPromo.code}</Text>
                     <Text style={S.promoAppliedSub}>{appliedPromo.label} — saving ₵{appliedPromo.discountAmount.toFixed(2)}</Text>
@@ -701,7 +722,7 @@ export default function CheckoutScreen() {
                     </View>
                     {usePoints && (
                       <View style={S.loyaltySaving}>
-                        <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                        <Ionicons name="checkmark-circle" size={14} color={C.success} />
                         <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
                       </View>
                     )}
@@ -715,7 +736,7 @@ export default function CheckoutScreen() {
             <View style={S.card}>
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Delivery Address <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                  <Text style={S.inputLabel}>Delivery Address <Text style={{ color: C.error }}>*</Text></Text>
                   {prefilled.address && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />
@@ -738,7 +759,7 @@ export default function CheckoutScreen() {
               </View>
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Phone Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                  <Text style={S.inputLabel}>Phone Number <Text style={{ color: C.error }}>*</Text></Text>
                   {prefilled.phone && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />
@@ -762,7 +783,7 @@ export default function CheckoutScreen() {
               </View>
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                  <Text style={S.inputLabel}>Region / State <Text style={{ color: C.error }}>*</Text></Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
                   {[
@@ -786,7 +807,7 @@ export default function CheckoutScreen() {
               {isAnyInterRegional && (
                 <View style={S.interRegionalCard}>
                   <View style={S.interRegionalHeader}>
-                    <Ionicons name="bus-outline" size={18} color="#0C1559" />
+                    <Ionicons name="bus-outline" size={18} color={C.navy} />
                     <Text style={S.interRegionalTitle}>Cross-Region Shipment</Text>
                   </View>
                   <Text style={S.interRegionalText}>
@@ -845,20 +866,20 @@ export default function CheckoutScreen() {
             {/* Status Messages for User */}
             {!isFetchingFee && storeQuoteList.length > 0 && !isWithinRange && (
               <View style={[S.errorBanner, { marginTop: 20, marginBottom: -10 }]}>
-                <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+                <Ionicons name="alert-circle" size={18} color={C.error} />
                 <Text style={S.errorText}>{deliveryNote || "Delivery unavailable: Outside store's delivery radius."}</Text>
               </View>
             )}
             {isFetchingFee && (
-              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#EFF6FF' }]}>
-                <ActivityIndicator size="small" color="#1E40AF" style={{ marginRight: 8 }} />
-                <Text style={[S.profileNudgeText, { color: '#1E40AF' }]}>Calculating delivery fees...</Text>
+              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10 }]}>
+                <ActivityIndicator size="small" color={C.navy} style={{ marginRight: 8 }} />
+                <Text style={S.profileNudgeText}>Calculating delivery fees...</Text>
               </View>
             )}
             {!isFetchingFee && storeQuoteList.length === 0 && (
-              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="location-outline" size={18} color="#C2410C" />
-                <Text style={[S.profileNudgeText, { color: '#C2410C' }]}>
+              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10 }]}>
+                <Ionicons name="location-outline" size={18} color={colors.warning} />
+                <Text style={[S.profileNudgeText, { color: colors.warning }]}>
                   {!buyerCoords
                     ? "Waiting for GPS location..."
                     : "Identifying stores for delivery calculation..."}
@@ -900,7 +921,7 @@ export default function CheckoutScreen() {
               onPress={handlePlaceOrder}
               disabled={isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)}
             >
-              <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
+              <LinearGradient colors={colors.headerGradient} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
                   : <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
@@ -929,7 +950,7 @@ export default function CheckoutScreen() {
   );
 }
 
-const S = StyleSheet.create({
+const getS = (C: LegacyPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
@@ -946,80 +967,81 @@ const S = StyleSheet.create({
   summaryItemName: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
   summaryItemQty: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, marginHorizontal: 8 },
   summaryItemPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.navy },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
+  divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
 
   storeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
-  storeAvatar: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
+  storeAvatar: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  storeAvatarImg: { width: '100%', height: '100%' },
   storeAvatarText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   storeNameTxt: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body },
-  interRegBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
-  interRegBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#1E3A8A' },
+  interRegBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.border, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
+  interRegBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.navy },
   methodRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   methodChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.2, borderColor: C.navy, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   methodChipActive: { backgroundColor: C.navy },
   methodChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.navy },
   methodChipTxtActive: { color: '#FFF' },
   pickupHint: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.muted, marginTop: 2 },
-  multiStoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 8 },
-  multiStoreBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#1E40AF' },
+  multiStoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.border, borderRadius: 10, padding: 10, marginBottom: 8 },
+  multiStoreBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.navy },
 
   inputGroup: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   inputLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.muted },
-  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F7FEE7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  profileBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#65A30D' },
-  profileNudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 14 },
+  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.border, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  profileBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.success },
+  profileNudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.border, borderRadius: 10, padding: 10, marginBottom: 14 },
   profileNudgeText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: 14 },
   input: { flex: 1, paddingVertical: 13, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
   checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   checkboxChecked: { backgroundColor: C.navy },
   checkboxLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
 
-  paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', elevation: 1 },
+  paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.border, elevation: 1 },
   paymentOptionSelected: { backgroundColor: C.navy, borderColor: C.navy },
-  optionIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  optionIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
   optionLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.navy },
   optionSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: C.borderStrong, justifyContent: 'center', alignItems: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
-  savedBox: { backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1, borderTopWidth: 0, borderColor: '#F1F5F9', padding: 8, marginTop: -4, marginBottom: 4 },
+  savedBox: { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderTopWidth: 0, borderColor: C.border, padding: 8, marginTop: -4, marginBottom: 4 },
   savedItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, gap: 8 },
-  savedItemActive: { backgroundColor: '#F7FEE7' },
+  savedItemActive: { backgroundColor: C.border },
   savedTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
   savedTxtActive: { color: C.navy, fontFamily: 'Montserrat-SemiBold' },
 
   placeOrderBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
   placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   placeOrderTxt: { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
-  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: C.border, marginRight: 8, borderWidth: 1, borderColor: C.borderStrong },
   regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
   regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   regionChipTxtActive: { color: '#FFF' },
-  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
-  errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', flex: 1 },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.errorBg, padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
+  errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.error, flex: 1 },
 
   // Promo code
   promoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  promoInput: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
+  promoInput: { flex: 1, backgroundColor: C.surfaceElevated, borderRadius: 12, borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
   promoBtn: { backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 13, justifyContent: 'center', alignItems: 'center' },
   promoBtnTxt: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: 13 },
   promoApplied: { flexDirection: 'row', alignItems: 'center' },
-  promoAppliedCode: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#16a34a' },
+  promoAppliedCode: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.success },
   promoAppliedSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
-  promoError: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', marginTop: 8 },
+  promoError: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.error, marginTop: 8 },
 
   // Loyalty points
-  loyaltyReveal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#F7FEE7', borderRadius: 12, marginBottom: 10 },
+  loyaltyReveal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: C.border, borderRadius: 12, marginBottom: 10 },
   loyaltyRevealTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.body },
   loyaltyRow: { flexDirection: 'row', alignItems: 'center' },
-  loyaltyIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F7FEE7', justifyContent: 'center', alignItems: 'center' },
+  loyaltyIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
   loyaltyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body },
   loyaltySub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
-  loyaltySaving: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: '#F0FDF4', padding: 8, borderRadius: 8 },
-  loyaltySavingTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#16a34a' },
-  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', paddingHorizontal: 2 },
+  loyaltySaving: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: C.border, padding: 8, borderRadius: 8 },
+  loyaltySavingTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.success },
+  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: C.borderStrong, justifyContent: 'center', paddingHorizontal: 2 },
   toggleOn: { backgroundColor: C.lime },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
@@ -1029,16 +1051,16 @@ const S = StyleSheet.create({
   disclaimerText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, flex: 1, lineHeight: 18 },
   disclaimerLink: { color: C.navy, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 
-  interRegionalCard: { backgroundColor: '#EFF6FF', borderRadius: 18, padding: 16, marginTop: 12, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  interRegionalCard: { backgroundColor: C.border, borderRadius: 18, padding: 16, marginTop: 12, marginBottom: 16, borderWidth: 1, borderColor: C.borderStrong },
   interRegionalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  interRegionalTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
-  interRegionalText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', lineHeight: 18 },
-  interRegionalTransit: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', marginTop: 8 },
-  interRegionalBreakdown: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#DBEAFE' },
-  breakdownTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A', marginBottom: 6 },
+  interRegionalTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.navy },
+  interRegionalText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy, lineHeight: 18 },
+  interRegionalTransit: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy, marginTop: 8 },
+  interRegionalBreakdown: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.borderStrong },
+  breakdownTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: 6 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  breakdownLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#60A5FA' },
-  breakdownValue: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
+  breakdownLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.muted },
+  breakdownValue: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
 });
 
 type PaymentOptionProps = Readonly<{
@@ -1058,6 +1080,9 @@ const PaymentOption = ({
   paymentMethodType, savedMethods, selectedMethodId,
   onSelectType, onSelectMethodId,
 }: PaymentOptionProps) => {
+  const colors = useThemeColors();
+  const C = useMemo(() => buildC(colors), [colors]);
+  const S = useMemo(() => getS(C), [C]);
   const isSelected = paymentMethodType === type;
   const filteredSaved = savedMethods.filter((m) => m.type === type);
 
@@ -1098,7 +1123,7 @@ const PaymentOption = ({
               <Ionicons
                 name={selectedMethodId === m.id ? 'checkmark-circle' : 'ellipse-outline'}
                 size={18}
-                color={selectedMethodId === m.id ? '#A3E635' : C.muted}
+                color={selectedMethodId === m.id ? C.lime : C.muted}
               />
               <Text style={[S.savedTxt, selectedMethodId === m.id && S.savedTxtActive]}>
                 {m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})

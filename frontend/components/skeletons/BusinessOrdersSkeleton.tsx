@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 export const BusinessOrdersSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* --- Header Skeleton --- */}
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={colors.headerGradient}
           style={styles.headerContainer}
         >
           <View style={styles.headerTop}>
@@ -78,8 +82,8 @@ export const BusinessOrdersSkeleton = () => {
     </View>
   );
 };
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.surfaceElevated },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },
   headerContainer: {
     paddingTop: 60,
@@ -106,7 +110,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statItem: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     width: '31%',
     borderRadius: 12,
     padding: 12,
@@ -116,7 +120,7 @@ const styles = StyleSheet.create({
   filterContainer: { paddingHorizontal: 20 },
   listContainer: { paddingHorizontal: 20 },
   orderCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
@@ -126,7 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.surfaceElevated,
   },
   cardBody: { padding: 16 },
   cardFooter: {

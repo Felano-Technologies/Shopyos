@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
+
+type LegacyPalette = {
+  bg: string;
+  navy: string;
+  card: string;
+  muted: string;
+  border: string;
+  badgeBg: string;
+};
+
+function buildC(colors: ThemeColors): LegacyPalette {
+  return {
+    bg: colors.backgroundAlt,
+    navy: colors.primary,
+    card: colors.surface,
+    muted: colors.textSecondary,
+    border: colors.border,
+    badgeBg: colors.backgroundAlt,
+  };
+}
 
 const LAST_UPDATED = 'July 19, 2026';
 
@@ -139,6 +161,9 @@ Kumasi.`,
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const C = useMemo(() => buildC(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(C), [C]);
 
   return (
     <View style={styles.mainContainer}>
@@ -157,7 +182,7 @@ export default function PrivacyPolicyScreen() {
       {/* Header */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={themeColors.headerGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
@@ -185,7 +210,7 @@ export default function PrivacyPolicyScreen() {
       >
         {/* Last Updated Badge */}
         <View style={styles.updatedBadge}>
-          <Ionicons name="time-outline" size={14} color="#64748B" />
+          <Ionicons name="time-outline" size={14} color={C.muted} />
           <Text style={styles.updatedText}>Last updated: {LAST_UPDATED}</Text>
         </View>
 
@@ -210,8 +235,8 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+const getStyles = (C: LegacyPalette) => StyleSheet.create({
+  mainContainer: { flex: 1, backgroundColor: C.bg },
 
   // Background Watermark
   bottomLogos: {
@@ -239,8 +264,8 @@ const styles = StyleSheet.create({
   contentContainer: { flex: 1, paddingHorizontal: 20 },
 
   // Updated Badge
-  updatedBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, alignSelf: 'flex-start', backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  updatedText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  updatedBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, alignSelf: 'flex-start', backgroundColor: C.badgeBg, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  updatedText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted },
 
   // Intro Card
   introCard: { backgroundColor: '#E0E7FF', borderRadius: 16, padding: 16, marginBottom: 20 },
@@ -248,7 +273,7 @@ const styles = StyleSheet.create({
 
   // Section Cards
   sectionCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 18,
     marginBottom: 14,
@@ -261,13 +286,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: C.navy,
     marginBottom: 10,
   },
   sectionContent: {
     fontSize: 13.5,
     fontFamily: 'Montserrat-Regular',
-    color: '#475569',
+    color: C.muted,
     lineHeight: 22,
   },
 });

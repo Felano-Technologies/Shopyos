@@ -36,6 +36,7 @@ const FeeConfigRepository = require('./FeeConfigRepository');
 const DisclaimerRepository = require('./DisclaimerRepository');
 const BargainRepository = require('./BargainRepository');
 const ParcelPartnerRepository = require('./ParcelPartnerRepository');
+const PromoCodeRepository = require('./PromoCodeRepository');
 
 
 // Initialize repositories with selected client
@@ -72,6 +73,7 @@ const repositories = {
   disclaimers: new DisclaimerRepository(repositoryClient),
   bargains: new BargainRepository(repositoryClient),
   parcelPartner: new ParcelPartnerRepository(repositoryClient),
+  promoCodes: new PromoCodeRepository(repositoryClient),
 };
 
 module.exports = repositories;

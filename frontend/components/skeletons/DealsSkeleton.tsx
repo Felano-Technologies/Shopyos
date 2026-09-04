@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../Skeleton';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ThemeColors } from '@/constants/Colors';
 
 const { width } = Dimensions.get('window');
 
 export const DealsSkeleton = () => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       {/* Header Area */}
       <View style={styles.headerWrapper}>
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+        <LinearGradient colors={colors.headerGradient} style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.headerContent}>
               <Skeleton width={40} height={40} borderRadius={12} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} />
@@ -40,8 +44,8 @@ export const DealsSkeleton = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#e9f0ff' },
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundAlt },
   headerWrapper: { marginBottom: 10 },
   header: {
     paddingBottom: 25,
@@ -60,7 +64,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   card: {
     width: (width - 44) / 2,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',

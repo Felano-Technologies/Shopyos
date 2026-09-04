@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewStyle, StyleProp, DimensionValue } from 'react-native';
+import { Animated, ViewStyle, StyleProp, DimensionValue } from 'react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -16,6 +17,7 @@ export default function Skeleton({
   circle = false,
   style
 }: Readonly<SkeletonProps>) {
+  const colors = useThemeColors();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -39,7 +41,10 @@ export default function Skeleton({
   return (
     <Animated.View
       style={[
-        styles.skeletonBase,
+        {
+          backgroundColor: colors.borderStrong,
+          overflow: 'hidden',
+        },
         {
           width,
           height,
@@ -51,10 +56,3 @@ export default function Skeleton({
     />
   );
 }
-
-const styles = StyleSheet.create({
-  skeletonBase: {
-    backgroundColor: '#CBD5E1', // A nice neutral slate color
-    overflow: 'hidden',
-  },
-});
