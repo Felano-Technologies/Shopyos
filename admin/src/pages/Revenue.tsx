@@ -75,15 +75,15 @@ export const Revenue: React.FC = () => {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Platform Revenue</h1>
-            <p className="text-sm text-gray-500 mt-1">Overview of platform earnings, commissions, and transaction volume.</p>
+            <h1 className="text-2xl font-bold text-body">Platform Revenue</h1>
+            <p className="text-sm text-secondary mt-1">Overview of platform earnings, commissions, and transaction volume.</p>
           </div>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 bg-surface-muted rounded-lg p-1">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
                 onClick={() => setPeriod(p.value)}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${period === p.value ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${period === p.value ? 'bg-card text-navy shadow-sm' : 'text-secondary hover:text-body'}`}
               >
                 {p.label}
               </button>
@@ -93,48 +93,48 @@ export const Revenue: React.FC = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {(loading ? Array.from({ length: 6 }) : cards).map((card: any, idx) => (
-            <div key={card?.label || idx} className="relative bg-white p-4 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
               {card ? (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>{card.icon}</div>
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(card.value)}</p>
-                  <p className="text-xs font-semibold text-gray-500 mt-1">{card.label}</p>
+                  <p className="text-xl font-bold text-body">{formatCurrency(card.value)}</p>
+                  <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
                   <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
                 </>
               ) : (
-                <div className="animate-pulse bg-gray-100 rounded-lg h-16" />
+                <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
               )}
             </div>
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Recent Transactions</h2>
+          <div className="lg:col-span-2 bg-card rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold text-body">Recent Transactions</h2>
             </div>
             {!loadingTx && transactions.length === 0 ? (
-              <div className="p-12 text-center text-sm text-gray-500">No completed transactions yet.</div>
+              <div className="p-12 text-center text-sm text-secondary">No completed transactions yet.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Order</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Store</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                    <tr className="bg-surface-muted/50 border-b border-border">
+                      <th className="px-6 py-3 text-xs font-semibold text-secondary uppercase tracking-wider">Order</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-secondary uppercase tracking-wider">Store</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-secondary uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-xs font-semibold text-secondary uppercase tracking-wider">Date</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {loadingTx ? (
                       <TableRowsSkeleton columns={4} />
                     ) : transactions.map((t) => (
-                      <tr key={t.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-3 text-sm font-medium text-gray-900">#{t.order?.order_number || t.order?.id?.slice(0, 8)?.toUpperCase()}</td>
-                        <td className="px-6 py-3 text-sm text-gray-700">{t.order?.store?.store_name || 'Unknown'}</td>
-                        <td className="px-6 py-3 text-sm font-semibold text-gray-900">{formatCurrency(t.amount)}</td>
-                        <td className="px-6 py-3 text-sm text-gray-500">{new Date(t.created_at).toLocaleDateString()}</td>
+                      <tr key={t.id} className="hover:bg-surface-muted/50 transition-colors">
+                        <td className="px-6 py-3 text-sm font-medium text-body">#{t.order?.order_number || t.order?.id?.slice(0, 8)?.toUpperCase()}</td>
+                        <td className="px-6 py-3 text-sm text-body">{t.order?.store?.store_name || 'Unknown'}</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-body">{formatCurrency(t.amount)}</td>
+                        <td className="px-6 py-3 text-sm text-secondary">{new Date(t.created_at).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -143,24 +143,24 @@ export const Revenue: React.FC = () => {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Top Ad Spenders</h2>
-              <p className="text-xs text-gray-400 mt-0.5">This {period}</p>
+          <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold text-body">Top Ad Spenders</h2>
+              <p className="text-xs text-subtle mt-0.5">This {period}</p>
             </div>
             {loading ? (
               <ListRowsSkeleton rows={5} leadingIcon={false} />
             ) : !breakdown?.top_ad_spenders?.length ? (
-              <div className="p-8 text-center text-sm text-gray-500">No ad spend yet.</div>
+              <div className="p-8 text-center text-sm text-secondary">No ad spend yet.</div>
             ) : (
               <div className="flex flex-col p-4 gap-1">
                 {breakdown.top_ad_spenders.map((s, idx) => (
-                  <div key={s.store_name + idx} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-gray-50">
+                  <div key={s.store_name + idx} className="flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-surface-muted">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-5 text-center text-xs font-bold text-gray-300">{idx + 1}</span>
-                      <span className="text-sm font-medium text-gray-900 truncate">{s.store_name}</span>
+                      <span className="w-5 text-center text-xs font-bold text-subtle">{idx + 1}</span>
+                      <span className="text-sm font-medium text-body truncate">{s.store_name}</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 shrink-0">{formatCurrency(s.spent)}</span>
+                    <span className="text-sm font-semibold text-body shrink-0">{formatCurrency(s.spent)}</span>
                   </div>
                 ))}
               </div>
