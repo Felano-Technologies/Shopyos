@@ -17,7 +17,7 @@ Requires PostgreSQL and Redis connectivity.
 - `src/modules/messaging`: conversation join/leave, message send, read receipts
 - `src/modules/calls`: call signaling events
 - `src/modules/notifications`: realtime notification event relays
-- `src/modules/presence`: online/offline and heartbeat
+- `src/modules/presence`: online/offline, refreshed by client-driven pings (not a server-side timer — see handlers.js)
 
 ## External Event Bridge
 

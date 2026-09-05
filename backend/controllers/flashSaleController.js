@@ -116,6 +116,40 @@ const createSlot = async (req, res, next) => {
   }
 };
 
+const updateSlot = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, startTime, endTime, maxItems } = req.body;
+
+    const updates = {};
+    if (title !== undefined) updates.title = title;
+    if (startTime !== undefined) updates.start_time = startTime;
+    if (endTime !== undefined) updates.end_time = endTime;
+    if (maxItems !== undefined) updates.max_items = maxItems;
+
+    const slot = await repositories.flashSales.updateSlot(id, updates);
+    ApiResponse.success(res, slot, 'Time slot updated');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteSlot = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const submissionCount = await repositories.flashSales.count({ slot_id: id });
+    if (submissionCount > 0) {
+      return ApiResponse.error(res, 'Cannot delete a slot that already has submitted campaigns against it', 400);
+    }
+
+    await repositories.flashSales.deleteSlot(id);
+    ApiResponse.success(res, null, 'Time slot deleted');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAdminSales = async (req, res, next) => {
   try {
     const sales = await repositories.flashSales.getAdminSales(req.query.status);
@@ -246,6 +280,8 @@ module.exports = {
   getSellerSales,
   cancelFlashSale,
   createSlot,
+  updateSlot,
+  deleteSlot,
   getAdminSales,
   reviewFlashSale
 };

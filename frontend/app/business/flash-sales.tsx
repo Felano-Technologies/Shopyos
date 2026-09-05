@@ -11,16 +11,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getSellerSales, getSlotsList, cancelFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function BusinessFlashSales() {
   const router = useRouter();
   const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<'my-campaigns' | 'time-slots'>('my-campaigns');
@@ -107,6 +110,7 @@ export default function BusinessFlashSales() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />

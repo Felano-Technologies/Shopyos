@@ -60,9 +60,9 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
     return () => clearInterval(id);
   }, [endsAt]);
 
-  if (loading || products.length === 0 || time.expired) return null;
+  if (loading) return null;
 
-  const items = products.slice(0, 10);
+  const items = (products.length === 0 || time.expired) ? [] : products.slice(0, 10);
 
   return (
     <View style={S.wrap}>
@@ -89,6 +89,7 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
       </View>
 
       {/* Product cards */}
+      {items.length > 0 && (
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -145,6 +146,7 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
           );
         })}
       </ScrollView>
+      )}
     </View>
   );
 });

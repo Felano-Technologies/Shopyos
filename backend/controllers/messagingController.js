@@ -312,7 +312,16 @@ const sendMessage = async (req, res, next) => {
             messageId: message.id,
             senderName
           },
+          // force: true — presence (`_isUserConnected`) is refreshed by a
+          // server-side heartbeat independent of whether the client can
+          // actually still process socket events. On iOS, backgrounding the
+          // app suspends the JS runtime while the socket can linger as
+          // "connected" for up to ~1-3 minutes (Socket.IO pingTimeout +
+          // presence TTL), during which push was silently skipped —
+          // messages never arrived at all. A push for a new message should
+          // never be skipped just because presence hasn't caught up yet.
           push: {
+            force: true,
             data: {
               screen: 'messages',
               conversationId,

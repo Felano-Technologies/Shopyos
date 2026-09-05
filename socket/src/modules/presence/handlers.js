@@ -50,8 +50,10 @@ const replayMissedRealtimeEvents = async (io, userId, since) => {
 // presence:${userId}        — '1' while the user has ≥1 live socket (read by API + push gate)
 // presence:conns:${userId}  — set of live socket ids, so one device disconnecting
 //                             doesn't mark a user with other devices offline
-const PRESENCE_TTL = 180;       // seconds; refreshed by the heartbeat below
-const HEARTBEAT_MS = 60 * 1000; // 3 heartbeats per TTL window
+// Refreshed only by real client pings (frontend/services/socket.ts pings
+// every 60s while foregrounded) — 3x margin so one or two missed pings
+// (e.g. a brief network blip) don't flip presence offline prematurely.
+const PRESENCE_TTL = 180; // seconds
 
 const registerPresenceHandlers = (io, { cacheSet = async () => {}, cacheDel = async () => {}, redis = null } = {}) => {
   const connsKey = (userId) => `presence:conns:${userId}`;
@@ -93,19 +95,24 @@ const registerPresenceHandlers = (io, { cacheSet = async () => {}, cacheDel = as
       }
     })().catch(() => {});
 
-    // Server-side heartbeat keeps presence keys alive for long-lived
-    // connections without depending on client pings
-    const heartbeat = setInterval(() => {
-      markAlive(userId, socket.id).catch(() => {});
-    }, HEARTBEAT_MS);
-
+    // Presence is refreshed ONLY by real client pings now (see
+    // frontend/services/socket.ts) — a prior server-side setInterval kept
+    // this key alive purely because the socket object still existed in
+    // memory, with no requirement that the client's JS thread was actually
+    // running. On iOS, backgrounding suspends the JS runtime while the
+    // socket can linger at the transport level for up to ~85s
+    // (pingTimeout+pingInterval) — during that whole window presence still
+    // said "online", so push notifications got wrongly skipped
+    // (notificationService.js's _isUserConnected gate) even though the
+    // client couldn't process the in-app event at all. Requiring a live
+    // ping means presence now reflects whether the client can actually run
+    // code, not just whether a socket handle exists server-side.
     socket.on('presence:ping', () => {
       markAlive(userId, socket.id).catch(() => {});
       socket.emit('presence:pong', { at: new Date().toISOString() });
     });
 
     socket.on('disconnect', async () => {
-      clearInterval(heartbeat);
       const lastSeen = new Date().toISOString();
       let remaining = 0;
       try {

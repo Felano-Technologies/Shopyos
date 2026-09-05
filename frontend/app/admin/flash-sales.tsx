@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { getAdminSales, getSlotsList, createSlot, reviewFlashSale } from '@/services/api';
+import { getAdminSales, getSlotsList, createSlot, updateSlot, deleteSlot, reviewFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function AdminFlashSales() {
@@ -36,12 +37,17 @@ export default function AdminFlashSales() {
   const [selectedSale, setSelectedSale] = useState<any | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   
-  // Create slot form state
+  // Create/edit slot form state
   const [showSlotModal, setShowSlotModal] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [slotTitle, setSlotTitle] = useState('');
   const [slotStart, setSlotStart] = useState('');
   const [slotEnd, setSlotEnd] = useState('');
   const [slotMaxItems, setSlotMaxItems] = useState('10');
+
+  // Delete slot confirmation
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deletingSlot, setDeletingSlot] = useState(false);
 
   const fetchPendingSales = async () => {
     try {
@@ -129,7 +135,29 @@ export default function AdminFlashSales() {
     }
   };
 
-  const handleCreateSlot = async () => {
+  const resetSlotForm = () => {
+    setEditingSlotId(null);
+    setSlotTitle('');
+    setSlotStart('');
+    setSlotEnd('');
+    setSlotMaxItems('10');
+  };
+
+  const openCreateSlotModal = () => {
+    resetSlotForm();
+    setShowSlotModal(true);
+  };
+
+  const openEditSlotModal = (item: any) => {
+    setEditingSlotId(item.id);
+    setSlotTitle(item.title);
+    setSlotStart(item.start_time);
+    setSlotEnd(item.end_time);
+    setSlotMaxItems(String(item.max_items));
+    setShowSlotModal(true);
+  };
+
+  const handleSaveSlot = async () => {
     if (!slotTitle.trim() || !slotStart.trim() || !slotEnd.trim()) {
       CustomInAppToast.show({ type: 'error', title: 'Required Fields', message: 'Please complete all slot fields.' });
       return;
@@ -142,24 +170,39 @@ export default function AdminFlashSales() {
       const endIso = new Date(slotEnd).toISOString();
       const maxNum = parseInt(slotMaxItems) || 10;
 
-      const res = await createSlot(slotTitle.trim(), startIso, endIso, maxNum);
+      const res = editingSlotId
+        ? await updateSlot(editingSlotId, { title: slotTitle.trim(), startTime: startIso, endTime: endIso, maxItems: maxNum })
+        : await createSlot(slotTitle.trim(), startIso, endIso, maxNum);
+
       if (res.success) {
         CustomInAppToast.show({
           type: 'success',
-          title: 'Slot Created',
-          message: 'Flash sale time slot added successfully.'
+          title: editingSlotId ? 'Slot Updated' : 'Slot Created',
+          message: editingSlotId ? 'Flash sale time slot updated successfully.' : 'Flash sale time slot added successfully.'
         });
         setShowSlotModal(false);
-        setSlotTitle('');
-        setSlotStart('');
-        setSlotEnd('');
-        setSlotMaxItems('10');
+        resetSlotForm();
         fetchSlots();
       }
     } catch (err: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Creation Failed', message: err.message || 'Verify date strings format (YYYY-MM-DDTHH:MM:SSZ).' });
+      CustomInAppToast.show({ type: 'error', title: editingSlotId ? 'Update Failed' : 'Creation Failed', message: err.message || 'Verify date strings format (YYYY-MM-DDTHH:MM:SSZ).' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const confirmDeleteSlot = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeletingSlot(true);
+      await deleteSlot(deleteTarget.id);
+      CustomInAppToast.show({ type: 'success', title: 'Slot Deleted', message: 'Flash sale time slot removed.' });
+      setDeleteTarget(null);
+      fetchSlots();
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Delete Failed', message: err.message || 'Could not delete this time slot.' });
+    } finally {
+      setDeletingSlot(false);
     }
   };
 
@@ -341,14 +384,22 @@ export default function AdminFlashSales() {
                   From: {new Date(item.start_time).toLocaleString()}
                   {"\n"}To: {new Date(item.end_time).toLocaleString()}
                 </Text>
+                <View style={styles.slotActions}>
+                  <TouchableOpacity style={styles.slotActionBtn} onPress={() => openEditSlotModal(item)}>
+                    <Feather name="edit-2" size={16} color="#0C1559" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.slotActionBtn, { marginLeft: 10 }]} onPress={() => setDeleteTarget(item)}>
+                    <Feather name="trash-2" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           />
-          
+
           {/* Create slot button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.floatingBtn}
-            onPress={() => setShowSlotModal(true)}
+            onPress={openCreateSlotModal}
           >
             <Feather name="plus" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -409,13 +460,13 @@ export default function AdminFlashSales() {
         </View>
       </Modal>
 
-      {/* Create Slot Modal */}
+      {/* Create/Edit Slot Modal */}
       <Modal visible={showSlotModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Time Slot</Text>
-              <TouchableOpacity onPress={() => setShowSlotModal(false)}>
+              <Text style={styles.modalTitle}>{editingSlotId ? 'Edit Time Slot' : 'Create Time Slot'}</Text>
+              <TouchableOpacity onPress={() => { setShowSlotModal(false); resetSlotForm(); }}>
                 <Ionicons name="close" size={24} color="#334155" />
               </TouchableOpacity>
             </View>
@@ -456,19 +507,31 @@ export default function AdminFlashSales() {
 
               <TouchableOpacity
                 style={[styles.createBtn, submitting && styles.disabledBtn]}
-                onPress={handleCreateSlot}
+                onPress={handleSaveSlot}
                 disabled={submitting}
               >
                 {submitting ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Text style={styles.createBtnText}>Save Time Slot</Text>
+                  <Text style={styles.createBtnText}>{editingSlotId ? 'Save Changes' : 'Save Time Slot'}</Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete time slot?"
+        message="This can't be undone."
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setDeleteTarget(null), variant: 'cancel' },
+          { label: 'Delete', onPress: confirmDeleteSlot, variant: 'destructive', loading: deletingSlot },
+        ]}
+      />
     </SafeAreaView>
   );
 }
@@ -578,6 +641,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: '#64748B',
     lineHeight: 18,
+  },
+  slotActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 12,
+  },
+  slotActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   divider: {
     height: 1,

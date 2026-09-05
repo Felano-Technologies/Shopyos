@@ -122,6 +122,23 @@ class FlashSaleRepository extends BaseRepository {
     return data || [];
   }
 
+  async updateSlot(id, data) {
+    const { data: slot, error } = await this.db
+      .from('flash_sale_slots')
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return slot;
+  }
+
+  async deleteSlot(id) {
+    const { error } = await this.db.from('flash_sale_slots').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
   async getSellerSales(storeId, status = null) {
     let query = this.db
       .from('flash_sales')

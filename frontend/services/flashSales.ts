@@ -97,6 +97,19 @@ export async function createSlot(
   return data;
 }
 
+export async function updateSlot(
+  id: string,
+  updates: Partial<{ title: string; startTime: string; endTime: string; maxItems: number }>
+): Promise<{ success: boolean; data: FlashSaleSlot }> {
+  const { data } = await api.patch(`/flash-sales/slots/${id}`, updates);
+  return data;
+}
+
+export async function deleteSlot(id: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.delete(`/flash-sales/slots/${id}`);
+  return data;
+}
+
 export async function getAdminSales(status?: string): Promise<{ success: boolean; data: SellerFlashSale[] }> {
   const { data } = await api.get('/flash-sales/admin/sales', { params: { status } });
   return data;

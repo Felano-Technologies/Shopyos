@@ -11,18 +11,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getStoreProducts, submitFlashSale, getDisclaimerByType, acknowledgeDisclaimer } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function FlashSaleSubmit() {
   const router = useRouter();
   const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { slotId } = useLocalSearchParams();
   const { activeBusiness } = useActiveBusiness();
@@ -47,10 +50,10 @@ export default function FlashSaleSubmit() {
     if (!businessId) return;
     try {
       setLoading(true);
+      // The store endpoint already returns active-only products by default
+      // (includeInactive is not passed here), so no client-side filter is needed.
       const res = await getStoreProducts(businessId);
-      // Filter only active products
-      const activeProducts = (res.products || res.data || []).filter((p: any) => p.is_active || p.status === 'active');
-      setProducts(activeProducts);
+      setProducts(res.products || res.data || []);
     } catch (err: any) {
       console.error('Error fetching store products:', err);
     } finally {
@@ -120,15 +123,15 @@ export default function FlashSaleSubmit() {
       const stockLimitNum = parseInt(config?.stockLimit || '');
 
       if (isNaN(flashPriceNum) || flashPriceNum <= 0) {
-        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Please enter a valid flash sale price for ${prod?.title}.` });
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Please enter a valid flash sale price for ${prod?.name}.` });
         return;
       }
       if (flashPriceNum >= Number(prod?.price)) {
-        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Flash price for ${prod?.title} must be less than original price (${formatCurrency(prod?.price)}).` });
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Flash price for ${prod?.name} must be less than original price (${formatCurrency(prod?.price)}).` });
         return;
       }
       if (isNaN(stockLimitNum) || stockLimitNum <= 0) {
-        CustomInAppToast.show({ type: 'error', title: 'Invalid Stock', message: `Please enter a valid stock reservation limit for ${prod?.title}.` });
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Stock', message: `Please enter a valid stock reservation limit for ${prod?.name}.` });
         return;
       }
 
@@ -177,6 +180,7 @@ export default function FlashSaleSubmit() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
@@ -234,7 +238,7 @@ export default function FlashSaleSubmit() {
                   <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
                     {isSelected && <Feather name="check" size={12} color={colors.textInverse} />}
                   </View>
-                  <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
                   <Text style={styles.productPrice}>{formatCurrency(item.price)}</Text>
                 </TouchableOpacity>
 

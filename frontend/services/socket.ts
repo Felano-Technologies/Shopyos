@@ -1,12 +1,25 @@
 // services/socket.ts
 // Socket.IO client singleton for real-time messaging
 
+import { AppState, AppStateStatus } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { secureStorage } from './storage';
 
 type SocketEventCallback = (data: any) => void;
 
 const ACK_TIMEOUT_MS = 10000;
+
+// Server-side presence (socket/src/modules/presence/handlers.js) is now
+// refreshed ONLY by this client ping — it used to be kept alive by a pure
+// server-side setInterval regardless of whether the client's JS thread was
+// actually running, which meant an iOS app suspended in the background
+// still looked "online" for minutes, and push notifications got wrongly
+// skipped (notificationService.js's _isUserConnected gate assumes an
+// in-app socket delivery already reached the user). Tying the ping to
+// AppState means presence stops refreshing the moment the JS thread is no
+// longer actually executing — the true signal of whether the client can
+// process anything at all — and expires within PRESENCE_TTL if backgrounded.
+const PRESENCE_PING_MS = 60 * 1000;
 
 // Ack-based emits (join/send/mark-read) resolve only when the server invokes the
 // callback. If the socket drops between emit and ack — which happens routinely
@@ -36,6 +49,28 @@ class SocketService {
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
   private readonly eventHandlers: Map<string, SocketEventCallback[]> = new Map();
+  private presencePingTimer: ReturnType<typeof setInterval> | null = null;
+  private appStateSubscription: { remove: () => void } | null = null;
+
+  private startPresencePing(): void {
+    this.stopPresencePing();
+    this.socket?.emit('presence:ping');
+    this.presencePingTimer = setInterval(() => {
+      this.socket?.emit('presence:ping');
+    }, PRESENCE_PING_MS);
+  }
+
+  private stopPresencePing(): void {
+    if (this.presencePingTimer) {
+      clearInterval(this.presencePingTimer);
+      this.presencePingTimer = null;
+    }
+  }
+
+  private handleAppStateChange = (state: AppStateStatus): void => {
+    if (state === 'active') this.startPresencePing();
+    else this.stopPresencePing();
+  };
 
   /**
    * Get backend socket URL
@@ -96,6 +131,10 @@ class SocketService {
             if (__DEV__) console.log('✅ Socket.IO connected:', this.socket?.id);
             this.reconnectAttempts = 0;
             this.reattachEventHandlers();
+            if (!this.appStateSubscription) {
+              this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
+            }
+            if (AppState.currentState === 'active') this.startPresencePing();
           });
 
           // Connection error
@@ -135,6 +174,7 @@ class SocketService {
           // Disconnection
           this.socket.on('disconnect', (reason: string) => {
             console.log('🔌 Socket.IO disconnected:', reason);
+            this.stopPresencePing();
             if (reason === 'io server disconnect') {
               this.socket?.connect();
             }
@@ -187,6 +227,9 @@ class SocketService {
    * Disconnect from Socket.IO server
    */
   disconnect(): void {
+    this.stopPresencePing();
+    this.appStateSubscription?.remove();
+    this.appStateSubscription = null;
     if (this.socket) {
       console.log('Disconnecting socket...');
       this.socket.removeAllListeners();

@@ -9,6 +9,8 @@ const {
   getSellerSales,
   cancelFlashSale,
   createSlot,
+  updateSlot,
+  deleteSlot,
   getAdminSales,
   reviewFlashSale
 } = require('../controllers/flashSaleController');
@@ -25,6 +27,8 @@ router.delete('/:id/cancel', protect, cancelFlashSale);
 
 // --- Admin Endpoints ---
 router.post('/slots', protect, admin, createSlot);
+router.patch('/slots/:id', protect, admin, updateSlot);
+router.delete('/slots/:id', protect, admin, deleteSlot);
 router.get('/admin/sales', protect, admin, getAdminSales);
 router.patch('/:id/review', protect, admin, reviewFlashSale);
 

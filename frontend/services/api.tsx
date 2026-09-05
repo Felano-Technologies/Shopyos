@@ -102,7 +102,7 @@ export {
 
 export {
   getActiveFlashSale, getSlotsList, submitFlashSale, getSellerSales,
-  cancelFlashSale, createSlot, getAdminSales, reviewFlashSale
+  cancelFlashSale, createSlot, updateSlot, deleteSlot, getAdminSales, reviewFlashSale
 } from './flashSales';
 
 

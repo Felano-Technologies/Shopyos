@@ -195,7 +195,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
   const exploreProducts = exploreData?.pages?.flatMap((p: any) => p.products || []) || [];
 
   // ── Flash sales (admin-controlled, real-time) ─────────────────────────────────
-  const { active: flashActive, sale: flashSale, products: flashProducts, loading: loadingFlash } = useFlashSales();
+  const { sale: flashSale, products: flashProducts, loading: loadingFlash } = useFlashSales();
 
   // ── Campaign / ad logic ───────────────────────────────────────────────────────
   const activeCampaigns = useMemo(
@@ -512,15 +512,17 @@ const { data: notifData } = useUnreadNotificationCount(false);
           <QuickActions actions={quickActions} />
 
           {/* Flash sales — admin-curated, real countdown from ends_at.
-              Falls back to regular deals as filler when there's no active
-              sale, so "See All" must not silently open /deals as if it were
-              flash-sale content — tell the buyer there's no sale instead. */}
+              No fallback to regular deals ("Deals for You" and the "Deals"
+              quick action already cover that content elsewhere on this
+              screen) — the header still shows even with no active sale,
+              but "See All" tells the buyer there's nothing to see instead
+              of opening an unrelated page. */}
           <FlashSaleSection
-            products={flashActive ? flashProducts : dealsProducts}
-            loading={loadingFlash || loadingDeals}
+            products={flashProducts}
+            loading={loadingFlash}
             onPressProduct={goToDetails}
             onSeeAll={() => {
-              if (!flashActive) {
+              if (flashProducts.length === 0) {
                 CustomInAppToast.show({ type: 'info', title: 'No Active Flash Sale', message: 'There is no flash sale running right now. Check back later!' });
                 return;
               }
