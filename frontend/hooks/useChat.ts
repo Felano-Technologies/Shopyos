@@ -51,14 +51,15 @@ export type MessageItem = {
   failed?: boolean;
 };
 
-export const useMessages = (conversationId: string) => {
+export const useMessages = (conversationId?: string) => {
   const queryClient = useQueryClient();
   const key = queryKeys.chat.messages(conversationId);
 
   const query = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const res = await getMessages(conversationId);
+      // Only runs when `enabled` is true, which already guarantees conversationId is set.
+      const res = await getMessages(conversationId!);
       return (res?.messages ?? []) as MessageItem[];
     },
     enabled: !!conversationId,

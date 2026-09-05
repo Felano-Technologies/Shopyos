@@ -18,7 +18,7 @@ import {
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
   blockUser, uploadChatMedia, markNotificationsReadByConversation,
-  getPresence, getConversationDetails
+  getPresence, getConversationDetails, startConversation
 } from '../../services/api';
 import { useMessages, useChatActions } from '@/hooks/useChat';
 import { socketService } from '../../services/socket';
@@ -214,8 +214,26 @@ export default function ConversationScreen() {
   const styles = useMemo(() => getStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
-  const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
+  const { conversationId: routeConversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
   const { deleteConversation } = useChatActions();
+
+  // A pinned entry (e.g. the seller/buyer support bot) can be opened before
+  // any conversation actually exists yet — messages.tsx navigates here with
+  // no conversationId in that case. Every send/attach/voice action below
+  // requires a real conversationId, so without this the first message could
+  // never be sent: the send button just silently no-op'd. Lazily create (or
+  // resolve the existing) conversation with the other participant instead.
+  const [conversationId, setConversationId] = useState<string | undefined>(routeConversationId);
+  useEffect(() => {
+    if (conversationId || !participantId) return;
+    let alive = true;
+    startConversation(participantId)
+      .then((res: any) => {
+        if (alive && res?.success && res.conversation?.id) setConversationId(res.conversation.id);
+      })
+      .catch((e: any) => console.warn('Failed to start conversation:', e));
+    return () => { alive = false; };
+  }, [conversationId, participantId]);
 
   const {
     data: messages = [],
@@ -285,6 +303,7 @@ export default function ConversationScreen() {
 
   // Combined mark as read
   const markAsReadCombined = useCallback(async () => {
+    if (!conversationId) return;
     try {
       await Promise.all([
         markConversationRead(conversationId).catch(() => {}),
@@ -419,10 +438,16 @@ export default function ConversationScreen() {
   // ---- Media, Voice, Sticker Handlers ----
 
   const handleAttachMedia = async () => {
+    // Without this, the attach sheet's bottom-anchored position is computed
+    // against the full screen height while the keyboard is still open,
+    // landing the option grid underneath the (still-visible) keyboard —
+    // unreachable. The sticker picker already blurs first; mirror that here.
+    inputRef.current?.blur();
     setShowAttachMedia(true);
   };
 
   const handlePickMedia = async (type: 'image' | 'video') => {
+    if (!conversationId) return;
     try {
       const permission = await requestMediaLibraryPermissionWithDisclosure();
       if (permission.status !== 'granted') {
@@ -459,6 +484,7 @@ export default function ConversationScreen() {
   };
 
   const handleSendVoiceNote = async (uri: string, durationMs: number) => {
+    if (!conversationId) return;
     setIsUploadingMedia(true);
     setUploadingProgress(0);
     try {
@@ -481,6 +507,7 @@ export default function ConversationScreen() {
   };
 
   const handleSendSticker = async (stickerUrl: string, label: string) => {
+    if (!conversationId) return;
     try {
       const res = await apiSendMessage(conversationId, label, undefined, 'sticker', stickerUrl);
       const sentMsg = res.message;
@@ -576,6 +603,7 @@ export default function ConversationScreen() {
 
   const confirmDeleteChat = async () => {
     setShowDeleteChatConfirm(false);
+    if (!conversationId) { router.back(); return; }
     try { await deleteConversation(conversationId); router.back(); }
     catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete conversation.' }); }
   };
