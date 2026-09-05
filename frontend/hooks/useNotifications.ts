@@ -4,15 +4,10 @@ import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
 import { usePathname } from 'expo-router';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 
-function unloadOnFinish(sound: any, status: any) {
-  if (status.isLoaded && status.didJustFinish) {
-    sound.unloadAsync();
-  }
-}
 export const useNotifications = () => {
   const queryClient = useQueryClient();
   // Listen for real-time notification events via socket
@@ -86,14 +81,19 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
 
     const playNotificationFeedback = () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Audio.Sound.createAsync(
-        require('@/assets/sounds/notification.wav'),
-        { shouldPlay: true, volume: 0.25 } // soft chime, not full-blast
-      )
-        .then(({ sound }) => {
-          sound.setOnPlaybackStatusUpdate((status: any) => unloadOnFinish(sound, status));
-        })
-        .catch((err) => console.warn('Failed to play notification sound:', err));
+      try {
+        const player = createAudioPlayer(require('@/assets/sounds/notification.wav'));
+        player.volume = 0.25; // soft chime, not full-blast
+        player.play();
+        const subscription = (player as any).addListener('playbackStatusUpdate', (status: any) => {
+          if (status.didJustFinish) {
+            subscription.remove();
+            player.remove();
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to play notification sound:', err);
+      }
     };
 
     const flushPendingToasts = () => {

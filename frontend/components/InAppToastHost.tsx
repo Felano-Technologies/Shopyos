@@ -13,7 +13,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 
 export type InAppNotification = {
   id: number;
@@ -72,7 +72,7 @@ export function InAppToastHost() {
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDismissing = useRef(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundPlayer = useAudioPlayer(require('../assets/sounds/notification.wav'));
 
   // Drop-then-expand: translateY drops the pill in, `expand` morphs pill → card
   const translateY = useSharedValue(-160);
@@ -86,25 +86,14 @@ export function InAppToastHost() {
 
   const playSoftToastSound = useCallback(async () => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
       // Volume 0.22 — light pop, not jarring
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/notification.wav'),
-        { shouldPlay: true, volume: 0.22 }
-      );
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync().catch(() => null);
-        }
-      });
+      soundPlayer.volume = 0.22;
+      await soundPlayer.seekTo(0);
+      soundPlayer.play();
     } catch {
       // Keep toast flow smooth even if sound fails
     }
-  }, []);
+  }, [soundPlayer]);
 
   useEffect(() => {
     const processQueue = () => {
@@ -212,14 +201,6 @@ export function InAppToastHost() {
     };
   }, [currentToast, dismissCurrentToast, dragY, expand, opacity, playSoftToastSound, progress, translateY]);
 
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => null);
-      }
-    };
-  }, []);
-
   const wrapperStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value + dragY.value }]
@@ -251,48 +232,52 @@ export function InAppToastHost() {
   const orderId = getOrderId(currentToast);
   const { accentColor, kickerText, icon } = getToastVisuals(currentToast.type);
 
+  const cardContent = (
+    <Pressable
+      style={styles.pressArea}
+      accessibilityRole="alert"
+      onPress={() => {
+        dismissCurrentToast();
+        if (currentToast.onPress) {
+          currentToast.onPress();
+          return;
+        }
+        if (!canNavigate) return;
+        if (orderId) {
+          router.push({ pathname: '/order/[id]', params: { id: orderId } });
+        } else {
+          router.push('/notification');
+        }
+      }}>
+      <View
+        style={styles.content}
+        onLayout={(e) => {
+          contentHeight.value = e.nativeEvent.layout.height;
+        }}>
+        <View style={styles.headerRow}>
+          <View style={[styles.iconCircle, { backgroundColor: `${accentColor}26` }]}>
+            <Ionicons name={icon} size={16} color={accentColor} />
+          </View>
+          <Text style={styles.title} numberOfLines={1}>{currentToast.title}</Text>
+        </View>
+        <Animated.View style={detailsStyle}>
+          <Text style={[styles.kicker, { color: accentColor }]}>{kickerText}</Text>
+          <Text style={styles.message} numberOfLines={2}>{currentToast.message}</Text>
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[styles.progressFill, { backgroundColor: accentColor }, progressStyle]}
+            />
+          </View>
+        </Animated.View>
+      </View>
+    </Pressable>
+  );
+
   return (
     <View pointerEvents="box-none" style={[styles.host, { top: insets.top + 8 }]}>
       <Animated.View {...panResponder.panHandlers} style={wrapperStyle}>
         <Animated.View style={[styles.toastCard, cardStyle]}>
-          <Pressable
-            style={styles.pressArea}
-            accessibilityRole="alert"
-            onPress={() => {
-              dismissCurrentToast();
-              if (currentToast.onPress) {
-                currentToast.onPress();
-                return;
-              }
-              if (!canNavigate) return;
-              if (orderId) {
-                router.push({ pathname: '/order/[id]', params: { id: orderId } });
-              } else {
-                router.push('/notification');
-              }
-            }}>
-            <View
-              style={styles.content}
-              onLayout={(e) => {
-                contentHeight.value = e.nativeEvent.layout.height;
-              }}>
-              <View style={styles.headerRow}>
-                <View style={[styles.iconCircle, { backgroundColor: `${accentColor}26` }]}>
-                  <Ionicons name={icon} size={16} color={accentColor} />
-                </View>
-                <Text style={styles.title} numberOfLines={1}>{currentToast.title}</Text>
-              </View>
-              <Animated.View style={detailsStyle}>
-                <Text style={[styles.kicker, { color: accentColor }]}>{kickerText}</Text>
-                <Text style={styles.message} numberOfLines={2}>{currentToast.message}</Text>
-                <View style={styles.progressTrack}>
-                  <Animated.View
-                    style={[styles.progressFill, { backgroundColor: accentColor }, progressStyle]}
-                  />
-                </View>
-              </Animated.View>
-            </View>
-          </Pressable>
+          {cardContent}
         </Animated.View>
       </Animated.View>
     </View>

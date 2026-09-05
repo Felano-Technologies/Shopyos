@@ -1,5 +1,6 @@
 import { queryClient } from '@/lib/query/client';
 import { api, extractErrorMessage } from './client';
+import { uriToBlob } from './uploadUtils';
 
 export const getStoreProducts = async (storeId: string, params: any = {}) => {
   try {
@@ -143,13 +144,16 @@ export const updateProduct = async (productId: string, productData: any) => {
 export const uploadProductImages = async (productId: string, imageUris: string[]) => {
   try {
     const formData = new FormData();
-    imageUris.forEach((uri) => {
+    // Resolve all blobs in parallel, but append in the original order —
+    // display_order on the backend depends on FormData field insertion order.
+    const parts = await Promise.all(imageUris.map(async (uri) => {
       const filename = uri.split('/').pop();
       const match = /\.(\w+)$/.exec(filename || '');
       const type = match ? `image/${match[1]}` : 'image';
-      // @ts-ignore
-      formData.append('images', { uri, name: filename, type });
-    });
+      const blob = await uriToBlob(uri, type);
+      return { blob, filename };
+    }));
+    parts.forEach(({ blob, filename }) => formData.append('images', blob, filename));
     const response = await api.post(`/products/${productId}/images`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

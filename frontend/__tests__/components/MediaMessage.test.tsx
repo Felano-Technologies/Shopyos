@@ -13,9 +13,14 @@ jest.mock('@expo/vector-icons', () => {
   return { Ionicons: MockIcon };
 });
 
-jest.mock('expo-av', () => ({
-  Video: () => null,
-  ResizeMode: { CONTAIN: 'contain' },
+jest.mock('expo-video', () => ({
+  VideoView: () => null,
+  useVideoPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    muted: false,
+    volume: 1,
+  })),
 }));
 
 jest.mock('expo-image', () => {

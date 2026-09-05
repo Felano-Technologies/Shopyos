@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 
 interface VoiceMessageProps {
@@ -12,14 +12,14 @@ interface VoiceMessageProps {
 const NUM_BARS = 24;
 
 export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<VoiceMessageProps>) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [sound, setSound] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(durationMs);
   const [loading, setLoading] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
 
   // Generate a stable pseudo-random waveform shape from the URL
   const waveHeights = useMemo(() => {
@@ -50,22 +50,22 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
   useEffect(() => {
     return () => {
       if (sound) {
-        sound.unloadAsync().catch(() => {});
+        sound.remove();
         soundRef.current = null;
       }
     };
   }, [sound]);
 
-  const onPlaybackStatusUpdate = (status: any) => {
+  const onPlaybackStatusUpdate = (status: AudioStatus) => {
     if (status.isLoaded) {
-      setPosition(status.positionMillis);
-      if (status.durationMillis) setDuration(status.durationMillis);
+      setPosition(status.currentTime * 1000);
+      if (status.duration) setDuration(status.duration * 1000);
       // Don't derive isPlaying from status — it flickers false during buffering
       // and causes the timer to snap back to showing the static duration
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
-        if (soundRef.current) soundRef.current.setPositionAsync(0).catch(() => {});
+        if (soundRef.current) soundRef.current.seekTo(0).catch(() => {});
       }
     }
   };
@@ -75,22 +75,20 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
     try {
       if (sound) {
         if (isPlaying) {
-          await sound.pauseAsync();
+          sound.pause();
           setIsPlaying(false);
         } else {
-          await sound.playAsync();
+          sound.play();
           setIsPlaying(true);
         }
       } else {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
         });
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: url },
-          { shouldPlay: true },
-          onPlaybackStatusUpdate
-        );
+        const newSound = createAudioPlayer({ uri: url });
+        (newSound as any).addListener('playbackStatusUpdate', onPlaybackStatusUpdate);
+        newSound.play();
         soundRef.current = newSound;
         setSound(newSound);
         setIsPlaying(true);

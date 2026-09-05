@@ -22,6 +22,8 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GlassContainer } from 'expo-glass-effect';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCart } from '@/store/cartStore';
 import {
     getProductById,
@@ -413,14 +415,18 @@ export default function ProductDetails() {
 
             {/* Floating header — back & favourite buttons always visible */}
             <SafeAreaView edges={['top']} style={styles.floatingHeader} pointerEvents="box-none">
-                <View style={styles.headerOverlay}>
-                    <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.iconBtn}>
-                        <Ionicons name="arrow-back" size={24} color={C.navy} />
+                <GlassContainer style={styles.headerOverlay} spacing={0}>
+                    <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+                        <GlassSurface style={styles.iconBtn} isInteractive>
+                            <Ionicons name="arrow-back" size={24} color={C.navy} />
+                        </GlassSurface>
                     </TouchableOpacity>
-                    <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" onPress={toggleFavorite} style={styles.iconBtn}>
-                        <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : C.navy} />
+                    <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" onPress={toggleFavorite}>
+                        <GlassSurface style={styles.iconBtn} isInteractive>
+                            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : C.navy} />
+                        </GlassSurface>
                     </TouchableOpacity>
-                </View>
+                </GlassContainer>
             </SafeAreaView>
 
             {/* Single full-page ScrollView — image scrolls with content */}
@@ -573,7 +579,7 @@ export default function ProductDetails() {
                     <SimilarProductsRow productId={params.id as string} />
                 </ScrollView>
             {/* Bottom Action Bar */}
-            <View style={styles.bottomBar}>
+            <GlassSurface style={styles.bottomBar}>
                 {product.bargainingEnabled && !isOutOfStock ? (
                     /* ── Two-row layout when bargaining is available ── */
                     <>
@@ -638,7 +644,7 @@ export default function ProductDetails() {
                         </TouchableOpacity>
                     </>
                 )}
-            </View>
+            </GlassSurface>
             {/* --- REPLIES BOTTOM SHEET --- */}
             <ReviewCommentsSheet
                 visible={isCommentsVisible}
@@ -724,6 +730,10 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     variantChipActive: { borderColor: C.navy, backgroundColor: C.badgeBg },
     variantChipText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
     variantChipTextActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
+    // NOTE: if on-device testing shows the glass material doesn't clip to
+    // borderTopLeftRadius/borderTopRightRadius on its own, add overflow:'hidden'
+    // here — left out for now since it would also clip this style's Android
+    // elevation shadow in the (unchanged) non-glass fallback render.
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.card, flexDirection: 'column', paddingHorizontal: 16, paddingTop: 14, paddingBottom: Platform.OS === 'ios' ? 30 : 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 12, gap: 10 },
     bottomRow2: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     chatBtn: { width: 58, height: 54, justifyContent: 'center', alignItems: 'center', backgroundColor: C.surfaceElevated, borderRadius: 16 },

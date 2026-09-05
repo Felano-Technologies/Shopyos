@@ -23,6 +23,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GlassContainer } from 'expo-glass-effect';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import {
   startConversation,
   getBusinessById,
@@ -40,6 +43,8 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { ReportModal } from '../../components/ReportModal';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
@@ -253,6 +258,16 @@ export default function StoreDetailsScreen() {
   const [userComment, setUserComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewEligibilityVisible, setReviewEligibilityVisible] = useState(false);
+  // Backend requires review_terms acknowledgement (requireDisclaimer middleware)
+  // before accepting a store review — without this, every submission from
+  // this screen was silently rejected with a 403 the user had no way to act on.
+  const [reviewTerms, setReviewTerms] = useState<Disclaimer | null>(null);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  useEffect(() => {
+    getDisclaimerByType('review_terms').then(setReviewTerms).catch(() => null);
+  }, []);
   // --- Report Store ---
   const [reportVisible, setReportVisible] = useState(false);
   // --- Map Picker State ---
@@ -362,19 +377,25 @@ export default function StoreDetailsScreen() {
     setMapPickerVisible(false);
   };
   // --- Review Submission Logic ---
-  const handleSubmitReview = () => submitReview({
-    userRating,
-    userComment,
-    storeId: store.id as string,
-    paramsId: params.id as string,
-    setIsSubmittingReview,
-    setReviewModalVisible,
-    setUserRating,
-    setUserComment,
-    setReviewEligibilityVisible,
-    setStoreData,
-    fetchReviews,
-  });
+  const handleSubmitReview = () => {
+    if (reviewTerms && !isTermsChecked) {
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'Please agree to the Review Policy before submitting.' });
+      return;
+    }
+    submitReview({
+      userRating,
+      userComment,
+      storeId: store.id as string,
+      paramsId: params.id as string,
+      setIsSubmittingReview,
+      setReviewModalVisible,
+      setUserRating,
+      setUserComment,
+      setReviewEligibilityVisible,
+      setStoreData,
+      fetchReviews,
+    });
+  };
   const handleLikeReview = async (reviewId: string) => {
     try { await likeReview(reviewId); } catch (err) { console.error(err); }
   };
@@ -498,7 +519,7 @@ export default function StoreDetailsScreen() {
                 scrollEnabled={false}
               >
                 <UrlTile
-                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  urlTemplate={OSM_TILE_URL_TEMPLATE}
                   maximumZ={19}
                   flipY={false}
                   zIndex={-1}
@@ -512,11 +533,17 @@ export default function StoreDetailsScreen() {
                     </View>
                 </Marker>
               </MapView>
-              <TouchableOpacity accessibilityLabel="Get directions to store" accessibilityRole="button" style={styles.mapOverlayBtn} onPress={handleDirections}>
-                 <LinearGradient colors={[C.navy, C.navyMid]} style={styles.dirBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                    <Text style={styles.dirBtnText}>Get Directions</Text>
-                    <Feather name="navigation" size={14} color={C.textInverse} style={{ marginLeft: 8 }} />
-                 </LinearGradient>
+              <TouchableOpacity accessibilityLabel="Get directions to store" accessibilityRole="button" onPress={handleDirections}>
+                 {/* Gradient fully occludes the glass material when glass is active — this
+                     wrapping matches the plan's intent (colored glass CTA via tintColor),
+                     but the gradient opacity may need on-device tuning so the glass shows
+                     through instead of being fully hidden underneath it. */}
+                 <GlassSurface style={styles.mapOverlayBtn} tintColor={C.navy} isInteractive>
+                   <LinearGradient colors={[C.navy, C.navyMid]} style={styles.dirBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                      <Text style={styles.dirBtnText}>Get Directions</Text>
+                      <Feather name="navigation" size={14} color={C.textInverse} style={{ marginLeft: 8 }} />
+                   </LinearGradient>
+                 </GlassSurface>
               </TouchableOpacity>
             </View>
           </View>
@@ -582,20 +609,30 @@ export default function StoreDetailsScreen() {
             style={styles.coverOverlay}
           />
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
-            <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <GlassContainer style={{ flexDirection: 'row' }} spacing={0}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()}>
+                <GlassSurface style={styles.iconBtn} isInteractive><Ionicons name="arrow-back" size={24} color="#FFF" /></GlassSurface>
+              </TouchableOpacity>
+            </GlassContainer>
+            <GlassContainer style={{ flexDirection: 'row', gap: 10 }} spacing={0}>
                {store.phone ? (
-                 <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" style={styles.iconBtn} onPress={() => Linking.openURL(`tel:${store.phone}`)}>
-                    <Ionicons name="call-outline" size={22} color="#FFF" />
+                 <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" onPress={() => Linking.openURL(`tel:${store.phone}`)}>
+                    <GlassSurface style={styles.iconBtn} isInteractive>
+                      <Ionicons name="call-outline" size={22} color="#FFF" />
+                    </GlassSurface>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity accessibilityLabel="Share store" accessibilityRole="button" style={styles.iconBtn} onPress={handleShare}>
-                  <Ionicons name="share-social-outline" size={22} color="#FFF" />
+                <TouchableOpacity accessibilityLabel="Share store" accessibilityRole="button" onPress={handleShare}>
+                  <GlassSurface style={styles.iconBtn} isInteractive>
+                    <Ionicons name="share-social-outline" size={22} color="#FFF" />
+                  </GlassSurface>
                 </TouchableOpacity>
-                <TouchableOpacity accessibilityLabel="Report store" accessibilityRole="button" style={styles.iconBtn} onPress={() => setReportVisible(true)}>
-                  <Ionicons name="flag-outline" size={22} color="#EF4444" />
+                <TouchableOpacity accessibilityLabel="Report store" accessibilityRole="button" onPress={() => setReportVisible(true)}>
+                  <GlassSurface style={styles.iconBtn} isInteractive>
+                    <Ionicons name="flag-outline" size={22} color="#EF4444" />
+                  </GlassSurface>
                 </TouchableOpacity>
-            </View>
+            </GlassContainer>
           </SafeAreaView>
         </View>
         <View style={styles.profileSection}>
@@ -733,11 +770,32 @@ export default function StoreDetailsScreen() {
                   onChangeText={setUserComment}
                 />
               </View>
-              <TouchableOpacity 
+              {reviewTerms && (
+                <TouchableOpacity
+                  accessibilityLabel="Agree to review policy"
+                  accessibilityRole="checkbox"
+                  style={styles.disclaimerRow}
+                  activeOpacity={0.7}
+                  onPress={async () => {
+                    if (isTermsChecked) { setIsTermsChecked(false); return; }
+                    try { await acknowledgeDisclaimer('review_terms', reviewTerms.version); setIsTermsChecked(true); }
+                    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                  }}
+                >
+                  <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                    {isTermsChecked && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
+                  </View>
+                  <Text style={styles.disclaimerText}>
+                    I agree to the{' '}
+                    <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>Review Policy</Text>
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
                 accessibilityLabel="Submit review"
                 accessibilityRole="button"
-                style={[styles.submitReviewBtn, (isSubmittingReview || userRating === 0) && { opacity: 0.6 }]} 
-                onPress={handleSubmitReview} 
+                style={[styles.submitReviewBtn, (isSubmittingReview || userRating === 0) && { opacity: 0.6 }]}
+                onPress={handleSubmitReview}
                 disabled={isSubmittingReview || userRating === 0}
               >
                 <LinearGradient colors={[C.navy, C.navyMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
@@ -748,6 +806,12 @@ export default function StoreDetailsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <DisclaimerModal
+        type="review_terms"
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+      />
       <Modal
         visible={reviewEligibilityVisible}
         animationType="fade"
@@ -800,7 +864,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   headerContainer: { height: 180, width: '100%', position: 'relative' },
   coverImage: { width: '100%', height: '100%' },
-  coverOverlay: { ...StyleSheet.absoluteFillObject },
+  coverOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   safeHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
   headerTitleWrap: { position: 'absolute', left: 16, right: 16, bottom: 14 },
@@ -849,7 +913,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   infoLabelText: { fontSize: 11, color: C.subtle, fontFamily: 'Montserrat-Medium' },
   infoValueText: { fontSize: 14, color: C.body, fontFamily: 'Montserrat-SemiBold' },
   mapWrapper: { height: 220, borderRadius: 24, overflow: 'hidden', marginBottom: 30, borderWidth: 1, borderColor: C.borderStrong },
-  map: { ...StyleSheet.absoluteFillObject },
+  map: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   customMarker: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.navy, borderWidth: 2, borderColor: '#FFF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   markerLogo: { width: '100%', height: '100%' },
   mapOverlayBtn: { position: 'absolute', bottom: 15, left: 15, right: 15, borderRadius: 12, overflow: 'hidden' },
@@ -894,6 +958,11 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   inputHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   charCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.subtle },
   modalInput: { width: '100%', backgroundColor: C.surfaceElevated, borderRadius: 16, padding: 16, height: 120, textAlignVertical: 'top', fontFamily: 'Montserrat-Medium', fontSize: 15, color: C.body, borderWidth: 1.5, borderColor: C.borderStrong, marginTop: 8 },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: C.borderStrong, justifyContent: 'center', alignItems: 'center' },
+  disclaimerBoxChecked: { backgroundColor: C.navy, borderColor: C.navy },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+  disclaimerLink: { color: C.navy, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   submitReviewBtn: { width: '100%', borderRadius: 18, overflow: 'hidden' },
   submitGradient: { paddingVertical: 18, justifyContent: 'center', alignItems: 'center' },
   submitReviewText: { color: C.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 16 },

@@ -16,6 +16,7 @@ import { useMyCampaigns, useCreateCampaign, useActiveBusiness, useStoreProducts 
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { uriToBlob } from '@/services/uploadUtils';
 import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -110,7 +111,7 @@ export default function PromotionsScreen() {
     const uri = await showImagePicker({ allowsEditing: true, aspect: [2.24, 1], quality: 1 });
     if (uri) setBannerUri(uri);
   };
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!adTitle || !bannerUri) return;
     if (campaignType === 'product' && !selectedProduct) {
       CustomInAppToast.show({ type: 'error', title: 'Product Required', message: 'Please select a product for your campaign.' });
@@ -131,7 +132,8 @@ export default function PromotionsScreen() {
     const filename = bannerUri.split('/').pop();
     const match = /\.(\w+)$/.exec(filename || '');
     const type = match ? `image/${match[1]}` : 'image';
-    formData.append('banner', { uri: bannerUri, name: filename, type } as any);
+    const blob = await uriToBlob(bannerUri, type);
+    formData.append('banner', blob, filename);
 
     createCampaignMutation.mutate(formData, {
       onSuccess: () => {

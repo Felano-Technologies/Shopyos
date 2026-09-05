@@ -4,7 +4,7 @@ import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useSnapFeed } from '@/hooks/useSnaps';
 
 export const SnapsRow = () => {
@@ -48,13 +48,7 @@ export const SnapsRow = () => {
           <View style={styles.imageContainer}>
             {previewUrl ? (
               isVideoUrl(previewUrl) ? (
-                <Video
-                  source={{ uri: previewUrl }}
-                  style={styles.image}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={false}
-                  isMuted={true}
-                />
+                <SnapVideoThumbnail uri={previewUrl} style={styles.image} />
               ) : (
                 <AppImage uri={previewUrl} style={styles.image} />
               )
@@ -96,6 +90,22 @@ export const SnapsRow = () => {
         renderItem={renderItem}
       />
     </View>
+  );
+};
+
+const SnapVideoThumbnail = ({ uri, style }: Readonly<{ uri: string; style: any }>) => {
+  const player = useVideoPlayer({ uri }, (p) => {
+    p.muted = true;
+    p.pause();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={style}
+      contentFit="cover"
+      nativeControls={false}
+    />
   );
 };
 

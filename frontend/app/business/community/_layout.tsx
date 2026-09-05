@@ -1,9 +1,9 @@
 // app/business/community/_layout.tsx
 import React, { useState, useMemo } from 'react';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { TopTabs as MaterialTopTabs } from 'expo-router/js-top-tabs';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { useRouter, withLayoutContext } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,11 +17,6 @@ const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
-const { Navigator } = createMaterialTopTabNavigator();
-
-// Bridge Expo Router with Top Tabs
-export const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function CommunityLayout() {
   const router = useRouter();

@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { getAllStores } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 const { width, height } = Dimensions.get('window');
 const CARD_W   = width * 0.72;
 const CARD_GAP = 12;
@@ -133,54 +134,86 @@ export default function StoresMap() {
       ])
     ).start();
   }, [pulseAnim]);
+  // ── Load stores near a given point (server-side radius filter — the app no
+  // longer downloads every store and filters in JS) ──────────────────────────
+  const FETCH_RADIUS_KM = 15; // wide enough to cover every RADIUS_OPTIONS value client-side
+  const fetchStoresNear = useCallback(async (coords: { latitude: number; longitude: number }) => {
+    const res = await getAllStores({ lat: coords.latitude, lng: coords.longitude, radiusKm: FETCH_RADIUS_KM, limit: 100 });
+    if (!res.success) return;
+    const mapped: StoreItem[] = (res.businesses || [])
+      // Stores without real coordinates can't be placed on the map or given a
+      // real distance — skip them instead of scattering them at fake positions.
+      .filter((b: any) => b.latitude != null && b.longitude != null)
+      .map((b: any, i: number) => {
+        const lat = Number.parseFloat(b.latitude);
+        const lng = Number.parseFloat(b.longitude);
+        return {
+          id:          b.id,
+          name:        b.name        || 'Unknown Store',
+          category:    b.category    || 'General',
+          rating:      toNumber(b.rating, 0),
+          reviewCount: toNumber(b.reviewCount, 0),
+          logo:        b.logo        || null,
+          catalogues:  toNumber(b.catalogues, 0),
+          verified:    b.verified    || false,
+          latitude:    lat,
+          longitude:   lng,
+          distanceKm:  haversineKm(coords.latitude, coords.longitude, lat, lng),
+          colorIdx:    i % FALLBACK_COLORS.length,
+        };
+      });
+    // Sort by distance — nearest first, just like Snapchat's map
+    mapped.sort((a, b) => a.distanceKm - b.distanceKm);
+    setAllStores(mapped);
+  }, []);
+
   // ── Load location + stores ──────────────────────────────────────────────────
+  // Don't block the first render on a precise GPS fix (that's the slow part —
+  // often a few seconds). Show something immediately using the last-known
+  // position (usually instant) or the city fallback, then refine quietly once
+  // the accurate position resolves, only refetching if it actually moved far
+  // enough to change which stores are nearby.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      const fallback = { latitude: 6.6745, longitude: -1.5716 }; // Kumasi fallback
       try {
         const { status } = await requestForegroundLocationWithDisclosure();
-        let coords = { latitude: 6.6745, longitude: -1.5716 }; // Kumasi fallback
+
+        let quickCoords = fallback;
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          try {
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            if (lastKnown) {
+              quickCoords = { latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude };
+            }
+          } catch {
+            // fall through to fallback coords
+          }
         }
-        setUserCoords(coords);
-        const res = await getAllStores({});
-        if (res.success) {
-          const mapped: StoreItem[] = (res.businesses || []).map((b: any, i: number) => {
-            // Use real coordinates if present, otherwise scatter near user
-            // (remove the fallback scatter in production — all stores should have coords)
-            const lat = b.latitude  ? Number.parseFloat(b.latitude)
-              : coords.latitude  + (Math.random() - 0.5) * 0.04;
-            const lng = b.longitude ? Number.parseFloat(b.longitude)
-              : coords.longitude + (Math.random() - 0.5) * 0.04;
-            return {
-              id:          b.id,
-              name:        b.name        || 'Unknown Store',
-              category:    b.category    || 'General',
-              rating:      toNumber(b.rating, 0),
-              reviewCount: toNumber(b.reviewCount, 0),
-              logo:        b.logo        || null,
-              catalogues:  toNumber(b.catalogues, 0),
-              verified:    b.verified    || false,
-              latitude:    lat,
-              longitude:   lng,
-              distanceKm:  haversineKm(coords.latitude, coords.longitude, lat, lng),
-              colorIdx:    i % FALLBACK_COLORS.length,
-            };
-          });
-          // Sort by distance — nearest first, just like Snapchat's map
-          mapped.sort((a, b) => a.distanceKm - b.distanceKm);
-          setAllStores(mapped);
+        if (cancelled) return;
+        setUserCoords(quickCoords);
+        await fetchStoresNear(quickCoords);
+        if (cancelled) return;
+        setLoading(false);
+
+        if (status === 'granted') {
+          // Refine in the background — no loading spinner, no blocking the UI.
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (cancelled) return;
+          const preciseCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setUserCoords(preciseCoords);
+          if (haversineKm(quickCoords.latitude, quickCoords.longitude, preciseCoords.latitude, preciseCoords.longitude) > 0.5) {
+            await fetchStoresNear(preciseCoords);
+          }
         }
       } catch (err) {
         console.error('StoresMap init error:', err);
-      } finally {
         setLoading(false);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [fetchStoresNear]);
   // ── Apply filters (radius + category + search) ─────────────────────────────
   useEffect(() => {
     let result = allStores.filter((s) => s.distanceKm <= radiusKm);
@@ -277,7 +310,7 @@ export default function StoresMap() {
         showsCompass={false}
       >
         <UrlTile
-          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          urlTemplate={OSM_TILE_URL_TEMPLATE}
           maximumZ={19}
           flipY={false}
           zIndex={-1}

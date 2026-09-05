@@ -3,6 +3,7 @@ import {
   View, Text, Modal, Pressable, TouchableOpacity, StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 interface ConfirmAction {
   label: string;
@@ -35,7 +36,7 @@ export function ConfirmModal({ visible, onClose, title, message, icon, actions }
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.card}>
+        <GlassSurface style={styles.card}>
           {icon ? (
             <View style={styles.iconWrap}>
               <Text style={styles.icon}>{icon}</Text>
@@ -73,7 +74,7 @@ export function ConfirmModal({ visible, onClose, title, message, icon, actions }
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );

@@ -28,6 +28,7 @@ import {
 } from '@/src/background/controller';
 import { fetchDrivingRoute, haversineMetres } from '@/services/delivery';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
@@ -289,7 +290,7 @@ export default function ActiveOrderScreen() {
           showsUserLocation={false}
         >
           <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            urlTemplate={OSM_TILE_URL_TEMPLATE}
             maximumZ={19}
             flipY={false}
             zIndex={-1}

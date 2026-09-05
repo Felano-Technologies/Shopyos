@@ -1,4 +1,5 @@
 import { api, extractErrorMessage } from './client';
+import { uriToBlob } from './uploadUtils';
 
 export const createCampaign = async (campaignData: any) => {
   try {
@@ -105,7 +106,8 @@ export const uploadSnapImage = async (uri: string, onProgress?: (progress: numbe
       }
     }
 
-    formData.append('image', { uri, name: filename, type } as any);
+    const blob = await uriToBlob(uri, type);
+    formData.append('image', blob, filename);
     const response = await api.post('/upload/single?folder=shopyos/snaps', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {

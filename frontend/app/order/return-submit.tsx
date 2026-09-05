@@ -24,6 +24,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { createReturnRequest } from '@/services/orders';
+import { uriToBlob } from '@/services/uploadUtils';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -163,11 +164,11 @@ export default function ReturnSubmitScreen() {
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : `image`;
 
-      formData.append('image', {
-        uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
-        name: filename,
-        type,
-      } as any);
+      // fetch() (used by uriToBlob) needs the full file:// URI on both
+      // platforms — no more stripping it for iOS, that was only needed for
+      // the old RN FormData shorthand's native resolution.
+      const blob = await uriToBlob(uri, type);
+      formData.append('image', blob, filename);
 
       const res = await api.post('/upload/single?folder=shopyos/returns', formData, {
         headers: {

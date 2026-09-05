@@ -9,8 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { viewSnap } from '@/services/api';
 import { Image } from 'expo-image';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import * as FileSystem from 'expo-file-system';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width } = Dimensions.get('window');
 const SNAP_DURATION = 10000; // 10 seconds per snap
@@ -273,9 +274,9 @@ export default function SnapViewer() {
           {/* Central Play/Pause Overlay */}
           {isPaused && (
             <TouchableOpacity style={styles.pausedOverlay} onPress={togglePlayPause} activeOpacity={0.95}>
-              <View style={styles.playIconCircle}>
+              <GlassSurface style={styles.playIconCircle} isInteractive>
                 <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 3 }} />
-              </View>
+              </GlassSurface>
             </TouchableOpacity>
           )}
 
@@ -310,8 +311,10 @@ export default function SnapViewer() {
               </Text>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity onPress={togglePlayPause} style={styles.headerBtn} activeOpacity={0.8}>
-                <Ionicons name={isPaused ? "play" : "pause"} size={20} color="#FFF" />
+              <TouchableOpacity onPress={togglePlayPause} activeOpacity={0.8}>
+                <GlassSurface style={styles.headerBtn} isInteractive>
+                  <Ionicons name={isPaused ? "play" : "pause"} size={20} color="#FFF" />
+                </GlassSurface>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
                 <Ionicons name="close" size={28} color="#FFF" />
@@ -370,7 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
@@ -442,7 +445,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   touchArea: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     zIndex: 5,
   },
   bottomContent: {
@@ -493,7 +496,7 @@ const styles = StyleSheet.create({
     height: 36,
   },
   pausedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -519,17 +522,37 @@ const VideoPlayer = React.memo(({ mediaUrl, isPaused, onLoad, onReadyForDisplay,
   onReadyForDisplay: () => void;
   onError: (err: any) => void;
 }) => {
+  const player = useVideoPlayer({ uri: mediaUrl }, (p) => {
+    p.loop = true;
+    p.muted = false;
+  });
+
+  useEffect(() => {
+    const subscription = player.addListener('statusChange', (payload) => {
+      if (payload.status === 'readyToPlay') {
+        onLoad();
+        onReadyForDisplay();
+      } else if (payload.status === 'error') {
+        onError(payload.error);
+      }
+    });
+    return () => subscription.remove();
+  }, [player, onLoad, onReadyForDisplay, onError]);
+
+  useEffect(() => {
+    if (isPaused) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  }, [isPaused, player]);
+
   return (
-    <Video
-      source={{ uri: mediaUrl }}
+    <VideoView
+      player={player}
       style={styles.media}
-      resizeMode={ResizeMode.COVER}
-      shouldPlay={!isPaused}
-      isLooping
-      isMuted={false}
-      onLoad={onLoad}
-      onReadyForDisplay={onReadyForDisplay}
-      onError={onError}
+      contentFit="cover"
+      nativeControls={false}
     />
   );
 }, (prevProps, nextProps) => {

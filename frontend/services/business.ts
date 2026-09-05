@@ -1,4 +1,5 @@
 import { api, extractErrorMessage, secureStorage, storage } from './client';
+import { uriToBlob } from './uploadUtils';
 
 export const uploadStoreLogo = async (uri: string) => {
   try {
@@ -7,7 +8,8 @@ export const uploadStoreLogo = async (uri: string) => {
     const match = /\.(\w+)$/.exec(filename);
     const ext = match ? match[1] : null;
     const type = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
-    formData.append('logo', { uri, name: filename, type } as any);
+    const blob = await uriToBlob(uri, type);
+    formData.append('logo', blob, filename);
     const response = await api.post('/upload/store-logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -21,19 +23,20 @@ export const uploadStoreLogo = async (uri: string) => {
 export const businessRegister = async (businessData: any) => {
   try {
     const formData = new FormData();
-    Object.keys(businessData).forEach(key => {
+    for (const key of Object.keys(businessData)) {
       if (businessData[key] !== undefined && businessData[key] !== null) {
         if (typeof businessData[key] === 'string' && businessData[key].startsWith('file://')) {
           const uri = businessData[key];
           const filename = uri.split('/').pop() || 'upload.jpg';
           const match = /\.(\w+)$/.exec(filename);
           const type = match ? `image/${match[1]}` : 'image/jpeg';
-          formData.append(key, { uri, name: filename, type } as any);
+          const blob = await uriToBlob(uri, type);
+          formData.append(key, blob, filename);
         } else {
           formData.append(key, businessData[key]);
         }
       }
-    });
+    }
     const response = await api.post('/business/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -62,20 +65,21 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
     const formData = new FormData();
     let hasFiles = false;
     const isLocalFileUri = (value: string) => /^(file|content|ph|assets-library):\/\//i.test(value);
-    Object.keys(updateData).forEach(key => {
+    for (const key of Object.keys(updateData)) {
       const value = updateData[key];
       if (value !== undefined && value !== null) {
         if (typeof value === 'string' && isLocalFileUri(value)) {
           const name = value.split('/').pop() || 'upload.jpg';
           const match = /\.(\w+)$/.exec(name);
           const type = match ? `image/${match[1]}` : 'image/jpeg';
-          formData.append(key, { uri: value, name, type } as any);
+          const blob = await uriToBlob(value, type);
+          formData.append(key, blob, name);
           hasFiles = true;
         } else {
           formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
         }
       }
-    });
+    }
     const config = hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
     const response = await api.put(`/business/update/${businessId}`, hasFiles ? formData : updateData, config);
     return response.data;
@@ -99,7 +103,7 @@ export const getBusinessById = async (id: string) => {
 };
 
 export const getAllStores = async (
-  params: { search?: string; category?: string; sortBy?: string; limit?: number; offset?: number; verified?: string } = {}
+  params: { search?: string; category?: string; sortBy?: string; limit?: number; offset?: number; verified?: string; lat?: number; lng?: number; radiusKm?: number } = {}
 ) => {
   try {
     const response = await api.get('/business/all', { params });

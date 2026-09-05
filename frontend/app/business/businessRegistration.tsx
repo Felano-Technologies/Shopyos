@@ -28,6 +28,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import MapView, { UrlTile } from '@/components/MapView';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 const GHANA_REGIONS = [
@@ -327,7 +328,7 @@ export default function BusinessRegistrationScreen() {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <View style={styles.bottomLogos}>
           <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
@@ -445,7 +446,7 @@ export default function BusinessRegistrationScreen() {
             }}
           >
             <UrlTile
-              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              urlTemplate={OSM_TILE_URL_TEMPLATE}
               maximumZ={19}
               flipY={false}
               zIndex={-1}
@@ -557,7 +558,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mapMarkerFixed: { position: 'absolute', top: '50%', left: '50%', marginLeft: -24, marginTop: -48, alignItems: 'center', zIndex: 1 },
   markerCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFF', elevation: 10 },
   markerArrow: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 12, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#0C1559', transform: [{ rotate: '180deg' }], marginTop: -2 },
-  mapOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', padding: 20 },
+  mapOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'space-between', padding: 20 },
 
   // New Search Styles
   mapSearchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },

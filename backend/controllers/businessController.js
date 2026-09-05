@@ -1175,7 +1175,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 // @access  Private (Logged in user)
 const getAllBusinesses = async (req, res, next) => {
   try {
-    const { search, category, sortBy = 'rating', limit = 20, offset = 0 } = req.query;
+    const { search, category, sortBy = 'rating', limit = 20, offset = 0, lat, lng, radiusKm } = req.query;
 
     const limitNum = Number.parseInt(limit);
     const offsetNum = Number.parseInt(offset);
@@ -1188,6 +1188,25 @@ const getAllBusinesses = async (req, res, next) => {
     };
     const sort = sortConfig[sortBy] || sortConfig.rating;
 
+    // Optional geo bounding-box pre-filter (approximate square, not a true
+    // circle — cheap without PostGIS, and "good enough" since the client
+    // still re-checks exact distance with the haversine formula it already
+    // has). ~111km per degree of latitude; longitude degrees shrink with
+    // latitude, so divide by cos(lat) to keep the box roughly square in km.
+    const userLat = Number.parseFloat(lat);
+    const userLng = Number.parseFloat(lng);
+    const radius = Number.parseFloat(radiusKm);
+    const hasGeoFilter = Number.isFinite(userLat) && Number.isFinite(userLng) && Number.isFinite(radius) && radius > 0;
+    let latMin, latMax, lngMin, lngMax;
+    if (hasGeoFilter) {
+      const latDelta = radius / 111;
+      const lngDelta = radius / (111 * Math.cos((userLat * Math.PI) / 180) || 1);
+      latMin = userLat - latDelta;
+      latMax = userLat + latDelta;
+      lngMin = userLng - lngDelta;
+      lngMax = userLng + lngDelta;
+    }
+
     // --- Data query ---
     let dataQuery = repositories.stores.db
       .from('stores')
@@ -1196,6 +1215,8 @@ const getAllBusinesses = async (req, res, next) => {
         store_name,
         category,
         logo_url,
+        latitude,
+        longitude,
         average_rating,
         total_reviews,
         is_verified,
@@ -1218,6 +1239,12 @@ const getAllBusinesses = async (req, res, next) => {
       dataQuery = dataQuery.eq('category', category);
     }
 
+    if (hasGeoFilter) {
+      dataQuery = dataQuery
+        .gte('latitude', latMin).lte('latitude', latMax)
+        .gte('longitude', lngMin).lte('longitude', lngMax);
+    }
+
     // Apply sorting and pagination
     dataQuery = dataQuery
       .order(sort.column, { ascending: sort.ascending })
@@ -1235,6 +1262,11 @@ const getAllBusinesses = async (req, res, next) => {
     }
     if (category && category !== 'All') {
       countQuery = countQuery.eq('category', category);
+    }
+    if (hasGeoFilter) {
+      countQuery = countQuery
+        .gte('latitude', latMin).lte('latitude', latMax)
+        .gte('longitude', lngMin).lte('longitude', lngMax);
     }
 
     // Execute both in parallel
@@ -1269,6 +1301,8 @@ const getAllBusinesses = async (req, res, next) => {
       name: s.store_name,
       category: s.category,
       logo: await resolveImageUrl(s.logo_url) || null,
+      latitude: s.latitude,
+      longitude: s.longitude,
       rating: s.average_rating || 0,
       reviewCount: s.total_reviews || 0,
       verified: s.is_verified || false,

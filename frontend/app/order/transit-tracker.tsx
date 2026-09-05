@@ -14,6 +14,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { getTransitInfo, requestLastMile, getDisclaimerByType, acknowledgeDisclaimer } from '@/services/api';
 import { socketService } from '@/services/socket';
 import { getLatestLocation } from '@/services/delivery';
@@ -37,7 +38,7 @@ type LegacyPalette = {
 
 function buildC(colors: ThemeColors): LegacyPalette {
   return {
-    bg: colors.backgroundAlt,
+    bg: colors.background,
     navy: colors.primary,
     headerBg: colors.headerGradient[0],
     card: colors.surface,
@@ -333,7 +334,7 @@ export default function TransitTrackerScreen() {
                 longitudeDelta: 1.5,
               }}
             >
-              <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} zIndex={-1} />
+              <UrlTile urlTemplate={OSM_TILE_URL_TEMPLATE} maximumZ={19} flipY={false} zIndex={-1} />
               {routeCoords.length > 1 && (
                 <Polyline coordinates={routeCoords} strokeColor="#3B82F6" strokeWidth={3} lineDashPattern={[6, 6]} />
               )}
@@ -591,7 +592,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     borderColor: C.borderStrong,
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
   },
   pin: {
     width: 30,

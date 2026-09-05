@@ -2,7 +2,7 @@
  * __tests__/hooks/useNotifications.test.ts
  *
  * Unit tests for the useNotifications hooks system.
- * TanStack query, socket.io-client, expo-av, expo-haptics, and InAppToast are mocked.
+ * TanStack query, socket.io-client, expo-audio, expo-haptics, and InAppToast are mocked.
  * Conforms to guidelines/test.md.
  */
 
@@ -43,18 +43,16 @@ jest.mock('expo-router', () => ({
   usePathname: jest.fn().mockReturnValue('/home'),
 }));
 
-// Mock expo-av Sound
-const mockSoundInstance = {
-  setOnPlaybackStatusUpdate: jest.fn(),
-  unloadAsync: jest.fn(),
+// Mock expo-audio player
+const mockAudioPlayerInstance = {
+  volume: 1,
+  play: jest.fn(),
+  remove: jest.fn(),
+  addListener: jest.fn(() => ({ remove: jest.fn() })),
 };
-jest.mock('expo-av', () => ({
+jest.mock('expo-audio', () => ({
   __esModule: true,
-  Audio: {
-    Sound: {
-      createAsync: jest.fn().mockResolvedValue({ sound: mockSoundInstance }),
-    },
-  },
+  createAudioPlayer: jest.fn(() => mockAudioPlayerInstance),
 }));
 
 // Mock expo-haptics
@@ -80,7 +78,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
 import { usePathname } from 'expo-router';
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 

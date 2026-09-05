@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, Vibration } from 'react-native';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  setAudioModeAsync,
+  createAudioPlayer,
+  type AudioPlayer,
+} from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -15,10 +21,16 @@ const NUM_BARS = 28;
 const MAX_DURATION = 120; // seconds
 
 export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecorderProps>) {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recordingOptions = useMemo(() => ({
+    ...RecordingPresets.HIGH_QUALITY,
+    isMeteringEnabled: true,
+    numberOfChannels: 1,
+    bitRate: 96000,
+  }), []);
+  const recorder = useAudioRecorder(recordingOptions);
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [soundPreview, setSoundPreview] = useState<Audio.Sound | null>(null);
+  const [soundPreview, setSoundPreview] = useState<AudioPlayer | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -61,10 +73,10 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   // Cleanup audio resources when they change or on unmount
   useEffect(() => {
     return () => {
-      if (recording) recording.stopAndUnloadAsync().catch(() => {});
-      if (soundPreview) soundPreview.unloadAsync().catch(() => {});
+      if (recorder.isRecording) recorder.stop().catch(() => {});
+      if (soundPreview) soundPreview.remove();
     };
-  }, [recording, soundPreview]);
+  }, [recorder, soundPreview]);
 
   // Start recording
   const startRecording = async () => {
@@ -80,29 +92,15 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
       // Use HIGH_QUALITY preset (proven to work in Expo Go) with mono override
-      const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY;
-      const { recording: newRecording } = await Audio.Recording.createAsync({
-        ...preset,
-        isMeteringEnabled: true,
-        android: {
-          ...preset.android,
-          numberOfChannels: 1,
-          bitRate: 96000,
-        },
-        ios: {
-          ...preset.ios,
-          numberOfChannels: 1,
-          bitRate: 96000,
-        },
-      });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      setRecording(newRecording);
       setIsRecording(true);
       setDuration(0);
       durationRef.current = 0;
@@ -128,9 +126,9 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       }, 1000);
 
       // Metering — reads dB levels and animates bars
-      meteringRef.current = setInterval(async () => {
+      meteringRef.current = setInterval(() => {
         try {
-          const status = await newRecording.getStatusAsync();
+          const status = recorder.getStatus();
           if (status.isRecording && status.metering !== undefined) {
             // metering is in dB, typically -160 to 0
             const db = status.metering;
@@ -169,17 +167,16 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
 
   // Stop recording
   const stopRecordingAndPreview = async () => {
-    if (!recording) return;
+    if (!recorder.isRecording) return;
 
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (meteringRef.current) { clearInterval(meteringRef.current); meteringRef.current = null; }
 
     try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+      await recorder.stop();
+      const uri = recorder.uri;
       if (__DEV__) console.log('[VoiceRecorder] Stopped. URI:', uri);
       setIsRecording(false);
-      setRecording(null);
       if (uri) {
         setRecordedUri(uri);
         setPlaybackDuration(durationRef.current * 1000);
@@ -196,7 +193,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   // Discard
   const discardRecording = async () => {
     if (soundPreview) {
-      await soundPreview.unloadAsync();
+      soundPreview.remove();
       setSoundPreview(null);
     }
     setIsPlayingPreview(false);
@@ -217,32 +214,30 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
 
     if (soundPreview) {
       if (isPlayingPreview) {
-        await soundPreview.pauseAsync();
+        soundPreview.pause();
         setIsPlayingPreview(false);
       } else {
-        await soundPreview.playAsync();
+        soundPreview.play();
         setIsPlayingPreview(true);
       }
     } else {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: recordedUri },
-        { shouldPlay: true }
-      );
+      const sound = createAudioPlayer({ uri: recordedUri });
+      sound.play();
       setSoundPreview(sound);
       setIsPlayingPreview(true);
 
-      sound.setOnPlaybackStatusUpdate((status: any) => {
+      (sound as any).addListener('playbackStatusUpdate', (status: any) => {
         if (status.isLoaded) {
-          setPlaybackPosition(status.positionMillis || 0);
-          if (status.durationMillis) setPlaybackDuration(status.durationMillis);
+          setPlaybackPosition((status.currentTime || 0) * 1000);
+          if (status.duration) setPlaybackDuration(status.duration * 1000);
           if (status.didJustFinish) {
             setIsPlayingPreview(false);
             setPlaybackPosition(0);
-            sound.setPositionAsync(0).catch(() => {});
+            sound.seekTo(0).catch(() => {});
           }
         }
       });
@@ -254,7 +249,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
     if (!recordedUri) return;
     try {
       if (soundPreview) {
-        await soundPreview.unloadAsync();
+        soundPreview.remove();
         setSoundPreview(null);
       }
       onSend(recordedUri, duration * 1000);

@@ -207,7 +207,21 @@ const { data: notifData } = useUnreadNotificationCount(false);
 
   // Old spotlight tour removed — the once-ever <WelcomeCard /> replaces it
   const scrollY = useRef(new Animated.Value(0)).current;
+  const exploreListRef = useRef<Animated.FlatList<any>>(null);
   const { user } = useOnboarding();
+
+  // Nudge for stale cached data: once the buyer has scrolled well past the
+  // top (easy to forget the pull-to-refresh gesture exists), show a small
+  // "Refresh for new content" pill so they can get fresh data instantly
+  // instead of unknowingly browsing a cached feed indefinitely.
+  const [showRefreshPill, setShowRefreshPill] = useState(false);
+  const REFRESH_PILL_SHOW_AT = Dimensions.get('window').height * 1.5;
+  const REFRESH_PILL_HIDE_BELOW = 200;
+  const handleExploreScroll = useCallback((e: any) => {
+    const y = e.nativeEvent.contentOffset.y;
+    if (y > REFRESH_PILL_SHOW_AT) setShowRefreshPill(true);
+    else if (y < REFRESH_PILL_HIDE_BELOW) setShowRefreshPill(false);
+  }, [REFRESH_PILL_SHOW_AT]);
 
   // ── User name ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -223,6 +237,12 @@ const { data: notifData } = useUnreadNotificationCount(false);
   // ── Handlers ───────────────────────────────────────────────────────────────────
   const onRefresh = async () =>
     Promise.all([refetchRecent(), refetchDeals(), refetchTrending(), refetchExplore()]);
+
+  const handleRefreshPillPress = useCallback(() => {
+    setShowRefreshPill(false);
+    exploreListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    onRefresh();
+  }, []);
 
   const goToDetails = useCallback((item: any) =>
     safePush('/product/details', {
@@ -446,9 +466,10 @@ const { data: notifData } = useUnreadNotificationCount(false);
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
               tintColor={C.navy} colors={[C.navy]} />
           }
+          ref={exploreListRef}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
+            { useNativeDriver: true, listener: handleExploreScroll }
           )}
           scrollEventThrottle={16}
           onEndReached={() => { if (hasMoreExplore && !fetchingMoreExplore) fetchMoreExplore(); }}
@@ -613,6 +634,21 @@ const { data: notifData } = useUnreadNotificationCount(false);
           }
         />
 
+        {/* ── Stale-data nudge — appears once the buyer has scrolled well past
+            the top, since cached data can otherwise go unrefreshed indefinitely */}
+        {showRefreshPill && (
+          <TouchableOpacity
+            accessibilityLabel="Refresh for new content"
+            accessibilityRole="button"
+            style={[S.refreshPill, { top: insets.top + 118 }]}
+            activeOpacity={0.85}
+            onPress={handleRefreshPillPress}
+          >
+            <Ionicons name="refresh" size={14} color="#fff" />
+            <Text style={S.refreshPillTxt}>Refresh for new content</Text>
+          </TouchableOpacity>
+        )}
+
         {/* ── Chat FAB ─────────────────────────────────────────────────────── */}
         <TouchableOpacity
           accessibilityLabel="Open chat"
@@ -711,6 +747,17 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   spotlightBreak: { paddingHorizontal: 14, marginBottom: 14 },
   exploreEmpty: { alignItems: 'center', paddingVertical: 32, gap: 10 },
   exploreEmptyTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.muted },
+
+  // Stale-data refresh nudge pill
+  refreshPill: {
+    position: 'absolute', alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.navy, paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: 20, zIndex: 100,
+    elevation: 6, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6,
+  },
+  refreshPillTxt: { color: '#fff', fontSize: 12, fontFamily: 'Montserrat-Bold' },
 
   // Chat FAB
   chatFab: {

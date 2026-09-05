@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useActiveBusiness } from '@/hooks/useBusiness';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
@@ -79,14 +79,12 @@ function StatusModalBody({ checking, isVerified, onDismiss, onGoToDashboard }: S
     );
 }
 
-async function playSuccessSound(setSound: (s: Audio.Sound | null) => void) {
+async function playSuccessSound(setSound: (s: AudioPlayer | null) => void) {
     try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/sounds/notification.wav')
-        );
-        setSound(sound);
-        await sound.playAsync();
+        const player = createAudioPlayer(require('../../assets/sounds/notification.wav'));
+        setSound(player);
+        player.play();
     } catch (error) {
         console.warn('Playback error:', error);
     }
@@ -101,11 +99,11 @@ export default function VerificationStatus() {
     const [checking, setChecking] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [scaleAnim] = useState(new Animated.Value(0));
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [sound, setSound] = useState<AudioPlayer | null>(null);
 
     // Cleanup sound when component unmounts
     useEffect(() => {
-        return sound ? () => { sound.unloadAsync(); } : undefined;
+        return sound ? () => { sound.remove(); } : undefined;
     }, [sound]);
 
     const handleCheckStatus = async () => {

@@ -6,11 +6,6 @@
     "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/logo - blue.png",
-    "splash": {
-      "image": "./assets/images/icondark-splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f2f2f2"
-    },
     "scheme": [
       "shopyos",
       "com.googleusercontent.apps.683446864153-lmpgj403l7ip1jufnkqd2ue5b4prv09a"
@@ -153,13 +148,6 @@
       "expo-secure-store",
       "expo-web-browser",
       [
-        "@config-plugins/react-native-webrtc",
-        {
-          "cameraPermission": "Allow Shopyos to access your camera",
-          "microphonePermission": "Allow Shopyos to access your microphone"
-        }
-      ],
-      [
         "expo-build-properties",
         {
           "android": {
@@ -168,10 +156,13 @@
             "enableShrinkResourcesInReleaseBuilds": true
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.4"
           }
         }
-      ]
+      ],
+      "expo-video",
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

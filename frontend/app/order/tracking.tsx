@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
+import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { socketService } from '@/services/socket';
 import { getLatestLocation, fetchDrivingRoute, haversineMetres } from '@/services/delivery';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -241,9 +242,9 @@ export default function OrderTrackingMap() {
       {/* Full-screen map */}
       <View style={styles.mapContainer}>
         {mapRegion ? (
-          <MapView ref={mapRef} style={StyleSheet.absoluteFillObject} initialRegion={mapRegion}>
+          <MapView ref={mapRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} initialRegion={mapRegion}>
             <UrlTile
-              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              urlTemplate={OSM_TILE_URL_TEMPLATE}
               maximumZ={19}
               flipY={false}
               zIndex={-1}
@@ -400,7 +401,7 @@ export default function OrderTrackingMap() {
 const getStyles = (C: LegacyPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   mapContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     height: height * 0.75,
   },
   mapPlaceholder: {

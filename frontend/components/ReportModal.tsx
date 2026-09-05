@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ActivityInd
 import { Ionicons } from '@expo/vector-icons';
 import { reportEntity } from '@/services/api';
 import { CustomInAppToast } from './InAppToastHost';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 interface ReportModalProps {
   visible: boolean;
@@ -46,7 +47,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, enti
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
-        <View style={styles.modalContainer}>
+        <GlassSurface style={styles.modalContainer}>
           <View style={styles.header}>
             <Text style={styles.title}>Report {entityType === 'store' ? 'Store' : 'User'}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -87,7 +88,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, enti
           <TouchableOpacity style={[styles.submitBtn, (!selectedReason || loading) && styles.submitBtnDisabled]} onPress={handleReport} disabled={!selectedReason || loading}>
             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnTxt}>Submit Report</Text>}
           </TouchableOpacity>
-        </View>
+        </GlassSurface>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -103,6 +104,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    overflow: 'hidden',
     padding: 24,
     paddingBottom: 40,
   },

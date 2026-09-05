@@ -14,6 +14,7 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
 import { formatDistanceToNow } from 'date-fns';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 interface Comment {
     id: string;
@@ -44,10 +45,11 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
             <View style={styles.overlay}>
                 <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
                 
-                <KeyboardAvoidingView 
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-                    style={styles.sheetContent}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.sheetContentLayout}
                 >
+                <GlassSurface style={styles.sheetContent}>
                     <View style={styles.header}>
                         <View style={styles.dragHandle} />
                         <View style={styles.headerRow}>
@@ -83,7 +85,7 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
                     />
 
                     {/* Input Area */}
-                    <View style={styles.inputContainer}>
+                    <GlassSurface style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
                             placeholder="Write a reply..."
@@ -92,8 +94,8 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
                             value={newComment}
                             onChangeText={setNewComment}
                         />
-                        <TouchableOpacity 
-                            style={[styles.sendBtn, !newComment.trim() && styles.sendBtnDisabled]} 
+                        <TouchableOpacity
+                            style={[styles.sendBtn, !newComment.trim() && styles.sendBtnDisabled]}
                             onPress={handleSend}
                             disabled={!newComment.trim() || isSubmitting}
                         >
@@ -103,7 +105,8 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
                                 <Ionicons name="send" size={18} color="#FFF" />
                             )}
                         </TouchableOpacity>
-                    </View>
+                    </GlassSurface>
+                </GlassSurface>
                 </KeyboardAvoidingView>
             </View>
         </Modal>
@@ -113,7 +116,8 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
 const styles = StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
     backdrop: { flex: 1 },
-    sheetContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, height: '70%' },
+    sheetContentLayout: { height: '70%' },
+    sheetContent: { flex: 1, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, overflow: 'hidden' },
     header: { paddingVertical: 15, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
     dragHandle: { width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, marginBottom: 15 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20 },

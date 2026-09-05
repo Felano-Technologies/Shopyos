@@ -11,6 +11,7 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 interface DisclaimerModalProps {
   type: string;
@@ -84,7 +85,7 @@ export default function DisclaimerModal({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <GlassSurface style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
@@ -160,7 +161,7 @@ export default function DisclaimerModal({
               </View>
             </View>
           )}
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );

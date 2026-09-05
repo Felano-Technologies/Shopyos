@@ -10,6 +10,7 @@ import Skeleton from '@/components/Skeleton';
 import { SectionHeader } from './SectionHeader';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 42) / 2;
@@ -294,8 +295,10 @@ function ProductCardBase({
     const isBusy = favoriteBusyId === productId;
     const isAdding = addingId === item._id;
     const price = Number(item.price || 0);
-    // compare_at_price is the DB column; oldPrice is the frontend alias used in deals.tsx
-    const origPrice = Number(item.compare_at_price || item.oldPrice || 0);
+    // compareAtPrice is what the backend actually returns (camelCase, e.g.
+    // productController.js's searchProducts/recommendationController.js);
+    // compare_at_price/oldPrice are kept only as fallbacks for other shapes.
+    const origPrice = Number(item.compareAtPrice || item.compare_at_price || item.oldPrice || 0);
     const discountPct = origPrice > price
       ? Math.round(((origPrice - price) / origPrice) * 100)
       : null;
@@ -316,15 +319,17 @@ function ProductCardBase({
           />
           {/* Favorite button */}
           <TouchableOpacity
-            style={S.favBtn}
+            style={S.favBtnTouchable}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={(e: any) => { e?.stopPropagation?.(); onToggleFavorite(item); }}
             disabled={isBusy}
           >
-            {isBusy
-              ? <ActivityIndicator size="small" color={C.navy} />
-              : <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={13} color={isFav ? '#EF4444' : C.navy} />
-            }
+            <GlassSurface style={S.favBtn} isInteractive>
+              {isBusy
+                ? <ActivityIndicator size="small" color={C.navy} />
+                : <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={13} color={isFav ? '#EF4444' : C.navy} />
+              }
+            </GlassSurface>
           </TouchableOpacity>
           {/* Discount badge */}
           {discountPct !== null && (
@@ -429,7 +434,7 @@ function SpotlightCardBase({
   const C = useMemo(() => buildC(colors), [colors]);
   const S = useMemo(() => getS(C), [C]);
   const price = Number(item.price || 0);
-  const origPrice = Number(item.compare_at_price || item.oldPrice || 0);
+  const origPrice = Number(item.compareAtPrice || item.compare_at_price || item.oldPrice || 0);
 
   return (
     <TouchableOpacity style={S.spotlightCard} activeOpacity={0.92} onPress={() => onPress(item)}>
@@ -519,8 +524,11 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   adImg: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },
   imgWrap: { width: '100%', height: 136, position: 'relative' },
   img: { width: '100%', height: '100%' },
-  favBtn: {
+  favBtnTouchable: {
     position: 'absolute', top: 9, right: 9,
+    width: 28, height: 28,
+  },
+  favBtn: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4,

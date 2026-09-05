@@ -1,6 +1,7 @@
 import { queryClient } from '@/lib/query/client';
 import { api, extractErrorMessage, API_URL, secureStorage, storage } from './client';
 import { cacheUserProfile, clearUserProfileCache } from './storage';
+import { uriToBlob } from './uploadUtils';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
@@ -491,7 +492,8 @@ export const uploadAvatar = async (uri: string, options?: { fileName?: string; m
     const filename = options?.fileName || uri.split('/').pop() || `avatar_${Date.now()}.jpg`;
     const ext = (filename.split('.').pop() || '').toLowerCase();
     const type = options?.mimeType || inferMimeType(ext);
-    formData.append('avatar', { uri, name: filename, type } as any);
+    const blob = await uriToBlob(uri, type);
+    formData.append('avatar', blob, filename);
 
     const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
     const response = await fetch(`${API_URL}upload/avatar`, {

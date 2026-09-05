@@ -1,4 +1,5 @@
 import { api, extractErrorMessage, API_URL, secureStorage } from './client';
+import { uriToBlob } from './uploadUtils';
 
 export const getConversations = async () => {
   try {
@@ -128,6 +129,8 @@ export const uploadChatMedia = async (
     type = 'application/octet-stream';
   }
 
+  const blob = await uriToBlob(cleanUri, type);
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_URL}messaging/upload`);
@@ -153,7 +156,7 @@ export const uploadChatMedia = async (
 
     const formData = new FormData();
     formData.append('conversationId', conversationId);
-    formData.append('file', { uri, name: filename, type } as any);
+    formData.append('file', blob, filename);
     xhr.send(formData);
   });
 };
@@ -191,6 +194,8 @@ export const createCustomSticker = async (uri: string, mimeType?: string): Promi
     type = 'image/jpeg';
   }
 
+  const blob = await uriToBlob(cleanUri, type);
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_URL}messaging/stickers/create`);
@@ -208,7 +213,7 @@ export const createCustomSticker = async (uri: string, mimeType?: string): Promi
     xhr.onerror = () => reject(new Error('Sticker creation network error'));
 
     const formData = new FormData();
-    formData.append('file', { uri, name: filename, type } as any);
+    formData.append('file', blob, filename);
     xhr.send(formData);
   });
 };

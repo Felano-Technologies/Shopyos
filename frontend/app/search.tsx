@@ -23,6 +23,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCart } from '@/store/cartStore';
 import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavorites';
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -687,13 +688,15 @@ export default function SearchScreen() {
                   </View>
                 </View>
                 {sortOpen && (
-                  <Animated.View style={[styles.sortDropdown, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
-                    {SORT_OPTIONS.map(opt => (
-                      <TouchableOpacity accessibilityLabel={`Sort by ${opt.label}`} accessibilityRole="button" key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
-                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: colors.primary }]}>{opt.label}</Text>
-                        {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={colors.accent} />}
-                      </TouchableOpacity>
-                    ))}
+                  <Animated.View style={[styles.sortDropdownWrap, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
+                    <GlassSurface style={styles.sortDropdown}>
+                      {SORT_OPTIONS.map(opt => (
+                        <TouchableOpacity accessibilityLabel={`Sort by ${opt.label}`} accessibilityRole="button" key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
+                          <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: colors.primary }]}>{opt.label}</Text>
+                          {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={colors.accent} />}
+                        </TouchableOpacity>
+                      ))}
+                    </GlassSurface>
                   </Animated.View>
                 )}
                 <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
@@ -934,11 +937,13 @@ const getStyles = (colors: ThemeColors) => {
   },
   sortBtnTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C2.navy },
   // ── Sort dropdown ──────────────────────────────────────────────────────────
-  sortDropdown: {
+  sortDropdownWrap: {
     position: 'absolute',
     top: 46,
     right: 16,
     zIndex: 100,
+  },
+  sortDropdown: {
     backgroundColor: C2.card,
     borderRadius: 16,
     paddingVertical: 4,
@@ -1419,7 +1424,7 @@ catTileFallback: {   // keep for safety, though now unused
     height: '100%',
   },
   searchAdImg: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     resizeMode: 'cover',
   },
   searchAdContent: {

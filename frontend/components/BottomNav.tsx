@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { safeReplace } from '@/lib/navigation';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -45,7 +46,7 @@ const BottomNav = () => {
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <GlassSurface style={styles.container} isInteractive={false}>
         {navItems.map((item) => {
           const isActive = pathname === item.route;
 
@@ -65,7 +66,7 @@ const BottomNav = () => {
                   colors={colors.headerGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
               )}
 
@@ -86,7 +87,7 @@ const BottomNav = () => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 };

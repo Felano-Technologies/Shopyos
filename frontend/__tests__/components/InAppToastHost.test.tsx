@@ -2,7 +2,7 @@
  * __tests__/components/InAppToastHost.test.tsx
  *
  * Unit tests for InAppToastHost and CustomInAppToast.
- * All external dependencies (expo-router, expo-av, Animated) are mocked.
+ * All external dependencies (expo-router, expo-audio, Animated) are mocked.
  * Conforms to guidelines/test.md.
  *
  * Note: @testing-library/react-native v14 render() is async.
@@ -16,17 +16,14 @@ jest.mock('expo-router', () => ({
   useRootNavigationState: jest.fn(() => ({ key: 'root' })),
 }));
 
-jest.mock('expo-av', () => ({
-  Audio: {
-    Sound: {
-      createAsync: jest.fn().mockResolvedValue({
-        sound: {
-          setOnPlaybackStatusUpdate: jest.fn(),
-          unloadAsync: jest.fn().mockResolvedValue(null),
-        },
-      }),
-    },
-  },
+jest.mock('expo-audio', () => ({
+  useAudioPlayer: jest.fn(() => ({
+    volume: 1,
+    play: jest.fn(),
+    pause: jest.fn(),
+    seekTo: jest.fn().mockResolvedValue(undefined),
+    remove: jest.fn(),
+  })),
 }));
 
 // Minimal Animated mock — parallel.start() immediately invokes its callback

@@ -1,5 +1,6 @@
 // hooks/useCloudinaryUpload.ts
 import { useState } from 'react';
+import { uriToBlob } from '@/services/uploadUtils';
 
 interface UploadResult {
   url: string;
@@ -47,11 +48,8 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
       else if (extension) fileType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
 
       // Append the file
-      formData.append('file', {
-        uri: imageUri,
-        type: fileType,
-        name: filename,
-      } as any);
+      const blob = await uriToBlob(imageUri, fileType);
+      formData.append('file', blob, filename);
 
       // Upload to Cloudinary using their upload API
       const response = await fetch(

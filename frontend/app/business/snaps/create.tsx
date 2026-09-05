@@ -11,7 +11,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import * as ImagePicker from 'expo-image-picker';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { requestCameraPermissionWithDisclosure, requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -117,6 +117,12 @@ export default function CreateSnapScreen() {
                   imageUri?.toLowerCase().endsWith('.quicktime') ||
                   imageUri?.toLowerCase().endsWith('.webm');
 
+  const previewPlayer = useVideoPlayer(isVideo && imageUri ? { uri: imageUri } : null, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+
   const uploadToBackend = async (uri: string) => {
     const res = await uploadSnapImage(uri, (percent) => setUploadProgress(Math.round(percent * 0.9)));
     return res.data.url;
@@ -178,13 +184,11 @@ export default function CreateSnapScreen() {
         >
           {imageUri ? (
             isVideo ? (
-              <Video
-                source={{ uri: imageUri }}
+              <VideoView
+                player={previewPlayer}
                 style={styles.previewImage}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
+                contentFit="cover"
+                nativeControls={false}
               />
             ) : (
               <AppImage uri={imageUri} style={styles.previewImage} />

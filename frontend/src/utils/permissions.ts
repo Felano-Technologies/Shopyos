@@ -8,7 +8,7 @@
  * Prominent Disclosure and Consent policy.
  */
 import * as ImagePicker from 'expo-image-picker';
-import { Audio } from 'expo-av';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 
@@ -41,7 +41,7 @@ export const requestMediaLibraryPermissionWithDisclosure = async (): Promise<{ s
 };
 
 export const requestMicrophonePermissionWithDisclosure = async (): Promise<{ status: string }> => {
-  const existing = await Audio.getPermissionsAsync();
+  const existing = await getRecordingPermissionsAsync();
   if (existing.status === 'granted') return existing;
 
   const consented = await requestPermissionDisclosure({
@@ -51,7 +51,7 @@ export const requestMicrophonePermissionWithDisclosure = async (): Promise<{ sta
   });
   if (!consented) return { status: 'denied' };
 
-  return await Audio.requestPermissionsAsync();
+  return await requestRecordingPermissionsAsync();
 };
 
 export const requestNotificationPermissionWithDisclosure = async (): Promise<{ status: Notifications.PermissionStatus }> => {

@@ -22,6 +22,7 @@ import { getUserData, submitDriverVerification, getDriverProfile, CustomInAppToa
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
+import { uriToBlob } from '@/services/uploadUtils';
 
 
 function UploadBox({ label, imageUri, onPress }: Readonly<{ label: string; imageUri: string | null; onPress: () => void }>) {
@@ -224,39 +225,19 @@ export default function DriverVerification() {
 
         // Append files
         if (docImages.idCard) {
-            formData.append('idCard', {
-                uri: docImages.idCard,
-                name: 'id_card.jpg',
-                type: 'image/jpeg',
-            } as any);
+            formData.append('idCard', await uriToBlob(docImages.idCard, 'image/jpeg'), 'id_card.jpg');
         }
         if (docImages.licenseFront) {
-            formData.append('licenseFront', {
-                uri: docImages.licenseFront,
-                name: 'license_front.jpg',
-                type: 'image/jpeg',
-            } as any);
+            formData.append('licenseFront', await uriToBlob(docImages.licenseFront, 'image/jpeg'), 'license_front.jpg');
         }
         if (docImages.licenseBack) {
-            formData.append('licenseBack', {
-                uri: docImages.licenseBack,
-                name: 'license_back.jpg',
-                type: 'image/jpeg',
-            } as any);
+            formData.append('licenseBack', await uriToBlob(docImages.licenseBack, 'image/jpeg'), 'license_back.jpg');
         }
         if (docImages.insurance) {
-            formData.append('insurance', {
-                uri: docImages.insurance,
-                name: 'insurance.jpg',
-                type: 'image/jpeg',
-            } as any);
+            formData.append('insurance', await uriToBlob(docImages.insurance, 'image/jpeg'), 'insurance.jpg');
         }
         if (profilePhoto) {
-            formData.append('profilePhoto', {
-                uri: profilePhoto,
-                name: 'profile_photo.jpg',
-                type: 'image/jpeg',
-            } as any);
+            formData.append('profilePhoto', await uriToBlob(profilePhoto, 'image/jpeg'), 'profile_photo.jpg');
         }
 
         await submitDriverVerification(formData);

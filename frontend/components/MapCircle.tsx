@@ -1,1 +1,1 @@
-export { default } from 'react-native-maps/lib/MapCircle';
+export { MapCircle as default } from 'react-native-maps';

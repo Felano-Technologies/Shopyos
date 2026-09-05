@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 
 interface MediaMessageProps {
@@ -57,16 +57,9 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
               <Ionicons name="close" size={28} color="#FFFFFF" />
             </TouchableOpacity>
 
-            <Video
-              source={{ uri: url }}
-              rate={1}
-              volume={1}
-              isMuted={false}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
-              useNativeControls
-              style={styles.fullscreenVideo}
-            />
+            {fullscreenVisible && (
+              <FullscreenVideo uri={url} style={styles.fullscreenVideo} />
+            )}
           </View>
         </Modal>
       </View>
@@ -118,6 +111,23 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
         </View>
       </Modal>
     </View>
+  );
+}
+
+function FullscreenVideo({ uri, style }: Readonly<{ uri: string; style: any }>) {
+  const player = useVideoPlayer({ uri }, (p) => {
+    p.muted = false;
+    p.volume = 1;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={style}
+      contentFit="contain"
+      nativeControls
+    />
   );
 }
 
