@@ -134,7 +134,9 @@ async function handleTokenExpired(_error: any, originalRequest: any): Promise<an
     if (!storedRefreshToken) throw new Error('No refresh token stored');
 
     const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
-    const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
+    // ApiResponse.success wraps the payload: { success, message, data: { token, refreshToken } }
+    const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data?.data || {};
+    if (!newAccessToken) throw new Error('Refresh response missing access token');
 
     await secureStorage.setItem('userToken', newAccessToken);
     if (newRefreshToken) await secureStorage.setItem('refreshToken', newRefreshToken);

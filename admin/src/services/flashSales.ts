@@ -30,6 +30,16 @@ export const createSlot = async (title: string, startTime: string, endTime: stri
   return res.data;
 };
 
+export const updateSlot = async (id: string, updates: Partial<{ title: string; startTime: string; endTime: string; maxItems: number }>) => {
+  const res = await api.patch(`/flash-sales/slots/${id}`, updates);
+  return res.data;
+};
+
+export const deleteSlot = async (id: string) => {
+  const res = await api.delete(`/flash-sales/slots/${id}`);
+  return res.data;
+};
+
 // Admin — real routes live under /flash-sales/admin/sales and PATCH /flash-sales/:id/review
 export const getAdminSales = async (status?: string) => {
   const params = status ? { status } : {};

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiCheckCircle, FiXCircle, FiClock, FiPlus, FiZap, FiX, FiPackage } from 'react-icons/fi';
-import { getAdminSales, getSlotsList, createSlot, reviewFlashSale } from '../services/flashSales';
+import { FiCheckCircle, FiXCircle, FiClock, FiPlus, FiZap, FiX, FiPackage, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { getAdminSales, getSlotsList, createSlot, updateSlot, deleteSlot, reviewFlashSale } from '../services/flashSales';
 import { extractErrorMessage } from '../services/client';
 import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
@@ -41,6 +41,12 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 const formatStatus = (status: string) => status.replace(/_/g, ' ');
+// datetime-local inputs need "YYYY-MM-DDTHH:MM" in local time, no seconds/offset.
+const toDatetimeLocal = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 const formatDate = (v: string) => new Date(v).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const discountPct = (price?: number, flashPrice?: number) => {
   if (!price || !flashPrice || price <= 0) return null;
@@ -60,11 +66,13 @@ export const FlashSales: React.FC = () => {
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   const [showSlotModal, setShowSlotModal] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [slotTitle, setSlotTitle] = useState('');
   const [slotStart, setSlotStart] = useState('');
   const [slotEnd, setSlotEnd] = useState('');
   const [slotMaxItems, setSlotMaxItems] = useState('10');
   const [slotError, setSlotError] = useState<string | null>(null);
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -105,7 +113,28 @@ export const FlashSales: React.FC = () => {
     }
   };
 
-  const handleCreateSlot = async () => {
+  const resetSlotForm = () => {
+    setEditingSlotId(null);
+    setSlotTitle(''); setSlotStart(''); setSlotEnd(''); setSlotMaxItems('10');
+    setSlotError(null);
+  };
+
+  const openCreateSlotModal = () => {
+    resetSlotForm();
+    setShowSlotModal(true);
+  };
+
+  const openEditSlotModal = (slot: FlashSaleSlot) => {
+    setEditingSlotId(slot.id);
+    setSlotTitle(slot.title);
+    setSlotStart(toDatetimeLocal(slot.start_time));
+    setSlotEnd(toDatetimeLocal(slot.end_time));
+    setSlotMaxItems(String(slot.max_items));
+    setSlotError(null);
+    setShowSlotModal(true);
+  };
+
+  const handleSaveSlot = async () => {
     if (!slotTitle.trim() || !slotStart || !slotEnd) {
       setSlotError('Title, start and end times are required.');
       return;
@@ -115,15 +144,35 @@ export const FlashSales: React.FC = () => {
     try {
       const startIso = new Date(slotStart).toISOString();
       const endIso = new Date(slotEnd).toISOString();
-      await createSlot(slotTitle.trim(), startIso, endIso, Number.parseInt(slotMaxItems, 10) || 10);
-      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Slot created' } }));
+      const maxItems = Number.parseInt(slotMaxItems, 10) || 10;
+      if (editingSlotId) {
+        await updateSlot(editingSlotId, { title: slotTitle.trim(), startTime: startIso, endTime: endIso, maxItems });
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Slot updated' } }));
+      } else {
+        await createSlot(slotTitle.trim(), startIso, endIso, maxItems);
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Slot created' } }));
+      }
       setShowSlotModal(false);
-      setSlotTitle(''); setSlotStart(''); setSlotEnd(''); setSlotMaxItems('10');
+      resetSlotForm();
       loadAll();
     } catch (err) {
       setSlotError(extractErrorMessage(err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteSlot = async (slot: FlashSaleSlot) => {
+    if (!window.confirm(`Delete "${slot.title}"? This cannot be undone.`)) return;
+    setDeletingSlotId(slot.id);
+    try {
+      await deleteSlot(slot.id);
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: 'Slot removed' } }));
+      loadAll();
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'error', title: 'Error', message: extractErrorMessage(err) || 'Failed to delete slot' } }));
+    } finally {
+      setDeletingSlotId(null);
     }
   };
 
@@ -148,7 +197,7 @@ export const FlashSales: React.FC = () => {
           </div>
           {view === 'slots' && (
             <button
-              onClick={() => { setSlotError(null); setShowSlotModal(true); }}
+              onClick={openCreateSlotModal}
               className="bg-navy hover:bg-navy-mid text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors shrink-0"
             >
               <FiPlus className="w-4 h-4" /> Create Slot
@@ -223,6 +272,7 @@ export const FlashSales: React.FC = () => {
                       <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Window</th>
                       <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Max Items / Store</th>
                       <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -235,6 +285,21 @@ export const FlashSales: React.FC = () => {
                           <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${s.is_active ? 'bg-green-50 text-green-700' : 'bg-surface-muted text-secondary'}`}>
                             {s.is_active ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => openEditSlotModal(s)} className="p-2 text-subtle hover:text-navy hover:bg-surface-muted rounded-lg transition-colors" title="Edit">
+                              <FiEdit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSlot(s)}
+                              disabled={deletingSlotId === s.id}
+                              className="p-2 text-subtle hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Delete"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -399,8 +464,8 @@ export const FlashSales: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-bold text-body">Create Flash Sale Slot</h2>
-              <button onClick={() => setShowSlotModal(false)} className="text-subtle hover:text-secondary">
+              <h2 className="text-lg font-bold text-body">{editingSlotId ? 'Edit Flash Sale Slot' : 'Create Flash Sale Slot'}</h2>
+              <button onClick={() => { setShowSlotModal(false); resetSlotForm(); }} className="text-subtle hover:text-secondary">
                 <FiX className="w-5 h-5" />
               </button>
             </div>
@@ -428,9 +493,9 @@ export const FlashSales: React.FC = () => {
               </div>
             </div>
             <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">
-              <button onClick={() => setShowSlotModal(false)} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">Cancel</button>
-              <button onClick={handleCreateSlot} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
-                {submitting ? 'Creating...' : 'Create Slot'}
+              <button onClick={() => { setShowSlotModal(false); resetSlotForm(); }} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">Cancel</button>
+              <button onClick={handleSaveSlot} disabled={submitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60">
+                {submitting ? 'Saving...' : editingSlotId ? 'Save Changes' : 'Create Slot'}
               </button>
             </div>
           </div>
