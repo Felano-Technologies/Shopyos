@@ -7,6 +7,7 @@ const { logger } = require('../config/logger');
 const { getPool } = require('../config/postgres');
 const ApiResponse = require('../utils/apiResponse');
 const { emitTransitUpdate } = require('../services/transitEvents');
+const { renderGenericEmail } = require('../templates');
 
 const requestLastMile = async (req, res, next) => {
   try {
@@ -26,6 +27,11 @@ const requestLastMile = async (req, res, next) => {
 
     await updateOrderLastMile(orderId, lastMileFee, delivery.id);
     await emitTransitUpdate(orderId);
+    // Only nearby drivers were notified here previously (notifyLastMileDrivers,
+    // inside createLastMileDeliveryRecord) — the buyer who just requested this
+    // got no confirmation at all. Matches the other hub-transition
+    // notifications' email/sms/push bar.
+    await notifyBuyerLastMileRequested(order, lastMileFee);
 
     ApiResponse.success(res, { fee: lastMileFee, deliveryId: delivery.id }, 'Last-mile delivery requested successfully');
   } catch (error) {
@@ -120,6 +126,23 @@ async function createLastMileDeliveryRecord(order, fee) {
 
   await notifyLastMileDrivers(destHub, delivery, fee);
   return delivery;
+}
+
+async function notifyBuyerLastMileRequested(order, fee) {
+  const title = 'Last-Mile Delivery Requested';
+  const message = `We're arranging last-mile delivery for order #${order.order_number} (fee: ₵${fee}). We'll notify you once a driver is assigned.`;
+  await notificationService.sendNotification({
+    userId: order.buyer_id,
+    type: 'order_update',
+    title,
+    message,
+    data: { orderId: order.id, orderNumber: order.order_number },
+    relatedId: order.id,
+    relatedType: 'order',
+    email: { html: renderGenericEmail(title, `<p>${message}</p>`) },
+    sms: { text: `${message} Track: ORD-#${order.order_number}` },
+    push: { data: { screen: 'order', orderId: order.id } }
+  });
 }
 
 async function notifyLastMileDrivers(hub, delivery, fee) {

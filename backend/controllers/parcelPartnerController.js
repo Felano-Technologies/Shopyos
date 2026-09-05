@@ -5,6 +5,7 @@ const notificationService = require('../services/notificationService');
 const { getPool } = require('../config/postgres');
 const { emitTransitUpdate } = require('../services/transitEvents');
 const feeConfigService = require('../services/feeConfigService');
+const { renderGenericEmail } = require('../templates');
 
 const getHubs = async (req, res, next) => {
   try {
@@ -250,36 +251,59 @@ async function calculateEstArrival(origin, dest) {
   return date.toISOString().split('T')[0];
 }
 
+// Hub-transit notifications previously only created an in-app/socket
+// notification — no email/SMS/push — unlike the regular order flow's
+// sendOrderNotification, which always sends all three. These now match that
+// bar by passing the same email/sms/push blocks (sendNotification only sends
+// a channel when its block is present, gated by the user's own preferences).
 async function notifyBuyerCheckIn(order, hub) {
+  const title = 'Parcel Checked In';
+  const message = `Your parcel from order #${order.order_number} has been received at the origin hub: ${hub.hub_name}.`;
   await notificationService.sendNotification({
     userId: order.buyer_id,
     type: 'order_update',
-    title: 'Parcel Checked In',
-    message: `Your parcel from order #${order.order_number} has been received at the origin hub: ${hub.hub_name}.`,
+    title,
+    message,
+    data: { orderId: order.id, orderNumber: order.order_number },
     relatedId: order.id,
-    relatedType: 'order'
+    relatedType: 'order',
+    email: { html: renderGenericEmail(title, `<p>${message}</p>`) },
+    sms: { text: `${message} Track: ORD-#${order.order_number}` },
+    push: { data: { screen: 'order', orderId: order.id } }
   });
 }
 
 async function notifyBuyerDispatch(order, estArrival) {
+  const title = 'Parcel Dispatched';
+  const message = `Your parcel from order #${order.order_number} is in transit. Estimated arrival: ${estArrival}.`;
   await notificationService.sendNotification({
     userId: order.buyer_id,
     type: 'order_update',
-    title: 'Parcel Dispatched',
-    message: `Your parcel from order #${order.order_number} is in transit. Estimated arrival: ${estArrival}.`,
+    title,
+    message,
+    data: { orderId: order.id, orderNumber: order.order_number },
     relatedId: order.id,
-    relatedType: 'order'
+    relatedType: 'order',
+    email: { html: renderGenericEmail(title, `<p>${message}</p>`) },
+    sms: { text: `${message} Track: ORD-#${order.order_number}` },
+    push: { data: { screen: 'order', orderId: order.id } }
   });
 }
 
 async function notifyBuyerArrival(order, hub) {
+  const title = 'Parcel Arrived at Hub';
+  const message = `Your parcel from order #${order.order_number} has arrived at the destination hub: ${hub.hub_name}. You can pick it up or request last-mile delivery.`;
   await notificationService.sendNotification({
     userId: order.buyer_id,
     type: 'order_update',
-    title: 'Parcel Arrived at Hub',
-    message: `Your parcel from order #${order.order_number} has arrived at the destination hub: ${hub.hub_name}. You can pick it up or request last-mile delivery.`,
+    title,
+    message,
+    data: { orderId: order.id, orderNumber: order.order_number },
     relatedId: order.id,
-    relatedType: 'order'
+    relatedType: 'order',
+    email: { html: renderGenericEmail(title, `<p>${message}</p>`) },
+    sms: { text: `${message} Track: ORD-#${order.order_number}` },
+    push: { data: { screen: 'order', orderId: order.id } }
   });
 }
 

@@ -215,13 +215,20 @@ const { data: notifData } = useUnreadNotificationCount(false);
   // "Refresh for new content" pill so they can get fresh data instantly
   // instead of unknowingly browsing a cached feed indefinitely.
   const [showRefreshPill, setShowRefreshPill] = useState(false);
-  const REFRESH_PILL_SHOW_AT = Dimensions.get('window').height * 1.5;
+  // The static header above the Explore grid (hero banner, quick actions,
+  // flash sale, recently added, deals grid, etc.) is already several screens
+  // tall on its own — a fixed scrollY threshold would fire as soon as
+  // someone scrolls past that, not after genuinely browsing Explore. Measure
+  // the header's real height and require scrolling a couple more screens
+  // past it instead.
+  const [exploreHeaderHeight, setExploreHeaderHeight] = useState(0);
   const REFRESH_PILL_HIDE_BELOW = 200;
   const handleExploreScroll = useCallback((e: any) => {
     const y = e.nativeEvent.contentOffset.y;
-    if (y > REFRESH_PILL_SHOW_AT) setShowRefreshPill(true);
+    const showAt = exploreHeaderHeight + Dimensions.get('window').height * 2;
+    if (exploreHeaderHeight > 0 && y > showAt) setShowRefreshPill(true);
     else if (y < REFRESH_PILL_HIDE_BELOW) setShowRefreshPill(false);
-  }, [REFRESH_PILL_SHOW_AT]);
+  }, [exploreHeaderHeight]);
 
   // ── User name ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -484,7 +491,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
             </View>
           )}
           ListHeaderComponent={
-            <View>
+            <View onLayout={(e) => setExploreHeaderHeight(e.nativeEvent.layout.height)}>
           {/* Stories row */}
           <SnapsRow />
 
