@@ -293,10 +293,10 @@ const sendMessage = async (req, res, next) => {
 
         const previewMap = {
           text: finalContent?.substring(0, 50),
-          image: 'ðŸ“· Photo',
-          video: 'ðŸŽ¥ Video',
-          voice: 'ðŸŽ™ï¸ Voice note',
-          sticker: finalContent || 'ðŸ˜Š Sticker',
+          image: '📷 Photo',
+          video: '🎥 Video',
+          voice: '🎙️ Voice note',
+          sticker: finalContent || '😊 Sticker',
         };
         const notificationContent = previewMap[messageType] || 'New message';
 
@@ -506,13 +506,6 @@ const uploadChatMedia = async (req, res, next) => {
     if (!req.file) {
       return ApiResponse.error(res, 'No file uploaded', 400);
     }
-
-    console.error('[uploadChatMedia] received file:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      bufferLength: req.file.buffer?.length,
-    });
 
     if (!conversationId) {
       return ApiResponse.error(res, 'Conversation ID is required', 400);

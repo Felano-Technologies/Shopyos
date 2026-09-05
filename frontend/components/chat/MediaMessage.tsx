@@ -23,16 +23,10 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
   const retryCountRef = useRef(0);
   const isVideo = mimeType?.startsWith('video/') || url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.mov');
 
-  const handleError = useCallback((event: any) => {
-    console.error('MediaMessage failed to load:', url, mimeType, event?.error ?? event);
-    // Media storage (Tigris) is globally distributed with eventual
-    // read-after-write consistency across regions — right after a fresh
-    // upload, the sender's own device can briefly hit a region where the
-    // object hasn't replicated yet and get an empty response. It's not a
-    // bad image; a short retry almost always succeeds once replication
-    // catches up, which is why other viewers (or a later reopen) see it fine
-    // immediately. Bump `retryKey` to force AppImage to remount and refetch,
-    // since a failed load isn't cached and a plain re-render wouldn't retry.
+  const handleError = useCallback(() => {
+    // A retry guards against ordinary transient network blips — bump
+    // `retryKey` to force AppImage to remount and refetch, since a failed
+    // load isn't cached and a plain re-render wouldn't retry on its own.
     if (retryCountRef.current < MAX_LOAD_RETRIES) {
       retryCountRef.current += 1;
       setLoading(true);

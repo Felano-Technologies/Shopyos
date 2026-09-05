@@ -1,5 +1,6 @@
 import { api, extractErrorMessage, API_URL, secureStorage } from './client';
 import { uriToBlob } from './uploadUtils';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export const getConversations = async () => {
   try {
@@ -129,37 +130,47 @@ export const uploadChatMedia = async (
     type = 'application/octet-stream';
   }
 
-  const blob = await uriToBlob(cleanUri, type);
-  console.error('[uploadChatMedia] about to send:', { cleanUri, filename, type, blobSize: blob.size, blobType: blob.type });
+  // Uses expo-file-system's native multipart upload (streams straight from
+  // disk) rather than fetch().blob() + FormData + XMLHttpRequest. The old
+  // Blob-based path had to re-wrap the blob (new Blob([blob], {type})) to
+  // correct its MIME type, and that rewrap intermittently produced a body
+  // with the right reported .size but zero actual bytes transmitted — a
+  // known fragile spot in RN's Blob polyfill — resulting in objects stored
+  // server-side as genuinely empty despite the request appearing to succeed.
+  const task = FileSystem.createUploadTask(
+    `${API_URL}messaging/upload`,
+    cleanUri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: type,
+      parameters: { conversationId },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+    onProgress
+      ? (data) => {
+          if (data.totalBytesExpectedToSend > 0) {
+            onProgress(data.totalBytesSent / data.totalBytesExpectedToSend);
+          }
+        }
+      : undefined
+  );
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_URL}messaging/upload`);
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+  const result = await task.uploadAsync();
+  if (!result) throw new Error('Upload was cancelled');
 
-    if (onProgress) {
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) onProgress(event.loaded / event.total);
-      });
-    }
+  let parsed: any;
+  try {
+    parsed = JSON.parse(result.body);
+  } catch {
+    throw new Error('Upload failed. Invalid server response.');
+  }
 
-    xhr.onload = () => {
-      try {
-        const response = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300) resolve(response);
-        else reject(new Error(response?.error || `Upload failed with status ${xhr.status}`));
-      } catch {
-        reject(new Error('Upload failed. Invalid server response.'));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Network request failed during media upload'));
-    xhr.ontimeout = () => reject(new Error('Upload timed out'));
-
-    const formData = new FormData();
-    formData.append('conversationId', conversationId);
-    formData.append('file', blob, filename);
-    xhr.send(formData);
-  });
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(parsed?.error || `Upload failed with status ${result.status}`);
+  }
+  return parsed;
 };
 
 export const getStickerPacks = async () => {
