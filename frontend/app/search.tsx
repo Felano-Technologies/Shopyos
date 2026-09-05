@@ -28,6 +28,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 52) / 2;
 const RECENT_KEY = 'SHOPYOS_RECENT_SEARCHES';
@@ -183,7 +184,7 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart, isF
         <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
         <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.priceLbl}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+          <Text style={styles.priceLbl}>{formatCurrency(item.price)}</Text>
           <TouchableOpacity
             accessibilityLabel="Add to cart"
             accessibilityRole="button"
@@ -212,7 +213,7 @@ const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToC
         <View style={styles.featBadge}><Text style={styles.featBadgeTxt}>TOP PICK</Text></View>
         <Text style={styles.featName} numberOfLines={2}>{item.name}</Text>
         <Text style={styles.featStore} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
-        <Text style={styles.featPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+        <Text style={styles.featPrice}>{formatCurrency(item.price)}</Text>
       </View>
       <TouchableOpacity
         accessibilityLabel="Add to cart"
@@ -240,7 +241,7 @@ const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: {
         <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
         <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
         <Text style={[styles.priceLbl, { fontSize: 14, fontFamily: 'Montserrat-Bold', color: colors.accent }]}>
-          ₵{Number.parseFloat(item.price).toFixed(2)}
+          {formatCurrency(item.price)}
         </Text>
       </View>
       <TouchableOpacity

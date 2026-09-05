@@ -17,15 +17,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/store/cartStore';
 import { usePersonalizedRecommendations, useTrendingRecommendations } from '@/hooks/useRecommendations';
+import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavorites';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 44) / 2;
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void }>) {
+const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart, isFavorite, onToggleFavorite, favoriteBusy }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void; isFavorite: boolean; onToggleFavorite: () => void; favoriteBusy: boolean }>) {
   const colors = useThemeColors();
   const S = useMemo(() => getStyles(colors), [colors]);
   return (
@@ -39,15 +42,25 @@ const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart
           <Ionicons name="star" size={8} color={colors.accentText} />
           <Text style={S.forYouText}>FOR YOU</Text>
         </View>
+        <TouchableOpacity
+          accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          accessibilityRole="button"
+          style={S.favBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          disabled={favoriteBusy}
+          onPress={(e: any) => { e?.stopPropagation?.(); onToggleFavorite(); }}
+        >
+          <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={14} color={isFavorite ? colors.error : colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={S.productInfo}>
         <Text style={S.categoryText} numberOfLines={1}>{item.category || 'General'}</Text>
         <Text style={S.productTitle} numberOfLines={2}>{item.name}</Text>
         <View style={S.priceRow}>
-          <Text style={S.currentPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+          <Text style={S.currentPrice}>{formatCurrency(item.price)}</Text>
           {item.compareAtPrice && Number(item.compareAtPrice) > Number(item.price) && (
-            <Text style={S.oldPrice}>₵{Number(item.compareAtPrice).toFixed(2)}</Text>
+            <Text style={S.oldPrice}>{formatCurrency(item.compareAtPrice)}</Text>
           )}
         </View>
         <View style={S.footerRow}>
@@ -111,6 +124,29 @@ export default function ForYouScreen() {
   const { data: personalized, isLoading: loadingPersonalized, refetch: refetchPersonalized } = usePersonalizedRecommendations();
   const { data: trending, refetch: refetchTrending } = useTrendingRecommendations();
 
+  const { data: favoriteProducts = [] } = useFavorites();
+  const addFavoriteMutation = useAddFavorite();
+  const removeFavoriteMutation = useRemoveFavorite();
+  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+  const favoriteIds = useMemo(
+    () => new Set<string>((favoriteProducts || []).map((p: any) => String(p.id || p._id || p.productId))),
+    [favoriteProducts]
+  );
+  const handleToggleFavorite = useCallback((item: any) => {
+    const productId = String(item._id || item.id || '');
+    if (!productId || favoriteBusyId === productId) return;
+    setFavoriteBusyId(productId);
+    const onSettled = () => setFavoriteBusyId(null);
+    if (favoriteIds.has(productId)) {
+      removeFavoriteMutation.mutate(productId, { onSettled });
+      return;
+    }
+    addFavoriteMutation.mutate(productId, {
+      onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
+      onSettled,
+    });
+  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation]);
+
   const isLoading = loadingPersonalized;
   const source: string = personalized?.source || trending?.source || 'trending';
   const products: any[] = personalized?.products?.length
@@ -155,8 +191,11 @@ export default function ForYouScreen() {
       item={item}
       onPress={() => router.push({ pathname: '/product/details', params: { id: item._id } })}
       onAddToCart={() => handleAddToCart(item)}
+      isFavorite={favoriteIds.has(String(item._id || item.id))}
+      onToggleFavorite={() => handleToggleFavorite(item)}
+      favoriteBusy={favoriteBusyId === String(item._id || item.id)}
     />
-  ), [handleAddToCart, router]);
+  ), [handleAddToCart, router, favoriteIds, handleToggleFavorite, favoriteBusyId]);
 
   return (
     <View style={S.container}>
@@ -287,6 +326,20 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     gap: 3,
   },
   forYouText: { color: c.accentText, fontSize: 8, fontFamily: 'Montserrat-Bold' },
+  favBtn: {
+    position: 'absolute',
+    top: 8, right: 8,
+    width: 26, height: 26,
+    borderRadius: 13,
+    backgroundColor: c.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
   productInfo: { padding: 10 },
   categoryText: {
     fontSize: 10, fontFamily: 'Montserrat-Medium', color: c.textSecondary,

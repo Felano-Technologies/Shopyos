@@ -7,6 +7,7 @@ import { getBusinessDashboard, storage } from '@/services/api';
 import { useSellerUnreadCount } from '@/hooks/useChat';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -66,10 +67,7 @@ const BusinessBottomNav = () => {
 
   return (
     <View style={styles.wrapper}>
-      {/* Creative Touch: 
-        Glassmorphism-style container with a subtle white border 
-      */}
-      <View style={styles.container}>
+      <GlassSurface style={styles.container} isInteractive={false}>
         {navItems.map((item) => {
           const isActive = pathname === item.route;
 
@@ -109,7 +107,7 @@ const BusinessBottomNav = () => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 };

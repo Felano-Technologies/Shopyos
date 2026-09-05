@@ -12,6 +12,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { getBuyerAnalytics } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -182,7 +183,7 @@ export default function BuyerAnalyticsScreen() {
             {renderCard(0, (
               <LinearGradient colors={colors.headerGradient} style={S.heroCard}>
                 <Text style={S.heroLabel}>Total Spent</Text>
-                <Text style={S.heroValue}>₵{(data.total_spent || 0).toFixed(2)}</Text>
+                <Text style={S.heroValue}>{formatCurrency(data.total_spent)}</Text>
                 <View style={S.heroDivider} />
                 <View style={S.heroRow}>
                   <View style={S.heroStat}>
@@ -195,16 +196,16 @@ export default function BuyerAnalyticsScreen() {
 
             {renderCard(1, (
               <View style={S.card}>
-                <Text style={S.cardTitle}>You saved ₵{(data.total_savings || 0).toFixed(2)}</Text>
+                <Text style={S.cardTitle}>You saved {formatCurrency(data.total_savings)}</Text>
                 <View style={S.savingsRow}>
                   <Feather name="tag" size={16} color={colors.success} />
                   <Text style={S.savingsLabel}>Promo codes:</Text>
-                  <Text style={S.savingsValue}>₵{(data.promo_savings || 0).toFixed(2)}</Text>
+                  <Text style={S.savingsValue}>{formatCurrency(data.promo_savings)}</Text>
                 </View>
                 <View style={S.savingsRow}>
                   <Feather name="percent" size={16} color={colors.success} />
                   <Text style={S.savingsLabel}>Bargain deals:</Text>
-                  <Text style={S.savingsValue}>₵{(data.bargain_savings || 0).toFixed(2)}</Text>
+                  <Text style={S.savingsValue}>{formatCurrency(data.bargain_savings)}</Text>
                 </View>
               </View>
             ))}

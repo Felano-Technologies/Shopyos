@@ -30,6 +30,7 @@ import {
 } from '@/src/background/controller';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
@@ -41,7 +42,7 @@ function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPend
     <View style={styles.requestCard}>
       <View style={styles.cardHeader}>
         <View style={styles.priceTag}>
-          <Text style={styles.priceText}>₵{Number(item.price || 0).toFixed(2)}</Text>
+          <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
         </View>
         {item.leg && item.leg !== 'local' ? (
           <View style={styles.legBadge}>
@@ -370,7 +371,7 @@ export default function Dashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Today&apos;s Earnings</Text>
-              <Text style={styles.statValue}>₵{(stats.earnings || 0).toFixed(2)}</Text>
+              <Text style={styles.statValue}>{formatCurrency(stats.earnings)}</Text>
             </View>
             <View style={styles.verticalDivider} />
             <View style={styles.statBox}>

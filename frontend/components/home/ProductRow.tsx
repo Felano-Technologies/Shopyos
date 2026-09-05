@@ -8,6 +8,7 @@ import Skeleton from '@/components/Skeleton';
 import { SectionHeader } from './SectionHeader';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type Props = Readonly<{
   title: string;
@@ -60,7 +61,7 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
           <View style={S.info}>
             <Text style={S.store} numberOfLines={1}>{storeName(item)}</Text>
             <Text style={S.name} numberOfLines={1}>{item.name}</Text>
-            <Text style={S.price}>₵{Number(item.price || 0).toFixed(2)}</Text>
+            <Text style={S.price}>{formatCurrency(item.price)}</Text>
           </View>
         </TouchableOpacity>
       </Animated.View>

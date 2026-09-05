@@ -16,6 +16,7 @@ import { getOrderDetails } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 // The receipt card itself (headBand/body/barcode strip below) is a
 // screenshotted "paper receipt" for PDF export/sharing — it intentionally
@@ -222,7 +223,7 @@ export default function ReceiptScreen() {
         message:
           `Shopyos Receipt\n` +
           `Order #${order?.order_number}\n` +
-          `Total: ₵${grandTotal.toFixed(2)}\n` +
+          `Total: ${formatCurrency(grandTotal)}\n` +
           `Date: ${safeFormat(order?.created_at, 'MMM dd, yyyy')}\n` +
           `Paid via: ${payMethod}`,
       });
@@ -345,7 +346,7 @@ export default function ReceiptScreen() {
                   <Text style={S.itemQty}>{item.quantity}×</Text>
                   <Text style={S.itemName} numberOfLines={2}>{item.product_title}</Text>
                   <Text style={S.itemPrice}>
-                    ₵{(Number.parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                    {formatCurrency(Number.parseFloat(item.price || 0) * (item.quantity || 1))}
                   </Text>
                 </View>
               ))}
@@ -355,7 +356,7 @@ export default function ReceiptScreen() {
               <Text style={S.secLbl}>Charges</Text>
               <View style={S.chargeRow}>
                 <Text style={S.chargeLbl}>Items subtotal</Text>
-                <Text style={S.chargeVal}>₵{itemsSubtotal.toFixed(2)}</Text>
+                <Text style={S.chargeVal}>{formatCurrency(itemsSubtotal)}</Text>
               </View>
               {deliveryFee > 0 && (
                 <View style={S.chargeRow}>
@@ -365,7 +366,7 @@ export default function ReceiptScreen() {
                       <Text style={S.chargeSub}>{delivery.distance_km} km</Text>
                     ) : null}
                   </View>
-                  <Text style={S.chargeVal}>₵{deliveryFee.toFixed(2)}</Text>
+                  <Text style={S.chargeVal}>{formatCurrency(deliveryFee)}</Text>
                 </View>
               )}
               {serviceFee > 0 && (
@@ -374,26 +375,26 @@ export default function ReceiptScreen() {
                     <Text style={S.chargeLbl}>Platform service fee</Text>
                     <Text style={S.chargeSub}>Shopyos processing</Text>
                   </View>
-                  <Text style={S.chargeVal}>₵{serviceFee.toFixed(2)}</Text>
+                  <Text style={S.chargeVal}>{formatCurrency(serviceFee)}</Text>
                 </View>
               )}
               {tax > 0 && (
                 <View style={S.chargeRow}>
                   <Text style={S.chargeLbl}>Tax</Text>
-                  <Text style={S.chargeVal}>₵{tax.toFixed(2)}</Text>
+                  <Text style={S.chargeVal}>{formatCurrency(tax)}</Text>
                 </View>
               )}
               {discount > 0 && (
                 <View style={S.chargeRow}>
                   <Text style={[S.chargeLbl, { color: '#16a34a' }]}>Discount applied</Text>
-                  <Text style={[S.chargeVal, { color: '#16a34a' }]}>-₵{discount.toFixed(2)}</Text>
+                  <Text style={[S.chargeVal, { color: '#16a34a' }]}>-{formatCurrency(discount)}</Text>
                 </View>
               )}
 
               <View style={S.grandDashedSep} />
               <View style={S.grandRow}>
                 <Text style={S.grandLbl}>Grand Total</Text>
-                <Text style={S.grandVal}>₵{grandTotal.toFixed(2)}</Text>
+                <Text style={S.grandVal}>{formatCurrency(grandTotal)}</Text>
               </View>
 
               <View style={S.payFooter}>

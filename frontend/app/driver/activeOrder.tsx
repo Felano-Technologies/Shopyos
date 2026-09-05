@@ -32,7 +32,9 @@ import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -327,8 +329,10 @@ export default function ActiveOrderScreen() {
           )}
         </MapView>
         <View style={[styles.safeMapOverlay, { top: insets.top + 8 }]} pointerEvents="box-none">
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtnTouchable} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <GlassSurface style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </GlassSurface>
           </TouchableOpacity>
         </View>
       </View>
@@ -521,7 +525,7 @@ export default function ActiveOrderScreen() {
               <View key={item.id || String(index)} style={styles.orderItem}>
                 <Text style={styles.qty}>{item.quantity}x</Text>
                 <Text style={styles.itemName}>{item.product_title}</Text>
-                <Text style={styles.itemPrice}>₵{(Number(item.price || item.unit_price || 0) * item.quantity).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>{formatCurrency(Number(item.price || item.unit_price || 0) * item.quantity)}</Text>
               </View>
             ))}
             {(!delivery.order?.order_items || delivery.order.order_items.length === 0) && (
@@ -529,20 +533,20 @@ export default function ActiveOrderScreen() {
             )}
             <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>₵{Number(delivery.order?.subtotal || 0).toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(delivery.order?.subtotal)}</Text>
             </View>
             <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Delivery Fee</Text>
-                <Text style={styles.summaryValue}>₵{Number(delivery.delivery_fee || delivery.order?.delivery_fee || 0).toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(delivery.delivery_fee || delivery.order?.delivery_fee)}</Text>
             </View>
             <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>₵{Number(delivery.order?.total_amount || 0).toFixed(2)}</Text>
+                <Text style={styles.totalValue}>{formatCurrency(delivery.order?.total_amount)}</Text>
             </View>
           </View>
         </ScrollView>
         {/* --- MAIN ACTION BUTTON --- */}
-        <View style={styles.footer}>
+        <GlassSurface style={styles.footer}>
           <TouchableOpacity
             style={[
               styles.mainBtn,
@@ -564,7 +568,7 @@ export default function ActiveOrderScreen() {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </GlassSurface>
       </View>
     </View>
   );
@@ -592,6 +596,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
   },
   safeMapOverlay: { position: 'absolute', left: 16, zIndex: 20 },
+  backBtnTouchable: {},
   backBtn: { backgroundColor: colors.surface, padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
   // Bottom Sheet
   bottomSheet: {

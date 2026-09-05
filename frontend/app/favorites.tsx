@@ -25,6 +25,7 @@ import { useCart } from '@/store/cartStore';
 import Skeleton from '../components/Skeleton';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2;
@@ -91,7 +92,7 @@ const FavoriteCard = React.memo(function FavoriteCard({
 
       <View style={styles.content}>
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.price}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+        <Text style={styles.price}>{formatCurrency(item.price)}</Text>
 
         <TouchableOpacity
           style={styles.addToCartBtn}

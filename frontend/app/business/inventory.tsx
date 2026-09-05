@@ -16,6 +16,7 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -143,7 +144,7 @@ const Inventory = () => {
           </View>
           <View style={S.metaChip}>
             <Ionicons name="pricetag-outline" size={rs(12)} color={C.muted} />
-            <Text style={S.metaChipTxt}>₵{item.price.toFixed(2)}</Text>
+            <Text style={S.metaChipTxt}>{formatCurrency(item.price)}</Text>
           </View>
         </View>
       </View>

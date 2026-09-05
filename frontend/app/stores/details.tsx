@@ -47,6 +47,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width } = Dimensions.get('window');
 
 type LegacyPalette = {
@@ -457,7 +458,7 @@ export default function StoreDetailsScreen() {
                   <AppImage uri={item.images?.[0] || undefined} source={item.images?.[0] ? undefined : require('../../assets/images/icon.png')} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+                    <Text style={styles.productPrice}>{formatCurrency(item.price)}</Text>
                   </View>
                   <View style={styles.addBtn}><Ionicons name="add" size={20} color={C.textInverse} /></View>
                 </TouchableOpacity>

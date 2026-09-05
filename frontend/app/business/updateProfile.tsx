@@ -22,6 +22,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useActiveBusiness, useUpdateBusiness } from '@/hooks/useBusiness';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
@@ -174,7 +175,7 @@ const BusinessUpdateScreen = () => {
       <StatusBar style="light" />
 
       {/* Background Watermark */}
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <View style={styles.bottomLogos}>
           <AppImage
             source={require('../../assets/images/splash-icon.png')}
@@ -219,9 +220,9 @@ const BusinessUpdateScreen = () => {
                         <Text style={styles.uploadText}>Add Cover Photo</Text>
                     </View>
                 )}
-                <View style={styles.editBadge}>
+                <GlassSurface style={styles.editBadge}>
                     <Feather name="camera" size={14} color="#FFF" />
-                </View>
+                </GlassSurface>
              </TouchableOpacity>
              {/* Logo */}
              <TouchableOpacity style={styles.logoWrapper} onPress={() => pickImage('logo')}>
@@ -232,9 +233,9 @@ const BusinessUpdateScreen = () => {
                         <Text style={styles.logoInitial}>{formData.businessName.charAt(0) || 'B'}</Text>
                     </View>
                 )}
-                <View style={styles.logoEditBadge}>
+                <GlassSurface style={styles.logoEditBadge}>
                     <Feather name="edit-2" size={12} color={colors.textInverse} />
-                </View>
+                </GlassSurface>
              </TouchableOpacity>
           </View>
           {/* --- Form Section --- */}

@@ -25,6 +25,8 @@ import {
 } from '@/services/bargain';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -204,16 +206,16 @@ export default function SellerBargainsScreen() {
             <View style={styles.priceContainer}>
               <View style={styles.priceColumn}>
                 <Text style={styles.priceLabel}>Listed</Text>
-                <Text style={styles.originalPrice}>₵{Number(item.original_price).toFixed(2)}</Text>
+                <Text style={styles.originalPrice}>{formatCurrency(item.original_price)}</Text>
               </View>
               <View style={styles.priceColumn}>
                 <Text style={styles.priceLabel}>Buyer Bid</Text>
-                <Text style={styles.offeredPrice}>₵{Number(item.offered_price).toFixed(2)}</Text>
+                <Text style={styles.offeredPrice}>{formatCurrency(item.offered_price)}</Text>
               </View>
               {item.counter_price && (
                 <View style={styles.priceColumn}>
                   <Text style={styles.priceLabel}>My Counter</Text>
-                  <Text style={styles.counterPriceText}>₵{Number(item.counter_price).toFixed(2)}</Text>
+                  <Text style={styles.counterPriceText}>{formatCurrency(item.counter_price)}</Text>
                 </View>
               )}
             </View>
@@ -332,7 +334,7 @@ export default function SellerBargainsScreen() {
       {/* Counter Offer Modal */}
       <Modal visible={counterModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seller Counter Offer</Text>
               <TouchableOpacity onPress={() => setCounterModalVisible(false)} disabled={submittingCounter}>
@@ -346,7 +348,7 @@ export default function SellerBargainsScreen() {
                   {selectedBargain.product?.title}
                 </Text>
                 <Text style={styles.modalPrices}>
-                  Listed Price: ₵{Number(selectedBargain.original_price).toFixed(2)} | Buyer Bid: ₵{Number(selectedBargain.offered_price).toFixed(2)}
+                  Listed Price: {formatCurrency(selectedBargain.original_price)} | Buyer Bid: {formatCurrency(selectedBargain.offered_price)}
                 </Text>
               </View>
             )}
@@ -395,7 +397,7 @@ export default function SellerBargainsScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

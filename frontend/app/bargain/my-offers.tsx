@@ -28,6 +28,7 @@ import {
 import { useCart } from '@/store/cartStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -295,16 +296,16 @@ export default function MyOffersScreen() {
             <View style={styles.priceContainer}>
               <View style={styles.priceColumn}>
                 <Text style={styles.priceLabel}>Listed</Text>
-                <Text style={styles.originalPrice}>₵{Number(item.original_price).toFixed(2)}</Text>
+                <Text style={styles.originalPrice}>{formatCurrency(item.original_price)}</Text>
               </View>
               <View style={styles.priceColumn}>
                 <Text style={styles.priceLabel}>Offered</Text>
-                <Text style={styles.offeredPrice}>₵{Number(item.offered_price).toFixed(2)}</Text>
+                <Text style={styles.offeredPrice}>{formatCurrency(item.offered_price)}</Text>
               </View>
               {item.counter_price && (
                 <View style={styles.priceColumn}>
                   <Text style={styles.priceLabel}>Counter</Text>
-                  <Text style={styles.counterPriceText}>₵{Number(item.counter_price).toFixed(2)}</Text>
+                  <Text style={styles.counterPriceText}>{formatCurrency(item.counter_price)}</Text>
                 </View>
               )}
             </View>
@@ -466,7 +467,7 @@ export default function MyOffersScreen() {
                   {selectedBargain.product?.title}
                 </Text>
                 <Text style={styles.modalPrices}>
-                  Listed: ₵{Number(selectedBargain.original_price).toFixed(2)} | Seller Counter: ₵{Number(selectedBargain.counter_price || selectedBargain.offered_price).toFixed(2)}
+                  Listed: {formatCurrency(selectedBargain.original_price)} | Seller Counter: {formatCurrency(selectedBargain.counter_price || selectedBargain.offered_price)}
                 </Text>
               </View>
             )}

@@ -11,6 +11,7 @@ import { SectionHeader } from './SectionHeader';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { GlassSurface } from '@/components/ui/GlassSurface';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 42) / 2;
@@ -358,9 +359,9 @@ function ProductCardBase({
           <Text style={S.name} numberOfLines={2}>{item.name}</Text>
           <View style={S.priceRow}>
             <View>
-              <Text style={S.price}>₵{price.toFixed(2)}</Text>
+              <Text style={S.price}>{formatCurrency(price)}</Text>
               {origPrice > price && (
-                <Text style={S.origPrice}>₵{origPrice.toFixed(2)}</Text>
+                <Text style={S.origPrice}>{formatCurrency(origPrice)}</Text>
               )}
             </View>
             <TouchableOpacity
@@ -451,8 +452,8 @@ function SpotlightCardBase({
         <Text style={S.spotlightStore} numberOfLines={1}>{storeName(item)}</Text>
         <Text style={S.spotlightTitle} numberOfLines={2}>{item.name}</Text>
         <View style={S.spotlightPriceRow}>
-          <Text style={S.spotlightPrice}>₵{price.toFixed(2)}</Text>
-          {origPrice > price && <Text style={S.spotlightOrigPrice}>₵{origPrice.toFixed(2)}</Text>}
+          <Text style={S.spotlightPrice}>{formatCurrency(price)}</Text>
+          {origPrice > price && <Text style={S.spotlightOrigPrice}>{formatCurrency(origPrice)}</Text>}
         </View>
       </View>
     </TouchableOpacity>
@@ -489,7 +490,7 @@ function StoreSpotlightCardBase({
             onPress={() => onPressProduct(p)}
           >
             <AppImage uri={p.images?.[0] || 'https://via.placeholder.com/200'} style={S.storeMiniImg} />
-            <Text style={S.storeMiniPrice} numberOfLines={1}>₵{Number(p.price || 0).toFixed(2)}</Text>
+            <Text style={S.storeMiniPrice} numberOfLines={1}>{formatCurrency(p.price)}</Text>
           </TouchableOpacity>
         ))}
       </View>

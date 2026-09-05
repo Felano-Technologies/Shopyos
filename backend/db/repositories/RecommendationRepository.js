@@ -50,7 +50,7 @@ const SIMILAR_PRODUCTS_SQL = `
 
 const PERSONALIZED_SQL = `
   WITH user_categories AS (
-    SELECT p.category, COUNT(*) AS weight
+    SELECT p.category, SUM(ue.weight) AS weight
     FROM user_events ue
     JOIN products p ON p.id = ue.product_id
     WHERE ue.user_id = $1

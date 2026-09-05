@@ -18,6 +18,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { getActiveFlashSale } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
 
@@ -145,8 +146,8 @@ export default function DealsScreen() {
         <Text style={styles.dealTitle} numberOfLines={1}>{item.title}</Text>
         
         <View style={styles.priceRow}>
-            <Text style={styles.dealPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
-            <Text style={styles.oldPrice}>₵{Number(item.oldPrice || 0).toFixed(2)}</Text>
+            <Text style={styles.dealPrice}>{formatCurrency(item.price)}</Text>
+            <Text style={styles.oldPrice}>{formatCurrency(item.oldPrice)}</Text>
         </View>
 
         {/* Grab Deal Button */}
@@ -238,8 +239,8 @@ export default function DealsScreen() {
                       <View style={styles.flashInfo}>
                         <Text style={styles.flashTitle} numberOfLines={1}>{item.name}</Text>
                         <View style={styles.flashPriceRow}>
-                          <Text style={styles.flashPrice}>₵{Number(item.price).toFixed(2)}</Text>
-                          <Text style={styles.flashOldPrice}>₵{Number(item.compare_at_price).toFixed(2)}</Text>
+                          <Text style={styles.flashPrice}>{formatCurrency(item.price)}</Text>
+                          <Text style={styles.flashOldPrice}>{formatCurrency(item.compare_at_price)}</Text>
                         </View>
                         <View style={styles.stockBarBg}>
                           <View style={[styles.stockBarFill, { width: `${stockPct * 100}%` }]} />

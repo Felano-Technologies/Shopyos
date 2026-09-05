@@ -15,6 +15,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import * as WebBrowser from 'expo-web-browser';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -559,22 +560,24 @@ return (
 
         <Modal animationType="slide" transparent visible={categoryModal} onRequestClose={() => setCategoryModal(false)}>
           <Pressable style={S.catOverlay} onPress={() => setCategoryModal(false)}>
-            <Pressable style={S.catSheet} onPress={e => e.stopPropagation()}>
-              <View style={S.catHandle} />
-              <View style={S.catHdrRow}>
-                <Text style={S.catTitle}>Select Category</Text>
-                <TouchableOpacity style={S.catClose} onPress={() => setCategoryModal(false)}>
-                  <Ionicons name="close" size={rs(16)} color={C.navy} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator style={{ maxHeight: rs(400) }}>
-                {categories.map((cat) => (
-                  <TouchableOpacity key={cat.id || cat.name} style={S.catItem} onPress={() => { setCategory(cat.name); setCategoryModal(false); }}>
-                    <Text style={[S.catTxt, category === cat.name && S.catTxtOn]}>{cat.name}</Text>
-                    {category === cat.name && <Ionicons name="checkmark" size={rs(18)} color={C.navy} />}
+            <Pressable onPress={e => e.stopPropagation()}>
+              <GlassSurface style={S.catSheet}>
+                <View style={S.catHandle} />
+                <View style={S.catHdrRow}>
+                  <Text style={S.catTitle}>Select Category</Text>
+                  <TouchableOpacity style={S.catClose} onPress={() => setCategoryModal(false)}>
+                    <Ionicons name="close" size={rs(16)} color={C.navy} />
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                </View>
+                <ScrollView showsVerticalScrollIndicator style={{ maxHeight: rs(400) }}>
+                  {categories.map((cat) => (
+                    <TouchableOpacity key={cat.id || cat.name} style={S.catItem} onPress={() => { setCategory(cat.name); setCategoryModal(false); }}>
+                      <Text style={[S.catTxt, category === cat.name && S.catTxtOn]}>{cat.name}</Text>
+                      {category === cat.name && <Ionicons name="checkmark" size={rs(18)} color={C.navy} />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </GlassSurface>
             </Pressable>
           </Pressable>
         </Modal>

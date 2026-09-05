@@ -22,6 +22,7 @@ import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
 import { useProducts } from '@/hooks/useProducts';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
 
@@ -161,7 +162,7 @@ export default function RecentScreen() {
         <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
 
         <View style={styles.priceRow}>
-          <Text style={styles.currentPrice}>₵{item.price.toFixed(2)}</Text>
+          <Text style={styles.currentPrice}>{formatCurrency(item.price)}</Text>
         </View>
 
         <View style={styles.footerRow}>

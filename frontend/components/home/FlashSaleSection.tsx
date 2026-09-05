@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type LegacyPalette = {
   navy: string; lime: string; limeText: string; card: string;
@@ -125,9 +126,9 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
               </View>
               <View style={S.cardInfo}>
                 <Text style={S.name} numberOfLines={2}>{item.name}</Text>
-                <Text style={S.price}>₵{price.toFixed(2)}</Text>
+                <Text style={S.price}>{formatCurrency(price)}</Text>
                 {origPrice > price && (
-                  <Text style={S.origPrice}>₵{origPrice.toFixed(2)}</Text>
+                  <Text style={S.origPrice}>{formatCurrency(origPrice)}</Text>
                 )}
                 {stockPct !== null && (
                   <View style={S.stockWrap}>

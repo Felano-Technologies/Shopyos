@@ -21,6 +21,7 @@ import TappableAvatar from '@/components/TappableAvatar';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 interface User {
   name: string;
@@ -164,7 +165,7 @@ export default function UserProfile() {
           
           <View style={{ marginTop: 16, alignItems: 'center' }}>
             <Text style={{ fontSize: 12, color: secondaryText, fontWeight: 'bold' }}>Wallet Balance</Text>
-            <Text style={{ fontSize: 22, color: colors.success, fontWeight: 'bold' }}>₵{user.wallet_balance?.toFixed(2) || '0.00'}</Text>
+            <Text style={{ fontSize: 22, color: colors.success, fontWeight: 'bold' }}>{formatCurrency(user.wallet_balance)}</Text>
           </View>
           
           {user.referral_code && (

@@ -19,6 +19,7 @@ import { getCachedUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type LegacyPalette = {
   bg: string;
@@ -112,7 +113,7 @@ function ListHeader({ balance, redeemableValue, lifetimeEarned, referralCode }: 
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>₵{redeemableValue.toFixed(2)}</Text>
+            <Text style={styles.statValue}>{formatCurrency(redeemableValue)}</Text>
             <Text style={styles.statLabel}>Redeemable Value</Text>
           </View>
           <View style={styles.statDivider} />

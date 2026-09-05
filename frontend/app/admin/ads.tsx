@@ -15,6 +15,7 @@ import {
   updateBannerCampaignStatus
 } from '@/services/api';
 import { useAdminBreakpoint, useAdminColors, AdminColors } from '@/components/admin/adminTheme';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width, height } = Dimensions.get('window');
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
@@ -57,7 +58,7 @@ function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Re
             <Text style={styles.detailText}>{item.duration_days} Days</Text>
           </View>
           <View style={styles.paidBadge}>
-            <Text style={styles.paidText}>Paid: ₵{item.paid_amount}</Text>
+            <Text style={styles.paidText}>Paid: {formatCurrency(item.paid_amount)}</Text>
           </View>
         </View>
       </View>

@@ -18,6 +18,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function FlashSaleSubmit() {
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function FlashSaleSubmit() {
         return;
       }
       if (flashPriceNum >= Number(prod?.price)) {
-        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Flash price for ${prod?.title} must be less than original price (₵${Number(prod?.price).toFixed(2)}).` });
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Flash price for ${prod?.title} must be less than original price (${formatCurrency(prod?.price)}).` });
         return;
       }
       if (isNaN(stockLimitNum) || stockLimitNum <= 0) {
@@ -234,7 +235,7 @@ export default function FlashSaleSubmit() {
                     {isSelected && <Feather name="check" size={12} color={colors.textInverse} />}
                   </View>
                   <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.productPrice}>₵{Number(item.price).toFixed(2)}</Text>
+                  <Text style={styles.productPrice}>{formatCurrency(item.price)}</Text>
                 </TouchableOpacity>
 
                 {isSelected && (

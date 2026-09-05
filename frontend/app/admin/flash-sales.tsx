@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getAdminSales, getSlotsList, createSlot, reviewFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function AdminFlashSales() {
   const router = useRouter();
@@ -258,7 +259,7 @@ export default function AdminFlashSales() {
                   {item.products.map((p: any) => (
                     <View key={p.id} style={styles.productRow}>
                       <Text style={styles.productName} numberOfLines={1}>{p.title || 'Product'}</Text>
-                      <Text style={styles.productPrice}>₵{Number(p.flash_price).toFixed(2)} (Stock: {p.stock_limit})</Text>
+                      <Text style={styles.productPrice}>{formatCurrency(p.flash_price)} (Stock: {p.stock_limit})</Text>
                     </View>
                   ))}
                 </View>

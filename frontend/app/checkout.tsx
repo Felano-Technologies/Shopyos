@@ -47,6 +47,7 @@ const buildC = (colors: ThemeColors): LegacyPalette => ({
 });
 
 import { GHANA_REGIONS, nearestGhanaRegion, mapTextToGhanaRegion } from '@/utils/ghanaRegions';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type StoreQuote = {
   deliveryFee: number;
@@ -498,7 +499,7 @@ export default function CheckoutScreen() {
                     <View key={item.id + (item.variantId ?? '')} style={S.summaryRow}>
                       <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
                       <Text style={S.summaryItemQty}>x{item.quantity}</Text>
-                      <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
+                      <Text style={S.summaryItemPrice}>{formatCurrency(Number(item.price || 0) * Number(item.quantity || 1))}</Text>
                     </View>
                   ))}
 
@@ -540,7 +541,7 @@ export default function CheckoutScreen() {
                             ? '...'
                             : !quote.withinRange
                               ? 'Not available'
-                              : `₵${quote.deliveryFee.toFixed(2)}`}
+                              : formatCurrency(quote.deliveryFee)}
                     </Text>
                   </View>
                   {pickupStores[group.storeId] && (
@@ -566,24 +567,24 @@ export default function CheckoutScreen() {
             <View style={S.card}>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Subtotal</Text>
-                <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
+                <Text style={S.summaryItemPrice}>{formatCurrency(subtotal)}</Text>
               </View>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Buyer Protection Fee</Text>
-                <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
+                <Text style={S.summaryItemPrice}>{formatCurrency(tax)}</Text>
               </View>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>
                   {storeGroups.length > 1 ? `Delivery (${storeGroups.length} stores)` : 'Delivery Fee'}
                 </Text>
                 <Text style={S.summaryItemPrice}>
-                  {isFetchingFee ? '...' : `₵${totalDeliveryFee.toFixed(2)}`}
+                  {isFetchingFee ? '...' : formatCurrency(totalDeliveryFee)}
                 </Text>
               </View>
               {isAnyInterRegional && requestLastMile && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryItemName}>Last-Mile Home Delivery</Text>
-                  <Text style={S.summaryItemPrice}>₵{lastMileFee.toFixed(2)}</Text>
+                  <Text style={S.summaryItemPrice}>{formatCurrency(lastMileFee)}</Text>
                 </View>
               )}
               {totalDiscount > 0 && (
@@ -591,19 +592,19 @@ export default function CheckoutScreen() {
                   <Text style={[S.summaryItemName, { color: C.success }]}>
                     Discount{appliedPromo ? ` (${appliedPromo.code})` : ''}{usePoints && pointsDiscount > 0 ? `${appliedPromo ? ' + ' : ''}Points` : ''}
                   </Text>
-                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−₵{totalDiscount.toFixed(2)}</Text>
+                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−{formatCurrency(totalDiscount)}</Text>
                 </View>
               )}
               {totalBargainDiscount > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={[S.summaryItemName, { color: C.success }]}>Bargain Discount</Text>
-                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−₵{totalBargainDiscount.toFixed(2)}</Text>
+                  <Text style={[S.summaryItemPrice, { color: C.success }]}>−{formatCurrency(totalBargainDiscount)}</Text>
                 </View>
               )}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
-                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
+                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>{formatCurrency(total)}</Text>
               </View>
             </View>
 
@@ -647,7 +648,7 @@ export default function CheckoutScreen() {
                       <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Home delivery by rider</Text>
                       <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>A local rider picks up from the hub and delivers to your door</Text>
                     </View>
-                    <Text style={{ fontFamily: 'Montserrat-Bold', color: C.navy, fontSize: 13 }}>₵{lastMileFee.toFixed(2)}</Text>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: C.navy, fontSize: 13 }}>{formatCurrency(lastMileFee)}</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -661,7 +662,7 @@ export default function CheckoutScreen() {
                   <Ionicons name="checkmark-circle" size={20} color={C.success} />
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={S.promoAppliedCode}>{appliedPromo.code}</Text>
-                    <Text style={S.promoAppliedSub}>{appliedPromo.label} — saving ₵{appliedPromo.discountAmount.toFixed(2)}</Text>
+                    <Text style={S.promoAppliedSub}>{appliedPromo.label} — saving {formatCurrency(appliedPromo.discountAmount)}</Text>
                   </View>
                   <TouchableOpacity accessibilityLabel="Remove promo code" accessibilityRole="button" onPress={() => setAppliedPromo(null)}>
                     <Ionicons name="close-circle" size={22} color={C.muted} />
@@ -731,7 +732,7 @@ export default function CheckoutScreen() {
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
-                        <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
+                        <Text style={S.loyaltySub}>Worth {formatCurrency(loyaltyValue)} off your order</Text>
                       </View>
                       <View style={[S.toggle, usePoints && S.toggleOn]}>
                         <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
@@ -740,7 +741,7 @@ export default function CheckoutScreen() {
                     {usePoints && (
                       <View style={S.loyaltySaving}>
                         <Ionicons name="checkmark-circle" size={14} color={C.success} />
-                        <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
+                        <Text style={S.loyaltySavingTxt}>−{formatCurrency(pointsDiscount)} applied</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -932,7 +933,7 @@ export default function CheckoutScreen() {
               <LinearGradient colors={colors.headerGradient} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
-                  : <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
+                  : <Text style={S.placeOrderTxt}>Place Order · {formatCurrency(total)}</Text>
                 }
               </LinearGradient>
             </TouchableOpacity>

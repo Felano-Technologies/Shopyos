@@ -12,6 +12,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useProfile } from '@/hooks/useProfile';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const STATUS_FILTERS = ['All', 'Completed', 'Pending', 'Failed'] as const;
 function statusColor(status: string) {
@@ -134,7 +135,7 @@ export default function DriverPayoutScreen() {
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[styles.historyAmount, { color: statusColor(item.status) }]}>
-          +₵{Number.parseFloat(item.amount).toFixed(2)}
+          +{formatCurrency(item.amount)}
         </Text>
         <Text style={[styles.historyStatus, { color: statusColor(item.status) }]}>
           {item.status.toUpperCase()}
@@ -162,7 +163,7 @@ export default function DriverPayoutScreen() {
           {/* Wallet Balance Card */}
           <View style={styles.balanceContainer}>
             <Text style={styles.balanceLabel}>Wallet Balance</Text>
-            <Text style={styles.balanceValue}>₵{walletBalance.toFixed(2)}</Text>
+            <Text style={styles.balanceValue}>{formatCurrency(walletBalance)}</Text>
             <Text style={styles.autoPayoutNote}>Paid out instantly after each delivery</Text>
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -227,7 +228,7 @@ export default function DriverPayoutScreen() {
           {showAmountSheet && (
             <View style={styles.amountSheet}>
               <Text style={styles.amountSheetTitle}>Enter Amount (GHS)</Text>
-              <Text style={styles.amountSheetNote}>Min: GHS 10 · Available: ₵{walletBalance.toFixed(2)}</Text>
+              <Text style={styles.amountSheetNote}>Min: GHS 10 · Available: {formatCurrency(walletBalance)}</Text>
               <View style={styles.amountInputRow}>
                 <Text style={styles.currencySymbol}>₵</Text>
                 <TextInput

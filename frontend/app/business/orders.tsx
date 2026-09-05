@@ -21,6 +21,8 @@ import { useActiveBusiness, useStoreOrders } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -304,7 +306,7 @@ export default function OrdersScreen() {
           <View style={S.cardFoot}>
             <View>
               <Text style={S.footLbl}>Total</Text>
-              <Text style={S.footAmt}>GH₵ {item.totalAmount.toFixed(2)}</Text>
+              <Text style={S.footAmt}>GH{formatCurrency(item.totalAmount)}</Text>
             </View>
             <View style={S.detailsBtn}>
               <Text style={S.detailsBtnTxt}>View Details</Text>
@@ -379,13 +381,13 @@ export default function OrdersScreen() {
                   <View style={[S.revenueCard, { flex: 1 }]}>
                     <View>
                       <Text style={S.revLbl}>Earned</Text>
-                      <Text style={[S.revAmt, { fontSize: rf(18) }]}>₵{earnedRevenue.toFixed(2)}</Text>
+                      <Text style={[S.revAmt, { fontSize: rf(18) }]}>{formatCurrency(earnedRevenue)}</Text>
                     </View>
                   </View>
                   <View style={[S.revenueCard, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)' }]}>
                     <View>
                       <Text style={S.revLbl}>Pending Delivery</Text>
-                      <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>₵{pendingRevenue.toFixed(2)}</Text>
+                      <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>{formatCurrency(pendingRevenue)}</Text>
                     </View>
                   </View>
                 </View>
@@ -487,7 +489,7 @@ export default function OrdersScreen() {
         <Modal visible={showSwitcher} animationType="slide" transparent>
           <View style={S.switcherOverlay}>
             <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-            <View style={S.switcherSheet}>
+            <GlassSurface style={S.switcherSheet}>
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity onPress={() => setShowSwitcher(false)}>
@@ -544,7 +546,7 @@ export default function OrdersScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
 

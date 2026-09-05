@@ -21,6 +21,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as ExpoLinking from 'expo-linking';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const DURATION_TIERS = [
   { days: 1,  label: '1 Day',   price: 1  },
   { days: 7,  label: '1 Week',  price: 10 },
@@ -242,7 +243,7 @@ export default function PromotionsScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <Feather name="pie-chart" size={20} color={colors.primary} />
-                  <Text style={styles.statValue}>₵{totalSpent}</Text>
+                  <Text style={styles.statValue}>{formatCurrency(totalSpent)}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>
@@ -273,7 +274,7 @@ export default function PromotionsScreen() {
                         </View>
                       </View>
                       <View style={styles.campFooter}>
-                        <Text style={styles.campSpent}>Cost: ₵{camp.paid_amount}</Text>
+                        <Text style={styles.campSpent}>Cost: {formatCurrency(camp.paid_amount)}</Text>
                         {camp.status === 'Approved' ? (
                           <TouchableOpacity
                             style={styles.payBtnSmall}
@@ -375,7 +376,7 @@ export default function PromotionsScreen() {
                           >
                             <View style={styles.productItemInfo}>
                               <Text style={styles.productItemName}>{prod.name}</Text>
-                              <Text style={styles.productItemPrice}>₵{prod.price}</Text>
+                              <Text style={styles.productItemPrice}>{formatCurrency(prod.price)}</Text>
                             </View>
                             {selectedProduct?.id === prod.id && (
                               <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -400,7 +401,7 @@ export default function PromotionsScreen() {
                       {tier.label}
                     </Text>
                     <Text style={[styles.durationPrice, duration.days === tier.days && styles.durationPriceActive]}>
-                      ₵{tier.price}
+                      {formatCurrency(tier.price)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -452,7 +453,7 @@ export default function PromotionsScreen() {
                 <View style={styles.divider} />
                 <View style={styles.checkoutRow}>
                   <Text style={styles.totalLabel}>Total Payable</Text>
-                  <Text style={styles.totalValue}>₵{duration.price}</Text>
+                  <Text style={styles.totalValue}>{formatCurrency(duration.price)}</Text>
                 </View>
               </View>
               {adTerms && (

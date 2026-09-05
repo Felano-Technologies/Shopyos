@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -464,9 +465,9 @@ export default function OrderDetailsScreen() {
                     <AppImage source={item.image} style={S.itemImg} />
                     <View style={{ flex: 1 }}>
                       <Text style={S.itemName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={S.itemMeta}>₵{item.price.toFixed(2)} × {item.quantity}</Text>
+                      <Text style={S.itemMeta}>{formatCurrency(item.price)} × {item.quantity}</Text>
                     </View>
-                    <Text style={S.itemTotal}>₵{(item.price * item.quantity).toFixed(2)}</Text>
+                    <Text style={S.itemTotal}>{formatCurrency(item.price * item.quantity)}</Text>
                   </View>
                   {i < order.items.length - 1 && <View style={S.divider} />}
                 </View>
@@ -479,28 +480,28 @@ export default function OrderDetailsScreen() {
             <View style={S.card}>
               <View style={S.summaryRow}>
                 <Text style={S.summaryLbl}>Subtotal</Text>
-                <Text style={S.summaryVal}>₵{order.payment.subtotal.toFixed(2)}</Text>
+                <Text style={S.summaryVal}>{formatCurrency(order.payment.subtotal)}</Text>
               </View>
               {order.payment.tax > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryLbl}>Buyer Protection Fee</Text>
-                  <Text style={S.summaryVal}>₵{order.payment.tax.toFixed(2)}</Text>
+                  <Text style={S.summaryVal}>{formatCurrency(order.payment.tax)}</Text>
                 </View>
               )}
               <View style={S.summaryRow}>
                 <Text style={S.summaryLbl}>Delivery fee</Text>
-                <Text style={S.summaryVal}>₵{order.payment.deliveryFee.toFixed(2)}</Text>
+                <Text style={S.summaryVal}>{formatCurrency(order.payment.deliveryFee)}</Text>
               </View>
               {order.payment.discount > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryLbl}>Discount</Text>
-                  <Text style={[S.summaryVal, { color: '#16a34a' }]}>-₵{order.payment.discount.toFixed(2)}</Text>
+                  <Text style={[S.summaryVal, { color: '#16a34a' }]}>-{formatCurrency(order.payment.discount)}</Text>
                 </View>
               )}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={S.totalLbl}>Total</Text>
-                <Text style={S.totalVal}>₵{order.payment.total.toFixed(2)}</Text>
+                <Text style={S.totalVal}>{formatCurrency(order.payment.total)}</Text>
               </View>
               <View style={S.methodRow}>
                 <MaterialCommunityIcons name="cellphone-check" size={rs(18)} color={C.navy} />

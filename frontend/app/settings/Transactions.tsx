@@ -16,6 +16,7 @@ import { useRouter, Stack } from 'expo-router';
 import { getMyOrders } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type LegacyPalette = {
   bg: string;
@@ -112,10 +113,6 @@ export default function SettingsTransactionsScreen() {
       setRefreshing(false);
     }
   }, []);
-  // Helper to format currency
-  const formatCurrency = (amount: number) => {
-    return `₵${Math.abs(amount).toFixed(2)}`;
-  };
   // Helper to format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -148,7 +145,7 @@ export default function SettingsTransactionsScreen() {
             styles.amountText,
             { color: isCredit ? '#16A34A' : C.body }
           ]}>
-            {isCredit ? '+' : '-'} {formatCurrency(item.amount)}
+            {isCredit ? '+' : '-'} {formatCurrency(Math.abs(item.amount))}
           </Text>
           {(() => {
             const badgeStyle = item.status === 'completed' ? styles.statusSuccess :

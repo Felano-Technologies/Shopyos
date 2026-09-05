@@ -23,6 +23,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { uriToBlob } from '@/services/uploadUtils';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 
 function UploadBox({ label, imageUri, onPress }: Readonly<{ label: string; imageUri: string | null; onPress: () => void }>) {
@@ -433,9 +434,9 @@ export default function DriverVerification() {
                             <Ionicons name="camera" size={40} color={colors.textMuted} />
                         </View>
                     )}
-                    <View style={styles.editBadge}>
+                    <GlassSurface style={styles.editBadge}>
                         <Feather name={profilePhoto ? "refresh-ccw" : "plus"} size={16} color="#FFF" />
-                    </View>
+                    </GlassSurface>
                 </TouchableOpacity>
             </View>
 

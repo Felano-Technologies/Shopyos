@@ -29,6 +29,7 @@ import { useSellerGuard } from '../../hooks/useSellerGuard';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width, height } = Dimensions.get('window');
 
@@ -310,7 +311,7 @@ const BusinessDashboard = () => {
                   } else if (usage >= 1) {
                     bg = ['#DC2626', '#B91C1C'];
                     icon = 'alert-circle';
-                    label = `Listing fee required • ₵${ls.listing_fee}`;
+                    label = `Listing fee required • ${formatCurrency(ls.listing_fee)}`;
                   } else if (usage >= 0.8) {
                     bg = ['#D97706', '#B45309'];
                     icon = 'alert-triangle';
@@ -476,7 +477,7 @@ const BusinessDashboard = () => {
                               <Text style={styles.orderStatus}>{order.status}</Text>
                           </View>
                         </View>
-                        <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
+                        <Text style={styles.orderAmount}>{formatCurrency(order.totalAmount)}</Text>
                       </View>
                     ))
                   ) : (

@@ -23,6 +23,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { verifyBusinessDetails } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 type BusinessDetails = {
   ownerName: string;
   businessType: string;
@@ -130,7 +131,7 @@ const BusinessVerification = () => {
     <View style={styles.container}>
       <StatusBar style="light" />
       {/* Watermark Background */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
         <View style={styles.watermarkContainer}>
           <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
@@ -152,7 +153,7 @@ const BusinessVerification = () => {
           <View style={styles.logoSection}>
             <TouchableOpacity onPress={handleUploadLogo} style={styles.logoCircle}>
               {details.logo ? <AppImage uri={details.logo} style={styles.logoImage} /> : <Feather name="camera" size={28} color={colors.primary} />}
-              <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF" /* white icon on fixed primary-colored badge */ /></View>
+              <GlassSurface style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF" /* white icon on fixed primary-colored badge */ /></GlassSurface>
             </TouchableOpacity>
             <Text style={styles.logoText}>Business Brand Logo</Text>
           </View>

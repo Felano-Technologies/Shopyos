@@ -22,6 +22,7 @@ import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -342,7 +343,7 @@ const OrdersScreen = () => {
             </View>
             <View style={S.amountWrap}>
               <Text style={S.amountLbl}>Total</Text>
-              <Text style={S.amountVal}>₵{item.totalAmount.toFixed(2)}</Text>
+              <Text style={S.amountVal}>{formatCurrency(item.totalAmount)}</Text>
             </View>
           </View>
 

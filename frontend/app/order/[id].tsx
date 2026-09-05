@@ -20,6 +20,7 @@ import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const CANCEL_WINDOW_MS = 5 * 60 * 1000;
 const { width: SW } = Dimensions.get('window');
@@ -558,7 +559,7 @@ const OrderDetailsScreen = () => {
                       <Text style={S.itemQty}>Qty: {item.quantity}</Text>
                     </View>
                     <Text style={S.itemPrice}>
-                      ₵{(Number.parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                      {formatCurrency(Number.parseFloat(item.price || 0) * (item.quantity || 1))}
                     </Text>
                   </View>
                   {idx < (order.order_items.length - 1) && <View style={S.itemDivider} />}
@@ -573,27 +574,27 @@ const OrderDetailsScreen = () => {
           <View style={S.payCard}>
             <View style={S.priceRow}>
               <Text style={S.priceLbl}>Subtotal</Text>
-              <Text style={S.priceVal}>₵{itemsSubtotal.toFixed(2)}</Text>
+              <Text style={S.priceVal}>{formatCurrency(itemsSubtotal)}</Text>
             </View>
             <View style={S.priceRow}>
               <Text style={S.priceLbl}>Delivery fee</Text>
-              <Text style={S.priceVal}>{deliveryFee > 0 ? `₵${deliveryFee.toFixed(2)}` : 'Free'}</Text>
+              <Text style={S.priceVal}>{deliveryFee > 0 ? formatCurrency(deliveryFee) : 'Free'}</Text>
             </View>
             <View style={S.priceRow}>
               <Text style={S.priceLbl}>Buyer Protection Fee</Text>
-              <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
+              <Text style={S.priceVal}>{formatCurrency(taxAmount)}</Text>
             </View>
             {discount > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Discount</Text>
-                <Text style={[S.priceVal, { color: '#16a34a' }]}>-₵{discount.toFixed(2)}</Text>
+                <Text style={[S.priceVal, { color: '#16a34a' }]}>-{formatCurrency(discount)}</Text>
               </View>
             )}
             <View style={S.payDivider} />
             {/* Grand total — derived from backend total_amount or computed */}
             <View style={S.totalRow}>
               <Text style={S.totalLbl}>Grand Total</Text>
-              <Text style={S.totalVal}>₵{grandTotal.toFixed(2)}</Text>
+              <Text style={S.totalVal}>{formatCurrency(grandTotal)}</Text>
             </View>
             {/* Payment method */}
             <View style={S.methodRow}>

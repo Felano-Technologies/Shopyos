@@ -45,6 +45,7 @@ import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { SimilarProductsRow } from '../../components/product/SimilarProductsRow';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width, height } = Dimensions.get('window');
 
 type LegacyPalette = {
@@ -497,10 +498,10 @@ export default function ProductDetails() {
                         </View>
                         <Text style={styles.title}>{product.title}</Text>
                         <View style={styles.priceRow}>
-                            <Text style={styles.price}>₵{Number(effectivePrice || 0).toFixed(2)}</Text>
-                            {product.oldPrice && <Text style={styles.oldPrice}>₵{Number(product.oldPrice).toFixed(2)}</Text>}
+                            <Text style={styles.price}>{formatCurrency(effectivePrice)}</Text>
+                            {product.oldPrice && <Text style={styles.oldPrice}>{formatCurrency(product.oldPrice)}</Text>}
                             {selectedVariant?.compare_at_price && (
-                                <Text style={styles.oldPrice}>₵{Number(selectedVariant.compare_at_price).toFixed(2)}</Text>
+                                <Text style={styles.oldPrice}>{formatCurrency(selectedVariant.compare_at_price)}</Text>
                             )}
                         </View>
                         <StockIndicator qty={selectedVariant ? selectedVariant.stock_quantity : product.stockQuantity} />

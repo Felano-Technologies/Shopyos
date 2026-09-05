@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { getMyReturns } from '@/services/orders';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -48,10 +49,10 @@ const ReturnCard = ({ item }: { item: any }) => {
       
       <View style={styles.breakdownBox}>
         <Text style={styles.breakdownText}>
-          Product Subtotal (Refundable): <Text style={styles.bold}>₵{Number(item.refundable_amount || 0).toFixed(2)}</Text>
+          Product Subtotal (Refundable): <Text style={styles.bold}>{formatCurrency(item.refundable_amount)}</Text>
         </Text>
         <Text style={styles.breakdownText}>
-          Delivery Fee (Non-Refundable): <Text style={styles.bold}>₵{Number(item.delivery_fee_at_time || 0).toFixed(2)}</Text>
+          Delivery Fee (Non-Refundable): <Text style={styles.bold}>{formatCurrency(item.delivery_fee_at_time)}</Text>
         </Text>
       </View>
 
@@ -62,7 +63,7 @@ const ReturnCard = ({ item }: { item: any }) => {
         </View>
       ) : null}
       {item.refund_amount ? (
-        <Text style={styles.refundAmt}>Refunded: ₵{Number.parseFloat(item.refund_amount).toFixed(2)}</Text>
+        <Text style={styles.refundAmt}>Refunded: {formatCurrency(item.refund_amount)}</Text>
       ) : null}
       <Text style={styles.date}>{format(new Date(item.created_at), 'dd MMM yyyy')}</Text>
     </View>

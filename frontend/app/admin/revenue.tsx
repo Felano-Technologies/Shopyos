@@ -20,6 +20,7 @@ import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LineChart } from 'react-native-chart-kit';
 import { getAdminDashboard, getAdminRevenue, getAdminRevenueBreakdown } from '@/services/api';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -116,7 +117,7 @@ export default function AdminRevenue() {
     return [
       `₵${totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}`,
       payoutCount.toLocaleString(),
-      `₵${avg.toFixed(2)}`,
+      formatCurrency(avg),
     ];
   }, [totalRevenue, transactions]);
 
@@ -238,7 +239,7 @@ export default function AdminRevenue() {
             <View key={s.store_name} style={styles.spenderRow}>
               <Text style={styles.spenderRank}>#{i + 1}</Text>
               <Text style={styles.spenderName} numberOfLines={1}>{s.store_name}</Text>
-              <Text style={styles.spenderValue}>₵{(s.spent || 0).toFixed(2)}</Text>
+              <Text style={styles.spenderValue}>{formatCurrency(s.spent)}</Text>
             </View>
           ))}
         </View>
@@ -294,7 +295,7 @@ export default function AdminRevenue() {
                     <Text style={styles.itemSub}>{formatDate(item.created_at)}</Text>
                   </View>
                   <View style={styles.itemRight}>
-                    <Text style={styles.itemPrice}>+₵{Number.parseFloat(item.amount || 0).toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>+{formatCurrency(item.amount)}</Text>
                     {status ? (
                       <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
                         <Text style={[styles.statusPillText, { color: pill.text }]}>{status}</Text>

@@ -23,6 +23,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import WelcomeCard from '@/components/WelcomeCard';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
@@ -199,7 +200,7 @@ export default function ParcelPartnerDashboard() {
         {selectedHub && (
           <View style={styles.balanceCard}>
             <Text style={styles.balanceLabel}>Hub Balance</Text>
-            <Text style={styles.balanceValue}>₵{Number(selectedHub.current_balance || 0).toFixed(2)}</Text>
+            <Text style={styles.balanceValue}>{formatCurrency(selectedHub.current_balance)}</Text>
           </View>
         )}
 

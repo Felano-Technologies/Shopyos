@@ -16,6 +16,7 @@ import { getSellerSales, getSlotsList, cancelFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function BusinessFlashSales() {
   const router = useRouter();
@@ -198,7 +199,7 @@ export default function BusinessFlashSales() {
                           {p.title || 'Product'}
                         </Text>
                         <Text style={styles.productPrice}>
-                          ₵{Number(p.flash_price).toFixed(2)} (Stock: {p.sold_count}/{p.stock_limit})
+                          {formatCurrency(p.flash_price)} (Stock: {p.sold_count}/{p.stock_limit})
                         </Text>
                       </View>
                     ))}

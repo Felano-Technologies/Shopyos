@@ -31,6 +31,8 @@ import MapView, { UrlTile } from '@/components/MapView';
 import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassContainer } from 'expo-glass-effect';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
   'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
@@ -458,11 +460,13 @@ export default function BusinessRegistrationScreen() {
             <View style={styles.markerArrow} />
           </View>
           <SafeAreaView style={styles.mapOverlay} pointerEvents="box-none">
-            <View style={styles.mapSearchContainer}>
-                <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.mapSearchClose}>
+            <GlassContainer style={styles.mapSearchContainer} spacing={0}>
+                <TouchableOpacity onPress={() => setMapVisible(false)}>
+                  <GlassSurface style={styles.mapSearchClose} isInteractive>
                     <Ionicons name="arrow-back" size={24} color={colors.primary} />
+                  </GlassSurface>
                 </TouchableOpacity>
-                <View style={styles.mapSearchWrapper}>
+                <GlassSurface style={styles.mapSearchWrapper}>
                     <Ionicons name="search" size={18} color={colors.textMuted} />
                     <TextInput
                         style={styles.mapSearchInput}
@@ -478,14 +482,16 @@ export default function BusinessRegistrationScreen() {
                             <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                         </TouchableOpacity>
                     )}
-                </View>
-            </View>
+                </GlassSurface>
+            </GlassContainer>
 
-            <TouchableOpacity style={styles.confirmBtn} onPress={confirmMapSelection}>
-                <LinearGradient colors={colors.headerGradient} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                    <Text style={styles.confirmText}>Set Store Location</Text>
-                    <Feather name="check" size={20} color="#FFF" style={{ marginLeft: 10 }} />
-                </LinearGradient>
+            <TouchableOpacity onPress={confirmMapSelection}>
+                <GlassSurface style={styles.confirmBtn} tintColor={colors.primary} isInteractive>
+                  <LinearGradient colors={colors.headerGradient} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                      <Text style={styles.confirmText}>Set Store Location</Text>
+                      <Feather name="check" size={20} color="#FFF" style={{ marginLeft: 10 }} />
+                  </LinearGradient>
+                </GlassSurface>
             </TouchableOpacity>
           </SafeAreaView>
         </View>
@@ -493,7 +499,7 @@ export default function BusinessRegistrationScreen() {
       {/* --- City Selection Modal --- */}
       <Modal visible={showCityModal} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <GlassSurface style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Select City</Text>
                     <TouchableOpacity onPress={() => setShowCityModal(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
@@ -508,7 +514,7 @@ export default function BusinessRegistrationScreen() {
                         </TouchableOpacity>
                     )}
                 />
-            </View>
+            </GlassSurface>
         </View>
       </Modal>
     </View>

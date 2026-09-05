@@ -17,6 +17,7 @@ import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { getActiveBanners, recordAdClick } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type CartItem = {
   id: string;
@@ -82,14 +83,14 @@ const CartItemRow = React.memo(function CartItemRow({ item, index, refQty, measu
             <View>
               {discount > 0 ? (
                 <>
-                  <Text style={styles.itemPriceStrikethrough}>₵{Number(item.price).toFixed(2)}</Text>
-                  <Text style={styles.itemPriceBargained}>₵{effectivePrice.toFixed(2)}</Text>
+                  <Text style={styles.itemPriceStrikethrough}>{formatCurrency(item.price)}</Text>
+                  <Text style={styles.itemPriceBargained}>{formatCurrency(effectivePrice)}</Text>
                 </>
               ) : (
-                <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
               )}
               {item.quantity > 1 && (
-                <Text style={styles.itemSubtotal}>× {item.quantity} = ₵{lineTotal.toFixed(2)}</Text>
+                <Text style={styles.itemSubtotal}>× {item.quantity} = {formatCurrency(lineTotal)}</Text>
               )}
             </View>
           </View>
@@ -278,7 +279,7 @@ export default function CartScreen() {
           <View style={styles.summaryRow}>
             <View>
               <Text style={styles.summaryLabel}>Order Total</Text>
-              <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
             </View>
             <TouchableOpacity
               accessibilityLabel="Proceed to checkout"

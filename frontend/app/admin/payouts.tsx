@@ -12,6 +12,7 @@ import AdminBottomNav from '@/components/AdminBottomNav';
 import { getAdminPayoutList, getAdminPayoutSummary, processAdminPayout, bulkProcessPayouts } from '@/services/payments';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 const TYPE_FILTERS = ['All', 'Sellers', 'Drivers'] as const;
@@ -203,7 +204,7 @@ export default function AdminPayoutsScreen() {
         </View>
 
         <View style={styles.cardRight}>
-          <Text style={styles.payoutAmount}>₵{Number.parseFloat(item.amount).toFixed(2)}</Text>
+          <Text style={styles.payoutAmount}>{formatCurrency(item.amount)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: theme.bg }]}>
             <Text style={[styles.statusBadgeText, { color: theme.text }]}>{item.status.toUpperCase()}</Text>
           </View>

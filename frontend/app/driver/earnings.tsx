@@ -10,6 +10,7 @@ import { getDriverEarningsAnalytics, getMyDeliveries } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -91,7 +92,7 @@ export default function DriverEarnings() {
         <Text style={styles.transTime}>{item.time}</Text>
       </View>
       <Text style={[styles.transAmount, item.type === 'debit' && { color: colors.error }]}>
-        {item.type === 'debit' ? '-' : '+'}₵{Math.abs(item.amount).toFixed(2)}
+        {item.type === 'debit' ? '-' : '+'}{formatCurrency(Math.abs(item.amount))}
       </Text>
     </View>
   );
@@ -116,7 +117,7 @@ export default function DriverEarnings() {
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>This Month</Text>
                 <Text style={styles.balanceValue}>
-                  ₵{analytics?.summary?.total_earned_this_month?.toFixed(2) || '0.00'}
+                  {formatCurrency(analytics?.summary?.total_earned_this_month)}
                 </Text>
                 <TouchableOpacity style={styles.cashoutBtn} onPress={() => router.push('/driver/payout' as any)}>
                     <Text style={styles.cashoutText}>Manage Payouts</Text>
@@ -148,7 +149,7 @@ export default function DriverEarnings() {
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Avg / Delivery</Text>
                     <Text style={styles.summaryValue}>
-                      ₵{analytics.summary.avg_per_delivery?.toFixed(2) || '0.00'}
+                      {formatCurrency(analytics.summary.avg_per_delivery)}
                     </Text>
                   </View>
                 </View>
@@ -206,20 +207,20 @@ export default function DriverEarnings() {
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Base delivery fees</Text>
                   <Text style={styles.breakdownValue}>
-                    ₵{analytics.breakdown.base_delivery_fees?.toFixed(2) || '0.00'}
+                    {formatCurrency(analytics.breakdown.base_delivery_fees)}
                   </Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Bonuses & rewards</Text>
                   <Text style={[styles.breakdownValue, { color: colors.success }]}>
-                    ₵{analytics.breakdown.bonuses_and_rewards?.toFixed(2) || '0.00'}
+                    {formatCurrency(analytics.breakdown.bonuses_and_rewards)}
                   </Text>
                 </View>
                 <View style={styles.breakdownDivider} />
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownTotalLabel}>Total</Text>
                   <Text style={styles.breakdownTotalValue}>
-                    ₵{analytics.breakdown.total?.toFixed(2) || '0.00'}
+                    {formatCurrency(analytics.breakdown.total)}
                   </Text>
                 </View>
               </View>

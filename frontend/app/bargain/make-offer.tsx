@@ -23,6 +23,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -232,7 +233,7 @@ export default function MakeOfferScreen() {
             </Text>
             <Text style={styles.originalPriceLabel}>
               Listed Price:{' '}
-              <Text style={styles.originalPriceText}>₵{originalPrice.toFixed(2)}</Text>
+              <Text style={styles.originalPriceText}>{formatCurrency(originalPrice)}</Text>
             </Text>
           </View>
         </View>
@@ -249,7 +250,7 @@ export default function MakeOfferScreen() {
                 onPress={() => selectSuggestedPrice(pct)}
               >
                 <Text style={styles.chipPct}>-{pct}%</Text>
-                <Text style={styles.chipVal}>₵{val.toFixed(0)}</Text>
+                <Text style={styles.chipVal}>₵{Math.round(val).toLocaleString('en-US')}</Text>
               </TouchableOpacity>
             );
           })}

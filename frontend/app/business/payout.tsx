@@ -19,6 +19,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 
@@ -164,7 +165,7 @@ export default function PayoutScreen() {
           )}
         </View>
       </View>
-      <Text style={styles.historyAmount}>₵{Number.parseFloat(item.amount).toFixed(2)}</Text>
+      <Text style={styles.historyAmount}>{formatCurrency(item.amount)}</Text>
     </View>
   );
 

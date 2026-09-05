@@ -21,6 +21,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { useAdminPromoCodes, useAdminCreatePromoCode, useDeactivatePromoCode } from '@/hooks/usePromoCodes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -177,8 +178,8 @@ export default function AdminPromoCodesScreen() {
               </View>
               <Text style={styles.storeText}>{item.store?.store_name || 'Platform-wide'}</Text>
               <Text style={styles.valueText}>
-                {item.type === 'percentage' ? `${Number(item.value)}% off` : `₵${Number(item.value).toFixed(2)} off`}
-                {Number(item.min_order) > 0 ? ` · Min order ₵${Number(item.min_order).toFixed(2)}` : ''}
+                {item.type === 'percentage' ? `${Number(item.value)}% off` : `${formatCurrency(item.value)} off`}
+                {Number(item.min_order) > 0 ? ` · Min order ${formatCurrency(item.min_order)}` : ''}
               </Text>
               <Text style={styles.metaText}>
                 Used {item.uses_count}{item.max_uses ? ` / ${item.max_uses}` : ''} times

@@ -5,6 +5,7 @@ import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -58,7 +59,7 @@ const DriverBottomNav = () => {
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <GlassSurface style={styles.container} isInteractive={false}>
         {navItems.map((item) => {
           const isActive = pathname === item.route;
 
@@ -94,7 +95,7 @@ const DriverBottomNav = () => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 };

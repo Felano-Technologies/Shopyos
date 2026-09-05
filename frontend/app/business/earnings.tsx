@@ -14,6 +14,7 @@ import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { getSellerTransactions, storage } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -205,7 +206,7 @@ const EarningsScreen = () => {
             {/* Total earnings pill inside header */}
             <View style={S.totalPill}>
               <Text style={S.totalPillLbl}>Net Earnings</Text>
-              <Text style={S.totalPillVal}>₵{totalEarnings.toFixed(2)}</Text>
+              <Text style={S.totalPillVal}>{formatCurrency(totalEarnings)}</Text>
             </View>
             <View style={S.hdrArc} />
           </LinearGradient>
@@ -252,7 +253,7 @@ const EarningsScreen = () => {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={[S.earnAmt, { color: item.value < 0 ? colors.error : colors.text }]}>
-                    {item.value < 0 ? '-' : ''}₵{Math.abs(item.value).toFixed(2)}
+                    {item.value < 0 ? '-' : ''}{formatCurrency(Math.abs(item.value))}
                   </Text>
                   <View style={S.trendRow}>
                     <Feather

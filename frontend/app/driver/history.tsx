@@ -15,6 +15,7 @@ import { useRouter, Stack } from 'expo-router';
 import { getMyDeliveries } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function DriverHistory() {
   const router = useRouter();
@@ -95,7 +96,7 @@ export default function DriverHistory() {
                 <Text style={styles.orderId}>Order {item.orderId}</Text>
             </View>
             <Text style={[styles.earnings, isCancelled && styles.earningsCancelled]}>
-                {isCancelled ? '₵0.00' : `₵${Number(item.earnings || 0).toFixed(2)}`}
+                {isCancelled ? formatCurrency(0) : formatCurrency(item.earnings)}
             </Text>
         </View>
 

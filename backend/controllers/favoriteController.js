@@ -2,6 +2,7 @@
 const repositories = require('../db/repositories');
 const { resolveImageUrl } = require('../config/storage');
 const ApiResponse = require('../utils/apiResponse');
+const { logger } = require('../config/logger');
 
 // @desc    Add product to favorites
 // @route   POST /api/favorites
@@ -37,6 +38,13 @@ const addFavorite = async (req, res, next) => {
             product_id: productId
         });
 
+        // Log favorite event for recommendation personalization (fire-and-forget)
+        repositories.favorites.db
+            .from('user_events')
+            .insert({ user_id: userId, product_id: productId, event_type: 'favorite', weight: 3 })
+            .then(() => {})
+            .catch(err => logger.warn('Failed to log favorite event:', err.message));
+
         ApiResponse.withEntity(res, 'favorite', favorite, 'Product added to favorites', null, 201);
 
     } catch (error) {
@@ -63,6 +71,16 @@ const removeFavorite = async (req, res, next) => {
         }
 
         await repositories.favorites.delete(favorite.id);
+
+        // Clear the favorite signal so it stops influencing recommendations (fire-and-forget)
+        repositories.favorites.db
+            .from('user_events')
+            .delete()
+            .eq('user_id', userId)
+            .eq('product_id', productId)
+            .eq('event_type', 'favorite')
+            .then(() => {})
+            .catch(err => logger.warn('Failed to clear favorite event:', err.message));
 
         ApiResponse.success(res, null, 'Product removed from favorites');
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { CameraView, Camera } from 'expo-camera'; // Modern Expo Camera
 import { Ionicons } from '@expo/vector-icons';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 interface QRScannerProps {
   visible: boolean;
@@ -67,7 +68,7 @@ export default function QRScanner({ visible, onClose, onScanned }: Readonly<QRSc
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           facing="back"
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{
@@ -79,16 +80,20 @@ export default function QRScanner({ visible, onClose, onScanned }: Readonly<QRSc
         <View style={styles.overlay}>
           <View style={styles.header}>
             <Text style={styles.title}>Scan QR Code</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={28} color="white" />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtnTouchable} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <GlassSurface style={styles.closeBtn}>
+                <Ionicons name="close" size={28} color="white" />
+              </GlassSurface>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.scanFrame} />
-          
-          <Text style={styles.instructions}>
-            Align QR code within the frame
-          </Text>
+
+          <GlassSurface style={styles.instructions}>
+            <Text style={styles.instructionsText}>
+              Align QR code within the frame
+            </Text>
+          </GlassSurface>
         </View>
       </View>
     </Modal>
@@ -123,9 +128,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  closeBtn: {
+  closeBtnTouchable: {
     position: 'absolute',
     right: 20,
+  },
+  closeBtn: {
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 5,
@@ -139,12 +146,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   instructions: {
-    color: 'white',
-    fontSize: 14,
     backgroundColor: 'rgba(0,0,0,0.6)',
     padding: 10,
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  instructionsText: {
+    color: 'white',
+    fontSize: 14,
   },
   button: {
     marginTop: 20,

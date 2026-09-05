@@ -21,6 +21,7 @@ import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getAdminOrders } from '@/services/api';
 import { updateOrderStatus } from '@/services/orders';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 const STATUS_FILTERS = ['All', 'pending', 'processing', 'delivered', 'cancelled'];
@@ -215,7 +216,7 @@ export default function AdminOrders() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={styles.amountBlock}>
               <Text style={styles.amountLabel}>Total</Text>
-              <Text style={styles.amountValue}>₵{amount.toFixed(2)}</Text>
+              <Text style={styles.amountValue}>{formatCurrency(amount)}</Text>
             </View>
             <TouchableOpacity
               onPress={(e) => { e.stopPropagation(); setActionOrder(item); }}
@@ -384,7 +385,7 @@ export default function AdminOrders() {
                     <View>
                       <Text style={styles.storeSummaryName}>{store.name}</Text>
                       <Text style={styles.storeSummaryMeta}>
-                        {store.orders} orders · ₵{store.revenue.toFixed(2)}
+                        {store.orders} orders · {formatCurrency(store.revenue)}
                       </Text>
                     </View>
 

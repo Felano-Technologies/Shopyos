@@ -20,6 +20,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { getStoreProducts, deleteProduct } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -144,9 +145,9 @@ export default function ProductsScreen() {
       <View style={S.productInfo}>
         <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
         <View style={S.productMeta}>
-          <Text style={S.productPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+          <Text style={S.productPrice}>{formatCurrency(item.price)}</Text>
           {item.compareAtPrice ? (
-            <Text style={S.productWas}>₵{Number.parseFloat(item.compareAtPrice).toFixed(2)}</Text>
+            <Text style={S.productWas}>{formatCurrency(item.compareAtPrice)}</Text>
           ) : null}
           {isFashionCategory(item.category) && (
             <View style={S.genderBadge}>

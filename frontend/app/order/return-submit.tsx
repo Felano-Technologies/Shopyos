@@ -25,6 +25,7 @@ import { api } from '@/services/client';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { createReturnRequest } from '@/services/orders';
 import { uriToBlob } from '@/services/uploadUtils';
+import { formatCurrency } from '@/utils/formatCurrency';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -275,21 +276,21 @@ export default function ReturnSubmitScreen() {
           {/* Refund Calculation Breakdown */}
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Product Subtotal</Text>
-            <Text style={styles.breakdownValue}>₵{subtotal.toFixed(2)}</Text>
+            <Text style={styles.breakdownValue}>{formatCurrency(subtotal)}</Text>
           </View>
           {discount > 0 && (
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Discounts Applied</Text>
-              <Text style={[styles.breakdownValue, { color: C.red }]}>-₵{discount.toFixed(2)}</Text>
+              <Text style={[styles.breakdownValue, { color: C.red }]}>-{formatCurrency(discount)}</Text>
             </View>
           )}
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Delivery Fee (Non-Refundable)</Text>
-            <Text style={[styles.breakdownValue, { color: C.muted }]}>₵{deliveryFee.toFixed(2)}</Text>
+            <Text style={[styles.breakdownValue, { color: C.muted }]}>{formatCurrency(deliveryFee)}</Text>
           </View>
           <View style={[styles.breakdownRow, { marginTop: rs(8), paddingTop: rs(8), borderTopWidth: 1, borderTopColor: C.border }]}>
             <Text style={[styles.breakdownLabel, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Max Refundable Amount</Text>
-            <Text style={[styles.breakdownValue, { fontFamily: 'Montserrat-Bold', color: C.green }]}>₵{maxRefundable.toFixed(2)}</Text>
+            <Text style={[styles.breakdownValue, { fontFamily: 'Montserrat-Bold', color: C.green }]}>{formatCurrency(maxRefundable)}</Text>
           </View>
         </View>
 

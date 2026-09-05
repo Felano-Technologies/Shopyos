@@ -23,6 +23,7 @@ import { searchProducts } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type LegacyPalette = {
   bg: string;
@@ -170,7 +171,7 @@ export default function CategoryScreen() {
       <AppImage source={item.image} style={styles.productImage} />
       <View style={styles.productInfo}>
         <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
+        <Text style={styles.productPrice}>{formatCurrency(item.price)}</Text>
         <View style={styles.productTag}>
           <Text style={styles.productTagText}>Product</Text>
         </View>

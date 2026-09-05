@@ -22,6 +22,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type LegacyPalette = {
   bg: string;
@@ -422,7 +423,7 @@ export default function TransitTrackerScreen() {
             
             <View style={styles.feeBreakdown}>
               <Text style={styles.feeLabel}>Last-Mile Delivery Fee:</Text>
-              <Text style={styles.feeValue}>₵{Number(data.lastMileFee || 15.00).toFixed(2)}</Text>
+              <Text style={styles.feeValue}>{formatCurrency(data.lastMileFee || 15.00)}</Text>
             </View>
 
             {lastMilePolicy && (

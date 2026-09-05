@@ -19,6 +19,7 @@ import { getSellerTransactions, storage } from '@/services/api';
 import { format } from 'date-fns';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 // Map a balance_logs row to the shape this screen renders
 function mapLogToItem(log: any) {
@@ -141,7 +142,7 @@ export default function TransactionsScreen() {
                 styles.amount,
                 { color: isPositive ? colors.success : colors.text } // Green for money in, Dark for money out
             ]}>
-                {isPositive ? '+' : ''}₵{Math.abs(item.amount).toFixed(2)}
+                {isPositive ? '+' : ''}{formatCurrency(Math.abs(item.amount))}
             </Text>
             <Text style={styles.status}>{item.status}</Text>
         </View>
