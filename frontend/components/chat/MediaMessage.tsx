@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -12,21 +12,36 @@ interface MediaMessageProps {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const MAX_LOAD_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
 export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMessageProps>) {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const retryCountRef = useRef(0);
   const isVideo = mimeType?.startsWith('video/') || url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.mov');
 
-  const handleError = (event: any) => {
-    // Previously swallowed entirely — a failed load was visually
-    // indistinguishable from a genuinely blank image (both just showed the
-    // placeholder background color). Surface it so real errors are visible
-    // instead of silently looking like corrupt/blank content.
+  const handleError = useCallback((event: any) => {
     console.error('MediaMessage failed to load:', url, mimeType, event?.error ?? event);
+    // Media storage (Tigris) is globally distributed with eventual
+    // read-after-write consistency across regions — right after a fresh
+    // upload, the sender's own device can briefly hit a region where the
+    // object hasn't replicated yet and get an empty response. It's not a
+    // bad image; a short retry almost always succeeds once replication
+    // catches up, which is why other viewers (or a later reopen) see it fine
+    // immediately. Bump `retryKey` to force AppImage to remount and refetch,
+    // since a failed load isn't cached and a plain re-render wouldn't retry.
+    if (retryCountRef.current < MAX_LOAD_RETRIES) {
+      retryCountRef.current += 1;
+      setLoading(true);
+      setTimeout(() => setRetryKey((k) => k + 1), RETRY_DELAY_MS * retryCountRef.current);
+      return;
+    }
     setLoading(false);
     setFailed(true);
-  };
+  }, [url, mimeType]);
 
   if (isVideo) {
     return (
@@ -39,6 +54,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
           {/* Video Placeholder/Thumbnail */}
           <View style={styles.videoThumbnail}>
             <AppImage
+              key={retryKey}
               uri={url}
               style={StyleSheet.absoluteFillObject}
               onLoadEnd={() => setLoading(false)}
@@ -86,6 +102,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
         activeOpacity={0.8}
       >
         <AppImage
+          key={retryKey}
           uri={url}
           style={styles.image}
           onLoadStart={() => setLoading(true)}

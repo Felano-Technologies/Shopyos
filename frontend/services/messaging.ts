@@ -130,6 +130,7 @@ export const uploadChatMedia = async (
   }
 
   const blob = await uriToBlob(cleanUri, type);
+  console.error('[uploadChatMedia] about to send:', { cleanUri, filename, type, blobSize: blob.size, blobType: blob.type });
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

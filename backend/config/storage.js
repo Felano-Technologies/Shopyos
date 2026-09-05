@@ -30,6 +30,14 @@ const s3 = new S3Client({
   forcePathStyle: true,
   credentials: { accessKeyId, secretAccessKey },
   requestHandler: new NodeHttpHandler({ connectionTimeout: 5000, requestTimeout: 15000 }),
+  // AWS SDK v3 defaults to always attaching a CRC32 checksum via aws-chunked
+  // transfer encoding for PutObject. Many S3-compatible providers (including
+  // this one) don't correctly handle that chunked+trailing-checksum body
+  // format — the request still reports success, but the stored object ends
+  // up empty/corrupt, which is undetectable until something tries to read
+  // it back. Forcing classic (non-chunked) uploads fixes it.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 // ── Presigned URL cache ───────────────────────────────────────────────────────

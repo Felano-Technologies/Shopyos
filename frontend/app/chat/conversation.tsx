@@ -504,6 +504,7 @@ export default function ConversationScreen() {
         const context = ImageManipulator.manipulate(uri);
         const rendered = await context.renderAsync();
         const manipulated = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
+        console.error('[confirmSendMedia] manipulated image:', { originalUri: uri, manipulatedUri: manipulated.uri, width: manipulated.width, height: manipulated.height });
         finalUri = manipulated.uri;
         mimeType = 'image/jpeg';
       }
