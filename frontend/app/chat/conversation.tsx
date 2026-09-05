@@ -12,6 +12,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
 import {
   sendMessage as apiSendMessage,
@@ -105,14 +107,15 @@ function renderReplyPreviewStatic(
 
 async function uploadAndSendMedia(
   conversationId: string,
-  asset: ImagePicker.ImagePickerAsset,
+  uri: string,
+  mimeType: string | undefined,
   type: 'image' | 'video',
   onProgress: (prog: number) => void,
   appendMessage: (msg: any) => void,
 ) {
-  const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
+  const uploadRes = await uploadChatMedia(uri, conversationId, (prog: number) => {
     onProgress(Math.round(prog * 100));
-  }, asset.mimeType ?? undefined);
+  }, mimeType);
   if (uploadRes?.success && uploadRes.media) {
     const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
     const sentMsg = res.message;
@@ -267,6 +270,7 @@ export default function ConversationScreen() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [uploadingProgress, setUploadingProgress] = useState<number | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
 
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -470,13 +474,43 @@ export default function ConversationScreen() {
           CustomInAppToast.show({ type: 'error', title: 'Video Too Large', message: 'Video is too large. Max 20 MB. Try trimming it first.' });
           return;
         }
-        setIsUploadingMedia(true);
-        setUploadingProgress(0);
-        await uploadAndSendMedia(conversationId, asset, type, setUploadingProgress, appendMessage);
+        setPendingMedia({ uri: asset.uri, type });
       }
     } catch (err: any) {
       if (__DEV__) console.error('Pick media error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not upload file.' });
+    }
+  };
+
+  const cancelPendingMedia = () => setPendingMedia(null);
+
+  const confirmSendMedia = async () => {
+    if (!conversationId || !pendingMedia) return;
+    const { uri, type } = pendingMedia;
+    setPendingMedia(null);
+    setIsUploadingMedia(true);
+    setUploadingProgress(0);
+    try {
+      let finalUri = uri;
+      let mimeType: string | undefined;
+      if (type === 'image') {
+        // Always re-encode to JPEG client-side — a photo picked on iOS is
+        // very often HEIC (the default capture format since iOS 11), which
+        // isn't reliably decodable by every viewer (notably Android), and
+        // renders as a blank/white bubble instead of an error.
+        // Uses the current context API (not the deprecated manipulateAsync
+        // with an empty actions array, which produced a zero-byte/empty
+        // output file here — the uploaded "image" had no actual data).
+        const context = ImageManipulator.manipulate(uri);
+        const rendered = await context.renderAsync();
+        const manipulated = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
+        finalUri = manipulated.uri;
+        mimeType = 'image/jpeg';
+      }
+      await uploadAndSendMedia(conversationId, finalUri, mimeType, type, setUploadingProgress, appendMessage);
+    } catch (err: any) {
+      if (__DEV__) console.error('Send media error', err);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not send media.' });
     } finally {
       setIsUploadingMedia(false);
       setUploadingProgress(null);
@@ -1083,8 +1117,52 @@ export default function ConversationScreen() {
           </Pressable>
         </Pressable>
       )}
+
+      {/* ── Media preview, shown before sending ─────────────────────── */}
+      <Modal visible={!!pendingMedia} transparent animationType="fade" onRequestClose={cancelPendingMedia}>
+        <View style={styles.mediaPreviewBackground}>
+          <TouchableOpacity style={styles.mediaPreviewClose} onPress={cancelPendingMedia} disabled={isUploadingMedia}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {pendingMedia?.type === 'image' ? (
+            <AppImage uri={pendingMedia.uri} style={styles.mediaPreviewImage} contentFit="contain" />
+          ) : pendingMedia ? (
+            <MediaPreviewVideo uri={pendingMedia.uri} style={styles.mediaPreviewImage} />
+          ) : null}
+
+          <View style={styles.mediaPreviewActions}>
+            <TouchableOpacity
+              style={[styles.mediaPreviewBtn, styles.mediaPreviewCancelBtn]}
+              onPress={cancelPendingMedia}
+              disabled={isUploadingMedia}
+            >
+              <Text style={styles.mediaPreviewCancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.mediaPreviewBtn, styles.mediaPreviewSendBtn]}
+              onPress={confirmSendMedia}
+              disabled={isUploadingMedia}
+            >
+              {isUploadingMedia ? (
+                <ActivityIndicator size="small" color="#0C1559" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={16} color="#0C1559" style={{ marginRight: 6 }} />
+                  <Text style={styles.mediaPreviewSendTxt}>Send</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
+}
+
+function MediaPreviewVideo({ uri, style }: Readonly<{ uri: string; style: any }>) {
+  const player = useVideoPlayer({ uri }, (p) => { p.loop = true; p.play(); });
+  return <VideoView player={player} style={style} contentFit="contain" nativeControls />;
 }
 
 const getStyles = (C: LegacyPalette) => StyleSheet.create({
@@ -1276,6 +1354,27 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   attachCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
+
+  // Media preview (before send)
+  mediaPreviewBackground: { flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' },
+  mediaPreviewClose: {
+    position: 'absolute', top: 50, right: 20, zIndex: 10,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  mediaPreviewImage: { width: '100%', height: '75%' },
+  mediaPreviewActions: {
+    position: 'absolute', bottom: 40, left: 20, right: 20,
+    flexDirection: 'row', gap: 12,
+  },
+  mediaPreviewBtn: {
+    flex: 1, height: 50, borderRadius: 16,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+  },
+  mediaPreviewCancelBtn: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  mediaPreviewCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#FFFFFF' },
+  mediaPreviewSendBtn: { backgroundColor: '#84cc16' },
+  mediaPreviewSendTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
 
   // Modals / context menu
   overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.45)', justifyContent: 'center', alignItems: 'center' },

@@ -14,8 +14,19 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMessageProps>) {
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
   const isVideo = mimeType?.startsWith('video/') || url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.mov');
+
+  const handleError = (event: any) => {
+    // Previously swallowed entirely — a failed load was visually
+    // indistinguishable from a genuinely blank image (both just showed the
+    // placeholder background color). Surface it so real errors are visible
+    // instead of silently looking like corrupt/blank content.
+    console.error('MediaMessage failed to load:', url, mimeType, event?.error ?? event);
+    setLoading(false);
+    setFailed(true);
+  };
 
   if (isVideo) {
     return (
@@ -31,7 +42,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
               uri={url}
               style={StyleSheet.absoluteFillObject}
               onLoadEnd={() => setLoading(false)}
-              onError={() => setLoading(false)}
+              onError={handleError}
             />
             <View style={styles.playButtonWrapper}>
               <Ionicons name="play" size={32} color="#FFFFFF" style={{ marginLeft: 3 }} />
@@ -79,11 +90,16 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
           style={styles.image}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
-          onError={() => setLoading(false)}
+          onError={handleError}
         />
-        {loading && (
+        {loading && !failed && (
           <View style={styles.loaderWrapper}>
             <ActivityIndicator size="small" color={isMe ? '#FFFFFF' : '#84cc16'} />
+          </View>
+        )}
+        {failed && (
+          <View style={styles.loaderWrapper}>
+            <Ionicons name="image-outline" size={22} color={isMe ? '#FFFFFF' : '#94A3B8'} />
           </View>
         )}
       </TouchableOpacity>

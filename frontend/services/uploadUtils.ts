@@ -7,10 +7,13 @@
 export async function uriToBlob(uri: string, mimeType?: string): Promise<Blob> {
   const response = await fetch(uri);
   const blob = await response.blob();
+  console.error('[uriToBlob] fetched blob:', { uri, size: blob.size, type: blob.type });
   // Local file:// URIs sometimes come back with an empty/generic blob.type
   // from RN's fetch implementation — force the known MIME type when we have one.
   if (mimeType && blob.type !== mimeType) {
-    return new Blob([blob], { type: mimeType });
+    const rewrapped = new Blob([blob], { type: mimeType });
+    console.error('[uriToBlob] rewrapped blob:', { size: rewrapped.size, type: rewrapped.type });
+    return rewrapped;
   }
   return blob;
 }

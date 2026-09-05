@@ -507,6 +507,13 @@ const uploadChatMedia = async (req, res, next) => {
       return ApiResponse.error(res, 'No file uploaded', 400);
     }
 
+    console.error('[uploadChatMedia] received file:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      bufferLength: req.file.buffer?.length,
+    });
+
     if (!conversationId) {
       return ApiResponse.error(res, 'Conversation ID is required', 400);
     }
