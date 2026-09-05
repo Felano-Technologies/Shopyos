@@ -138,6 +138,15 @@ export default function CheckoutScreen() {
   // null storeId before that was fixed — see groupByStore's comment.
   const [resolvedStoreIds, setResolvedStoreIds] = useState<Record<string, string>>({});
   const [isFetchingFee, setIsFetchingFee] = useState(false);
+  const [quoteFetchError, setQuoteFetchError] = useState(false);
+  const [quoteRetryTick, setQuoteRetryTick] = useState(0);
+  // Live device GPS — drives the delivery fee/order coordinates. We tried
+  // switching this to a geocoded version of the typed delivery address
+  // (destination-based, architecturally more correct), but forward-geocoding
+  // free-text Ghanaian addresses (often informal/landmark-based, not formal
+  // street addressing) proved unreliable — it could place the pin many km
+  // off, inflating the fee far beyond the accurate live-GPS distance. Reverted
+  // to live GPS until there's a map-pin confirm step to correct bad geocodes.
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Last-mile home delivery option (inter-regional only)
@@ -167,6 +176,7 @@ export default function CheckoutScreen() {
 
     (async () => {
       setIsFetchingFee(true);
+      setQuoteFetchError(false);
 
       // Resolve every legacy (storeId-less) item individually before
       // grouping — a stale 'unknown' bucket can hold items from several
@@ -193,6 +203,7 @@ export default function CheckoutScreen() {
 
       const groups = groupByStore(cartItems, effectiveResolvedIds);
       const newQuotes: Record<string, StoreQuote> = {};
+      let anyFailed = false;
 
       await Promise.all(groups.map(async (group) => {
         const { storeId } = group;
@@ -219,13 +230,21 @@ export default function CheckoutScreen() {
               note: note || null,
             };
           }
-        } catch { /* quote unavailable for this store */ }
+        } catch {
+          anyFailed = true;
+        }
       }));
 
       setStoreQuotes(newQuotes);
+      setQuoteFetchError(anyFailed);
       setIsFetchingFee(false);
     })();
-  }, [buyerCoords, cartItems, deliveryState, resolvedStoreIds]);
+  }, [buyerCoords, cartItems, deliveryState, resolvedStoreIds, quoteRetryTick]);
+
+  const retryDeliveryQuotes = () => {
+    setQuoteFetchError(false);
+    setQuoteRetryTick((t) => t + 1);
+  };
 
   const storeGroups = groupByStore(cartItems, resolvedStoreIds);
   // Pickup stores contribute no delivery/transit fees and don't need range checks
@@ -873,7 +892,21 @@ export default function CheckoutScreen() {
             />
 
             {/* Status Messages for User */}
-            {!isFetchingFee && storeQuoteList.length > 0 && !isWithinRange && (
+            {!isFetchingFee && quoteFetchError && (
+              <TouchableOpacity
+                accessibilityLabel="Retry delivery fee calculation"
+                accessibilityRole="button"
+                style={[S.errorBanner, { marginTop: 20, marginBottom: -10, justifyContent: 'space-between' }]}
+                onPress={retryDeliveryQuotes}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Ionicons name="alert-circle" size={18} color={C.error} />
+                  <Text style={S.errorText}>Couldn't calculate delivery fee.</Text>
+                </View>
+                <Text style={[S.errorText, { fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' }]}>Retry</Text>
+              </TouchableOpacity>
+            )}
+            {!quoteFetchError && !isFetchingFee && storeQuoteList.length > 0 && !isWithinRange && (
               <View style={[S.errorBanner, { marginTop: 20, marginBottom: -10 }]}>
                 <Ionicons name="alert-circle" size={18} color={C.error} />
                 <Text style={S.errorText}>{deliveryNote || "Delivery unavailable: Outside store's delivery radius."}</Text>
@@ -885,7 +918,7 @@ export default function CheckoutScreen() {
                 <Text style={S.profileNudgeText}>Calculating delivery fees...</Text>
               </View>
             )}
-            {!isFetchingFee && storeQuoteList.length === 0 && (
+            {!quoteFetchError && !isFetchingFee && storeQuoteList.length === 0 && (
               <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10 }]}>
                 <Ionicons name="location-outline" size={18} color={colors.warning} />
                 <Text style={[S.profileNudgeText, { color: colors.warning }]}>
@@ -926,9 +959,9 @@ export default function CheckoutScreen() {
             <TouchableOpacity
               accessibilityLabel="Place order"
               accessibilityRole="button"
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)}
+              disabled={isOrdering || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)}
             >
               <LinearGradient colors={colors.headerGradient} style={S.placeOrderGradient}>
                 {isOrdering

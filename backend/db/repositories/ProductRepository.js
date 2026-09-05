@@ -68,6 +68,12 @@ class ProductRepository extends BaseRepository {
    * @param {number} params.maxPrice - Maximum price
    * @param {string} params.sortBy - Sort field (price, rating, created_at)
    * @param {boolean} params.ascending - Sort order
+   * @param {boolean} params.discoveryShuffle - When true (the default "relevance"
+   *   listing, i.e. no sort explicitly chosen by the user), replace strict
+   *   created_at DESC with a weighted-random order so listings from
+   *   first-created stores/products get a real chance to surface instead of
+   *   being permanently buried under every newer listing. Ignored if the
+   *   caller explicitly asked for a specific sortBy (price/rating/popular/newest).
    * @param {number} params.limit - Max results
    * @param {number} params.offset - Pagination offset
    * @returns {Promise<Array>}
@@ -82,6 +88,7 @@ class ProductRepository extends BaseRepository {
       minRating,
       sortBy = 'created_at',
       ascending = false,
+      discoveryShuffle = false,
       limit = 20,
       offset = 0,
       color,
@@ -148,7 +155,11 @@ class ProductRepository extends BaseRepository {
     if (searchProductIds) dbQuery = dbQuery.in('id', searchProductIds);
 
     dbQuery = this._applySearchFilters(dbQuery, filterOpts);
-    dbQuery = dbQuery.order('is_promoted', { ascending: false }).order(sortBy, { ascending }).range(offset, offset + limit - 1);
+    dbQuery = dbQuery.order('is_promoted', { ascending: false });
+    dbQuery = discoveryShuffle
+      ? dbQuery.order(this._discoveryOrderExpr(), { ascending: false })
+      : dbQuery.order(sortBy, { ascending });
+    dbQuery = dbQuery.range(offset, offset + limit - 1);
 
     let countQuery = this.db.from(this.tableName)
       .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
@@ -164,6 +175,26 @@ class ProductRepository extends BaseRepository {
     if (countError) throw countError;
 
     return { data: data || [], count: count || 0 };
+  }
+
+  // Weighted-random discovery order (Efraimidis-Spirakis A-Res sampling):
+  // key = random^(1/weight), ORDER BY key DESC. Newer products get a higher
+  // weight so they still rank first on average, but the exponent still lets
+  // any product win the draw sometimes — unlike a plain "created_at DESC",
+  // which permanently buries anything older as new listings keep arriving.
+  // The per-row random value is a deterministic hash of (id, day-seed)
+  // rather than SQL random(), so paginated requests within the same day
+  // (and within this request's 5-min response cache) see a stable order
+  // instead of duplicate/skipped rows across pages; the seed changes daily
+  // so the mix reshuffles over time instead of freezing forever.
+  _discoveryOrderExpr() {
+    const seed = new Date().toISOString().slice(0, 10).replace(/[^0-9-]/g, '');
+    const HALF_LIFE_SECONDS = 14 * 24 * 60 * 60; // 14 days
+    const MIN_WEIGHT = 0.05; // floor so very old listings still get occasional priority, never zero
+    return `pow(
+      (('x' || substr(md5(id::text || '${seed}'), 1, 8))::bit(32)::int::bigint + 2147483648)::float / 4294967296,
+      1.0 / GREATEST(exp(-EXTRACT(EPOCH FROM (now() - created_at)) / ${HALF_LIFE_SECONDS}.0), ${MIN_WEIGHT})
+    )`;
   }
 
   async _getVerifiedStoreIds() {

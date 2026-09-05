@@ -777,6 +777,11 @@ const searchProducts = async (req, res, next) => {
     // Parse sort options
     let sortColumn = 'created_at';
     let sortAscending = false;
+    // "relevance" is the default/no-sort-chosen case (the home Explore feed
+    // never sends sortBy at all); everything else — including an explicit
+    // "newest" pick on the search screen — is a deliberate user choice and
+    // must stay a strict, predictable ordering.
+    const discoveryShuffle = sortBy === 'relevance';
 
     if (sortBy === 'price_asc') {
       sortColumn = 'price';
@@ -805,6 +810,7 @@ const searchProducts = async (req, res, next) => {
       minRating: minRating ? Number.parseFloat(minRating) : undefined,
       sortBy: sortColumn,
       ascending: sortAscending,
+      discoveryShuffle,
       limit: limitNum,
       offset: offsetNum,
       color: color || undefined,

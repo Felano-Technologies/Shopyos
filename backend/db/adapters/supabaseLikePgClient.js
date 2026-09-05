@@ -34,7 +34,7 @@ class QueryBuilder {
     this.insertData = null;
     this.updateData = null;
     this.filters = [];
-    this.orderBy = null;
+    this.orderBys = [];
     this.limitValue = null;
     this.offsetValue = null;
     this.returnCount = false;
@@ -146,8 +146,13 @@ class QueryBuilder {
     return this;
   }
 
+  // Accumulates — each call adds a tiebreaker column, matching how
+  // Supabase's real .order().order() chaining works. `column` may also be
+  // a raw SQL expression (e.g. a computed sort key); callers are responsible
+  // for only passing trusted, non-user-controlled strings here since it is
+  // interpolated directly into the ORDER BY clause.
   order(column, { ascending = true } = {}) {
-    this.orderBy = { column, ascending };
+    this.orderBys.push({ column, ascending });
     return this;
   }
 
@@ -319,8 +324,9 @@ class QueryBuilder {
 
   async _executeSelect(db) {
     const { clause, values } = this._whereClause();
-    const sortDir = this.orderBy?.ascending ? 'ASC' : 'DESC';
-    const orderSql = this.orderBy ? ` ORDER BY ${this.orderBy.column} ${sortDir}` : '';
+    const orderSql = this.orderBys.length
+      ? ` ORDER BY ${this.orderBys.map((o) => `${o.column} ${o.ascending ? 'ASC' : 'DESC'}`).join(', ')}`
+      : '';
     const limitSql = Number.isInteger(this.limitValue) ? ` LIMIT ${this.limitValue}` : '';
     const offsetSql = Number.isInteger(this.offsetValue) ? ` OFFSET ${this.offsetValue}` : '';
 

@@ -237,7 +237,9 @@ class OrderRepository extends BaseRepository {
       p_delivery_notes: orderData.delivery_notes || null,
       p_payment_method: paymentMethod,
       p_items: orderItems,
-      p_buyer_protection_fee: orderData.buyer_protection_fee ?? 0
+      p_buyer_protection_fee: orderData.buyer_protection_fee ?? 0,
+      p_delivery_latitude: orderData.delivery_latitude ?? null,
+      p_delivery_longitude: orderData.delivery_longitude ?? null
     });
 
     if (error) {

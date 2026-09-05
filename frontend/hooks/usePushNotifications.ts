@@ -227,18 +227,21 @@ async function registerForPushNotificationsAsync() {
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#84cc16',
+            sound: 'default',
         });
         await Notifications.setNotificationChannelAsync('messages', {
             name: 'Messages',
             importance: Notifications.AndroidImportance.HIGH,
             vibrationPattern: [0, 100, 50, 100],
             lightColor: '#2563EB',
+            sound: 'default',
         });
         await Notifications.setNotificationChannelAsync('default', {
             name: 'General',
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#FF231F7C',
+            sound: 'default',
         });
     }
 

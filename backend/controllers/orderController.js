@@ -192,7 +192,9 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     delivery_state_province: deliveryState,
     delivery_country: deliveryCountry || 'Ghana',
     delivery_phone: deliveryPhone,
-    delivery_notes: deliveryNotes || null
+    delivery_notes: deliveryNotes || null,
+    delivery_latitude: buyerLat ?? null,
+    delivery_longitude: buyerLng ?? null
   };
 
   let dbPaymentMethod = 'card';

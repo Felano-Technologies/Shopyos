@@ -73,7 +73,16 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   // Cleanup audio resources when they change or on unmount
   useEffect(() => {
     return () => {
-      if (recorder.isRecording) recorder.stop().catch(() => {});
+      // recorder.isRecording is a synchronous native getter — it can throw
+      // ("Unable to find the native shared object...") if the underlying
+      // native recorder was already released by the time this cleanup runs
+      // (a real race on fast unmount/remount). A .catch() on .stop() alone
+      // doesn't help since the throw happens on this property read itself.
+      try {
+        if (recorder.isRecording) recorder.stop().catch(() => {});
+      } catch {
+        // Already released — nothing to stop.
+      }
       if (soundPreview) soundPreview.remove();
     };
   }, [recorder, soundPreview]);
