@@ -4,6 +4,7 @@ import {
   useAudioRecorder,
   RecordingPresets,
   setAudioModeAsync,
+  setIsAudioActiveAsync,
   createAudioPlayer,
   type AudioPlayer,
 } from 'expo-audio';
@@ -11,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { requestMicrophonePermissionWithDisclosure } from '@/src/utils/permissions';
+import { stopActiveVoicePlayer, setActiveVoicePlayer, clearActiveVoicePlayer } from '@/services/voiceAudioSession';
 
 interface VoiceRecorderProps {
   onSend: (uri: string, durationMs: number) => void;
@@ -36,6 +38,8 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [playbackDuration, setPlaybackDuration] = useState(0);
 
+  const stopPreviewRef = useRef<(() => void) | null>(null);
+  const previewSoundRef = useRef<AudioPlayer | null>(null);
   const barAnims = useRef<Animated.Value[]>(
     Array.from({ length: NUM_BARS }, () => new Animated.Value(4))
   ).current;
@@ -83,13 +87,31 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       } catch {
         // Already released — nothing to stop.
       }
-      if (soundPreview) soundPreview.remove();
+      // Read previewSoundRef.current (not the `soundPreview` closure) so this
+      // doesn't try to remove an already-disposed player — e.g. one force-
+      // stopped via stopPreview() right before this cleanup runs.
+      if (previewSoundRef.current) {
+        if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
+        try { previewSoundRef.current.remove(); } catch { /* already released */ }
+        previewSoundRef.current = null;
+      }
     };
   }, [recorder, soundPreview]);
 
   // Start recording
   const startRecording = async () => {
     try {
+      // A voice message elsewhere in the chat may still hold the audio
+      // session in playback mode — switching to recording mode would
+      // otherwise fail with AVAudioSessionErrorInsufficientPriority.
+      stopActiveVoicePlayer();
+      // Force the session inactive first — on iOS, re-activating with a
+      // new category (playback -> playAndRecord) while the session is still
+      // considered active by a just-torn-down player can fail outright
+      // ("Session activation failed"); deactivating first guarantees a
+      // clean activation right after.
+      await setIsAudioActiveAsync(false).catch(() => {});
+
       const permission = await requestMicrophonePermissionWithDisclosure();
       if (permission.status !== 'granted') {
         CustomInAppToast.show({
@@ -201,8 +223,10 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
 
   // Discard
   const discardRecording = async () => {
-    if (soundPreview) {
-      soundPreview.remove();
+    if (previewSoundRef.current) {
+      if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
+      try { previewSoundRef.current.remove(); } catch { /* already released */ }
+      previewSoundRef.current = null;
       setSoundPreview(null);
     }
     setIsPlayingPreview(false);
@@ -225,9 +249,11 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       if (isPlayingPreview) {
         soundPreview.pause();
         setIsPlayingPreview(false);
+        if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
       } else {
         soundPreview.play();
         setIsPlayingPreview(true);
+        if (stopPreviewRef.current) setActiveVoicePlayer(stopPreviewRef.current);
       }
     } else {
       await setAudioModeAsync({
@@ -236,16 +262,39 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       });
       const sound = createAudioPlayer({ uri: recordedUri });
       sound.play();
+      previewSoundRef.current = sound;
       setSoundPreview(sound);
       setIsPlayingPreview(true);
 
+      // Full teardown, not just pause() — a paused player still holds the
+      // native AVAudioSession, which then makes the recorder's own session
+      // activation fail when this is force-stopped to make room for a
+      // recording elsewhere or another voice message's playback.
+      const stopPreview = () => {
+        try { sound.remove(); } catch { /* already released */ }
+        if (previewSoundRef.current === sound) previewSoundRef.current = null;
+        setSoundPreview(null);
+        setIsPlayingPreview(false);
+        setPlaybackPosition(0);
+      };
+      stopPreviewRef.current = stopPreview;
+      setActiveVoicePlayer(stopPreview);
+
       (sound as any).addListener('playbackStatusUpdate', (status: any) => {
+        if (status.error) {
+          if (__DEV__) console.error('Voice preview playback error:', status.error);
+          setIsPlayingPreview(false);
+          setPlaybackPosition(0);
+          if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
+          return;
+        }
         if (status.isLoaded) {
           setPlaybackPosition((status.currentTime || 0) * 1000);
           if (status.duration) setPlaybackDuration(status.duration * 1000);
           if (status.didJustFinish) {
             setIsPlayingPreview(false);
             setPlaybackPosition(0);
+            if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
             sound.seekTo(0).catch(() => {});
           }
         }
@@ -257,8 +306,10 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   const handleSend = async () => {
     if (!recordedUri) return;
     try {
-      if (soundPreview) {
-        soundPreview.remove();
+      if (previewSoundRef.current) {
+        if (stopPreviewRef.current) clearActiveVoicePlayer(stopPreviewRef.current);
+        try { previewSoundRef.current.remove(); } catch { /* already released */ }
+        previewSoundRef.current = null;
         setSoundPreview(null);
       }
       onSend(recordedUri, duration * 1000);

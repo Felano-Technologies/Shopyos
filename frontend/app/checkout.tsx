@@ -98,6 +98,10 @@ export default function CheckoutScreen() {
   const S = useMemo(() => getS(C), [C]);
   const cartItems = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clearCart);
+  // Confirmed on the map picker in cart.tsx before reaching this screen —
+  // see cartStore.ts. A delivery can take days, so this (not the buyer's
+  // live device location) is the source of truth for the fee and the order.
+  const deliveryCoords = useCart((s) => s.deliveryCoords);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -140,13 +144,11 @@ export default function CheckoutScreen() {
   const [isFetchingFee, setIsFetchingFee] = useState(false);
   const [quoteFetchError, setQuoteFetchError] = useState(false);
   const [quoteRetryTick, setQuoteRetryTick] = useState(0);
-  // Live device GPS — drives the delivery fee/order coordinates. We tried
-  // switching this to a geocoded version of the typed delivery address
-  // (destination-based, architecturally more correct), but forward-geocoding
-  // free-text Ghanaian addresses (often informal/landmark-based, not formal
-  // street addressing) proved unreliable — it could place the pin many km
-  // off, inflating the fee far beyond the accurate live-GPS distance. Reverted
-  // to live GPS until there's a map-pin confirm step to correct bad geocodes.
+  // Live device GPS — only feeds the existing profile-address-prefill
+  // reverse-geocode flow below. It does NOT drive the fee or the order: a
+  // delivery can take days, so the buyer's position at checkout time has
+  // nothing to do with where it actually ships — deliveryCoords (confirmed
+  // on the map picker in cart.tsx, see above) is the real source of truth.
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Last-mile home delivery option (inter-regional only)
@@ -170,9 +172,14 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
-  // Fetch delivery quotes for every distinct store in the cart
+  // Fetch delivery quotes for every distinct store in the cart. Waits for
+  // the buyer to confirm a delivery location on the map first — no silent
+  // fallback to live GPS, since that's exactly the stale-location problem
+  // this is fixing (a delivery can take days; the buyer's position at
+  // checkout time isn't where the order ships).
   useEffect(() => {
     if (cartItems.length === 0) return;
+    if (!deliveryCoords) return;
 
     (async () => {
       setIsFetchingFee(true);
@@ -210,7 +217,7 @@ export default function CheckoutScreen() {
         if (!storeId || storeId === 'unknown') return;
 
         try {
-          const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
+          const res = await getDeliveryQuote(storeId, deliveryCoords?.lat, deliveryCoords?.lng, deliveryState);
           if (res?.success) {
             const {
               withinRange, deliveryFee: fee, combinedDeliveryFee: combined,
@@ -239,7 +246,7 @@ export default function CheckoutScreen() {
       setQuoteFetchError(anyFailed);
       setIsFetchingFee(false);
     })();
-  }, [buyerCoords, cartItems, deliveryState, resolvedStoreIds, quoteRetryTick]);
+  }, [deliveryCoords, cartItems, deliveryState, resolvedStoreIds, quoteRetryTick]);
 
   const retryDeliveryQuotes = () => {
     setQuoteFetchError(false);
@@ -434,7 +441,7 @@ export default function CheckoutScreen() {
         deliveryPhone,
         paymentMethod: paymentMethodType,
         paymentMethodId: selectedMethodId,
-        ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
+        ...(deliveryCoords && { buyerLat: deliveryCoords.lat, buyerLng: deliveryCoords.lng }),
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
         ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
@@ -484,6 +491,19 @@ export default function CheckoutScreen() {
       {isLoading ? (
         <View style={S.centred}>
           <ActivityIndicator size="large" color={C.navy} />
+        </View>
+      ) : !deliveryCoords ? (
+        <View style={[S.centred, { paddingHorizontal: 32 }]}>
+          <Ionicons name="location-outline" size={40} color={C.subtle} />
+          <Text style={S.noLocationText}>Set your delivery location from your cart first.</Text>
+          <TouchableOpacity
+            accessibilityLabel="Go to cart"
+            accessibilityRole="button"
+            style={S.noLocationBtn}
+            onPress={() => router.replace('/cart' as any)}
+          >
+            <Text style={S.noLocationBtnText}>Go to Cart</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -922,8 +942,8 @@ export default function CheckoutScreen() {
               <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10 }]}>
                 <Ionicons name="location-outline" size={18} color={colors.warning} />
                 <Text style={[S.profileNudgeText, { color: colors.warning }]}>
-                  {!buyerCoords
-                    ? "Waiting for GPS location..."
+                  {!deliveryCoords
+                    ? "Set your delivery location on the map to calculate the delivery fee."
                     : "Identifying stores for delivery calculation..."}
                 </Text>
               </View>
@@ -959,9 +979,9 @@ export default function CheckoutScreen() {
             <TouchableOpacity
               accessibilityLabel="Place order"
               accessibilityRole="button"
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)}
+              disabled={isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)}
             >
               <LinearGradient colors={colors.headerGradient} style={S.placeOrderGradient}>
                 {isOrdering
@@ -988,6 +1008,7 @@ export default function CheckoutScreen() {
           }}
         />
       )}
+
     </View>
   );
 }
@@ -1036,6 +1057,9 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   profileNudgeText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: 14 },
   input: { flex: 1, paddingVertical: 13, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
+  noLocationText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginTop: 14, marginBottom: 20 },
+  noLocationBtn: { backgroundColor: C.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 },
+  noLocationBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   checkboxChecked: { backgroundColor: C.navy },

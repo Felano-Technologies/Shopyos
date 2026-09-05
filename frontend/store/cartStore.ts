@@ -25,6 +25,12 @@ type CartStore = {
   removeFromCart: (id: string, variantId?: string | null) => void;
   updateQuantity: (id: string, change: number, variantId?: string | null) => void;
   clearCart: () => void;
+  // Delivery destination confirmed on the map picker before checkout — shared
+  // between cart.tsx (where it's set) and checkout.tsx (where it's read),
+  // since a delivery can take days and the fee must reflect where the order
+  // ships, not wherever the buyer's device is at checkout time.
+  deliveryCoords: { lat: number; lng: number } | null;
+  setDeliveryCoords: (coords: { lat: number; lng: number } | null) => void;
 };
 
 const itemKey = (id: string, variantId?: string | null) => `${id}:${variantId ?? ''}`;
@@ -65,7 +71,9 @@ export const useCart = create<CartStore>((set, get) => ({
       );
       return { items: newItems, cartCount: COMPUTE_COUNT(newItems) };
     }),
-  clearCart: () => set({ items: [], cartCount: 0 }),
+  clearCart: () => set({ items: [], cartCount: 0, deliveryCoords: null }),
+  deliveryCoords: null,
+  setDeliveryCoords: (coords) => set({ deliveryCoords: coords }),
 }));
 
 // Debounced auto-persist to AsyncStorage

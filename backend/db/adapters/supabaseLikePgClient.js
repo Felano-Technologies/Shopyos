@@ -767,7 +767,7 @@ class QueryBuilder {
       const [{ rows: latest }, { rows: unread }] = await Promise.all([
         db.query(
           `SELECT DISTINCT ON (conversation_id)
-             id, conversation_id, content, created_at, is_read, sender_id
+             id, conversation_id, content, message_type, attachment_url, created_at, is_read, sender_id
            FROM messages
            WHERE conversation_id = ANY($1)
            ORDER BY conversation_id, created_at DESC`,

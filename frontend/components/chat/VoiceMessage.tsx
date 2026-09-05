@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
+import { setActiveVoicePlayer, clearActiveVoicePlayer } from '@/services/voiceAudioSession';
 
 interface VoiceMessageProps {
   url: string;
@@ -20,6 +21,12 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const soundRef = useRef<AudioPlayer | null>(null);
+  // `loading` state isn't committed synchronously, so a fast double-tap can
+  // read stale closures where `sound` is still null on both calls, creating
+  // two players back-to-back — the second's load cancels the first's
+  // in-flight one, surfacing as a native "Operation Stopped" error.
+  const isHandlingRef = useRef(false);
+  const stopSelfRef = useRef<(() => void) | null>(null);
 
   // Generate a stable pseudo-random waveform shape from the URL
   const waveHeights = useMemo(() => {
@@ -49,14 +56,29 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.remove();
+      // Read soundRef.current (not the `sound` closure) so this doesn't try
+      // to remove an already-disposed player — e.g. one force-stopped via
+      // stopSelf() right before this cleanup runs.
+      if (soundRef.current) {
+        if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
+        try { soundRef.current.remove(); } catch { /* already released */ }
         soundRef.current = null;
       }
     };
   }, [sound]);
 
   const onPlaybackStatusUpdate = (status: AudioStatus) => {
+    if (status.error) {
+      // The player reports failures here rather than throwing — without this
+      // check, a load/playback error leaves isPlaying stuck true (set
+      // synchronously right after calling .play()) forever, showing a pause
+      // icon over silence with no indication anything went wrong.
+      console.error('Voice message playback error:', status.error);
+      setIsPlaying(false);
+      setPosition(0);
+      if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
+      return;
+    }
     if (status.isLoaded) {
       setPosition(status.currentTime * 1000);
       if (status.duration) setDuration(status.duration * 1000);
@@ -65,21 +87,26 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
+        if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
         if (soundRef.current) soundRef.current.seekTo(0).catch(() => {});
       }
     }
   };
 
   const handlePlayPause = async () => {
+    if (isHandlingRef.current) return;
+    isHandlingRef.current = true;
     setLoading(true);
     try {
       if (sound) {
         if (isPlaying) {
           sound.pause();
           setIsPlaying(false);
+          if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
         } else {
           sound.play();
           setIsPlaying(true);
+          if (stopSelfRef.current) setActiveVoicePlayer(stopSelfRef.current);
         }
       } else {
         await setAudioModeAsync({
@@ -92,11 +119,26 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
         soundRef.current = newSound;
         setSound(newSound);
         setIsPlaying(true);
+
+        // Full teardown, not just pause() — a paused player still holds the
+        // native AVAudioSession, which then makes the recorder's session
+        // activation fail ("Session activation failed") when this is force-
+        // stopped to make room for a recording (or another voice message).
+        const stopSelf = () => {
+          try { newSound.remove(); } catch { /* already released */ }
+          if (soundRef.current === newSound) soundRef.current = null;
+          setSound(null);
+          setIsPlaying(false);
+          setPosition(0);
+        };
+        stopSelfRef.current = stopSelf;
+        setActiveVoicePlayer(stopSelf);
       }
     } catch (err) {
       console.error('Failed to play sound', err);
     } finally {
       setLoading(false);
+      isHandlingRef.current = false;
     }
   };
 
