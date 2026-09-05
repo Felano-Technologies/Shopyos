@@ -20,6 +20,21 @@ jest.mock('../../config/storage', () => ({
   resolveImageUrl: jest.fn(async (url) => url ? `http://public-url/${url}` : null),
 }));
 
+// insert()/delete().eq().eq().eq() return thenables so the fire-and-forget
+// user_events logging in addFavorite/removeFavorite never throws synchronously.
+const mockEventsChain = {
+  then: (onFulfilled) => Promise.resolve(undefined).then(onFulfilled),
+  catch: (onRejected) => Promise.resolve(undefined).catch(onRejected),
+  eq: jest.fn(),
+};
+mockEventsChain.eq.mockReturnValue(mockEventsChain);
+
+const mockDbChain = {
+  from: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnValue(mockEventsChain),
+  delete: jest.fn().mockReturnValue(mockEventsChain),
+};
+
 jest.mock('../../db/repositories', () => ({
   products: {
     findById: jest.fn(),
@@ -29,6 +44,7 @@ jest.mock('../../db/repositories', () => ({
     create: jest.fn(),
     delete: jest.fn(),
     getUserFavoritesWithProducts: jest.fn(),
+    db: mockDbChain,
   },
 }));
 

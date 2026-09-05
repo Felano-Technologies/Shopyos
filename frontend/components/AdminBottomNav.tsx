@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -40,7 +41,7 @@ export default function AdminBottomNav() {
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <GlassSurface style={styles.container} isInteractive={false}>
         {NAV_ITEMS.map((item) => {
           const isActive =
             pathname === item.route || pathname.startsWith(item.route + '/');
@@ -70,7 +71,7 @@ export default function AdminBottomNav() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 }

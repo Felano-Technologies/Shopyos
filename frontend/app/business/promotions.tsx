@@ -286,6 +286,12 @@ export default function PromotionsScreen() {
                           <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} {camp.clicks === 1 ? 'Click' : 'Clicks'}</Text>
                         )}
                       </View>
+                      {camp.status === 'Rejected' && camp.rejection_reason && (
+                        <View style={styles.adminNotesBox}>
+                          <Text style={styles.adminNotesTitle}>Review Feedback:</Text>
+                          <Text style={styles.adminNotesText}>{`"${camp.rejection_reason}"`}</Text>
+                        </View>
+                      )}
                     </View>
                   );
                 })
@@ -535,6 +541,16 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   campFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   campSpent: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
   campClicks: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#10B981' },
+  adminNotesBox: {
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 12,
+  },
+  adminNotesTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: colors.error },
+  adminNotesText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.error, fontStyle: 'italic', marginTop: 2 },
   // --- Create Form Styles ---
   formContainer: { paddingBottom: 20 },
   infoBanner: { flexDirection: 'row', backgroundColor: '#E0E7FF', padding: 15, borderRadius: 16, alignItems: 'center', gap: 10, marginBottom: 25 },

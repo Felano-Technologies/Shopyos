@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminColors, adminShadow, useAdminBreakpoint, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminVerifyStore, getAdminStores } from '@/services/api';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 type Store = {
   id?: string;
@@ -506,8 +507,10 @@ export default function AdminStores() {
           <View style={styles.viewerOverlay}>
             <SafeAreaView style={styles.viewerHeader}>
               <Text style={styles.viewerTitle}>Pinch to Zoom</Text>
-              <TouchableOpacity onPress={() => setViewingDoc(null)} style={styles.closeViewer}>
-                <Ionicons name="close" size={28} color="#FFF" />
+              <TouchableOpacity onPress={() => setViewingDoc(null)} style={styles.closeViewerTouchable}>
+                <GlassSurface style={styles.closeViewer}>
+                  <Ionicons name="close" size={28} color="#FFF" />
+                </GlassSurface>
               </TouchableOpacity>
             </SafeAreaView>
             <ScrollView
@@ -1109,6 +1112,7 @@ const getStyles = (C: AdminColors) => StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     fontSize: 16,
   },
+  closeViewerTouchable: {},
   closeViewer: {
     width: 40,
     height: 40,

@@ -14,6 +14,7 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminStores, adminVerifyStore, adminCreateCampaign } from '@/services/admin';
 import { api } from '@/services/client';
 import Skeleton from '@/components/Skeleton';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width, height } = Dimensions.get('window');
 
@@ -743,8 +744,10 @@ export default function StoreVerificationDetails() {
                 <View style={styles.viewerOverlay}>
                     <SafeAreaView style={styles.viewerHeader}>
                         <Text style={styles.viewerTitle}>Pinch to Zoom</Text>
-                        <TouchableOpacity onPress={() => setViewingDoc(null)} style={styles.closeViewer}>
-                            <Ionicons name="close" size={28} color="#FFF" />
+                        <TouchableOpacity onPress={() => setViewingDoc(null)} style={styles.closeViewerTouchable}>
+                            <GlassSurface style={styles.closeViewer}>
+                                <Ionicons name="close" size={28} color="#FFF" />
+                            </GlassSurface>
                         </TouchableOpacity>
                     </SafeAreaView>
                     <ScrollView
@@ -1040,7 +1043,15 @@ const styles = StyleSheet.create({
     viewerOverlay: { flex: 1, backgroundColor: '#000' },
     viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', zIndex: 10 },
     viewerTitle: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
-    closeViewer: { padding: 8 },
+    closeViewerTouchable: {},
+    closeViewer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     zoomWrapper: { flexGrow: 1, justifyContent: 'center' },
     fullDocImage: { width: width, height: height * 0.7 },
     // Rejection Modal
