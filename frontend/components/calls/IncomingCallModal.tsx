@@ -25,7 +25,7 @@ export function IncomingCallModal() {
   const visible = phase === 'ringing_incoming' && !!call;
 
   useEffect(() => {
-    if (visible) startRingtone();
+    if (visible) startRingtone({ vibrate: true });
     else stopRingtone();
     return () => stopRingtone();
   }, [visible]);

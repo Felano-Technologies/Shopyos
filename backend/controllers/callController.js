@@ -55,12 +55,18 @@ function displayName(user) {
 
 // Fetches a user's display name + avatar (presigned URL) for the incoming-call
 // push and the outgoing-call response, so both sides see who they're calling.
+// NOTE: the custom pg-shim client (db/adapters/supabaseLikePgClient.js) does
+// NOT support embedding user_profiles onto a plain `users` select — its
+// per-table join shim (_shimUsers) only ever attaches user_roles — so the
+// profile has to be fetched as a separate query instead of `users.findOne`
+// with an embedded `user_profiles(...)` select (which silently comes back
+// undefined).
 async function getUserDisplayInfo(userId) {
-  const user = await repositories.users.findOne({ id: userId }, 'id, email, is_active, user_profiles(full_name, avatar_url)');
+  const user = await repositories.users.findById(userId);
   if (!user) return null;
-  const transformed = await transformImageUrlsAsync(user);
-  const profile = Array.isArray(transformed.user_profiles) ? transformed.user_profiles[0] : transformed.user_profiles;
-  return { id: transformed.id, isActive: transformed.is_active, name: displayName(transformed), avatarUrl: profile?.avatar_url || null };
+  const profile = await repositories.userProfiles.findByUserId(userId);
+  const transformed = await transformImageUrlsAsync({ ...user, user_profiles: profile });
+  return { id: transformed.id, isActive: transformed.is_active, name: displayName(transformed), avatarUrl: transformed.user_profiles?.avatar_url || null };
 }
 
 // Role pairs allowed to call each other, independent of any specific order —

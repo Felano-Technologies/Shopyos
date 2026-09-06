@@ -45,7 +45,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
 
   // Ringback while waiting for the other side to accept.
   useEffect(() => {
-    if (phase === 'ringing_outgoing') startRingtone();
+    if (phase === 'ringing_outgoing') startRingtone({ ignoreSilentMode: true });
     else stopRingtone();
     return () => stopRingtone();
   }, [phase]);
