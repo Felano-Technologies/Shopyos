@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useAdminPromoCodes, useAdminCreatePromoCode, useDeactivatePromoCode } from '@/hooks/usePromoCodes';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -197,7 +198,7 @@ export default function AdminPromoCodesScreen() {
 
       <Modal visible={createModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Platform-Wide Code</Text>
               <TouchableOpacity onPress={() => setCreateModalVisible(false)} disabled={createMutation.isPending}>
@@ -281,7 +282,7 @@ export default function AdminPromoCodesScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </ScrollView>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

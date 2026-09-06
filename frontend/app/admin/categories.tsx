@@ -15,6 +15,7 @@ import {
   updateCategory, deleteCategory
 } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 
@@ -227,7 +228,7 @@ export default function AdminCategories() {
       {/* ── Create/Edit Modal ──────────────────────────────────────────────── */}
       <Modal visible={isModalVisible} transparent animationType="fade">
         <View style={S.modalOverlay}>
-          <View style={S.modalContent}>
+          <GlassSurface style={S.modalContent}>
             <Text style={S.modalTitle}>{isEditing ? 'Edit Category' : 'New Category'}</Text>
 
             <View style={S.inputField}>
@@ -265,7 +266,7 @@ export default function AdminCategories() {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

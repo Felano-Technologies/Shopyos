@@ -22,6 +22,7 @@ import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 // Status pill and avatar palettes are fixed multi-value color sets (no matching
 // success/warning background tokens exist in ThemeColors) — intentionally left hardcoded.
@@ -264,7 +265,7 @@ export default function AdminSellers() {
         onRequestClose={() => setMenuUser(null)}
       >
         <TouchableOpacity style={menuStyles.overlay} activeOpacity={1} onPress={() => setMenuUser(null)}>
-          <View style={menuStyles.sheet}>
+          <GlassSurface style={menuStyles.sheet}>
             <View style={menuStyles.handle} />
             <Text style={menuStyles.title} numberOfLines={1}>
               {menuUser?.full_name || menuUser?.email || 'Seller'}
@@ -291,7 +292,7 @@ export default function AdminSellers() {
                 <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
               </View>
             </TouchableOpacity>
-          </View>
+          </GlassSurface>
         </TouchableOpacity>
       </Modal>
 

@@ -5,6 +5,7 @@ import {
   ActivityIndicator, RefreshControl, Modal
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -357,7 +358,7 @@ export default function PromotionsScreen() {
                 onRequestClose={() => setProductPickerVisible(false)}
               >
                 <View style={styles.modalOverlay}>
-                  <View style={styles.modalContent}>
+                  <GlassSurface style={styles.modalContent}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Select Product</Text>
                       <TouchableOpacity onPress={() => setProductPickerVisible(false)}>
@@ -391,7 +392,7 @@ export default function PromotionsScreen() {
                         ))
                       )}
                     </ScrollView>
-                  </View>
+                  </GlassSurface>
                 </View>
               </Modal>
 

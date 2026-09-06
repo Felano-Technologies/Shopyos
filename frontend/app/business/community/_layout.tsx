@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { TopTabs as MaterialTopTabs } from 'expo-router/js-top-tabs';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -109,7 +110,7 @@ export default function CommunityLayout() {
       <Modal visible={showSwitcher} animationType="slide" transparent>
         <View style={styles.switcherOverlay}>
           <TouchableOpacity style={styles.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-          <View style={styles.switcherSheet}>
+          <GlassSurface style={styles.switcherSheet}>
             <View style={styles.switcherHeader}>
               <Text style={styles.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity onPress={() => setShowSwitcher(false)}>
@@ -166,7 +167,7 @@ export default function CommunityLayout() {
                 </TouchableOpacity>
               )}
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

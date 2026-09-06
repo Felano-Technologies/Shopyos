@@ -5,6 +5,7 @@ import {
   Dimensions, ScrollView, ActivityIndicator, Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -338,7 +339,7 @@ const Inventory = () => {
       <Modal visible={showSwitcher} animationType="slide" transparent>
         <View style={S.switcherOverlay}>
           <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-          <View style={S.switcherSheet}>
+          <GlassSurface style={S.switcherSheet}>
             <View style={S.switcherHeader}>
               <Text style={S.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity onPress={() => setShowSwitcher(false)}>
@@ -395,7 +396,7 @@ const Inventory = () => {
                 </TouchableOpacity>
               )}
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

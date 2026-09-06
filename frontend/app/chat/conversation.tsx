@@ -25,6 +25,7 @@ import {
 import { useMessages, useChatActions } from '@/hooks/useChat';
 import { socketService } from '../../services/socket';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
 import MediaMessage from '../../components/chat/MediaMessage';
@@ -998,21 +999,23 @@ export default function ConversationScreen() {
       {/* Context menu */}
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
-          <Pressable style={styles.contextMenu}>
-            {selectedMsg && (
-              <View style={styles.ctxPreview}><Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text></View>
-            )}
-            <TouchableOpacity style={styles.ctxItem} onPress={doReply}>
-              <Feather name="corner-up-left" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Reply</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
-              <Feather name="copy" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Copy</Text>
-            </TouchableOpacity>
-            {selectedMsg?.sender_id === currentUserId && (
-              <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
-                <Feather name="trash-2" size={16} color={colors.error} /><Text style={[styles.ctxItemTxt, { color: colors.error }]}>Unsend</Text>
+          <Pressable>
+            <GlassSurface style={styles.contextMenu}>
+              {selectedMsg && (
+                <View style={styles.ctxPreview}><Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text></View>
+              )}
+              <TouchableOpacity style={styles.ctxItem} onPress={doReply}>
+                <Feather name="corner-up-left" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Reply</Text>
               </TouchableOpacity>
-            )}
+              <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
+                <Feather name="copy" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Copy</Text>
+              </TouchableOpacity>
+              {selectedMsg?.sender_id === currentUserId && (
+                <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
+                  <Feather name="trash-2" size={16} color={colors.error} /><Text style={[styles.ctxItemTxt, { color: colors.error }]}>Unsend</Text>
+                </TouchableOpacity>
+              )}
+            </GlassSurface>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1020,7 +1023,7 @@ export default function ConversationScreen() {
       {/* More menu */}
       <Modal visible={moreVisible} transparent animationType="fade" onRequestClose={() => setMoreVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setMoreVisible(false)}>
-          <View style={[styles.moreMenu, { top: insets.top + 58 }]}>
+          <GlassSurface style={[styles.moreMenu, { top: insets.top + 58 }]}>
             <TouchableOpacity style={styles.moreItem} onPress={() => { setMoreVisible(false); markAsReadCombined(); }}>
               <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} /><Text style={styles.moreItemTxt}>Mark as read</Text>
             </TouchableOpacity>
@@ -1033,7 +1036,7 @@ export default function ConversationScreen() {
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
               <Ionicons name="trash-bin-outline" size={17} color={colors.error} /><Text style={[styles.moreItemTxt, { color: colors.error }]}>Delete chat</Text>
             </TouchableOpacity>
-          </View>
+          </GlassSurface>
         </Pressable>
       </Modal>
 
@@ -1085,35 +1088,37 @@ export default function ConversationScreen() {
       {/* ── Attachment bottom sheet ──────────────────────────────────── */}
       {showAttachMedia && (
         <Pressable style={styles.attachOverlay} onPress={() => setShowAttachMedia(false)}>
-          <Pressable style={styles.attachSheet}>
-            <View style={styles.attachSheetHandle} />
-            <Text style={styles.attachSheetTitle}>Send Attachment</Text>
-            <View style={styles.attachGrid}>
-              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('image'); }}>
-                <LinearGradient colors={['#1e3a8a', '#0C1559']} style={styles.attachOptionIcon}>
-                  <Ionicons name="image-outline" size={26} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.attachOptionLabel}>Photo</Text>
-                <Text style={styles.attachOptionSub}>Up to 10 MB</Text>
+          <Pressable>
+            <GlassSurface style={styles.attachSheet}>
+              <View style={styles.attachSheetHandle} />
+              <Text style={styles.attachSheetTitle}>Send Attachment</Text>
+              <View style={styles.attachGrid}>
+                <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('image'); }}>
+                  <LinearGradient colors={['#1e3a8a', '#0C1559']} style={styles.attachOptionIcon}>
+                    <Ionicons name="image-outline" size={26} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>Photo</Text>
+                  <Text style={styles.attachOptionSub}>Up to 10 MB</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('video'); }}>
+                  <LinearGradient colors={['#84cc16', '#4d7c0f']} style={styles.attachOptionIcon}>
+                    <Ionicons name="videocam-outline" size={26} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>Video</Text>
+                  <Text style={styles.attachOptionSub}>Up to 20 MB</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); setIsVoiceRecording(true); }}>
+                  <LinearGradient colors={['#7c3aed', '#4c1d95']} style={styles.attachOptionIcon}>
+                    <Ionicons name="mic-outline" size={26} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>Voice</Text>
+                  <Text style={styles.attachOptionSub}>Record audio</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={styles.attachCancelBtn} onPress={() => setShowAttachMedia(false)}>
+                <Text style={styles.attachCancelTxt}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); handlePickMedia('video'); }}>
-                <LinearGradient colors={['#84cc16', '#4d7c0f']} style={styles.attachOptionIcon}>
-                  <Ionicons name="videocam-outline" size={26} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.attachOptionLabel}>Video</Text>
-                <Text style={styles.attachOptionSub}>Up to 20 MB</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.attachOption} onPress={() => { setShowAttachMedia(false); setIsVoiceRecording(true); }}>
-                <LinearGradient colors={['#7c3aed', '#4c1d95']} style={styles.attachOptionIcon}>
-                  <Ionicons name="mic-outline" size={26} color="#fff" />
-                </LinearGradient>
-                <Text style={styles.attachOptionLabel}>Voice</Text>
-                <Text style={styles.attachOptionSub}>Record audio</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={styles.attachCancelBtn} onPress={() => setShowAttachMedia(false)}>
-              <Text style={styles.attachCancelTxt}>Cancel</Text>
-            </TouchableOpacity>
+            </GlassSurface>
           </Pressable>
         </Pressable>
       )}

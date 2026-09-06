@@ -17,6 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getBuyerOffers,
@@ -453,7 +454,7 @@ export default function MyOffersScreen() {
       {/* Counter Offer Modal */}
       <Modal visible={counterModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Counter Offer</Text>
               <TouchableOpacity onPress={() => setCounterModalVisible(false)} disabled={submittingCounter}>
@@ -516,7 +517,7 @@ export default function MyOffersScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

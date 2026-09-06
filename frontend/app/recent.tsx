@@ -12,6 +12,7 @@ import {
   TextInput
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -285,7 +286,7 @@ export default function RecentScreen() {
           <Pressable onPress={() => setModalVisible(false)} style={styles.modalBackdrop}>
             <View style={styles.modalBackdrop} />
           </Pressable>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sort Products</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -318,7 +319,7 @@ export default function RecentScreen() {
               </TouchableOpacity>
             ))}
             <View style={{ height: 20 }} />
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </View>

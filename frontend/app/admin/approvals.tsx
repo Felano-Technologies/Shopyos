@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
@@ -223,7 +224,7 @@ export default function AdminApprovals() {
 
         <Modal visible={showRejectModal} transparent animationType="fade" onRequestClose={() => setShowRejectModal(false)}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <GlassSurface style={styles.modalCard}>
               <Text style={styles.modalTitle}>Reject Application</Text>
               <Text style={styles.modalSub}>Provide a reason for rejection.</Text>
               <TextInput
@@ -250,7 +251,7 @@ export default function AdminApprovals() {
                   )}
                 </TouchableOpacity>
               </View>
-            </View>
+            </GlassSurface>
           </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>

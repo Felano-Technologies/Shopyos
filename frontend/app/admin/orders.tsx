@@ -19,6 +19,7 @@ import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { getAdminOrders } from '@/services/api';
 import { updateOrderStatus } from '@/services/orders';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -442,7 +443,7 @@ export default function AdminOrders() {
           activeOpacity={1}
           onPress={() => setActionOrder(null)}
         >
-          <View style={styles.modalSheet}>
+          <GlassSurface style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>
               Update Order {actionOrder?.order_number ? `#${actionOrder.order_number}` : ''}
@@ -467,7 +468,7 @@ export default function AdminOrders() {
               );
             })}
             {updatingStatus && <ActivityIndicator style={{ marginTop: 12 }} color={C.navy} />}
-          </View>
+          </GlassSurface>
         </TouchableOpacity>
       </Modal>
     </>

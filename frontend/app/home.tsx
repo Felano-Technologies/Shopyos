@@ -8,19 +8,19 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useRouter, useFocusEffect } from 'expo-router';
 import { safePush } from '@/lib/navigation';
-import * as Location from 'expo-location';
-import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useFlashSales } from '@/hooks/useFlashSales';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
-import { recordAdClick, storage, CustomInAppToast } from '@/services/api';
+import { recordAdClick, CustomInAppToast } from '@/services/api';
 import { useActiveBanners } from '@/hooks/useBanners';
 import { useProfile } from '@/hooks/useProfile';
 import { useBuyerUnreadCount } from '@/hooks/useChat';
 import { useCart } from '@/store/cartStore';
+import { useLocationStore } from '@/store/locationStore';
+import LocationPickerModal from '@/components/LocationPickerModal';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -72,59 +72,6 @@ function getStoreDisplayName(item: any) {
   );
 }
 
-async function updateLocationDisplay(profileData: any, setLocation: (txt: string) => void) {
-  const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
-  const cachedCoordsStr = await storage.getItem('CACHED_LOCATION_COORDS');
-  if (cachedTxt) setLocation(cachedTxt);
-
-  let liveCoords: { latitude: number; longitude: number } | null = null;
-  const { status } = await requestForegroundLocationWithDisclosure();
-  if (status === 'granted') {
-    try {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      liveCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-    } catch (e) {
-      console.warn('Failed to get location:', e);
-    }
-  }
-
-  if (!liveCoords && profileData?.city) {
-    const txt = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
-    setLocation(txt);
-    await storage.setItem('CACHED_LOCATION_TEXT', txt);
-    return;
-  }
-
-  if (liveCoords) {
-    let shouldGeocode = !cachedTxt;
-    if (cachedCoordsStr) {
-      try {
-        const cc = JSON.parse(cachedCoordsStr);
-        if (Math.abs(cc.latitude - liveCoords.latitude) > 0.005 || Math.abs(cc.longitude - liveCoords.longitude) > 0.005)
-          shouldGeocode = true;
-      } catch (e) {
-        console.warn('Failed to parse cached coords:', e);
-        shouldGeocode = true;
-      }
-    }
-    if (shouldGeocode) {
-      try {
-        const [info] = await Location.reverseGeocodeAsync(liveCoords);
-        if (info) {
-          const cityName = info.city ?? info.region ?? info.country ?? 'Unknown';
-          const txt = `${cityName}${info.country ? `, ${info.country}` : ''}`;
-          setLocation(txt);
-          await storage.setItem('CACHED_LOCATION_TEXT', txt);
-          await storage.setItem('CACHED_LOCATION_COORDS', JSON.stringify(liveCoords));
-        }
-      } catch (e) {
-        console.warn('Failed to reverse geocode:', e);
-      }
-    }
-  } else if (!cachedTxt) setLocation('Location unavailable');
-}
-
-
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -143,7 +90,7 @@ export default function Home() {
   const MIN_SKELETON_MS = 450;
 
   // ── UI state ─────────────────────────────────────────────────────────────────
-  const [locationText, setLocationText] = useState('Locating…');
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [userName, setUserName] = useState('');
   const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -156,6 +103,8 @@ export default function Home() {
   const { data: unreadCount = 0 } = useBuyerUnreadCount();
   const cartItems = useCart((s) => s.items);
   const addToCart = useCart((s) => s.addToCart);
+  const locationText = useLocationStore((s) => s.addressText) || 'Locating…';
+  const ensureLocation = useLocationStore((s) => s.ensureLocation);
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
   const { data: favoriteProducts = [] } = useFavorites();
   const addFavoriteMutation = useAddFavorite();
@@ -237,9 +186,15 @@ const { data: notifData } = useUnreadNotificationCount(false);
   }, [profileData, user]);
 
 // ── Location ───────────────────────────────────────────────────────────────────
+  // No-ops if a location is already known (persisted from a previous
+  // session, or set by cart/checkout's picker) — otherwise tries live GPS,
+  // falling back to the profile's city/country text.
   useEffect(() => {
-    updateLocationDisplay(profileData, setLocationText);
-  }, [profileData]);
+    const fallback = profileData?.city
+      ? profileData.city + (profileData.country ? `, ${profileData.country}` : '')
+      : undefined;
+    ensureLocation(fallback);
+  }, [profileData, ensureLocation]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────────
   const onRefresh = async () =>
@@ -418,11 +373,15 @@ const { data: notifData } = useUnreadNotificationCount(false);
           </View>
 
           <View style={S.headerInner}>
-            <TouchableOpacity accessibilityLabel="Select delivery location" accessibilityRole="button" style={S.locationRow} onPress={() => safePush('/settings')}>
-              <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
-              <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
-              <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.45)" />
-            </TouchableOpacity>
+            <View style={S.locationRowWrap}>
+              <View style={S.locationRow}>
+                <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
+                <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
+              </View>
+              <TouchableOpacity accessibilityLabel="Change delivery location" accessibilityRole="button" onPress={() => setShowLocationPicker(true)}>
+                <Text style={S.locationChangeTxt}>Change</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={S.headerMainRow}>
               <Text style={S.greeting} numberOfLines={1}>
@@ -683,6 +642,8 @@ const { data: notifData } = useUnreadNotificationCount(false);
       {/* One-time welcome card — persisted per device AND on the user's
           profile, so it never shows again regardless of dismissal or re-login */}
       <WelcomeCard />
+
+      <LocationPickerModal visible={showLocationPicker} onClose={() => setShowLocationPicker(false)} />
     </View>
   );
 }
@@ -713,10 +674,15 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
     backgroundColor: 'rgba(30,58,138,0.5)',
   },
   headerInner: { paddingHorizontal: 20, paddingBottom: 6 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
+  locationRowWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationTxt: {
     fontSize: 12, fontFamily: 'Montserrat-SemiBold',
-    color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.55,
+    color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.5,
+  },
+  locationChangeTxt: {
+    fontSize: 12, fontFamily: 'Montserrat-Bold',
+    color: 'rgba(255,255,255,0.85)', textDecorationLine: 'underline',
   },
   headerMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   greeting: {

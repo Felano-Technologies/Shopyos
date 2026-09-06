@@ -11,6 +11,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { router } from 'expo-router';
 import { storage, secureStorage, logoutUser } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -472,7 +473,7 @@ const BusinessDashboard = () => {
       {/* --- NO BUSINESS MODAL --- */}
       <Modal animationType="fade" transparent visible={showNoBusinessModal}>
         <View style={styles.alertOverlay}>
-          <View style={styles.alertContent}>
+          <GlassSurface style={styles.alertContent}>
             <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color={colors.primary} /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
             <Text style={styles.alertMessage}>You have not set up a store yet. Create your business profile to start selling.</Text>
@@ -500,7 +501,7 @@ const BusinessDashboard = () => {
                 <Text style={[styles.outlineButtonText, { color: '#EF4444' }]}>Logout</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 
@@ -508,7 +509,7 @@ const BusinessDashboard = () => {
       <Modal visible={showSwitcher} animationType="slide" transparent>
         <View style={styles.switcherOverlay}>
           <TouchableOpacity style={styles.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-          <View style={styles.switcherSheet}>
+          <GlassSurface style={styles.switcherSheet}>
             <View style={styles.switcherHeader}>
               <Text style={styles.switcherTitle}>Switch Profile</Text>
               <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
@@ -569,7 +570,7 @@ const BusinessDashboard = () => {
                 </TouchableOpacity>
               )}
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

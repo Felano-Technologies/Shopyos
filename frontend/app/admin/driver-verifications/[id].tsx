@@ -19,6 +19,7 @@ import Skeleton from '@/components/Skeleton';
 import Toast from 'react-native-toast-message';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -677,7 +678,7 @@ export default function DriverVerificationDetailScreen() {
         onRequestClose={() => setRejectModal(false)}
       >
         <View style={S.modalOverlay}>
-          <View style={S.modalSheet}>
+          <GlassSurface style={S.modalSheet}>
             <View style={S.modalHandle} />
             <Text style={S.modalTitle}>Rejection Reason</Text>
             <Text style={S.modalSub}>
@@ -708,7 +709,7 @@ export default function DriverVerificationDetailScreen() {
                 <Text style={S.modalRejectTxt}>Confirm Rejection</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

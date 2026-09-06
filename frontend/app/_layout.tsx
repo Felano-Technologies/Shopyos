@@ -22,6 +22,7 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
 import { initCartForUser } from '@/store/cartStore';
+import { hydrateLocationLocal } from '@/store/locationStore';
 import { useThemeStore, hydrateThemeLocal, initThemeForUser } from '@/store/themeStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -354,6 +355,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     hydrateThemeLocal().finally(() => setThemeReady(true));
+  }, []);
+
+  useEffect(() => {
+    hydrateLocationLocal();
   }, []);
 
   useEffect(() => {

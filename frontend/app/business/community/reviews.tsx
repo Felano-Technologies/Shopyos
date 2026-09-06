@@ -4,6 +4,7 @@ import {
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useBusinessReviews, useReplyToReview, useActiveBusiness } from '@/hooks/useBusiness';
@@ -179,7 +180,7 @@ export default function ReviewsScreen() {
       {/* Reply Modal */}
       <Modal visible={replyModalVisible} animationType="slide" transparent={true}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <GlassSurface style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reply to {selectedReview?.user}</Text>
               <TouchableOpacity onPress={() => setReplyModalVisible(false)}>
@@ -208,7 +209,7 @@ export default function ReviewsScreen() {
                 <Text style={styles.sendText}>Post Reply</Text>
               )}
             </TouchableOpacity>
-          </View>
+          </GlassSurface>
         </KeyboardAvoidingView>
       </Modal>
     </View>

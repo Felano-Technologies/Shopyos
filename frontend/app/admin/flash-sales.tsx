@@ -18,6 +18,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { getAdminSales, getSlotsList, createSlot, updateSlot, deleteSlot, reviewFlashSale } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 export default function AdminFlashSales() {
@@ -409,7 +410,7 @@ export default function AdminFlashSales() {
       {/* Review Modal */}
       <Modal visible={selectedSale !== null} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Review Submission</Text>
               <TouchableOpacity onPress={() => { setSelectedSale(null); setReviewNotes(''); }}>
@@ -456,14 +457,14 @@ export default function AdminFlashSales() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 
       {/* Create/Edit Slot Modal */}
       <Modal visible={showSlotModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <GlassSurface style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingSlotId ? 'Edit Time Slot' : 'Create Time Slot'}</Text>
               <TouchableOpacity onPress={() => { setShowSlotModal(false); resetSlotForm(); }}>
@@ -517,7 +518,7 @@ export default function AdminFlashSales() {
                 )}
               </TouchableOpacity>
             </ScrollView>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

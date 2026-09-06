@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   Switch,
   ScrollView,
-  Modal,
-  Pressable,
   StatusBar,
   Animated,
   ActivityIndicator,
@@ -24,6 +22,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage, baseURL, updateUserRole } from '@/services/api';
 import { cacheUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 
@@ -481,45 +480,17 @@ export default function SettingsScreen() {
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />
-      <Modal
+      <ConfirmModal
         visible={logoutModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLogoutModalVisible(false)}
-      >
-        <View style={styles.logoutModalOverlay}>
-          <Pressable accessibilityLabel="Close logout dialog" accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setLogoutModalVisible(false)} />
-          <View style={styles.logoutModalCard}>
-            <View style={styles.logoutModalIcon}>
-              <Feather name="log-out" size={22} color={colors.error} />
-            </View>
-            <Text style={styles.logoutModalTitle}>Log Out?</Text>
-            <Text style={styles.logoutModalBody}>
-              You will need to sign in again to access your account.
-            </Text>
-            <View style={styles.logoutModalActions}>
-              <TouchableOpacity
-                accessibilityLabel="Cancel logout"
-                accessibilityRole="button"
-                style={styles.logoutCancelBtn}
-                onPress={() => setLogoutModalVisible(false)}
-                disabled={logoutLoading}
-              >
-                <Text style={styles.logoutCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityLabel="Confirm logout"
-                accessibilityRole="button"
-                style={styles.logoutConfirmBtn}
-                onPress={confirmLogout}
-                disabled={logoutLoading}
-              >
-                {logoutLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.logoutConfirmText}>Log Out</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setLogoutModalVisible(false)}
+        title="Log Out?"
+        message="You will need to sign in again to access your account."
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setLogoutModalVisible(false), variant: 'cancel' },
+          { label: 'Log Out', onPress: confirmLogout, variant: 'destructive', loading: logoutLoading },
+        ]}
+      />
     </View>
   );
 }
@@ -725,73 +696,6 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
     color: c.error,
-  },
-  logoutModalOverlay: {
-    flex: 1,
-    backgroundColor: c.overlay,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  logoutModalCard: {
-    backgroundColor: c.surface,
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-  },
-  logoutModalIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: c.errorBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  logoutModalTitle: {
-    fontSize: 20,
-    color: c.text,
-    fontFamily: 'Montserrat-Bold',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  logoutModalBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: c.textSecondary,
-    fontFamily: 'Montserrat-Medium',
-    textAlign: 'center',
-    marginBottom: 18,
-  },
-  logoutModalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logoutCancelBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: c.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutCancelText: {
-    color: c.text,
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  logoutConfirmBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: c.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutConfirmText: {
-    color: '#FFF', // white text on the red confirm button, intentionally fixed
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
   },
   versionText: {
     fontSize: 12,

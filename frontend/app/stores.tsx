@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useStores } from '@/hooks/useStores';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -437,7 +438,7 @@ export default function StoresScreen() {
         >
           <View style={styles.modalOverlay}>
             <Pressable style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
-            <View style={styles.modalSheet}>
+            <GlassSurface style={styles.modalSheet}>
               <View style={styles.sheetHandle} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Filter Stores</Text>
@@ -482,7 +483,7 @@ export default function StoresScreen() {
               >
                 <Text style={styles.applyTxt}>Apply filters</Text>
               </TouchableOpacity>
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
       </View>

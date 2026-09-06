@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useAdminColors, adminShadow, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
@@ -253,7 +254,7 @@ export default function FeeSettingsScreen() {
         {/* Edit Config Modal */}
         <Modal visible={editingConfig !== null} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <GlassSurface style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Update Configuration</Text>
                 <TouchableOpacity onPress={() => setEditingConfig(null)}>
@@ -305,14 +306,14 @@ export default function FeeSettingsScreen() {
                   </TouchableOpacity>
                 </ScrollView>
               )}
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
 
         {/* Audit Log Modal */}
         <Modal visible={auditConfig !== null} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
+            <GlassSurface style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <View>
                   <Text style={styles.modalTitle}>Change Log History</Text>
@@ -360,7 +361,7 @@ export default function FeeSettingsScreen() {
                   )}
                 </ScrollView>
               )}
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
 

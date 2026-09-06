@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getMyReviews, updateProductReview, deleteReview, CustomInAppToast } from '@/services/api';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const COLORS = {
   navy: '#0C1559',
@@ -206,7 +207,7 @@ export default function MyReviewsScreen() {
 
       <Modal visible={!!editingReview} transparent animationType="slide" onRequestClose={() => setEditingReview(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <GlassSurface style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit Review</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
               {[1, 2, 3, 4, 5].map((n) => (
@@ -232,7 +233,7 @@ export default function MyReviewsScreen() {
                 {saving ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.modalSaveTxt}>Save</Text>}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

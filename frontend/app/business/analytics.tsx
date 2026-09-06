@@ -4,6 +4,7 @@ import {
   Dimensions, Modal, RefreshControl, Platform, TextInput,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -392,7 +393,7 @@ const Analytics = () => {
               <Modal visible={showDatePicker} animationType="fade" transparent>
                 <View style={S.datePickerOverlay}>
                   <TouchableOpacity style={S.datePickerDismiss} onPress={() => setShowDatePicker(false)} activeOpacity={1} />
-                  <View style={S.datePickerSheet}>
+                  <GlassSurface style={S.datePickerSheet}>
                     <Text style={S.datePickerTitle}>Select Date Range</Text>
                     <Text style={S.datePickerHint}>Format: YYYY-MM-DD</Text>
                     <TextInput
@@ -438,7 +439,7 @@ const Analytics = () => {
                         <Text style={S.dateApplyText}>Apply</Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </GlassSurface>
                 </View>
               </Modal>
 
@@ -591,7 +592,7 @@ const Analytics = () => {
         <Modal visible={showSwitcher} animationType="slide" transparent>
           <View style={S.switcherOverlay}>
             <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-            <View style={S.switcherSheet}>
+            <GlassSurface style={S.switcherSheet}>
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity onPress={() => setShowSwitcher(false)}>
@@ -648,7 +649,7 @@ const Analytics = () => {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
 

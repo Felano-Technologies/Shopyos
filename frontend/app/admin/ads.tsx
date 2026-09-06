@@ -16,6 +16,7 @@ import {
 } from '@/services/api';
 import { useAdminBreakpoint, useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 const { width, height } = Dimensions.get('window');
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
@@ -269,7 +270,7 @@ export default function AdminAds() {
       {/* --- Rejection Modal --- */}
       <Modal visible={rejectModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <GlassSurface style={styles.modalCard}>
             <Text style={styles.modalTitle}>Reject Ad Campaign</Text>
             <Text style={styles.modalSub}>
               Rejecting this ad will notify the merchant. Please provide a reason for the rejection.
@@ -295,7 +296,7 @@ export default function AdminAds() {
                 {actionLoading === targetAd?.id ? <ActivityIndicator color="#FFF" /> : <Text style={styles.confirmText}>Confirm Rejection</Text>}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </KeyboardAvoidingView>
       </Modal>
     </View>

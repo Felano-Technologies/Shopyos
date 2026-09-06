@@ -8,12 +8,12 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
-import { requestForegroundLocationWithDisclosure } from '@/src/utils/location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import AppImage from '@/components/AppImage';
 
 import { useCart } from '@/store/cartStore';
+import { useLocationStore } from '@/store/locationStore';
+import LocationPickerModal from '@/components/LocationPickerModal';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
@@ -47,7 +47,7 @@ const buildC = (colors: ThemeColors): LegacyPalette => ({
   success: colors.success,
 });
 
-import { GHANA_REGIONS, nearestGhanaRegion, mapTextToGhanaRegion } from '@/utils/ghanaRegions';
+import { nearestGhanaRegion } from '@/utils/ghanaRegions';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 type StoreQuote = {
@@ -99,23 +99,23 @@ export default function CheckoutScreen() {
   const S = useMemo(() => getS(C), [C]);
   const cartItems = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clearCart);
-  // Confirmed on the map picker in cart.tsx before reaching this screen —
-  // see cartStore.ts. A delivery can take days, so this (not the buyer's
-  // live device location) is the source of truth for the fee and the order.
-  const deliveryCoords = useCart((s) => s.deliveryCoords);
+  // Shared with cart.tsx's map picker and home.tsx's header — see
+  // store/locationStore.ts and components/LocationPickerModal.tsx. Persisted
+  // and reverse-geocoded there, so this screen only derives the Ghana region
+  // from it (kept a checkout/cart-specific concern, not stored globally).
+  const deliveryCoords = useLocationStore((s) => s.coords);
+  const deliveryAddress = useLocationStore((s) => s.addressText);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card'>('momo');
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [savedMethods, setSavedMethods] = useState<any[]>([]);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryPhone, setDeliveryPhone] = useState('');
-  const [saveAddress, setSaveAddress] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deliveryState, setDeliveryState] = useState('Greater Accra');
-  const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
 
   // Disclaimer states
   const [refundPolicy, setRefundPolicy] = useState<Disclaimer | null>(null);
@@ -145,13 +145,6 @@ export default function CheckoutScreen() {
   const [isFetchingFee, setIsFetchingFee] = useState(false);
   const [quoteFetchError, setQuoteFetchError] = useState(false);
   const [quoteRetryTick, setQuoteRetryTick] = useState(0);
-  // Live device GPS — only feeds the existing profile-address-prefill
-  // reverse-geocode flow below. It does NOT drive the fee or the order: a
-  // delivery can take days, so the buyer's position at checkout time has
-  // nothing to do with where it actually ships — deliveryCoords (confirmed
-  // on the map picker in cart.tsx, see above) is the real source of truth.
-  const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
-
   // Last-mile home delivery option (inter-regional only)
   const [requestLastMile, setRequestLastMile] = useState(false);
   // Per-store delivery method: true = buyer collects from the store (free)
@@ -167,21 +160,17 @@ export default function CheckoutScreen() {
   // refetch (and reset the selection) when deliveryState actually changes.
   const [pickupHubsRegion, setPickupHubsRegion] = useState<string | null>(null);
 
-  // Get buyer location once on mount
+  // The delivery region is derived entirely from the pinned location — no
+  // manual chip picker — since letting the two disagree misclassifies the
+  // order (e.g. the buyer's pin is in Ashanti but a manually-picked region
+  // said "Accra", matching the seller — the app would then treat it as
+  // intra-regional and price it off the real ~200km pin distance instead of
+  // routing it through the hub network). Re-derives whenever the pin moves.
   useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await requestForegroundLocationWithDisclosure();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-          setBuyerCoords(coords);
-        }
-      } catch {
-        // Location unavailable — delivery fee will fall back to base fee
-      }
-    })();
-  }, []);
+    if (!deliveryCoords) return;
+    const derived = nearestGhanaRegion(deliveryCoords.lat, deliveryCoords.lng);
+    if (derived) setDeliveryState(derived);
+  }, [deliveryCoords?.lat, deliveryCoords?.lng]);
 
   // Fetch delivery quotes for every distinct store in the cart. Waits for
   // the buyer to confirm a delivery location on the map first — no silent
@@ -359,54 +348,10 @@ export default function CheckoutScreen() {
 
         const profile = profileResponse.user || profileResponse;
         if (profile) {
-          const addr = profile.address_line1 || '';
-          const phone = profile.fullPhoneNumber || profile.phone || '';
-          setDeliveryAddress(addr);
-          setDeliveryPhone(phone);
-
-          const coords = profile.latitude && profile.longitude
-            ? { lat: Number(profile.latitude), lng: Number(profile.longitude) }
-            : null;
-          if (coords) setBuyerCoords(coords);
-
-          // Region: saved profile region → login coordinates → IP geolocation
-          if (profile.state_province) {
-            setDeliveryState(profile.state_province);
-            setPrefilled({ address: !!addr, phone: !!phone, region: true });
-          } else {
-            setPrefilled({ address: !!addr, phone: !!phone, region: false });
-            const fromCoords = nearestGhanaRegion(coords?.lat, coords?.lng);
-            if (fromCoords) {
-              setDeliveryState(fromCoords);
-              setPrefilled(prev => ({ ...prev, region: true }));
-            } else {
-              try {
-                const ipRes = await fetch('https://ip-api.com/json');
-                const ipData = await ipRes.json();
-                const detected = mapTextToGhanaRegion(ipData.region || ipData.regionName || '');
-                if (detected) {
-                  setDeliveryState(detected);
-                  setPrefilled(prev => ({ ...prev, region: true }));
-                }
-              } catch { /* silent fallback to default 'Greater Accra' */ }
-            }
-          }
-
-          // No saved address — prefill street/suburb + city from login coordinates
-          if (!addr && coords) {
-            try {
-              const [place] = await Location.reverseGeocodeAsync({ latitude: coords.lat, longitude: coords.lng });
-              if (place) {
-                const parts = [place.street || place.name, place.district || place.subregion, place.city]
-                  .filter(Boolean)
-                  .filter((v, i, a) => a.indexOf(v) === i);
-                if (parts.length) {
-                  setDeliveryAddress(parts.join(', '));
-                  setPrefilled(prev => ({ ...prev, address: true }));
-                }
-              }
-            } catch { /* geocoder unavailable — leave address blank */ }
-          }
+          // Phone always comes from the buyer's profile — no per-order
+          // override. Delivery address and region are derived entirely from
+          // the pinned map location by the effects above, not from here.
+          setDeliveryPhone(profile.fullPhoneNumber || profile.phone || '');
         }
 
         if (paymentResponse?.success) {
@@ -462,8 +407,9 @@ export default function CheckoutScreen() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
-      CustomInAppToast.show({ type: 'error', title: 'Required Info', message: 'Please provide address and phone number.' });
+    if (!deliveryPhone.trim()) {
+      CustomInAppToast.show({ type: 'error', title: 'Phone Number Required', message: 'Please add a phone number to your profile before placing an order.' });
+      router.push('/settings/Account' as any);
       return;
     }
 
@@ -516,7 +462,6 @@ export default function CheckoutScreen() {
   };
 
 
-  const showAddressNudge = !prefilled.address && !deliveryAddress;
   return (
     <View style={S.container}>
       <StatusBar style="light" />
@@ -541,14 +486,14 @@ export default function CheckoutScreen() {
       ) : !deliveryCoords ? (
         <View style={[S.centred, { paddingHorizontal: 32 }]}>
           <Ionicons name="location-outline" size={40} color={C.subtle} />
-          <Text style={S.noLocationText}>Set your delivery location from your cart first.</Text>
+          <Text style={S.noLocationText}>Set your delivery location to continue.</Text>
           <TouchableOpacity
-            accessibilityLabel="Go to cart"
+            accessibilityLabel="Set delivery location"
             accessibilityRole="button"
             style={S.noLocationBtn}
-            onPress={() => router.replace('/cart' as any)}
+            onPress={() => setShowLocationPicker(true)}
           >
-            <Text style={S.noLocationBtnText}>Go to Cart</Text>
+            <Text style={S.noLocationBtnText}>Set Location</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -612,23 +557,44 @@ export default function CheckoutScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Per-store delivery fee */}
-                  <View style={S.summaryRow}>
-                    <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>
-                      {pickupStores[group.storeId] ? 'Pickup from store' : 'Delivery'}
-                    </Text>
-                    <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
-                      {pickupStores[group.storeId]
-                        ? 'Free'
-                        : isFetchingFee
-                          ? '...'
-                          : quote == null
+                  {/* Per-store delivery fee — broken into its two legs for a
+                      cross-region store (store→hub, then hub→hub transit) so
+                      this number always matches what the totals card counts;
+                      a single combined figure here used to disagree with the
+                      total further down with no explanation for the gap. */}
+                  {!pickupStores[group.storeId] && quote?.isInterRegional ? (
+                    <>
+                      <View style={S.summaryRow}>
+                        <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>Delivery to origin hub</Text>
+                        <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
+                          {isFetchingFee || quote == null ? '...' : !quote.withinRange ? 'Not available' : formatCurrency(quote.deliveryFee)}
+                        </Text>
+                      </View>
+                      <View style={S.summaryRow}>
+                        <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>Hub-to-hub transit</Text>
+                        <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
+                          {isFetchingFee || quote == null ? '...' : formatCurrency(quote.parcelTransitFee)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={S.summaryRow}>
+                      <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>
+                        {pickupStores[group.storeId] ? 'Pickup from store' : 'Delivery'}
+                      </Text>
+                      <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
+                        {pickupStores[group.storeId]
+                          ? 'Free'
+                          : isFetchingFee
                             ? '...'
-                            : !quote.withinRange
-                              ? 'Not available'
-                              : formatCurrency(quote.deliveryFee)}
-                    </Text>
-                  </View>
+                            : quote == null
+                              ? '...'
+                              : !quote.withinRange
+                                ? 'Not available'
+                                : formatCurrency(quote.deliveryFee)}
+                      </Text>
+                    </View>
+                  )}
                   {pickupStores[group.storeId] && (
                     <Text style={S.pickupHint}>
                       Collect your order directly from {group.storeName}. The store will contact you when it's ready.
@@ -883,77 +849,36 @@ export default function CheckoutScreen() {
               </>
             )}
 
-            {/* Delivery Info */}
+            {/* Delivery Info — derived from the pin (address/region) and
+                profile (phone), not manually typed, so it can never drift
+                from the coordinates/hub-routing actually used to price and
+                route the order. */}
             <Text style={S.sectionTitle}>Delivery Information</Text>
             <View style={S.card}>
-              <View style={S.inputGroup}>
-                <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Delivery Address <Text style={{ color: C.error }}>*</Text></Text>
-                  {prefilled.address && (
-                    <View style={S.profileBadge}>
-                      <Ionicons name="person-circle-outline" size={11} color={C.lime} />
-                      <Text style={S.profileBadgeText}>From profile</Text>
-                    </View>
-                  )}
+              <View style={S.deliverySummaryRow}>
+                <Ionicons name="location" size={18} color={C.navy} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={S.inputLabel}>Delivering to</Text>
+                  <Text style={S.deliverySummaryValue}>
+                    {deliveryAddress || 'Locating…'}{deliveryState ? `, ${deliveryState}` : ''}
+                  </Text>
                 </View>
-                <View style={S.inputWrapper}>
-                  <Ionicons name="location-outline" size={18} color={C.muted} style={{ marginRight: 10 }} />
-                  <TextInput
-                    accessibilityLabel="Delivery address"
-                    accessibilityRole="none"
-                    style={S.input}
-                    placeholder="House No, Street Name, Area"
-                    placeholderTextColor={C.subtle}
-                    value={deliveryAddress}
-                    onChangeText={(t) => { setDeliveryAddress(t); setPrefilled(p => ({ ...p, address: false })); }}
-                  />
-                </View>
+                <TouchableOpacity accessibilityLabel="Change delivery location" accessibilityRole="button" onPress={() => setShowLocationPicker(true)}>
+                  <Text style={S.deliveryChangeLink}>Change</Text>
+                </TouchableOpacity>
               </View>
-              <View style={S.inputGroup}>
-                <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Phone Number <Text style={{ color: C.error }}>*</Text></Text>
-                  {prefilled.phone && (
-                    <View style={S.profileBadge}>
-                      <Ionicons name="person-circle-outline" size={11} color={C.lime} />
-                      <Text style={S.profileBadgeText}>From profile</Text>
-                    </View>
-                  )}
+              <View style={S.divider} />
+              <View style={S.deliverySummaryRow}>
+                <Ionicons name="call" size={18} color={C.navy} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={S.inputLabel}>Contact number</Text>
+                  <Text style={S.deliverySummaryValue}>{deliveryPhone || 'No phone number on file'}</Text>
                 </View>
-                <View style={S.inputWrapper}>
-                  <Ionicons name="call-outline" size={18} color={C.muted} style={{ marginRight: 10 }} />
-                  <TextInput
-                    accessibilityLabel="Phone number"
-                    accessibilityRole="none"
-                    style={S.input}
-                    placeholder="024 XXX XXXX"
-                    placeholderTextColor={C.subtle}
-                    value={deliveryPhone}
-                    onChangeText={(t) => { setDeliveryPhone(t); setPrefilled(p => ({ ...p, phone: false })); }}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-              <View style={S.inputGroup}>
-                <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Region / State <Text style={{ color: C.error }}>*</Text></Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
-                  {[
-                    'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
-                    'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
-                    'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North'
-                  ].map((reg) => (
-                    <TouchableOpacity
-                      accessibilityLabel={`Select region ${reg}`}
-                      accessibilityRole="button"
-                      key={reg}
-                      style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
-                      onPress={() => setDeliveryState(reg)}
-                    >
-                      <Text style={[S.regionChipTxt, deliveryState === reg && S.regionChipTxtActive]}>{reg}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                {!deliveryPhone && (
+                  <TouchableOpacity accessibilityLabel="Add phone number in profile" accessibilityRole="button" onPress={() => router.push('/settings/Account' as any)}>
+                    <Text style={S.deliveryChangeLink}>Add</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {isAnyInterRegional && (
@@ -972,25 +897,38 @@ export default function CheckoutScreen() {
                       Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDaysMax && estimatedTransitDaysMax > estimatedTransitDays ? `${estimatedTransitDays}–${estimatedTransitDaysMax}` : estimatedTransitDays} days</Text> to destination hub.
                     </Text>
                   )}
+                  {/* What each part of the fee is actually for — the hub
+                      network legs (store→hub, hub→hub) vs. the optional
+                      rider who does the hub→door last mile — so nothing
+                      shows up in the total unexplained. */}
+                  <View style={S.interRegionalBreakdown}>
+                    <Text style={S.breakdownTitle}>What you're paying for</Text>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Delivery to origin hub</Text>
+                      <Text style={S.breakdownValue}>
+                        {formatCurrency(quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] || !q.isInterRegional ? 0 : q.deliveryFee), 0))}
+                      </Text>
+                    </View>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Hub-to-hub transit (Parcel Partner network)</Text>
+                      <Text style={S.breakdownValue}>
+                        {formatCurrency(quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] || !q.isInterRegional ? 0 : q.parcelTransitFee), 0))}
+                      </Text>
+                    </View>
+                    {requestLastMile && (
+                      <View style={S.breakdownRow}>
+                        <Text style={S.breakdownLabel}>Rider — hub to your door (last-mile)</Text>
+                        <Text style={S.breakdownValue}>{formatCurrency(lastMileFee)}</Text>
+                      </View>
+                    )}
+                    {!requestLastMile && (
+                      <Text style={[S.breakdownLabel, { fontSize: 10, marginTop: 2 }]}>
+                        No rider fee — you'll collect from the hub yourself.
+                      </Text>
+                    )}
+                  </View>
                 </View>
               )}
-              {showAddressNudge && (
-                <TouchableOpacity
-                  accessibilityLabel="Edit profile to auto-fill details"
-                  accessibilityRole="button"
-                  style={S.profileNudge}
-                  onPress={() => router.push('/settings/Account' as any)}
-                >
-                  <Ionicons name="information-circle-outline" size={15} color={C.navy} />
-                  <Text style={S.profileNudgeText}>Add address & phone in your profile to auto-fill next time</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity accessibilityLabel="Save delivery information for next time" accessibilityRole="checkbox" style={S.checkboxRow} onPress={() => setSaveAddress(!saveAddress)}>
-                <View style={[S.checkbox, saveAddress && S.checkboxChecked]}>
-                  {saveAddress && <Ionicons name="checkmark" size={13} color="#FFF" />}
-                </View>
-                <Text style={S.checkboxLabel}>Save delivery information for next time</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Payment Method */}
@@ -1104,6 +1042,7 @@ export default function CheckoutScreen() {
         />
       )}
 
+      <LocationPickerModal visible={showLocationPicker} onClose={() => setShowLocationPicker(false)} />
     </View>
   );
 }
@@ -1143,22 +1082,17 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   multiStoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.border, borderRadius: 10, padding: 10, marginBottom: 8 },
   multiStoreBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.navy },
 
-  inputGroup: { marginBottom: 16 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   inputLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.muted },
-  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.border, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  profileBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.success },
+  deliverySummaryRow: { flexDirection: 'row', alignItems: 'center' },
+  deliverySummaryValue: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.body, marginTop: 2 },
+  deliveryChangeLink: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.navy },
   profileNudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.border, borderRadius: 10, padding: 10, marginBottom: 14 },
   profileNudgeText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surfaceElevated, borderRadius: 14, borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: 14 },
-  input: { flex: 1, paddingVertical: 13, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
   noLocationText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginTop: 14, marginBottom: 20 },
   noLocationBtn: { backgroundColor: C.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 },
   noLocationBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   checkboxChecked: { backgroundColor: C.navy },
-  checkboxLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
 
   paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: C.border, elevation: 1 },
   paymentOptionSelected: { backgroundColor: C.navy, borderColor: C.navy },
@@ -1176,10 +1110,6 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   placeOrderBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
   placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   placeOrderTxt: { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
-  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: C.border, marginRight: 8, borderWidth: 1, borderColor: C.borderStrong },
-  regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
-  regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
-  regionChipTxtActive: { color: '#FFF' },
   errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.errorBg, padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
   errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.error, flex: 1 },
 

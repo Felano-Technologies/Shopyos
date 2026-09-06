@@ -10,6 +10,7 @@ import {
     Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -206,7 +207,7 @@ const ProductReviewScreen = () => {
             {/* Purchase Required Modal */}
             <Modal visible={eligibilityVisible} animationType="fade" transparent onRequestClose={() => setEligibilityVisible(false)}>
                 <View style={styles.eligibilityOverlay}>
-                    <View style={styles.eligibilityCard}>
+                    <GlassSurface style={styles.eligibilityCard}>
                         <View style={styles.eligibilityIcon}>
                             <Ionicons name="bag-check-outline" size={28} color="#0C1559" />
                         </View>
@@ -220,7 +221,7 @@ const ProductReviewScreen = () => {
                         <TouchableOpacity style={styles.eligibilityDismiss} onPress={() => setEligibilityVisible(false)}>
                             <Text style={styles.eligibilityDismissText}>Maybe Later</Text>
                         </TouchableOpacity>
-                    </View>
+                    </GlassSurface>
                 </View>
             </Modal>
         </View>

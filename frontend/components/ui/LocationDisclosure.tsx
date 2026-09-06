@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 const { width } = Dimensions.get('window');
 type LocationDisclosureProps = Readonly<{
   visible: boolean;
@@ -114,14 +115,12 @@ export default function LocationDisclosure({
           ]}
         />
         <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
         >
+        <GlassSurface style={styles.card}>
           {/* Header icon */}
           <LinearGradient
             colors={[C.navy, C.navyMid]}
@@ -183,6 +182,7 @@ export default function LocationDisclosure({
           <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
             <Text style={styles.declineText}>Maybe Later</Text>
           </TouchableOpacity>
+        </GlassSurface>
         </Animated.View>
       </View>
     </Modal>

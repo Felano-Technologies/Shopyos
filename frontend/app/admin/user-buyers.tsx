@@ -20,6 +20,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   active:    { bg: '#DCFCE7', text: '#16A34A' },
@@ -265,7 +266,7 @@ export default function AdminBuyers() {
         onRequestClose={() => setMenuUser(null)}
       >
         <TouchableOpacity style={menuStyles.overlay} activeOpacity={1} onPress={() => setMenuUser(null)}>
-          <View style={menuStyles.sheet}>
+          <GlassSurface style={menuStyles.sheet}>
             <View style={menuStyles.handle} />
             <Text style={menuStyles.title} numberOfLines={1}>
               {menuUser?.full_name || menuUser?.email || 'User'}
@@ -292,7 +293,7 @@ export default function AdminBuyers() {
                 <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
               </View>
             </TouchableOpacity>
-          </View>
+          </GlassSurface>
         </TouchableOpacity>
       </Modal>
 

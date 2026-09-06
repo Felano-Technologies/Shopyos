@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   AdminHub,
@@ -363,7 +364,7 @@ export default function AdminHubsScreen() {
       <Modal visible={hubModal} animationType="slide" transparent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={S.overlay}>
-          <View style={S.sheet}>
+          <GlassSurface style={S.sheet}>
             <View style={S.handle} />
             <Text style={S.sheetTitle}>{editingHub ? 'Edit Hub' : 'Add New Hub'}</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -436,7 +437,7 @@ export default function AdminHubsScreen() {
                 {savingHub ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={S.saveText}>{editingHub ? 'Update Hub' : 'Create Hub'}</Text>}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -445,7 +446,7 @@ export default function AdminHubsScreen() {
       <Modal visible={routeModal} animationType="slide" transparent>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={S.overlay}>
-          <View style={S.sheet}>
+          <GlassSurface style={S.sheet}>
             <View style={S.handle} />
             <Text style={S.sheetTitle}>Configure Transit Route</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -494,7 +495,7 @@ export default function AdminHubsScreen() {
                 {savingRoute ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={S.saveText}>Save Route</Text>}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
         </KeyboardAvoidingView>
       </Modal>

@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
@@ -220,16 +221,18 @@ export default function VerificationStatus() {
 
             <Modal visible={showStatusModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
-                        <StatusModalBody
-                            checking={checking}
-                            isVerified={isVerified}
-                            onDismiss={() => setShowStatusModal(false)}
-                            onGoToDashboard={() => {
-                                setShowStatusModal(false);
-                                router.replace('/business/dashboard');
-                            }}
-                        />
+                    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                        <GlassSurface style={styles.modalContent}>
+                            <StatusModalBody
+                                checking={checking}
+                                isVerified={isVerified}
+                                onDismiss={() => setShowStatusModal(false)}
+                                onGoToDashboard={() => {
+                                    setShowStatusModal(false);
+                                    router.replace('/business/dashboard');
+                                }}
+                            />
+                        </GlassSurface>
                     </Animated.View>
                 </View>
             </Modal>

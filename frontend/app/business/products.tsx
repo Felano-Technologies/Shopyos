@@ -6,6 +6,7 @@ import {
   ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -358,7 +359,7 @@ export default function ProductsScreen() {
         <Modal visible={showSwitcher} animationType="slide" transparent>
           <View style={S.switcherOverlay}>
             <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
-            <View style={S.switcherSheet}>
+            <GlassSurface style={S.switcherSheet}>
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
                 <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
@@ -415,7 +416,7 @@ export default function ProductsScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </GlassSurface>
           </View>
         </Modal>
 

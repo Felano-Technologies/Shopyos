@@ -7,6 +7,7 @@ import AppImage from '@/components/AppImage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAllConversations, useChatActions } from '@/hooks/useChat';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { startConversation, getChatContacts } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -346,7 +347,7 @@ export default function ChatInbox() {
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setSellerModalVisible(false)} />
-          <View style={styles.modalSheet}>
+          <GlassSurface style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Conversation</Text>
@@ -397,7 +398,7 @@ export default function ChatInbox() {
                 )}
               />
             )}
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

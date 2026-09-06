@@ -18,6 +18,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { useAdminColors, adminShadow, AdminColors } from '@/components/admin/adminTheme';
 import { adminUpdateDisclaimer, adminGetDisclaimerAudit } from '@/services/admin';
@@ -269,7 +270,7 @@ export default function AdminDisclaimersScreen() {
       {/* Edit Disclaimer Modal */}
       <Modal visible={editModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <GlassSurface style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>
               {DISCLAIMER_TYPES.find((d) => d.key === selectedType)?.label || 'Edit Disclaimer'}
@@ -327,7 +328,7 @@ export default function AdminDisclaimersScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
 

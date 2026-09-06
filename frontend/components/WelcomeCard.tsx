@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Ionicons } from '@expo/vector-icons';
 import { storage, getCachedUserProfile } from '@/services/storage';
 import { updateOnboardingState, getUserData } from '@/services/api';
@@ -90,7 +91,7 @@ export default function WelcomeCard() {
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={() => setVisible(false)}>
       <View style={S.overlay}>
-        <View style={S.card}>
+        <GlassSurface style={S.card}>
           <AppImage source={require('../assets/images/icondark.png')} style={S.logo} contentFit="contain" />
           <Text style={S.title}>Welcome to Shopyos! 🎉</Text>
           <Text style={S.subtitle}>Ghana's smart shopping hub. Here's what you can do:</Text>
@@ -123,7 +124,7 @@ export default function WelcomeCard() {
           >
             <Text style={S.secondaryBtnTxt}>Not now</Text>
           </TouchableOpacity>
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );

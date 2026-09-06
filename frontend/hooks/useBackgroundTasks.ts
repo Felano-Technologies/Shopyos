@@ -20,6 +20,7 @@ import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 import axios from 'axios';
 import { getUserData, getAllStores, storage, secureStorage, API_URL } from '@/services/api';
+import { useLocationStore } from '@/store/locationStore';
 import { useActiveDeliveries } from './useDelivery';
 import {
   ensureBackgroundTasksForUser,
@@ -60,7 +61,11 @@ async function cacheReverseGeocode(latitude: number, longitude: number) {
       const { city, region, country } = place;
       const primary = city ?? region ?? country ?? 'Unknown';
       const suffix = country ? `, ${country}` : '';
-      await storage.setItem('CACHED_LOCATION_TEXT', `${primary}${suffix}`);
+      // Writes through the shared locationStore (home header, cart,
+      // checkout) instead of the old standalone cache key, so this periodic
+      // background refresh stays in sync with whatever the buyer sees/uses
+      // everywhere else.
+      await useLocationStore.getState().setLocation({ lat: latitude, lng: longitude }, `${primary}${suffix}`);
     }
   } catch { /* non-critical */ }
 }
