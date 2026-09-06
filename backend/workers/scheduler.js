@@ -175,6 +175,19 @@ function _buildSpotlightCtx(promoted, featuredStores, userId = '', dayOfYear = 0
   };
 }
 
+// Fisher-Yates — used to break the fallback pools' created_at DESC ordering
+// so the per-user rotation (_buildSpotlightCtx) actually spreads across the
+// pool instead of everyone converging on whichever product/store happens to
+// sit at a low index in a recency-sorted list.
+function _shuffle(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function _buildActiveChannels(sendEmail, sendSMS, sendPush = true) {
   const list = [];
   if (sendPush) list.push('Push');
@@ -485,15 +498,20 @@ async function _runEngagementSweep() {
     featuredStores = featuredStores ?? [];
     promoted = promoted ?? [];
 
-    // If no promoted products are active right now, fall back to any active products
+    // If no promoted products are active right now, fall back to any active
+    // products. Pull a wider pool than we need and shuffle it — otherwise
+    // this is a strict created_at DESC list, and with few/no promoted
+    // products (the common case if the promotion feature isn't actively
+    // used), every user's rotation converges on the same handful of newest
+    // items instead of feeling randomized.
     if (!promoted.length) {
       const { data } = await repositories.products.findAll({
         where: { is_active: true },
         select: 'id, title',
         orderBy: 'created_at',
-        limit: 5,
+        limit: 30,
       });
-      promoted = data || [];
+      promoted = _shuffle(data || []).slice(0, 10);
     }
 
     // If no featured stores are active right now, fall back to any verified active stores
@@ -502,9 +520,9 @@ async function _runEngagementSweep() {
         where: { is_active: true, is_verified: true },
         select: 'id, store_name',
         orderBy: 'created_at',
-        limit: 5,
+        limit: 30,
       });
-      featuredStores = data || [];
+      featuredStores = _shuffle(data || []).slice(0, 10);
     }
   } catch (err) {
     logger.warn('[Scheduler] Could not pre-fetch spotlight context, spotlight types will use fallback copy:', err.message);
