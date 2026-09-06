@@ -129,8 +129,26 @@ export const getDriverPayoutHistory = async (params?: { status?: string; from?: 
   }
 };
 
+export const requestHubPayout = async (hubId: string, amount: number) => {
+  try {
+    const response = await api.post('/payouts/hub/request', { hubId, amount });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getHubPayoutHistory = async (hubId: string, params?: { status?: string; from?: string; to?: string }) => {
+  try {
+    const response = await api.get(`/payouts/hub/history/${hubId}`, { params });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getAdminPayoutList = async (params?: {
-  type?: 'seller' | 'driver';
+  type?: 'seller' | 'driver' | 'hub';
   status?: string;
   search?: string;
   from?: string;
@@ -178,15 +196,6 @@ export const updateDriverPayoutMethod = async (data: {
 }) => {
   try {
     const response = await api.patch('/users/profile', data);
-    return response.data;
-  } catch (error: any) {
-    throw new Error(error.userMessage || extractErrorMessage(error));
-  }
-};
-
-export const initializeListingFee = async (payload: { storeId: string; email: string; channel?: string }) => {
-  try {
-    const response = await api.post('/payments/listing-fee/initialize', payload);
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

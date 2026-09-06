@@ -6,6 +6,9 @@ const requireDisclaimer = require('../middleware/requireDisclaimer');
 
 const {
   getHubs,
+  getHubsByRegion,
+  getMyHubs,
+  updateHubPayoutMethod,
   getDashboardStats,
   getHubParcels,
   checkInParcel,
@@ -31,6 +34,8 @@ router.use(protect);
 
 // Partner Portal routes
 router.get('/hubs', requireRole('parcel_partner'), getHubs);
+router.get('/my-hubs', requireRole('parcel_partner'), getMyHubs);
+router.patch('/hub/:hubId/payout-method', requireRole('parcel_partner'), updateHubPayoutMethod);
 router.get('/dashboard', requireRole('parcel_partner'), getDashboardStats);
 router.get('/parcels', requireRole('parcel_partner'), getHubParcels);
 router.put('/parcels/:orderId/check-in', requireRole('parcel_partner'), checkInParcel);
@@ -38,6 +43,7 @@ router.put('/parcels/:orderId/dispatch', requireRole('parcel_partner'), dispatch
 router.put('/parcels/:orderId/arrived', requireRole('parcel_partner'), arriveParcel);
 
 // Buyer / Public Courier routes
+router.get('/hubs/by-region', getHubsByRegion);
 router.post('/orders/:orderId/request-last-mile', requireDisclaimer('inter_regional_terms'), requestLastMile);
 router.get('/orders/:orderId/transit-info', getTransitInfo);
 

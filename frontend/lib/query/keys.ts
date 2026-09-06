@@ -88,7 +88,6 @@ export const queryKeys = {
     users: (filters?: object) => ['admin', 'users', filters] as const,
     userStats: () => ['admin', 'user-stats'] as const,
     driverVerifications: () => ['admin', 'driver-verifications'] as const,
-    listingFees: () => ['admin', 'listing-fees'] as const,
   },
 
   driver: {

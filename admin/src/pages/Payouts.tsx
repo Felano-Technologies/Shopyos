@@ -5,7 +5,7 @@ import { getAdminPayoutList, getAdminPayoutSummary, processAdminPayout, bulkProc
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 
-type PayoutType = 'seller' | 'driver';
+type PayoutType = 'seller' | 'driver' | 'hub';
 type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
 type Payout = {
   id: string;
@@ -18,6 +18,7 @@ type Payout = {
   created_at: string;
   store_name?: string | null;
   driver_name?: string | null;
+  hub_name?: string | null;
   payout_type: PayoutType;
 };
 type Summary = Partial<Record<PayoutStatus, Partial<Record<PayoutType, { count: number; total: number }>>>>;
@@ -26,6 +27,7 @@ const TYPE_FILTERS: { label: string; value: PayoutType | null }[] = [
   { label: 'All', value: null },
   { label: 'Sellers', value: 'seller' },
   { label: 'Drivers', value: 'driver' },
+  { label: 'Hubs', value: 'hub' },
 ];
 const STATUS_FILTERS: { label: string; value: PayoutStatus | null }[] = [
   { label: 'All', value: null },
@@ -82,7 +84,8 @@ export const Payouts: React.FC = () => {
     const bucket = summary[status] || {};
     const seller = bucket.seller || { count: 0, total: 0 };
     const driver = bucket.driver || { count: 0, total: 0 };
-    return { count: seller.count + driver.count, total: seller.total + driver.total };
+    const hub = bucket.hub || { count: 0, total: 0 };
+    return { count: seller.count + driver.count + hub.count, total: seller.total + driver.total + hub.total };
   };
 
   const toggleSelect = (id: string) => {
@@ -241,7 +244,7 @@ export const Payouts: React.FC = () => {
                   {loading ? (
                     <TableRowsSkeleton columns={7} />
                   ) : payouts.map((p) => {
-                    const name = p.payout_type === 'seller' ? p.store_name : p.driver_name;
+                    const name = p.payout_type === 'seller' ? p.store_name : p.payout_type === 'hub' ? p.hub_name : p.driver_name;
                     const account = p.payout_details?.account_number || p.payout_details?.phone;
                     return (
                       <tr key={p.id} className="hover:bg-surface-muted/50 transition-colors">
@@ -250,7 +253,7 @@ export const Payouts: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-body">{name || 'Unknown'}</div>
-                          <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${p.payout_type === 'seller' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
+                          <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${p.payout_type === 'seller' ? 'bg-blue-50 text-blue-700' : p.payout_type === 'hub' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>
                             {p.payout_type}
                           </span>
                         </td>

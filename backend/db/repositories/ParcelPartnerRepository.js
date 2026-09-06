@@ -31,10 +31,35 @@ class ParcelPartnerRepository extends BaseRepository {
     return rows[0] || null;
   }
 
+  async getHubsByOwner(userId) {
+    const db = getPool();
+    const { rows } = await db.query(
+      `SELECT h.*, r.name as region_name, r.code as region_code
+       FROM parcel_partner_hubs h
+       LEFT JOIN ghana_regions r ON h.region_id = r.id
+       WHERE h.owner_id = $1
+       ORDER BY h.hub_name`,
+      [userId]
+    );
+    return rows;
+  }
+
+  async updateHubPayoutMethod(hubId, method, details) {
+    const db = getPool();
+    const { rows } = await db.query(
+      `UPDATE parcel_partner_hubs
+       SET payout_method = $2, payout_details = $3, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [hubId, method, JSON.stringify(details || {})]
+    );
+    return rows[0] || null;
+  }
+
   async getHubByRegionName(regionName) {
     const db = getPool();
     const { rows } = await db.query(
-      `SELECT h.*, r.name as region_name, r.code as region_code 
+      `SELECT h.*, r.name as region_name, r.code as region_code
        FROM parcel_partner_hubs h
        LEFT JOIN ghana_regions r ON h.region_id = r.id
        WHERE LOWER(TRIM(r.name)) = LOWER(TRIM($1)) AND h.is_active = TRUE
@@ -42,6 +67,19 @@ class ParcelPartnerRepository extends BaseRepository {
       [regionName]
     );
     return rows[0] || null;
+  }
+
+  async getHubsByRegionName(regionName) {
+    const db = getPool();
+    const { rows } = await db.query(
+      `SELECT h.*, r.name as region_name, r.code as region_code
+       FROM parcel_partner_hubs h
+       LEFT JOIN ghana_regions r ON h.region_id = r.id
+       WHERE LOWER(TRIM(r.name)) = LOWER(TRIM($1)) AND h.is_active = TRUE
+       ORDER BY h.hub_name`,
+      [regionName]
+    );
+    return rows;
   }
 
   async getTransitConfig(originRegion, destRegion) {

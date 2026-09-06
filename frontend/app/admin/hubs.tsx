@@ -29,6 +29,7 @@ import {
   adminToggleHub,
   adminGetTransitRoutes,
   adminUpsertTransitRoute,
+  getAdminUsers,
 } from '@/services/admin';
 
 const GHANA_REGIONS = [
@@ -66,6 +67,13 @@ export default function AdminHubsScreen() {
   const [hubForm, setHubForm] = useState({ regionId: 1, hubName: '', partnerName: '', address: '', phone: '' });
   const [savingHub, setSavingHub] = useState(false);
 
+  // Owner assignment — search parcel-partner-role users to bind to this hub
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [ownerLabel, setOwnerLabel] = useState('');
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [ownerResults, setOwnerResults] = useState<any[]>([]);
+  const [searchingOwner, setSearchingOwner] = useState(false);
+
   const [routeModal, setRouteModal] = useState(false);
   const [routeForm, setRouteForm] = useState({
     originRegion: 'Greater Accra',
@@ -95,13 +103,32 @@ export default function AdminHubsScreen() {
   const handleOpenCreateHub = () => {
     setEditingHub(null);
     setHubForm({ regionId: 1, hubName: '', partnerName: '', address: '', phone: '' });
+    setOwnerId(null);
+    setOwnerLabel('');
+    setOwnerSearch('');
+    setOwnerResults([]);
     setHubModal(true);
   };
 
   const handleOpenEditHub = (hub: AdminHub) => {
     setEditingHub(hub);
     setHubForm({ regionId: hub.region_id, hubName: hub.hub_name, partnerName: hub.partner_name, address: hub.address || '', phone: hub.phone || '' });
+    setOwnerId(hub.owner_id || null);
+    setOwnerLabel(hub.owner_id ? (hub.owner_name || 'Owner assigned') : '');
+    setOwnerSearch('');
+    setOwnerResults([]);
     setHubModal(true);
+  };
+
+  const handleSearchOwner = async (query: string) => {
+    setOwnerSearch(query);
+    if (query.trim().length < 2) { setOwnerResults([]); return; }
+    setSearchingOwner(true);
+    try {
+      const res = await getAdminUsers({ role: 'parcel_partner', search: query.trim(), limit: 10 });
+      setOwnerResults(res.users || []);
+    } catch { /* no-op */ }
+    finally { setSearchingOwner(false); }
   };
 
   const handleSaveHub = async () => {
@@ -117,6 +144,7 @@ export default function AdminHubsScreen() {
           partnerName: hubForm.partnerName,
           address: hubForm.address || undefined,
           phone: hubForm.phone || undefined,
+          ownerId: ownerId || undefined,
         });
         setHubs(prev => prev.map(h => h.id === updated.id ? updated : h));
       } else {
@@ -126,6 +154,7 @@ export default function AdminHubsScreen() {
           partnerName: hubForm.partnerName,
           address: hubForm.address || undefined,
           phone: hubForm.phone || undefined,
+          ownerId: ownerId || undefined,
         });
         setHubs(prev => [created, ...prev]);
       }
@@ -364,6 +393,40 @@ export default function AdminHubsScreen() {
               <TextInput style={S.input} value={hubForm.address} onChangeText={v => setHubForm(f => ({ ...f, address: v }))} placeholder="Street, City" placeholderTextColor="#94A3B8" />
               <Text style={S.inputLabel}>Phone</Text>
               <TextInput style={S.input} value={hubForm.phone} onChangeText={v => setHubForm(f => ({ ...f, phone: v }))} placeholder="+233 XX XXX XXXX" placeholderTextColor="#94A3B8" keyboardType="phone-pad" />
+
+              <Text style={S.inputLabel}>Hub Owner (parcel-partner account)</Text>
+              {ownerId && !ownerSearch ? (
+                <View style={S.ownerSelected}>
+                  <Feather name="user-check" size={14} color="#16A34A" />
+                  <Text style={S.ownerSelectedText}>{ownerLabel || 'Owner assigned'}</Text>
+                  <TouchableOpacity onPress={() => { setOwnerId(null); setOwnerLabel(''); }}>
+                    <Feather name="x" size={14} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TextInput
+                  style={S.input}
+                  value={ownerSearch}
+                  onChangeText={handleSearchOwner}
+                  placeholder="Search by name or email..."
+                  placeholderTextColor="#94A3B8"
+                />
+              )}
+              {searchingOwner && <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 8 }} />}
+              {ownerResults.map((u) => (
+                <TouchableOpacity
+                  key={u.user_id}
+                  style={S.ownerResultRow}
+                  onPress={() => {
+                    setOwnerId(u.user_id);
+                    setOwnerLabel(`${u.full_name || 'Unnamed'} · ${u.email}`);
+                    setOwnerSearch('');
+                    setOwnerResults([]);
+                  }}
+                >
+                  <Text style={S.ownerResultText}>{u.full_name || 'Unnamed'} · {u.email}</Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
             <View style={S.sheetActions}>
               <TouchableOpacity style={S.cancelBtn} onPress={() => setHubModal(false)}>
@@ -491,6 +554,10 @@ const S = StyleSheet.create({
   regionChipActive: { backgroundColor: '#EEF2FF', borderColor: '#0C1559' },
   regionChipText: { fontSize: 12, color: '#64748B' },
   regionChipTextActive: { color: '#0C1559', fontWeight: '600' },
+  ownerSelected: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0FDF4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#BBF7D0' },
+  ownerSelectedText: { flex: 1, fontSize: 13, color: '#166534', fontWeight: '600' },
+  ownerResultRow: { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  ownerResultText: { fontSize: 13, color: '#0F172A' },
   sheetActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
   cancelText: { fontSize: 14, fontWeight: '600', color: '#64748B' },

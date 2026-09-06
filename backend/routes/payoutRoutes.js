@@ -8,12 +8,14 @@ const {
     getSellerLockedBalance,
     requestDriverPayout,
     getDriverPayoutHistory,
+    requestHubPayout,
+    getHubPayoutHistory,
     getAdminPayouts,
     getAdminPayoutSummary,
     processPayout,
     bulkProcessPayouts
 } = require('../controllers/payoutController');
-const { protect, seller, admin } = require('../middleware/authMiddleware');
+const { protect, seller, admin, hasAnyRole } = require('../middleware/authMiddleware');
 const { validateRequestPayout } = require('../middleware/validators');
 const requireDisclaimer = require('../middleware/requireDisclaimer');
 
@@ -26,8 +28,12 @@ router.get('/transactions/:storeId', seller, getSellerTransactions);
 router.get('/locked/:storeId', seller, getSellerLockedBalance);
 
 // ── Driver ────────────────────────────────────────────────────────────────
-router.post('/driver-request', requestDriverPayout);
+router.post('/driver-request', requireDisclaimer('driver_earnings'), requestDriverPayout);
 router.get('/driver-history', getDriverPayoutHistory);
+
+// ── Hub ───────────────────────────────────────────────────────────────────
+router.post('/hub/request', hasAnyRole('parcel_partner'), requireDisclaimer('parcel_hub_earnings'), requestHubPayout);
+router.get('/hub/history/:hubId', hasAnyRole('parcel_partner'), getHubPayoutHistory);
 
 // ── Admin ─────────────────────────────────────────────────────────────────
 router.get('/admin/all', admin, getAdminPayouts);

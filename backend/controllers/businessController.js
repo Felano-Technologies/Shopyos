@@ -783,14 +783,6 @@ const getBusinessDashboard = async (req, res, next) => {
       return ApiResponse.error(res, 'Not authorized', 403);
     }
 
-    // Fetch listing fee config
-    const [freeLimitConfig, listingFeeConfig] = await Promise.all([
-      repositories.feeConfig.getByKey('listing_free_product_limit'),
-      repositories.feeConfig.getByKey('listing_fee_amount')
-    ]);
-    const freeLimit = freeLimitConfig ? Number(freeLimitConfig.config_value) : 10;
-    const listingFee = listingFeeConfig ? Number(listingFeeConfig.config_value) : 50;
-
     // Fetch counts and recent orders in parallel
     const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders, revenueStats, followersCount] = await Promise.all([
       repositories.products.count({ store_id: businessId, deleted_at: null }),
@@ -895,14 +887,6 @@ const getBusinessDashboard = async (req, res, next) => {
           labels: chartLabels,
           datasets: [{ data: chartData }]
         }
-      },
-      listing_status: {
-        tier: store.listing_tier || 'free',
-        product_count: totalProducts,
-        free_limit: freeLimit,
-        listing_fee: listingFee,
-        listing_fee_paid_at: store.listing_fee_paid_at || null,
-        payment_url: '/api/v1/payments/listing-fee/initialize'
       }
     };
 

@@ -52,7 +52,7 @@ async function resolveCoordinateFee(store, buyerLat, buyerLng) {
 
 const getDeliveryQuote = async (req, res, next) => {
     try {
-        const { storeId, buyerLat, buyerLng, deliveryState } = req.query;
+        const { storeId, buyerLat, buyerLng, deliveryState, pickupHubId } = req.query;
 
         if (!storeId) {
             return ApiResponse.error(res, 'storeId is required', 400);
@@ -133,9 +133,16 @@ const getDeliveryQuote = async (req, res, next) => {
             // number instead of the flat default. Sync with
             // orderController.js's calcLastMileFee (the authoritative charge
             // computed again, server-side, at order creation).
-            const destHub = repositories.parcelPartner
+            let destHub = repositories.parcelPartner
                 ? await repositories.parcelPartner.getHubByRegionName(deliveryState)
                 : null;
+            if (pickupHubId && repositories.parcelPartner) {
+                const selectedHub = await repositories.parcelPartner.getHubById(pickupHubId);
+                const selectedHubRegion = selectedHub?.region_name?.trim().toLowerCase();
+                if (selectedHub?.is_active && selectedHubRegion === targetRegion) {
+                    destHub = selectedHub;
+                }
+            }
             const lastMileBase = await feeConfigService.get('last_mile_default_fee', 15);
             if (destHub?.latitude != null && destHub?.longitude != null && buyerLat !== undefined && buyerLng !== undefined) {
                 const lastMilePerKm = await feeConfigService.get('last_mile_per_km_fee', 2);

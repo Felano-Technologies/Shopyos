@@ -60,7 +60,7 @@ async function validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng) {
 
 async function processStoreOrder({ storeId, items, cart, req, userId, validatedPromo, validatedLoyaltyPoints, pool }) {
   const deliveryState = req.body.deliveryState || 'Greater Accra';
-  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false } = req.body;
+  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false, pickupHubId } = req.body;
 
   let subtotal = 0;
   const orderItems = items.map(item => {
@@ -101,7 +101,24 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     isInterRegional = true;
     if (repositories.parcelPartner) {
       originHub = await repositories.parcelPartner.getHubByRegionName(resolvedRegion || 'Greater Accra');
-      destHub = await repositories.parcelPartner.getHubByRegionName(deliveryState || 'Greater Accra');
+
+      // The buyer picks which hub in their region to collect from at
+      // checkout (a region can have more than one) — trust it only after
+      // validating it's active and actually in the target region, otherwise
+      // reject rather than silently substitute a different hub the buyer
+      // never agreed to go to.
+      if (pickupHubId) {
+        const selectedHub = await repositories.parcelPartner.getHubById(pickupHubId);
+        const selectedHubRegion = selectedHub?.region_name?.trim().toLowerCase();
+        if (!selectedHub?.is_active || selectedHubRegion !== targetRegion) {
+          const err = new Error(`Please select a valid pickup hub for ${deliveryState || 'your region'}`);
+          err.statusCode = 400;
+          throw err;
+        }
+        destHub = selectedHub;
+      } else {
+        destHub = await repositories.parcelPartner.getHubByRegionName(deliveryState || 'Greater Accra');
+      }
 
       const transitConfig = await repositories.parcelPartner.getTransitConfig(
         resolvedRegion || 'Greater Accra',

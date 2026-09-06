@@ -73,46 +73,6 @@ const createProduct = async (req, res, next) => {
       return ApiResponse.error(res, 'Not authorized to add products to this store', 403);
     }
 
-    // Check listing limits and tier
-    const { count: productCount } = await repositories.products.db
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('store_id', storeId)
-      .is('deleted_at', null);
-
-    const freeLimit = Number(await feeConfigService.get('free_listing_limit', 100));
-
-    if (productCount >= freeLimit && store.listing_tier !== 'paid') {
-      const listingFeeAmount = await feeConfigService.get('listing_fee_amount', 50);
-      return ApiResponse.error(res, 'Free listing limit reached.', 402, {
-        code: 'LISTING_FEE_REQUIRED',
-        message: `Pay a one-time ₵${listingFeeAmount} platform fee to unlock unlimited listings.`,
-        paymentUrl: '/api/v1/payments/listing-fee/initialize'
-      });
-    }
-
-    // Proactive 80% warning notification
-    if (store.listing_tier !== 'paid' && productCount >= Math.floor(freeLimit * 0.8) && productCount < freeLimit) {
-      setImmediate(async () => {
-        try {
-          const feeAmount = await feeConfigService.get('listing_fee_amount', 50);
-          const notificationService = require('../services/notificationService');
-          await notificationService.sendNotification({
-            userId: store.owner_id,
-            type: 'listing_limit_warning',
-            title: 'Listing limit almost reached',
-            message: `You've used ${productCount} of ${freeLimit} free listings. Pay a one-time ₵${feeAmount} fee to unlock unlimited products.`,
-            relatedId: storeId,
-            relatedType: 'store',
-            push: { data: { screen: 'business/dashboard', storeId } }
-          });
-          logger.info(`[ListingLimit] Sent 80% warning to store ${storeId} (${productCount}/${freeLimit})`);
-        } catch (e) {
-          logger.error('[ListingLimit] Warning notification failed:', e.message);
-        }
-      });
-    }
-
     // Create product
     let parsedTags = null;
     if (tags) {

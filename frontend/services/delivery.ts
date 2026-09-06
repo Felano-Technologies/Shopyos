@@ -15,9 +15,9 @@ export const getPublicFeeConfigs = async (): Promise<Record<string, number | boo
   }
 };
 
-export const getDeliveryQuote = async (storeId: string, buyerLat?: number, buyerLng?: number, deliveryState?: string) => {
+export const getDeliveryQuote = async (storeId: string, buyerLat?: number, buyerLng?: number, deliveryState?: string, pickupHubId?: string) => {
   try {
-    const response = await api.get('/delivery/quote', { params: { storeId, buyerLat, buyerLng, deliveryState } });
+    const response = await api.get('/delivery/quote', { params: { storeId, buyerLat, buyerLng, deliveryState, pickupHubId } });
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

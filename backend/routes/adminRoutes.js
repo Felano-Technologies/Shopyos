@@ -80,10 +80,6 @@ const {
   updateDisclaimer,
   getAcknowledgementsAudit,
 } = require('../controllers/disclaimerController');
-const {
-  getListingFees,
-} = require('../controllers/listingFeeController');
-
 // All admin routes require authentication and admin role
 router.use(protect);
 router.use(admin);
@@ -1346,9 +1342,6 @@ router.put('/escrows/:id/refund', refundEscrow);
  *         description: Escrow not found
  */
 router.put('/escrows/:id/release', releaseEscrow);
-
-// Listing Fees
-router.get('/listing-fees', getListingFees);
 
 // Export
 /**

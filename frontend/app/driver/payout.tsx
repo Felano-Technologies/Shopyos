@@ -10,6 +10,8 @@ import { StatusBar } from 'expo-status-bar';
 import { getDriverPayoutHistory, requestDriverPayout } from '@/services/payments';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useProfile } from '@/hooks/useProfile';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -43,7 +45,13 @@ export default function DriverPayoutScreen() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [showAmountSheet, setShowAmountSheet] = useState(false);
   const [requestAmount, setRequestAmount] = useState('');
+  const [driverEarningsTerms, setDriverEarningsTerms] = useState<Disclaimer | null>(null);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
+  useEffect(() => {
+    getDisclaimerByType('driver_earnings').then(setDriverEarningsTerms).catch(() => null);
+  }, []);
 
   useEffect(() => {
     if (profile) {
@@ -92,6 +100,10 @@ export default function DriverPayoutScreen() {
   };
 
   const confirmRequest = async () => {
+    if (driverEarningsTerms && !isTermsChecked) {
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'Please agree to the Driver Earnings terms before requesting a payout.' });
+      return;
+    }
     const amount = Number.parseFloat(requestAmount);
     if (!amount || amount < 10) {
       CustomInAppToast.show({ type: 'error', title: 'Invalid Amount', message: 'Minimum payout is GHS 10.' });
@@ -242,6 +254,27 @@ export default function DriverPayoutScreen() {
                   <Text style={styles.confirmBtnText}>Request</Text>
                 </TouchableOpacity>
               </View>
+
+              {driverEarningsTerms && (
+                <View style={styles.disclaimerRow}>
+                  <TouchableOpacity activeOpacity={0.8} onPress={async () => {
+                    if (isTermsChecked) { setIsTermsChecked(false); return; }
+                    try { await acknowledgeDisclaimer('driver_earnings', driverEarningsTerms.version); setIsTermsChecked(true); }
+                    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not record your agreement. Please try again.' }); }
+                  }}>
+                    <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                      {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={styles.disclaimerText}>
+                    I agree to the{' '}
+                    <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                      Driver Earnings Terms
+                    </Text>
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity onPress={() => setShowAmountSheet(false)} style={{ alignItems: 'center', marginTop: 8 }}>
                 <Text style={{ color: colors.textMuted, fontFamily: 'Montserrat-Medium', fontSize: 13 }}>Cancel</Text>
               </TouchableOpacity>
@@ -298,6 +331,13 @@ export default function DriverPayoutScreen() {
           )}
         </View>
       </ScrollView>
+
+      <DisclaimerModal
+        type="driver_earnings"
+        visible={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+      />
     </View>
   );
 }
@@ -347,6 +387,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   amountInput: { flex: 1, borderBottomWidth: 2, borderBottomColor: colors.primary, fontSize: 22, fontFamily: 'Montserrat-Bold', color: colors.primary, paddingBottom: 4 },
   confirmBtn: { backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, marginLeft: 12 },
   confirmBtnText: { color: colors.textInverse, fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingHorizontal: 4 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: colors.primary },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textMuted, lineHeight: 18 },
+  disclaimerLink: { color: colors.primary, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 12 },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 12, height: 44, marginBottom: 12, borderWidth: 1, borderColor: colors.borderStrong },
   searchInput: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Regular', color: colors.text },

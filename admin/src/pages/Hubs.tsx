@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiMap, FiMapPin, FiPlus, FiEdit2, FiPhone } from 'react-icons/fi';
 import {
   adminGetAllHubs, adminCreateHub, adminUpdateHub, adminToggleHub,
-  adminGetTransitRoutes, adminUpsertTransitRoute, getAdminRegions,
+  adminGetTransitRoutes, adminUpsertTransitRoute, getAdminRegions, getAdminUsers,
 } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
@@ -12,12 +12,13 @@ type Region = { id: number; name: string; code: string; capital?: string };
 type Hub = {
   id: string; region_id: number; hub_name: string; partner_name: string;
   address: string | null; phone: string | null; is_active: boolean;
-  region_name?: string; region_code?: string;
+  region_name?: string; region_code?: string; owner_id?: string | null; owner_name?: string | null;
 };
 type TransitRoute = {
   id: string; origin_region: string; dest_region: string;
   transit_days_min: number; transit_days_max: number; transit_fee: number; is_active: boolean;
 };
+type OwnerCandidate = { id: string; name: string; email?: string };
 
 const EMPTY_HUB_FORM = { id: '', regionId: 0, hubName: '', partnerName: '', address: '', phone: '' };
 const EMPTY_ROUTE_FORM = { originRegion: '', destRegion: '', transitDaysMin: '3', transitDaysMax: '5', transitFee: '0' };
@@ -35,6 +36,12 @@ export const Hubs: React.FC = () => {
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
   const [hubForm, setHubForm] = useState(EMPTY_HUB_FORM);
   const [routeForm, setRouteForm] = useState(EMPTY_ROUTE_FORM);
+
+  const [ownerId, setOwnerId] = useState('');
+  const [ownerLabel, setOwnerLabel] = useState('');
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [ownerResults, setOwnerResults] = useState<OwnerCandidate[]>([]);
+  const [searchingOwner, setSearchingOwner] = useState(false);
 
   useEffect(() => {
     getAdminRegions()
@@ -63,14 +70,40 @@ export const Hubs: React.FC = () => {
 
   const openHubCreate = () => {
     setHubForm({ ...EMPTY_HUB_FORM, regionId: regions[0]?.id || 0 });
+    setOwnerId('');
+    setOwnerLabel('');
+    setOwnerSearch('');
+    setOwnerResults([]);
     setFormError(null);
     setIsHubModalOpen(true);
   };
 
   const openHubEdit = (h: Hub) => {
     setHubForm({ id: h.id, regionId: h.region_id, hubName: h.hub_name, partnerName: h.partner_name, address: h.address || '', phone: h.phone || '' });
+    setOwnerId(h.owner_id || '');
+    setOwnerLabel(h.owner_id ? (h.owner_name || 'Assigned owner') : '');
+    setOwnerSearch('');
+    setOwnerResults([]);
     setFormError(null);
     setIsHubModalOpen(true);
+  };
+
+  const handleSearchOwner = async (query: string) => {
+    setOwnerSearch(query);
+    if (query.trim().length < 2) {
+      setOwnerResults([]);
+      return;
+    }
+    setSearchingOwner(true);
+    try {
+      const res = await getAdminUsers({ role: 'parcel_partner', search: query.trim(), limit: 10 });
+      const users = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.users) ? res.data.users : [];
+      setOwnerResults(users.map((u: any) => ({ id: u.id, name: u.full_name || u.name || u.email, email: u.email })));
+    } catch (err) {
+      console.error('Failed to search owners', err);
+    } finally {
+      setSearchingOwner(false);
+    }
   };
 
   const handleSaveHub = async () => {
@@ -85,11 +118,13 @@ export const Hubs: React.FC = () => {
         await adminUpdateHub(hubForm.id, {
           hubName: hubForm.hubName, partnerName: hubForm.partnerName,
           address: hubForm.address || undefined, phone: hubForm.phone || undefined,
+          ownerId: ownerId || undefined,
         });
       } else {
         await adminCreateHub({
           regionId: hubForm.regionId, hubName: hubForm.hubName, partnerName: hubForm.partnerName,
           address: hubForm.address || undefined, phone: hubForm.phone || undefined,
+          ownerId: ownerId || undefined,
         });
       }
       setIsHubModalOpen(false);
@@ -327,6 +362,46 @@ export const Hubs: React.FC = () => {
               <div>
                 <label className="block text-sm font-semibold text-body mb-1">Phone</label>
                 <input type="tel" value={hubForm.phone} onChange={(e) => setHubForm({ ...hubForm, phone: e.target.value })} placeholder="+233 XX XXX XXXX" className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-body mb-1">Hub Owner (parcel-partner account)</label>
+                {ownerId && !ownerSearch ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-100 rounded-xl px-4 py-2.5">
+                    <span className="text-sm font-medium text-green-800 truncate">{ownerLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setOwnerId(''); setOwnerLabel(''); }}
+                      className="text-green-700 hover:text-green-900 text-xs font-semibold ml-2 shrink-0"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={ownerSearch}
+                      onChange={(e) => handleSearchOwner(e.target.value)}
+                      placeholder="Search by name or email..."
+                      className="w-full px-4 py-2.5 rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy"
+                    />
+                    {searchingOwner && <p className="text-xs text-subtle mt-1">Searching...</p>}
+                    {ownerResults.length > 0 && (
+                      <div className="mt-1.5 border border-border rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                        {ownerResults.map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => { setOwnerId(u.id); setOwnerLabel(u.email ? `${u.name} (${u.email})` : u.name); setOwnerSearch(''); setOwnerResults([]); }}
+                            className="w-full text-left px-4 py-2 text-sm text-body hover:bg-surface-muted transition-colors border-b border-border last:border-b-0"
+                          >
+                            {u.name}{u.email ? <span className="text-subtle"> ({u.email})</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
             <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">

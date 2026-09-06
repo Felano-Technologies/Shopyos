@@ -11,6 +11,10 @@ export interface Hub {
   longitude: number | null;
   is_active: boolean;
   region_name?: string;
+  owner_id?: string | null;
+  current_balance?: number;
+  payout_method?: string | null;
+  payout_details?: Record<string, any> | null;
 }
 
 export interface HubStats {
@@ -76,8 +80,37 @@ export interface TransitInfo {
   }[];
 }
 
+export interface PickupHub {
+  id: string;
+  hub_name: string;
+  partner_name: string;
+  address: string;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export async function getHubs(): Promise<{ success: boolean; data: Hub[] }> {
   const { data } = await api.get('/parcel-partner/hubs');
+  return data;
+}
+
+export async function getHubsByRegion(region: string): Promise<{ success: boolean; data: PickupHub[] }> {
+  const { data } = await api.get('/parcel-partner/hubs/by-region', { params: { region } });
+  return data;
+}
+
+export async function getMyHubs(): Promise<{ success: boolean; data: Hub[] }> {
+  const { data } = await api.get('/parcel-partner/my-hubs');
+  return data;
+}
+
+export async function updateHubPayoutMethod(
+  hubId: string,
+  method: string,
+  details: Record<string, any>
+): Promise<{ success: boolean; hub: Hub }> {
+  const { data } = await api.patch(`/parcel-partner/hub/${hubId}/payout-method`, { method, details });
   return data;
 }
 

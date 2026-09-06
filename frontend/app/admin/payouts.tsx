@@ -15,7 +15,7 @@ import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
-const TYPE_FILTERS = ['All', 'Sellers', 'Drivers'] as const;
+const TYPE_FILTERS = ['All', 'Sellers', 'Drivers', 'Hubs'] as const;
 
 function statusTheme(status: string) {
   switch (status) {
@@ -55,7 +55,7 @@ export default function AdminPayoutsScreen() {
       if (p === 1) setLoading(true);
       else setLoadingMore(true);
 
-      const typeParam = typeFilter === 'Sellers' ? 'seller' : typeFilter === 'Drivers' ? 'driver' : undefined;
+      const typeParam = typeFilter === 'Sellers' ? 'seller' : typeFilter === 'Drivers' ? 'driver' : typeFilter === 'Hubs' ? 'hub' : undefined;
       const statusParam = statusFilter !== 'All' ? statusFilter.toLowerCase() : undefined;
       const resp = await getAdminPayoutList({ type: typeParam as any, status: statusParam, search: searchQuery || undefined, page: p });
 
@@ -131,38 +131,21 @@ export default function AdminPayoutsScreen() {
   };
 
   // Summary helpers
+  const forStatus = (status: string, field: 'count' | 'total') =>
+    (summary[status]?.seller?.[field] || 0) + (summary[status]?.driver?.[field] || 0) + (summary[status]?.hub?.[field] || 0);
   const summaryCards = [
-    {
-      label: 'Pending',
-      count: (summary.pending?.seller?.count || 0) + (summary.pending?.driver?.count || 0),
-      total: (summary.pending?.seller?.total || 0) + (summary.pending?.driver?.total || 0),
-      color: '#D97706', bg: '#FEF3C7'
-    },
-    {
-      label: 'Processing',
-      count: (summary.processing?.seller?.count || 0) + (summary.processing?.driver?.count || 0),
-      total: (summary.processing?.seller?.total || 0) + (summary.processing?.driver?.total || 0),
-      color: '#2563EB', bg: '#DBEAFE'
-    },
-    {
-      label: 'Completed',
-      count: (summary.completed?.seller?.count || 0) + (summary.completed?.driver?.count || 0),
-      total: (summary.completed?.seller?.total || 0) + (summary.completed?.driver?.total || 0),
-      color: '#16A34A', bg: '#DCFCE7'
-    },
-    {
-      label: 'Failed',
-      count: (summary.failed?.seller?.count || 0) + (summary.failed?.driver?.count || 0),
-      total: (summary.failed?.seller?.total || 0) + (summary.failed?.driver?.total || 0),
-      color: '#DC2626', bg: '#FEE2E2'
-    },
+    { label: 'Pending', count: forStatus('pending', 'count'), total: forStatus('pending', 'total'), color: '#D97706', bg: '#FEF3C7' },
+    { label: 'Processing', count: forStatus('processing', 'count'), total: forStatus('processing', 'total'), color: '#2563EB', bg: '#DBEAFE' },
+    { label: 'Completed', count: forStatus('completed', 'count'), total: forStatus('completed', 'total'), color: '#16A34A', bg: '#DCFCE7' },
+    { label: 'Failed', count: forStatus('failed', 'count'), total: forStatus('failed', 'total'), color: '#DC2626', bg: '#FEE2E2' },
   ];
 
   const renderPayout = ({ item }: { item: any }) => {
     const theme = statusTheme(item.status);
     const isSelected = selectedIds.has(item.id);
     const isSeller = !!item.store_name;
-    const name = isSeller ? item.store_name : item.driver_name;
+    const isHub = !!item.hub_name;
+    const name = isSeller ? item.store_name : isHub ? item.hub_name : item.driver_name;
     const initials = (name || '?').slice(0, 2).toUpperCase();
 
     return (

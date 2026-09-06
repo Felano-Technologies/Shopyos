@@ -309,33 +309,14 @@ const handleWebhook = async (req, res) => {
         logger.info('Paystack webhook received', { event: event.event, reference: event.data?.reference });
 
         if (event.event === 'charge.success') {
-            const metadataType = event.data.metadata?.type;
+            const orderId = event.data.metadata?.orderId;
 
-            if (metadataType === 'listing_fee') {
-                const storeId = event.data.metadata?.storeId;
-                if (!storeId) {
-                    logger.error('Webhook charge.success missing storeId for listing_fee', { reference: event.data.reference });
-                    return res.status(200).send('OK');
-                }
-
-                // Update store listing tier
-                await repositories.stores.update(storeId, {
-                    listing_tier: 'paid',
-                    listing_fee_paid_at: new Date().toISOString(),
-                    listing_fee_reference: event.data.reference
-                });
-
-                logger.info('Listing fee fulfilled', { storeId, reference: event.data.reference });
-            } else {
-                const orderId = event.data.metadata?.orderId;
-
-                if (!orderId) {
-                    logger.error('Webhook charge.success missing orderId', { reference: event.data.reference });
-                    return res.status(200).send('OK');
-                }
-
-                await fulfillPayment(orderId, event.data);
+            if (!orderId) {
+                logger.error('Webhook charge.success missing orderId', { reference: event.data.reference });
+                return res.status(200).send('OK');
             }
+
+            await fulfillPayment(orderId, event.data);
         } else if (event.event === 'transfer.success' || event.event === 'transfer.failed') {
             const reference = event.data?.reference;
             if (reference) {
@@ -440,77 +421,10 @@ const chargeAuthorization = async (req, res, next) => {
     }
 };
 
-/**
- * @route   POST /api/v1/payments/listing-fee/initialize
- * @access  Private
- * @body    { storeId, email, channel, momoPhone, momoProvider }
- */
-const initializeListingFee = async (req, res, next) => {
-    try {
-        const { storeId, email, channel, momoPhone, momoProvider } = req.body;
-
-        if (!storeId || !email) {
-            return ApiResponse.error(res, 'storeId and email are required', 400);
-        }
-
-        const store = await repositories.stores.findById(storeId);
-        if (!store) return ApiResponse.error(res, 'Store not found', 404);
-        if (store.owner_id !== req.user.id) return ApiResponse.error(res, 'Not authorized', 403);
-
-        if (store.listing_tier === 'paid') {
-            return ApiResponse.error(res, 'Listing fee already paid for this store', 400);
-        }
-
-        const listingFeeGHS = Number(await feeConfigService.get('listing_fee_amount'));
-        const amountInPesewas = listingFeeGHS * 100;
-
-        const payload = {
-            email,
-            amount: amountInPesewas,
-            currency: 'GHS',
-            metadata: {
-                type: 'listing_fee',
-                storeId,
-                userId: req.user.id
-            }
-        };
-
-        if (channel === 'mobile_money') {
-            payload.channels = ['mobile_money'];
-            if (momoPhone && momoProvider) {
-                payload.mobile_money = { phone: momoPhone, provider: momoProvider };
-            }
-        } else if (channel === 'card') {
-            payload.channels = ['card'];
-        }
-
-        const response = await axios.post(
-            `${PAYSTACK_BASE_URL}/transaction/initialize`,
-            payload,
-            { headers: paystackHeaders() }
-        );
-
-        if (!response.data.status) {
-            return ApiResponse.error(res, response.data.message || 'Failed to initialize payment', 400);
-        }
-
-        ApiResponse.success(res, {
-            authorization_url: response.data.data.authorization_url,
-            access_code: response.data.data.access_code,
-            reference: response.data.data.reference
-        });
-    } catch (error) {
-        if (error.response) {
-            return ApiResponse.error(res, error.response.data?.message || 'Payment provider error', error.response.status);
-        }
-        next(error);
-    }
-};
 
 module.exports = {
     initializePayment,
     verifyPayment,
     handleWebhook,
-    chargeAuthorization,
-    initializeListingFee
+    chargeAuthorization
 };

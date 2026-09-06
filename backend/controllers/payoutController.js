@@ -273,6 +273,84 @@ const getDriverPayoutHistory = async (req, res, next) => {
     }
 };
 
+// ── Hub: request payout ───────────────────────────────────────────────────
+
+const requestHubPayout = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const { hubId, amount } = req.body;
+
+        if (!hubId || !amount) {
+            return ApiResponse.error(res, 'hubId and amount are required', 400);
+        }
+
+        const hub = await repositories.parcelPartner.getHubById(hubId);
+        if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
+        if (hub.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
+
+        const minPayoutAmount = await feeConfigService.get('min_payout_amount').catch(() => 10);
+        if (Number.parseFloat(amount) < minPayoutAmount) {
+            return ApiResponse.error(res, `Minimum payout request is GHS ${minPayoutAmount}`, 400);
+        }
+
+        const currentBalance = Number.parseFloat(hub.current_balance || 0);
+        if (Number.parseFloat(amount) > currentBalance) {
+            return ApiResponse.error(res, 'Insufficient balance', 400);
+        }
+
+        if (!hub.payout_method) {
+            return ApiResponse.error(res, 'Please set up a payout method first', 400);
+        }
+
+        const hasPending = await repositories.payouts.hasPendingPayout(null, null, hubId);
+        if (hasPending) {
+            return ApiResponse.error(res, 'You already have a pending payout request', 400);
+        }
+
+        const payout = await repositories.payouts.requestPayout({
+            hubId,
+            amount: Number.parseFloat(amount),
+            method: hub.payout_method,
+            details: hub.payout_details
+        });
+
+        await repositories.parcelPartner.update(hubId, {
+            current_balance: currentBalance - Number.parseFloat(amount)
+        });
+
+        await repositories.parcelPartner.db.from('hub_balance_logs').insert({
+            hub_id: hubId,
+            amount: -Number.parseFloat(amount),
+            transaction_type: 'withdrawal',
+            payout_id: payout.id,
+            balance_after: currentBalance - Number.parseFloat(amount)
+        });
+
+        ApiResponse.withEntity(res, 'payout', payout, 'Payout requested successfully', null, 201);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ── Hub: payout history ───────────────────────────────────────────────────
+
+const getHubPayoutHistory = async (req, res, next) => {
+    try {
+        const { hubId } = req.params;
+        const userId = req.user.id;
+
+        const hub = await repositories.parcelPartner.getHubById(hubId);
+        if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
+        if (hub.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
+
+        const { status, from, to, limit, offset } = req.query;
+        const history = await repositories.payouts.getHubPayouts(hubId, { status, from, to, limit, offset });
+        ApiResponse.success(res, history);
+    } catch (error) {
+        next(error);
+    }
+};
+
 // ── Admin: list all payouts ───────────────────────────────────────────────
 
 const getAdminPayouts = async (req, res, next) => {
@@ -420,7 +498,7 @@ async function _initiatePayoutTransfer(payout) {
 // a manual request or the nightly/weekly scheduler sweep. If no payout
 // method is set, this is a no-op — the balance just sits (the scheduler
 // picks it up later once they add one).
-async function attemptInstantPayout({ type, storeId, driverId, amount, sourceNote }) {
+async function attemptInstantPayout({ type, storeId, driverId, hubId, amount, sourceNote }) {
     try {
         amount = Number.parseFloat(amount);
         if (!amount || amount <= 0) return { attempted: false };
@@ -432,6 +510,12 @@ async function attemptInstantPayout({ type, storeId, driverId, amount, sourceNot
             payoutMethod = store.payout_method;
             payoutDetails = store.payout_details;
             recipientName = store.store_name;
+        } else if (type === 'hub') {
+            const hub = await repositories.parcelPartner.getHubById(hubId);
+            if (!hub) return { attempted: false };
+            payoutMethod = hub.payout_method;
+            payoutDetails = hub.payout_details;
+            recipientName = hub.partner_name || hub.hub_name;
         } else {
             const profile = await repositories.userProfiles.findByUserId(driverId);
             if (!profile) return { attempted: false };
@@ -470,6 +554,27 @@ async function attemptInstantPayout({ type, storeId, driverId, amount, sourceNot
                     `INSERT INTO balance_logs (store_id, amount, transaction_type, payout_id, balance_after, notes)
                      VALUES ($1, $2, 'withdrawal', $3, $4, $5)`,
                     [storeId, -amount, payout.id, rows[0].current_balance, sourceNote || 'Instant auto-payout']
+                );
+            } else if (type === 'hub') {
+                const { rows } = await client.query(
+                    `UPDATE parcel_partner_hubs SET current_balance = current_balance - $2, updated_at = NOW()
+                     WHERE id = $1 AND current_balance >= $2
+                     RETURNING current_balance`,
+                    [hubId, amount]
+                );
+                if (!rows[0]) { await client.query('ROLLBACK'); return { attempted: false, reason: 'insufficient_balance' }; }
+
+                const { rows: payoutRows } = await client.query(
+                    `INSERT INTO payouts (hub_id, payout_type, amount, payout_method, payout_details, status)
+                     VALUES ($1, 'hub', $2, $3, $4, 'pending') RETURNING *`,
+                    [hubId, amount, payoutMethod, JSON.stringify(payoutDetails)]
+                );
+                payout = payoutRows[0];
+
+                await client.query(
+                    `INSERT INTO hub_balance_logs (hub_id, amount, transaction_type, payout_id, balance_after)
+                     VALUES ($1, $2, 'withdrawal', $3, $4)`,
+                    [hubId, -amount, payout.id, rows[0].current_balance]
                 );
             } else {
                 const { rows } = await client.query(
@@ -557,6 +662,17 @@ async function _refundPayoutBalance(payout) {
                 transaction_type: 'adjustment',
                 balance_after: newBalance
             });
+        } else if (payout.hub_id) {
+            const hub = await repositories.parcelPartner.getHubById(payout.hub_id);
+            const newBalance = Number.parseFloat(hub.current_balance || 0) + Number.parseFloat(payout.amount);
+            await repositories.parcelPartner.update(payout.hub_id, { current_balance: newBalance });
+            await repositories.parcelPartner.db.from('hub_balance_logs').insert({
+                hub_id: payout.hub_id,
+                amount: Number.parseFloat(payout.amount),
+                transaction_type: 'adjustment',
+                payout_id: payout.id,
+                balance_after: newBalance
+            });
         }
     } catch (err) {
         logger.error('[Payout] refund balance failed:', err.message);
@@ -570,6 +686,8 @@ module.exports = {
     getSellerLockedBalance,
     requestDriverPayout,
     getDriverPayoutHistory,
+    requestHubPayout,
+    getHubPayoutHistory,
     getAdminPayouts,
     getAdminPayoutSummary,
     processPayout,

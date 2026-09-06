@@ -17,8 +17,9 @@ import { useCart } from '@/store/cartStore';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
-  getLoyaltyBalance, validatePromoCode, getPublicFeeConfigs,
+  getLoyaltyBalance, validatePromoCode, getPublicFeeConfigs, getHubsByRegion,
 } from '@/services/api';
+import type { PickupHub } from '@/services/parcelPartner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -156,6 +157,16 @@ export default function CheckoutScreen() {
   // Per-store delivery method: true = buyer collects from the store (free)
   const [pickupStores, setPickupStores] = useState<Record<string, boolean>>({});
 
+  // Cross-region orders route through a Parcel Partner hub in the buyer's
+  // region — a region can have more than one, so the buyer must pick which
+  // one they'll collect from (or that a rider collects from, for last-mile).
+  const [pickupHubs, setPickupHubs] = useState<PickupHub[]>([]);
+  const [pickupHubId, setPickupHubId] = useState<string | null>(null);
+  const [loadingPickupHubs, setLoadingPickupHubs] = useState(false);
+  // Tracks which region the current pickupHubs list is for, so we only
+  // refetch (and reset the selection) when deliveryState actually changes.
+  const [pickupHubsRegion, setPickupHubsRegion] = useState<string | null>(null);
+
   // Get buyer location once on mount
   useEffect(() => {
     (async () => {
@@ -217,7 +228,7 @@ export default function CheckoutScreen() {
         if (!storeId || storeId === 'unknown') return;
 
         try {
-          const res = await getDeliveryQuote(storeId, deliveryCoords?.lat, deliveryCoords?.lng, deliveryState);
+          const res = await getDeliveryQuote(storeId, deliveryCoords?.lat, deliveryCoords?.lng, deliveryState, pickupHubId || undefined);
           if (res?.success) {
             const {
               withinRange, deliveryFee: fee, combinedDeliveryFee: combined,
@@ -246,7 +257,7 @@ export default function CheckoutScreen() {
       setQuoteFetchError(anyFailed);
       setIsFetchingFee(false);
     })();
-  }, [deliveryCoords, cartItems, deliveryState, resolvedStoreIds, quoteRetryTick]);
+  }, [deliveryCoords, cartItems, deliveryState, resolvedStoreIds, quoteRetryTick, pickupHubId]);
 
   const retryDeliveryQuotes = () => {
     setQuoteFetchError(false);
@@ -261,6 +272,38 @@ export default function CheckoutScreen() {
   // hub→hub already summed server-side for inter-regional stores).
   const totalDeliveryFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.combinedDeliveryFee), 0);
   const isAnyInterRegional = quoteEntries.some(([id, q]) => q.isInterRegional && !pickupStores[id]);
+
+  // Fetch the hubs the buyer can choose from once we know the order is
+  // cross-region — resets the selection whenever the delivery region
+  // actually changes, and auto-picks the only option when there's just one.
+  useEffect(() => {
+    if (!isAnyInterRegional) {
+      if (pickupHubsRegion !== null) {
+        setPickupHubs([]);
+        setPickupHubId(null);
+        setPickupHubsRegion(null);
+      }
+      return;
+    }
+    if (pickupHubsRegion === deliveryState) return;
+
+    (async () => {
+      setLoadingPickupHubs(true);
+      try {
+        const res = await getHubsByRegion(deliveryState);
+        const hubs = res?.success ? res.data : [];
+        setPickupHubs(hubs);
+        setPickupHubId(hubs.length === 1 ? hubs[0].id : null);
+        setPickupHubsRegion(deliveryState);
+      } catch {
+        setPickupHubs([]);
+        setPickupHubId(null);
+        setPickupHubsRegion(deliveryState);
+      } finally {
+        setLoadingPickupHubs(false);
+      }
+    })();
+  }, [isAnyInterRegional, deliveryState, pickupHubsRegion]);
   const isWithinRange = storeQuoteList.length > 0 && quoteEntries.every(([id, q]) => q.withinRange || pickupStores[id]);
   const deliveryNote = quoteEntries.find(([id, q]) => !q.withinRange && !pickupStores[id])?.[1].note ?? null;
   const firstInterRegGroup = storeGroups.find(g => storeQuotes[g.storeId]?.isInterRegional);
@@ -424,6 +467,11 @@ export default function CheckoutScreen() {
       return;
     }
 
+    if (isAnyInterRegional && !pickupHubId) {
+      CustomInAppToast.show({ type: 'error', title: 'Pickup Hub Required', message: 'Please select which hub you\'ll collect your parcel from.' });
+      return;
+    }
+
     try {
       setIsOrdering(true);
       await clearBackendCart().catch(() => {});
@@ -442,7 +490,7 @@ export default function CheckoutScreen() {
         ...(deliveryCoords && { buyerLat: deliveryCoords.lat, buyerLng: deliveryCoords.lng }),
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
-        ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
+        ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }), ...(pickupHubId && { pickupHubId }) }),
         ...(Object.values(pickupStores).some(Boolean) && {
           pickupStoreIds: Object.keys(pickupStores).filter(id => pickupStores[id]),
         }),
@@ -644,6 +692,55 @@ export default function CheckoutScreen() {
                 <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>{formatCurrency(total)}</Text>
               </View>
             </View>
+
+            {/* Pickup Hub Selection — shown only for inter-regional orders.
+                A region can have more than one hub, so the buyer must pick
+                which one they (or a last-mile rider) will collect from. */}
+            {isAnyInterRegional && (
+              <>
+                <Text style={S.sectionTitle}>Pickup Hub</Text>
+                <View style={S.card}>
+                  <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 14, marginBottom: 12 }}>
+                    Choose which {deliveryState} hub you'll collect your parcel from
+                  </Text>
+
+                  {loadingPickupHubs ? (
+                    <ActivityIndicator color={C.navy} />
+                  ) : pickupHubs.length === 0 ? (
+                    <View style={S.errorBanner}>
+                      <Ionicons name="alert-circle-outline" size={16} color={C.error} />
+                      <Text style={S.errorText}>
+                        No pickup hub is currently available in {deliveryState}. Please choose a different region.
+                      </Text>
+                    </View>
+                  ) : (
+                    pickupHubs.map((hub) => {
+                      const selected = pickupHubId === hub.id;
+                      return (
+                        <TouchableOpacity
+                          key={hub.id}
+                          accessibilityLabel={`Select pickup hub ${hub.hub_name}`}
+                          accessibilityRole="button"
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: selected ? C.navy : C.borderStrong, borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
+                          onPress={() => setPickupHubId(hub.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: selected ? C.navy : C.borderStrong, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                            {selected && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.navy }} />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>{hub.hub_name}</Text>
+                            {!!hub.address && (
+                              <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>{hub.address}</Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              </>
+            )}
 
             {/* Last-Mile Delivery Option — shown only for inter-regional orders */}
             {isAnyInterRegional && (
@@ -977,9 +1074,9 @@ export default function CheckoutScreen() {
             <TouchableOpacity
               accessibilityLabel="Place order"
               accessibilityRole="button"
-              style={[S.placeOrderBtn, (isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked) || (isAnyInterRegional && !pickupHubId)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked)}
+              disabled={isOrdering || !deliveryCoords || isWithinRange !== true || quoteFetchError || (refundPolicy !== null && !isDisclaimerChecked) || (isAnyInterRegional && !pickupHubId)}
             >
               <LinearGradient colors={colors.headerGradient} style={S.placeOrderGradient}>
                 {isOrdering

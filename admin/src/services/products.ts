@@ -91,12 +91,6 @@ export const createProduct = async (productData: any) => {
     const response = await api.post('/products', productData);
     return response.data;
   } catch (error: any) {
-    if (error.response && error.response.data?.code === 'LISTING_FEE_REQUIRED') {
-      const err = new Error(error.response.data.message || 'Listing fee required');
-      (err as any).code = 'LISTING_FEE_REQUIRED';
-      (err as any).paymentUrl = error.response.data.paymentUrl;
-      throw err;
-    }
     if (error.response) throw new Error(error.response.data.error || 'Failed to create product');
     throw error;
   }

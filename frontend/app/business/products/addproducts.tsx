@@ -9,10 +9,9 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProductImage, updateProduct, getAllCategories, initializeListingFee } from '@/services/api';
+import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProductImage, updateProduct, getAllCategories } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import * as WebBrowser from 'expo-web-browser';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { GlassSurface } from '@/components/ui/GlassSurface';
@@ -212,15 +211,7 @@ export default function ManageProductScreen() {
 
       router.back();
     } catch (e: any) {
-      if (e.code === 'LISTING_FEE_REQUIRED') {
-        CustomInAppToast.show({ type: 'error', title: 'Limit Reached', message: e.message });
-        if(businessId && activeBusiness?.email) {
-          const res = await initializeListingFee({ storeId: businessId, email: activeBusiness.email });
-          if (res.success && res.data?.authorization_url) WebBrowser.openBrowserAsync(res.data.authorization_url);
-        }
-      } else {
-        CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Operation failed' });
-      }
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Operation failed' });
     } finally {
       setIsSubmitting(false);
     }

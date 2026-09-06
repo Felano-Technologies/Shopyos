@@ -2,15 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   FiPercent, FiTruck, FiTrendingUp, FiCreditCard, FiShield, FiUsers, FiZap, FiStar,
-  FiEdit2, FiClock, FiX, FiTag, FiShoppingBag,
+  FiEdit2, FiClock, FiX,
 } from 'react-icons/fi';
-import { getAdminFeeConfigs, updateAdminFeeConfig, getAdminFeeConfigAudit, getListingFees } from '../services/admin';
+import { getAdminFeeConfigs, updateAdminFeeConfig, getAdminFeeConfigAudit } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
-import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
 type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale' | 'loyalty';
-type TabKey = Category | 'listing';
+type TabKey = Category;
 type ConfigType = 'percentage' | 'fixed' | 'multiplier' | 'integer';
 
 type FeeConfig = {
@@ -34,24 +33,6 @@ type AuditEntry = {
   created_at: string;
 };
 
-type ListingStore = {
-  id: string;
-  name: string;
-  listing_tier: 'free' | 'paid';
-  product_count: number;
-  free_limit: number;
-  status: string;
-};
-type ListingSummary = {
-  total_stores: number;
-  free_tier: number;
-  paid_tier: number;
-  approaching_limit: number;
-  at_limit: number;
-  free_limit: number;
-  listing_fee_amount: number;
-};
-
 const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'commission', label: 'Commission', icon: FiPercent },
   { key: 'delivery', label: 'Delivery', icon: FiTruck },
@@ -61,12 +42,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'bargaining', label: 'Bargain', icon: FiUsers },
   { key: 'flash_sale', label: 'Flash Sale', icon: FiZap },
   { key: 'loyalty', label: 'Loyalty', icon: FiStar },
-  { key: 'listing', label: 'Listing', icon: FiTag },
 ];
-
-// Editable listing settings live in platform_fee_config, but seed migrations disagree on their
-// category ('stores' vs 'payout') — match by key instead of trusting either one.
-const LISTING_KEYS = ['listing_free_product_limit', 'listing_fee_amount'];
 
 const unitFor = (type: ConfigType) => (type === 'percentage' ? '%' : type === 'fixed' ? '₵' : '');
 const cleanNum = (v?: string | null) => (v == null ? null : Number.parseFloat(v));
@@ -75,10 +51,6 @@ export const FeeSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('commission');
   const [allConfigs, setAllConfigs] = useState<FeeConfig[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [listingSummary, setListingSummary] = useState<ListingSummary | null>(null);
-  const [listingStores, setListingStores] = useState<ListingStore[]>([]);
-  const [loadingListing, setLoadingListing] = useState(true);
 
   const [editingConfig, setEditingConfig] = useState<FeeConfig | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -103,24 +75,9 @@ export const FeeSettings: React.FC = () => {
     }
   };
 
-  const fetchListingReport = async () => {
-    setLoadingListing(true);
-    try {
-      const res = await getListingFees();
-      setListingSummary(res?.data?.summary || null);
-      setListingStores(Array.isArray(res?.data?.stores) ? res.data.stores : []);
-    } catch (err) {
-      console.error('Failed to load listing fee report', err);
-    } finally {
-      setLoadingListing(false);
-    }
-  };
+  useEffect(() => { fetchConfigs(); }, []);
 
-  useEffect(() => { fetchConfigs(); fetchListingReport(); }, []);
-
-  const visibleConfigs = activeTab === 'listing'
-    ? allConfigs.filter((c) => LISTING_KEYS.includes(c.config_key))
-    : allConfigs.filter((c) => c.category === activeTab);
+  const visibleConfigs = allConfigs.filter((c) => c.category === activeTab);
 
   const openEdit = (config: FeeConfig) => {
     setEditingConfig(config);
@@ -153,7 +110,6 @@ export const FeeSettings: React.FC = () => {
       window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Success', message: `${editingConfig.label} updated` } }));
       setEditingConfig(null);
       fetchConfigs();
-      if (LISTING_KEYS.includes(editingConfig.config_key)) fetchListingReport();
     } catch (err) {
       setEditError(extractErrorMessage(err));
     } finally {
@@ -250,87 +206,6 @@ export const FeeSettings: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {activeTab === 'listing' && (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {(loadingListing ? Array.from({ length: 4 }) : [
-                    { label: 'Free Tier Stores', value: listingSummary?.free_tier ?? 0, iconBg: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
-                    { label: 'Paid Tier Stores', value: listingSummary?.paid_tier ?? 0, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
-                    { label: 'Approaching Limit', value: listingSummary?.approaching_limit ?? 0, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
-                    { label: 'At Limit', value: listingSummary?.at_limit ?? 0, iconBg: 'bg-red-50 text-red-600', accent: 'bg-red-500' },
-                  ]).map((card: any, idx) => (
-                    <div key={card?.label || idx} className="relative bg-card p-4 rounded-xl shadow-sm border border-border overflow-hidden">
-                      {card ? (
-                        <>
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}><FiShoppingBag className="w-4 h-4" /></div>
-                          <p className="text-xl font-bold text-body">{card.value.toLocaleString()}</p>
-                          <p className="text-xs font-semibold text-secondary mt-1">{card.label}</p>
-                          <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${card.accent}`} />
-                        </>
-                      ) : (
-                        <div className="animate-pulse bg-surface-muted rounded-lg h-16" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
-                  <div className="px-6 py-4 border-b border-border">
-                    <h2 className="text-lg font-bold text-body">Store Listing Usage</h2>
-                    <p className="text-sm text-secondary mt-0.5">Product counts against each store's free listing limit.</p>
-                  </div>
-                  {!loadingListing && listingStores.length === 0 ? (
-                    <div className="p-8 text-center text-sm text-secondary">No stores found.</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-surface-muted/50 border-b border-border">
-                            <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Store</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Tier</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Products Used</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {loadingListing ? (
-                            <TableRowsSkeleton columns={4} />
-                          ) : listingStores.map((s) => {
-                            const atLimit = s.listing_tier === 'free' && s.product_count >= s.free_limit;
-                            const approaching = s.listing_tier === 'free' && !atLimit && s.product_count >= Math.floor(s.free_limit * 0.8);
-                            return (
-                              <tr key={s.id} className="hover:bg-surface-muted/50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-body">{s.name}</td>
-                                <td className="px-6 py-4">
-                                  <span className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${s.listing_tier === 'paid' ? 'bg-green-50 text-green-700' : 'bg-surface-muted text-secondary'}`}>
-                                    {s.listing_tier}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-body">
-                                  {s.listing_tier === 'free' ? `${s.product_count} / ${s.free_limit}` : `${s.product_count} (unlimited)`}
-                                </td>
-                                <td className="px-6 py-4">
-                                  {s.listing_tier === 'paid' ? (
-                                    <span className="text-xs text-subtle">—</span>
-                                  ) : atLimit ? (
-                                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 text-red-700">At limit</span>
-                                  ) : approaching ? (
-                                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700">Approaching</span>
-                                  ) : (
-                                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700">OK</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>

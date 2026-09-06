@@ -1,8 +1,8 @@
 // routes/paymentRoutes.js
 const express = require('express');
 const router = express.Router();
-const { initializePayment, verifyPayment, handleWebhook, chargeAuthorization, initializeListingFee } = require('../controllers/paymentController');
-const { protect, hasAnyRole } = require('../middleware/authMiddleware');
+const { initializePayment, verifyPayment, handleWebhook, chargeAuthorization } = require('../controllers/paymentController');
+const { protect } = require('../middleware/authMiddleware');
 const { validateInitializePayment } = require('../middleware/validators');
 const { paymentLimiter } = require('../middleware/rateLimiter');
 
@@ -103,51 +103,6 @@ router.use(paymentLimiter);
 const requireDisclaimer = require('../middleware/requireDisclaimer');
 
 router.post('/initialize', requireDisclaimer('refund_policy'), validateInitializePayment, initializePayment);
-
-/**
- * @swagger
- * /api/v1/payments/listing-fee/initialize:
- *   post:
- *     summary: Initialize a product listing fee payment
- *     description: Starts a Paystack transaction to cover the listing fee for a product. Restricted to sellers and admins.
- *     tags: [Payments]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - productId
- *             properties:
- *               productId:
- *                 type: string
- *                 description: UUID of the product whose listing fee is being paid
- *                 example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
- *     responses:
- *       200:
- *         description: Listing fee payment initialized successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 authorizationUrl:
- *                   type: string
- *                 reference:
- *                   type: string
- *       400:
- *         description: Invalid product ID or Paystack error
- *       401:
- *         description: Unauthorized — missing or invalid Bearer token
- *       403:
- *         description: Forbidden — caller is not a seller or admin
- */
-router.post('/listing-fee/initialize', hasAnyRole('seller', 'admin'), initializeListingFee);
 
 /**
  * @swagger

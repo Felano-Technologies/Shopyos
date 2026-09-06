@@ -353,6 +353,8 @@ export interface AdminHub {
   is_active: boolean;
   region_name?: string;
   region_code?: string;
+  owner_id?: string | null;
+  owner_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -386,6 +388,7 @@ export const adminCreateHub = async (payload: {
   phone?: string;
   latitude?: number;
   longitude?: number;
+  ownerId?: string;
 }) => {
   try {
     const response = await api.post('/admin/hubs', payload);
@@ -404,6 +407,7 @@ export const adminUpdateHub = async (
     phone: string;
     latitude: number;
     longitude: number;
+    ownerId: string;
   }>
 ) => {
   try {
@@ -474,37 +478,6 @@ export const adminGetDisclaimerAudit = async (type?: string, limit?: number) => 
       context_type: string;
       context_id: string;
     }>;
-  } catch (error: any) {
-    throw new Error(error.userMessage || extractErrorMessage(error));
-  }
-};
-
-// ─── Listing Fees ────────────────────────────────────────────────────────────
-
-export const getAdminListingFees = async () => {
-  try {
-    const response = await api.get('/admin/listing-fees');
-    return response.data.data as {
-      summary: {
-        total_stores: number;
-        free_tier: number;
-        paid_tier: number;
-        approaching_limit: number;
-        at_limit: number;
-        free_limit: number;
-        listing_fee_amount: number;
-      };
-      stores: Array<{
-        id: string;
-        name: string;
-        owner_id: string;
-        listing_tier: 'free' | 'paid';
-        product_count: number;
-        free_limit: number;
-        listing_fee_paid_at: string | null;
-        status: string;
-      }>;
-    };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

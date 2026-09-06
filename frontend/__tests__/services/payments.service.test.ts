@@ -44,7 +44,6 @@ import {
   setDefaultPaymentMethod,
   getPayoutHistory,
   requestPayout,
-  initializeListingFee,
   initializeBannerPayment,
   verifyBannerPayment,
 } from '../../services/payments';
@@ -326,32 +325,6 @@ describe('Payments Service Unit Tests', () => {
 
       // Act & Assert
       await expect(requestPayout({ amount: 99999 })).rejects.toThrow('Insufficient balance');
-    });
-  });
-
-  // ── initializeListingFee ───────────────────────────────────────────
-  describe('initializeListingFee', () => {
-    test('test_initializeListingFee_validPayload_callsPostAndReturnsInitData', async () => {
-      // Arrange
-      const payload = { storeId: 'store-1', email: 'seller@test.com', channel: 'card' };
-      (api.post as jest.Mock).mockResolvedValueOnce({
-        data: { success: true, authorizationUrl: 'https://pay.example.com/listing' },
-      });
-
-      // Act
-      const result = await initializeListingFee(payload);
-
-      // Assert
-      expect(api.post).toHaveBeenCalledWith('/payments/listing-fee/initialize', payload);
-      expect(result.success).toBe(true);
-    });
-
-    test('test_initializeListingFee_apiError_throwsWithErrorMessage', async () => {
-      // Arrange
-      (api.post as jest.Mock).mockRejectedValueOnce({ message: 'Store not eligible' });
-
-      // Act & Assert
-      await expect(initializeListingFee({ storeId: 'bad', email: 'x@test.com' })).rejects.toThrow('Store not eligible');
     });
   });
 

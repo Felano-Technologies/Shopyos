@@ -6,11 +6,66 @@ const { getPool } = require('../config/postgres');
 const { emitTransitUpdate } = require('../services/transitEvents');
 const feeConfigService = require('../services/feeConfigService');
 const { renderGenericEmail } = require('../templates');
+const { logger } = require('../config/logger');
 
 const getHubs = async (req, res, next) => {
   try {
     const hubs = await repositories.parcelPartner.getHubs();
     ApiResponse.success(res, hubs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   GET /api/v1/parcel-partner/hubs/by-region?region=...
+// @desc    Buyer-facing list of active hubs in a region, for cross-region
+//          checkout so the buyer can pick which hub they'll collect from.
+const getHubsByRegion = async (req, res, next) => {
+  try {
+    const { region } = req.query;
+    if (!region) return ApiResponse.error(res, 'region is required', 400);
+
+    const hubs = await repositories.parcelPartner.getHubsByRegionName(region);
+    const publicHubs = hubs.map(h => ({
+      id: h.id,
+      hub_name: h.hub_name,
+      partner_name: h.partner_name,
+      address: h.address,
+      phone: h.phone,
+      latitude: h.latitude,
+      longitude: h.longitude,
+    }));
+    ApiResponse.success(res, publicHubs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   GET /api/v1/parcel-partner/my-hubs
+// @desc    Hubs owned by the logged-in parcel-partner user (for the earnings/payout screen)
+const getMyHubs = async (req, res, next) => {
+  try {
+    const hubs = await repositories.parcelPartner.getHubsByOwner(req.user.id);
+    ApiResponse.success(res, hubs);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   PATCH /api/v1/parcel-partner/hub/:hubId/payout-method
+// @desc    Set/update the payout method for a hub the caller owns
+const updateHubPayoutMethod = async (req, res, next) => {
+  try {
+    const { hubId } = req.params;
+    const { method, details } = req.body;
+    if (!method) return ApiResponse.error(res, 'method is required', 400);
+
+    const hub = await repositories.parcelPartner.getHubById(hubId);
+    if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
+    if (hub.owner_id !== req.user.id) return ApiResponse.error(res, 'Not authorized', 403);
+
+    const updated = await repositories.parcelPartner.updateHubPayoutMethod(hubId, method, details);
+    ApiResponse.withEntity(res, 'hub', updated);
   } catch (error) {
     next(error);
   }
@@ -124,6 +179,8 @@ const arriveParcel = async (req, res, next) => {
 async function payHubTransitFee(orderId, order) {
   const pool = getPool();
   const client = await pool.connect();
+  const creditedHubs = []; // { hubId, amount } — instant-payout attempted after commit
+
   try {
     await client.query('BEGIN');
 
@@ -153,6 +210,7 @@ async function payHubTransitFee(orderId, order) {
              VALUES ($1, $2, 'transit_fee', $3, $4)`,
             [hId, perHub, orderId, balRows[0]?.current_balance]
           );
+          creditedHubs.push({ hubId: hId, amount: perHub });
         }
       }
 
@@ -173,6 +231,15 @@ async function payHubTransitFee(orderId, order) {
     throw txErr;
   } finally {
     client.release();
+  }
+
+  // Instant payout, same "if a payout method is on file" behavior sellers/
+  // drivers already get — attempted only after the balance credit above has
+  // actually committed.
+  const { attemptInstantPayout } = require('./payoutController');
+  for (const { hubId, amount } of creditedHubs) {
+    await attemptInstantPayout({ type: 'hub', hubId, amount, sourceNote: 'Instant hub transit-fee payout' })
+      .catch(err => logger.error(`[ParcelPartner] Instant payout failed for hub ${hubId}:`, err.message));
   }
 }
 
@@ -325,9 +392,10 @@ const adminGetAllHubs = async (req, res, next) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT h.*, r.name as region_name, r.code as region_code
+      `SELECT h.*, r.name as region_name, r.code as region_code, up.full_name as owner_name
        FROM parcel_partner_hubs h
        LEFT JOIN ghana_regions r ON h.region_id = r.id
+       LEFT JOIN user_profiles up ON h.owner_id = up.user_id
        ORDER BY h.hub_name`
     );
     ApiResponse.success(res, rows);
@@ -338,15 +406,15 @@ const adminGetAllHubs = async (req, res, next) => {
 
 const adminCreateHub = async (req, res, next) => {
   try {
-    const { regionId, hubName, partnerName, address, phone, latitude, longitude } = req.body;
+    const { regionId, hubName, partnerName, address, phone, latitude, longitude, ownerId } = req.body;
     if (!regionId || !hubName || !partnerName) {
       return ApiResponse.error(res, 'regionId, hubName and partnerName are required', 400);
     }
     const pool = getPool();
     const { rows } = await pool.query(
-      `INSERT INTO parcel_partner_hubs (region_id, hub_name, partner_name, address, phone, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [regionId, hubName, partnerName, address || null, phone || null, latitude || null, longitude || null]
+      `INSERT INTO parcel_partner_hubs (region_id, hub_name, partner_name, address, phone, latitude, longitude, owner_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [regionId, hubName, partnerName, address || null, phone || null, latitude || null, longitude || null, ownerId || null]
     );
     ApiResponse.withEntity(res, 'hub', rows[0], null, null, 201);
   } catch (error) {
@@ -357,7 +425,7 @@ const adminCreateHub = async (req, res, next) => {
 const adminUpdateHub = async (req, res, next) => {
   try {
     const { hubId } = req.params;
-    const { hubName, partnerName, address, phone, latitude, longitude } = req.body;
+    const { hubName, partnerName, address, phone, latitude, longitude, ownerId } = req.body;
     const pool = getPool();
     const { rows } = await pool.query(
       `UPDATE parcel_partner_hubs
@@ -367,9 +435,10 @@ const adminUpdateHub = async (req, res, next) => {
            phone = COALESCE($4, phone),
            latitude = COALESCE($5, latitude),
            longitude = COALESCE($6, longitude),
+           owner_id = COALESCE($7, owner_id),
            updated_at = NOW()
-       WHERE id = $7 RETURNING *`,
-       [hubName, partnerName, address, phone, latitude, longitude, hubId]
+       WHERE id = $8 RETURNING *`,
+       [hubName, partnerName, address, phone, latitude, longitude, ownerId, hubId]
     );
     if (!rows[0]) return ApiResponse.error(res, 'Hub not found', 404);
     ApiResponse.withEntity(res, 'hub', rows[0]);
@@ -432,6 +501,9 @@ const adminUpsertTransitRoute = async (req, res, next) => {
 
 module.exports = {
   getHubs,
+  getHubsByRegion,
+  getMyHubs,
+  updateHubPayoutMethod,
   getDashboardStats,
   getHubParcels,
   checkInParcel,

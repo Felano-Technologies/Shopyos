@@ -7,12 +7,14 @@ class PayoutRepository extends BaseRepository {
     }
 
     async requestPayout(payoutData) {
+        const payoutType = payoutData.hubId ? 'hub' : (payoutData.driverId ? 'driver' : 'seller');
         const { data, error } = await this.db
             .from(this.tableName)
             .insert({
                 store_id: payoutData.storeId || null,
                 driver_id: payoutData.driverId || null,
-                payout_type: payoutData.driverId ? 'driver' : 'seller',
+                hub_id: payoutData.hubId || null,
+                payout_type: payoutType,
                 amount: payoutData.amount,
                 payout_method: payoutData.method,
                 payout_details: payoutData.details,
@@ -51,6 +53,25 @@ class PayoutRepository extends BaseRepository {
             .from(this.tableName)
             .select('*')
             .eq('driver_id', driverId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (status) query = query.eq('status', status);
+        if (from) query = query.gte('created_at', from);
+        if (to) query = query.lte('created_at', to);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
+    }
+
+    async getHubPayouts(hubId, options = {}) {
+        const { status, from, to, limit = 20, offset = 0 } = options;
+
+        let query = this.db
+            .from(this.tableName)
+            .select('*')
+            .eq('hub_id', hubId)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
@@ -103,11 +124,12 @@ class PayoutRepository extends BaseRepository {
 
         if (type === 'seller') { conditions.push(`p.store_id IS NOT NULL`); }
         if (type === 'driver') { conditions.push(`p.driver_id IS NOT NULL`); }
+        if (type === 'hub') { conditions.push(`p.hub_id IS NOT NULL`); }
         if (status) { conditions.push(`p.status = $${idx++}`); params.push(status); }
         if (from) { conditions.push(`p.created_at >= $${idx++}`); params.push(from); }
         if (to) { conditions.push(`p.created_at <= $${idx++}`); params.push(to); }
         if (search) {
-            conditions.push(`(s.store_name ILIKE $${idx} OR up.full_name ILIKE $${idx})`);
+            conditions.push(`(s.store_name ILIKE $${idx} OR up.full_name ILIKE $${idx} OR h.hub_name ILIKE $${idx})`);
             params.push(`%${search}%`);
             idx++;
         }
@@ -118,6 +140,7 @@ class PayoutRepository extends BaseRepository {
             SELECT COUNT(*) FROM payouts p
             LEFT JOIN stores s ON s.id = p.store_id
             LEFT JOIN user_profiles up ON up.user_id = p.driver_id
+            LEFT JOIN parcel_partner_hubs h ON h.id = p.hub_id
             ${where}
         `;
         const dataSql = `
@@ -125,10 +148,16 @@ class PayoutRepository extends BaseRepository {
                 p.*,
                 s.store_name,
                 up.full_name AS driver_name,
-                CASE WHEN p.driver_id IS NOT NULL THEN 'driver' ELSE 'seller' END AS payout_type
+                h.hub_name,
+                CASE
+                    WHEN p.hub_id IS NOT NULL THEN 'hub'
+                    WHEN p.driver_id IS NOT NULL THEN 'driver'
+                    ELSE 'seller'
+                END AS payout_type
             FROM payouts p
             LEFT JOIN stores s ON s.id = p.store_id
             LEFT JOIN user_profiles up ON up.user_id = p.driver_id
+            LEFT JOIN parcel_partner_hubs h ON h.id = p.hub_id
             ${where}
             ORDER BY p.created_at DESC
             LIMIT $${idx} OFFSET $${idx + 1}
@@ -158,10 +187,11 @@ class PayoutRepository extends BaseRepository {
     }
 
     // For scheduler: find pending payouts already created to avoid duplicates
-    async hasPendingPayout(storeId, driverId) {
+    async hasPendingPayout(storeId, driverId, hubId) {
         let query = this.db.from(this.tableName).select('id').eq('status', 'pending');
         if (storeId) query = query.eq('store_id', storeId);
         if (driverId) query = query.eq('driver_id', driverId);
+        if (hubId) query = query.eq('hub_id', hubId);
         const { data, error } = await query.limit(1);
         if (error) throw error;
         return data && data.length > 0;

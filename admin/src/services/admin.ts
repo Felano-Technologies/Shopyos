@@ -97,12 +97,6 @@ export const getAdminFeeConfigAudit = async (key: string) => {
   return response.data;
 };
 
-// Listing Fees (monitoring report — the two editable amounts live in fee-config)
-export const getListingFees = async () => {
-  const response = await api.get('/admin/listing-fees');
-  return response.data;
-};
-
 // Disclaimers — a fixed catalog of legal document types (no create/delete; content is versioned in-place)
 export const getAdminDisclaimers = async () => {
   const response = await api.get('/admin/disclaimers');
@@ -133,13 +127,13 @@ export const getAdminRegions = async () => { const response = await api.get('/ad
 // Hubs (parcel_partner_hubs — region_id, hub_name, partner_name, address, phone)
 export const adminGetAllHubs = async () => { const response = await api.get('/admin/hubs'); return response.data; };
 export const adminCreateHub = async (data: {
-  regionId: number; hubName: string; partnerName: string; address?: string; phone?: string; latitude?: number; longitude?: number;
+  regionId: number; hubName: string; partnerName: string; address?: string; phone?: string; latitude?: number; longitude?: number; ownerId?: string;
 }) => {
   const response = await api.post('/admin/hubs', data);
   return response.data;
 };
 export const adminUpdateHub = async (id: string, data: {
-  hubName?: string; partnerName?: string; address?: string; phone?: string; latitude?: number; longitude?: number;
+  hubName?: string; partnerName?: string; address?: string; phone?: string; latitude?: number; longitude?: number; ownerId?: string;
 }) => {
   const response = await api.put(`/admin/hubs/${id}`, data);
   return response.data;

@@ -10,7 +10,6 @@ import {
   getPendingDriverVerifications,
   approveDriverVerification,
   rejectDriverVerification,
-  getAdminListingFees,
 } from '@/services/api';
 
 export const useAdminDashboard = () => {
@@ -101,16 +100,6 @@ export const useApproveDriverVerification = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.driverVerifications() });
     },
-  });
-};
-
-export const useAdminListingFees = () => {
-  return useQuery({
-    queryKey: queryKeys.admin.listingFees(),
-    queryFn: () => getAdminListingFees(),
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnMount: true,
   });
 };
 
