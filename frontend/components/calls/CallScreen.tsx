@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
+import { MarqueeText } from '@/components/MarqueeText';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { endCall } from '@/services/calls';
@@ -111,7 +112,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
               ? <AppImage uri={call.otherUserAvatar} style={styles.avatarImg} contentFit="cover" />
               : <Ionicons name="person" size={40} color="#FFF" />}
           </View>
-          <Text style={styles.name}>{call.otherUserName}</Text>
+          <MarqueeText text={call.otherUserName} style={styles.name} containerStyle={styles.nameMarqueeContainer} />
           <Text style={styles.status}>
             {phase === 'ringing_outgoing' ? 'Calling…' : remainingSeconds != null ? `00:${String(remainingSeconds).padStart(2, '0')}` : 'Connected'}
           </Text>
@@ -164,7 +165,8 @@ const styles = StyleSheet.create({
     height: 260,
     opacity: 0.06,
   },
-  center: { alignItems: 'center' },
+  center: { alignItems: 'center', width: '100%', paddingHorizontal: 40 },
+  nameMarqueeContainer: { marginBottom: 8 },
   avatar: {
     width: 96,
     height: 96,
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: 96, height: 96, borderRadius: 48 },
-  name: { fontFamily: 'Montserrat-SemiBold', fontSize: 22, color: '#FFF', marginBottom: 8 },
+  name: { fontFamily: 'Montserrat-SemiBold', fontSize: 22, color: '#FFF', textAlign: 'center' },
   status: { fontFamily: 'Montserrat-Regular', fontSize: 16, color: 'rgba(255,255,255,0.7)' },
   controls: {
     flexDirection: 'row',

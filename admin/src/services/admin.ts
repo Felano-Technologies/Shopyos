@@ -48,6 +48,16 @@ export const releaseEscrow = async (id: string, reason?: string) => { const resp
 // Revenue
 export const getAdminRevenue = async (params?: { limit?: number; offset?: number }) => { const response = await api.get('/admin/revenue', { params }); return response.data; };
 
+// In-app calls — audit/dispute review (recorded calls, playback)
+export const getAdminCalls = async (params?: { status?: string; from?: string; to?: string; limit?: number; offset?: number }) => {
+  const response = await api.get('/admin/calls', { params });
+  return response.data;
+};
+export const getAdminCallDetails = async (id: string) => {
+  const response = await api.get(`/admin/calls/${id}`);
+  return response.data;
+};
+
 // Financial Dashboard — Profit & Loss (revenue vs. configurable expenses)
 export const getFinancialSummary = async (params?: { from?: string; to?: string }) => { const response = await api.get('/admin/financial-summary', { params }); return response.data; };
 

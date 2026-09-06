@@ -23,6 +23,7 @@ const Hubs = React.lazy(() => import('../pages/Hubs').then(m => ({ default: m.Hu
 const Ads = React.lazy(() => import('../pages/Ads').then(m => ({ default: m.Ads })));
 const Notifications = React.lazy(() => import('../pages/Notifications').then(m => ({ default: m.Notifications })));
 const Revenue = React.lazy(() => import('../pages/Revenue').then(m => ({ default: m.Revenue })));
+const Calls = React.lazy(() => import('../pages/Calls').then(m => ({ default: m.Calls })));
 const FinancialDashboard = React.lazy(() => import('../pages/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
 const Expenses = React.lazy(() => import('../pages/Expenses').then(m => ({ default: m.Expenses })));
 const ExpenseCategories = React.lazy(() => import('../pages/ExpenseCategories').then(m => ({ default: m.ExpenseCategories })));
@@ -79,6 +80,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="ads" element={<Ads />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="revenue" element={<Revenue />} />
+          <Route path="calls" element={<Calls />} />
           <Route path="financial-dashboard" element={<FinancialDashboard />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="expense-categories" element={<ExpenseCategories />} />

@@ -70,6 +70,7 @@ export {
   getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification,
   getExpenseCategories, createExpenseCategory, updateExpenseCategory, toggleExpenseCategory,
   getExpenses, createExpense, updateExpense, deleteExpense, getFinancialSummary,
+  getAdminCalls, getAdminCallDetails,
 } from './admin';
 export type { AdminExpenseCategory, AdminExpense, AdminExpensePayload } from './admin';
 

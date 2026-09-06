@@ -95,7 +95,9 @@ class DeliveryRepository extends BaseRepository {
           ),
           store:store_id (
             id,
+            owner_id,
             store_name,
+            logo_url,
             phone,
             address_line1,
             city

@@ -154,6 +154,15 @@ export default function AdminDashboard() {
         accentColor: '#DC2626',
       },
       {
+        label: 'Calls',
+        value: 'Audit',
+        route: '/admin/calls',
+        icon: 'call-outline',
+        iconBg: '#DBEAFE',
+        iconColor: '#2563EB',
+        accentColor: '#2563EB',
+      },
+      {
         label: 'Ads',
         value: 'Review',
         route: '/admin/ads',

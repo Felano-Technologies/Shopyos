@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
+import { MarqueeText } from '@/components/MarqueeText';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { acceptCall, rejectCall } from '@/services/calls';
@@ -67,7 +68,7 @@ export function IncomingCallModal() {
               ? <AppImage uri={call.otherUserAvatar} style={styles.avatarImg} contentFit="cover" />
               : <Ionicons name="call" size={28} color={C.navy} />}
           </View>
-          <Text style={styles.name}>{call.otherUserName}</Text>
+          <MarqueeText text={call.otherUserName} style={styles.name} containerStyle={styles.nameMarqueeContainer} />
           <Text style={styles.subtitle}>Incoming call…</Text>
 
           <View style={styles.actions}>
@@ -120,8 +121,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 18,
     color: C.body,
-    marginBottom: 4,
+    textAlign: 'center',
   },
+  nameMarqueeContainer: { marginBottom: 4 },
   subtitle: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 13,

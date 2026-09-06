@@ -101,6 +101,26 @@ export const getAdminRevenue = async (params: { limit?: number; offset?: number 
   }
 };
 
+export const getAdminCalls = async (
+  params: { status?: string; from?: string; to?: string; limit?: number; offset?: number } = {}
+) => {
+  try {
+    const response = await api.get('/admin/calls', { params });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAdminCallDetails = async (id: string) => {
+  try {
+    const response = await api.get(`/admin/calls/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const adminUpdateUserStatus = async (
   userId: string,
   status: 'active' | 'suspended' | 'banned',

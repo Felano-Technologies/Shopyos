@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut, FiPieChart, FiTrendingDown } from 'react-icons/fi';
+import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut, FiPieChart, FiTrendingDown, FiPhoneCall } from 'react-icons/fi';
 import { logoutUser } from '../../services/auth';
 import { getCachedUserProfile } from '../../services/storage';
 import { useAuthStore } from '../../store/authStore';
@@ -50,6 +50,7 @@ export const AdminSidebar: React.FC = () => {
     { name: 'Broadcasts', path: '/broadcasts', icon: <FiSend className="w-5 h-5" /> },
     { name: 'Fee Settings', path: '/fee-settings', icon: <FiPercent className="w-5 h-5" /> },
     { name: 'Disputes', path: '/disputes', icon: <FiAlertCircle className="w-5 h-5" /> },
+    { name: 'Calls', path: '/calls', icon: <FiPhoneCall className="w-5 h-5" /> },
     { name: 'Disclaimers', path: '/disclaimers', icon: <FiFileText className="w-5 h-5" /> },
     { name: 'Payouts', path: '/payouts', icon: <FiCreditCard className="w-5 h-5" /> },
     { name: 'Platform Ads', path: '/ads', icon: <FiMonitor className="w-5 h-5" /> },
