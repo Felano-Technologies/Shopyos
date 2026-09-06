@@ -38,6 +38,7 @@ export const AdminSidebar: React.FC = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: <FiHome className="w-5 h-5" />, exact: true },
+    { name: 'Financial Dashboard', path: '/financial-dashboard', icon: <FiPieChart className="w-5 h-5" /> },
     { name: 'Users', path: '/users', icon: <FiUsers className="w-5 h-5" /> },
     { name: 'Stores', path: '/stores', icon: <FiShoppingBag className="w-5 h-5" /> },
     { name: 'Orders', path: '/orders', icon: <FiTruck className="w-5 h-5" /> },
@@ -53,7 +54,6 @@ export const AdminSidebar: React.FC = () => {
     { name: 'Payouts', path: '/payouts', icon: <FiCreditCard className="w-5 h-5" /> },
     { name: 'Platform Ads', path: '/ads', icon: <FiMonitor className="w-5 h-5" /> },
     { name: 'Revenue', path: '/revenue', icon: <FiDollar className="w-5 h-5" /> },
-    { name: 'Financial Dashboard', path: '/financial-dashboard', icon: <FiPieChart className="w-5 h-5" /> },
     { name: 'Expenses', path: '/expenses', icon: <FiTrendingDown className="w-5 h-5" /> },
     { name: 'Expense Categories', path: '/expense-categories', icon: <FiTag className="w-5 h-5" /> },
     { name: 'Notifications', path: '/notifications', icon: <FiBell className="w-5 h-5" /> },
