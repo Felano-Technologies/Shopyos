@@ -94,11 +94,9 @@ class FeeConfigService {
    * @returns {Promise<number>} Fee amount, rounded to 2 decimal places
    */
   async calcBuyerProtectionFee(subtotal) {
-    const pct = await this.get('buyer_protection_pct', 1.5);
-    const min = await this.get('buyer_protection_min', 2);
-    const max = await this.get('buyer_protection_max', 15);
+    const pct = await this.get('buyer_protection_pct', 2.5);
     const raw = (Number(subtotal) || 0) * pct / 100;
-    return Number(Math.min(Math.max(raw, min), max).toFixed(2));
+    return Number(raw.toFixed(2));
   }
 
   _castValue(valueStr, type) {

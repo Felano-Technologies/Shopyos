@@ -294,14 +294,12 @@ export default function CheckoutScreen() {
         if (feeConfigs) {
           const protEnabled = feeConfigs['buyer_protection_enabled'] !== false;
           if (protEnabled) {
-            // Percentage of subtotal, clamped min/max — must match the same
-            // calc in backend/services/feeConfigService.js so the total shown
-            // here matches what's actually charged at order creation.
-            const pct = Number(feeConfigs['buyer_protection_pct'] ?? 1.5);
-            const min = Number(feeConfigs['buyer_protection_min'] ?? 2);
-            const max = Number(feeConfigs['buyer_protection_max'] ?? 15);
+            // Flat percentage of subtotal, no floor/ceiling — must match the
+            // same calc in backend/services/feeConfigService.js so the total
+            // shown here matches what's actually charged at order creation.
+            const pct = Number(feeConfigs['buyer_protection_pct'] ?? 2.5);
             const raw = subtotal * pct / 100;
-            setBuyerProtectionFee(Number(Math.min(Math.max(raw, min), max).toFixed(2)));
+            setBuyerProtectionFee(Number(raw.toFixed(2)));
           } else {
             setBuyerProtectionFee(0);
           }
