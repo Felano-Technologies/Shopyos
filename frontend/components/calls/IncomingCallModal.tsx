@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { acceptCall, rejectCall } from '@/services/calls';
+import { startRingtone, stopRingtone } from '@/services/callRingtone';
 
 const C = {
   navy: '#0C1559',
@@ -21,6 +23,12 @@ export function IncomingCallModal() {
   const [busy, setBusy] = useState(false);
 
   const visible = phase === 'ringing_incoming' && !!call;
+
+  useEffect(() => {
+    if (visible) startRingtone();
+    else stopRingtone();
+    return () => stopRingtone();
+  }, [visible]);
 
   const handleAccept = async () => {
     if (!call || busy) return;
@@ -55,7 +63,9 @@ export function IncomingCallModal() {
       <View style={styles.overlay}>
         <GlassSurface style={styles.card}>
           <View style={styles.avatar}>
-            <Ionicons name="call" size={28} color={C.navy} />
+            {call.otherUserAvatar
+              ? <AppImage uri={call.otherUserAvatar} style={styles.avatarImg} contentFit="cover" />
+              : <Ionicons name="call" size={28} color={C.navy} />}
           </View>
           <Text style={styles.name}>{call.otherUserName}</Text>
           <Text style={styles.subtitle}>Incoming call…</Text>
@@ -103,7 +113,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
   },
+  avatarImg: { width: 64, height: 64, borderRadius: 32 },
   name: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 18,

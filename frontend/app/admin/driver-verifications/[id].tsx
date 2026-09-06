@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
 import { GlassSurface } from '@/components/ui/GlassSurface';
+import { useStartCall } from '@/hooks/useStartCall';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -230,6 +231,7 @@ export default function DriverVerificationDetailScreen() {
   const insets  = useSafeAreaInsets();
   const C = useAdminColors();
   const S = useMemo(() => getStyles(C), [C]);
+  const startCall = useStartCall();
 
   const [driver,      setDriver]      = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
@@ -437,7 +439,7 @@ export default function DriverVerificationDetailScreen() {
           <View style={S.profileActions}>
             <TouchableOpacity
               style={S.actionCircle}
-              onPress={() => Linking.openURL(`tel:${phone}`)}
+              onPress={() => startCall(driver.user_id ?? driver.id, name, undefined)}
             >
               <Ionicons name="call" size={rs(17)} color={C.onAccent} />
             </TouchableOpacity>

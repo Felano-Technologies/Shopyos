@@ -25,6 +25,7 @@ export function CallDisclaimerModal() {
         appId: call.appId,
         otherUserId: pendingTarget.receiverId,
         otherUserName: pendingTarget.receiverName,
+        otherUserAvatar: call.receiverAvatar || null,
         orderId: pendingTarget.orderId || null,
         durationCapSeconds: call.durationCapSeconds,
       });

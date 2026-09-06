@@ -17,6 +17,7 @@ type ActiveCall = {
   appId: string;
   otherUserId: string;
   otherUserName: string;
+  otherUserAvatar: string | null;
   orderId: string | null;
   startedAt: string | null;      // server-stamped once accepted — authoritative for the 30s countdown
   durationCapSeconds: number;
@@ -31,8 +32,8 @@ type CallStore = {
 
   promptCall: (target: PendingCallTarget) => void;
   cancelPrompt: () => void;
-  setOutgoing: (call: Omit<ActiveCall, 'startedAt' | 'isCaller'>) => void;
-  setIncoming: (call: Omit<ActiveCall, 'startedAt' | 'isCaller' | 'durationCapSeconds'> & { durationCapSeconds?: number }) => void;
+  setOutgoing: (call: Omit<ActiveCall, 'startedAt' | 'isCaller' | 'otherUserAvatar'> & { otherUserAvatar?: string | null }) => void;
+  setIncoming: (call: Omit<ActiveCall, 'startedAt' | 'isCaller' | 'durationCapSeconds' | 'otherUserAvatar'> & { durationCapSeconds?: number; otherUserAvatar?: string | null }) => void;
   setAccepted: (startedAt: string, tokenAndAppId?: { token: string; appId: string }) => void;
   setEnded: (reason?: string) => void;
   reset: () => void;
@@ -49,14 +50,14 @@ export const useCallStore = create<CallStore>((set, get) => ({
 
   setOutgoing: (call) => set({
     phase: 'ringing_outgoing',
-    call: { ...call, startedAt: null, isCaller: true },
+    call: { ...call, startedAt: null, isCaller: true, otherUserAvatar: call.otherUserAvatar ?? null },
     endReason: null,
     pendingTarget: null,
   }),
 
   setIncoming: (call) => set({
     phase: 'ringing_incoming',
-    call: { ...call, startedAt: null, isCaller: false, durationCapSeconds: call.durationCapSeconds ?? 30 },
+    call: { ...call, startedAt: null, isCaller: false, durationCapSeconds: call.durationCapSeconds ?? 30, otherUserAvatar: call.otherUserAvatar ?? null },
     endReason: null,
   }),
 

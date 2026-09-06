@@ -34,6 +34,7 @@ import VoiceMessage from '../../components/chat/VoiceMessage';
 import StickerPicker from '../../components/chat/StickerPicker';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { useStartCall } from '@/hooks/useStartCall';
 
 const { width } = Dimensions.get('window');
 
@@ -303,6 +304,8 @@ export default function ConversationScreen() {
 
   const displayName = name || fetchedParticipant?.name || 'Chat';
   const displayAvatar = avatar || fetchedParticipant?.avatar || null;
+  const isBotConversation = participantId === '00000000-0000-0000-0000-000000000001' || displayName === 'Shopyos Bot';
+  const startCall = useStartCall();
   const initials = (n: string) =>
     (n || 'S').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -878,6 +881,17 @@ export default function ConversationScreen() {
             </View>
           </TouchableOpacity>
 
+          {participantId && !isBotConversation ? (
+            <TouchableOpacity
+              accessibilityLabel={`Call ${displayName}`}
+              accessibilityRole="button"
+              style={styles.callBtn}
+              onPress={() => startCall(participantId, displayName)}
+            >
+              <Ionicons name="call-outline" size={20} color="rgba(255,255,255,0.85)" />
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreVisible(true)}>
             <Feather name="more-horizontal" size={20} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
@@ -1190,6 +1204,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   hdrName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
   moreBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  callBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
 
   // Loading / empty
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },

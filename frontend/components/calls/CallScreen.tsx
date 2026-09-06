@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { endCall } from '@/services/calls';
 import { joinCall, leaveCall, muteLocalAudio, releaseEngine, setSpeakerphoneEnabled, startLocalRecording, stopLocalRecording } from '@/services/callRecordingService';
 import { enqueueRecordingUpload, drainRecordingUploadQueue } from '@/services/recordingUploadQueue';
+import { startRingtone, stopRingtone } from '@/services/callRingtone';
 
 const C = {
   navy: '#0C1559',
@@ -40,6 +42,13 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
     setMuted(false);
     setSpeakerOn(false);
   }, [call?.callId]);
+
+  // Ringback while waiting for the other side to accept.
+  useEffect(() => {
+    if (phase === 'ringing_outgoing') startRingtone();
+    else stopRingtone();
+    return () => stopRingtone();
+  }, [phase]);
 
   // Join the Agora channel + start local recording once the call is accepted.
   useEffect(() => {
@@ -95,9 +104,12 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
   return (
     <Modal visible transparent={false} animationType="slide">
       <View style={styles.container}>
+        <Image source={require('@/assets/images/iconwhite.png')} style={styles.logoWatermark} resizeMode="contain" />
         <View style={styles.center}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={40} color="#FFF" />
+            {call.otherUserAvatar
+              ? <AppImage uri={call.otherUserAvatar} style={styles.avatarImg} contentFit="cover" />
+              : <Ionicons name="person" size={40} color="#FFF" />}
           </View>
           <Text style={styles.name}>{call.otherUserName}</Text>
           <Text style={styles.status}>
@@ -142,6 +154,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 100,
     paddingBottom: 60,
+    overflow: 'hidden',
+  },
+  logoWatermark: {
+    position: 'absolute',
+    top: '30%',
+    alignSelf: 'center',
+    width: 260,
+    height: 260,
+    opacity: 0.06,
   },
   center: { alignItems: 'center' },
   avatar: {
@@ -152,7 +173,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    overflow: 'hidden',
   },
+  avatarImg: { width: 96, height: 96, borderRadius: 48 },
   name: { fontFamily: 'Montserrat-SemiBold', fontSize: 22, color: '#FFF', marginBottom: 8 },
   status: { fontFamily: 'Montserrat-Regular', fontSize: 16, color: 'rgba(255,255,255,0.7)' },
   controls: {

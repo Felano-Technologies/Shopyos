@@ -30,6 +30,7 @@ import { fetchDrivingRoute, haversineMetres } from '@/services/delivery';
 import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
 import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useEffect, useRef, useState, useMemo } from 'react';
+import { useStartCall } from '@/hooks/useStartCall';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { GlassSurface } from '@/components/ui/GlassSurface';
@@ -153,12 +154,17 @@ export default function ActiveOrderScreen() {
 
     return () => { watcher?.remove(); };
   }, [delivery, step]);
-  const handleCall = (phoneNumber: string) => {
+  const startCall = useStartCall();
+  const handleCall = (phoneNumber: string, userId?: string, name?: string) => {
     if (!phoneNumber) {
       CustomInAppToast.show({ type: 'error', title: 'No Phone Number', message: 'Could not find a valid phone number for this contact.' });
       return;
     }
-    Linking.openURL(`tel:${phoneNumber}`);
+    if (!userId) {
+      CustomInAppToast.show({ type: 'error', title: 'Cannot Call', message: 'Could not find this contact\'s account to place the call.' });
+      return;
+    }
+    startCall(userId, name || 'Contact', delivery.order?.id);
   };
   const handleChat = async (participantId: string, name: string, avatar: string, type: 'buyer' | 'seller' = 'seller', entityId?: string) => {
     if (!participantId) return;
@@ -410,7 +416,7 @@ export default function ActiveOrderScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
-                  onPress={() => handleCall(storeDetails?.phone)}
+                  onPress={() => handleCall(storeDetails?.phone, storeDetails?.owner_id, storeDetails?.store_name)}
                 >
                   <Ionicons name="call-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
@@ -466,7 +472,7 @@ export default function ActiveOrderScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
-                  onPress={() => handleCall(buyerProfile?.phone)}
+                  onPress={() => handleCall(buyerProfile?.phone, delivery.order?.buyer?.id, buyerProfile?.full_name)}
                 >
                   <Ionicons name="call-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>

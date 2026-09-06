@@ -45,6 +45,7 @@ import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { ReportModal } from '../../components/ReportModal';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { useStartCall } from '@/hooks/useStartCall';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -275,8 +276,10 @@ export default function StoreDetailsScreen() {
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const startCall = useStartCall();
   const store = storeData ? {
     id: storeData._id,
+    ownerId: storeData.owner?._id,
     name: storeData.businessName,
     category: storeData.category,
     rating: storeData.rating || 0,
@@ -296,6 +299,7 @@ export default function StoreDetailsScreen() {
     followers: storeData.followersCount || 0,
   } : {
     id: params.id,
+    ownerId: undefined as string | undefined,
     name: params.name || "Store",
     category: params.category || "",
     rating: 0,
@@ -471,7 +475,7 @@ export default function StoreDetailsScreen() {
           <View style={styles.aboutContainer}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
             <View style={styles.contactGrid}>
-              <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" style={styles.contactCard} onPress={() => store.phone && Linking.openURL(`tel:${store.phone}`)}>
+              <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" style={styles.contactCard} onPress={() => store.ownerId && startCall(store.ownerId, store.name || 'Store', undefined)}>
                 <View style={[styles.contactIcon, { backgroundColor: '#DCFCE7' }]}><Feather name="phone" size={20} color="#15803D" /></View>
                 <Text style={styles.contactLabel}>Call Store</Text>
               </TouchableOpacity>
@@ -616,13 +620,6 @@ export default function StoreDetailsScreen() {
               </TouchableOpacity>
             </GlassContainer>
             <GlassContainer style={{ flexDirection: 'row', gap: 10 }} spacing={0}>
-               {store.phone ? (
-                 <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" onPress={() => Linking.openURL(`tel:${store.phone}`)}>
-                    <GlassSurface style={styles.iconBtn} isInteractive>
-                      <Ionicons name="call-outline" size={22} color="#FFF" />
-                    </GlassSurface>
-                  </TouchableOpacity>
-                ) : null}
                 <TouchableOpacity accessibilityLabel="Share store" accessibilityRole="button" onPress={handleShare}>
                   <GlassSurface style={styles.iconBtn} isInteractive>
                     <Ionicons name="share-social-outline" size={22} color="#FFF" />
@@ -663,12 +660,12 @@ export default function StoreDetailsScreen() {
           <TouchableOpacity accessibilityLabel="Chat with store" accessibilityRole="button" style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
             {chatLoading ? <ActivityIndicator size="small" color={C.textInverse} /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color={C.textInverse} /><Text style={styles.primaryActionText}>Chat</Text></>}
           </TouchableOpacity>
-          {store.phone ? (
+          {store.ownerId ? (
             <TouchableOpacity
               accessibilityLabel="Call store"
               accessibilityRole="button"
               style={styles.callActionButton}
-              onPress={() => Linking.openURL(`tel:${store.phone}`)}
+              onPress={() => startCall(store.ownerId, store.name || 'Store', undefined)}
             >
               <Ionicons name="call" size={22} color={C.navy} />
             </TouchableOpacity>

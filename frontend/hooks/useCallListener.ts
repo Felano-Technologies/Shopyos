@@ -25,6 +25,7 @@ export const useCallListener = () => {
         appId: '',
         otherUserId: data.callerId,
         otherUserName: data.callerName || 'Unknown caller',
+        otherUserAvatar: data.callerAvatar || null,
         orderId: data.orderId || null,
       });
     };

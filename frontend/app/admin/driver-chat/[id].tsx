@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Dimensions, KeyboardAvoidingView,
-  Platform, Animated, ActivityIndicator, Linking, Alert,
+  Platform, Animated, ActivityIndicator, Alert,
  Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useAdminColors, AdminColors } from '@/components/admin/adminTheme';
+import { useStartCall } from '@/hooks/useStartCall';
 
 // ─── Responsive helpers ──────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -199,11 +199,10 @@ export default function AdminDriverChatThread() {
     }
   };
 
+  const startCall = useStartCall();
   const handleCall = () => {
     if (!driverPhone) return;
-    Linking.openURL(`tel:${driverPhone}`).catch(() =>
-      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not open phone dialer.' })
-    );
+    startCall(driverId, driverName, undefined);
   };
 
   // ── Render bubble ──────────────────────────────────────────────────────────

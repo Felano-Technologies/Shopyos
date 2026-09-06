@@ -25,7 +25,7 @@ const crypto = require('crypto');
 const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { generateRtcToken } = require('../utils/agora');
-const { uploadImage, resolveImageUrl } = require('../config/storage');
+const { uploadImage, resolveImageUrl, transformImageUrlsAsync } = require('../config/storage');
 const { publishRealtimeEvent } = require('../services/realtimePublisher');
 const { logger } = require('../config/logger');
 
@@ -51,6 +51,16 @@ function clearPendingTimer(callId) {
 function displayName(user) {
   const profile = Array.isArray(user?.user_profiles) ? user.user_profiles[0] : user?.user_profiles;
   return profile?.full_name || user?.email?.split('@')[0] || 'User';
+}
+
+// Fetches a user's display name + avatar (presigned URL) for the incoming-call
+// push and the outgoing-call response, so both sides see who they're calling.
+async function getUserDisplayInfo(userId) {
+  const user = await repositories.users.findOne({ id: userId }, 'id, email, is_active, user_profiles(full_name, avatar_url)');
+  if (!user) return null;
+  const transformed = await transformImageUrlsAsync(user);
+  const profile = Array.isArray(transformed.user_profiles) ? transformed.user_profiles[0] : transformed.user_profiles;
+  return { id: transformed.id, isActive: transformed.is_active, name: displayName(transformed), avatarUrl: profile?.avatar_url || null };
 }
 
 // Role pairs allowed to call each other, independent of any specific order —
@@ -125,8 +135,8 @@ const initiateCall = async (req, res, next) => {
     const authorized = await canUsersCall(callerId, receiverId, orderId || null, req.user.roles || []);
     if (!authorized) return ApiResponse.error(res, 'You are not authorized to call this user', 403);
 
-    const receiver = await repositories.users.findById(receiverId);
-    if (!receiver || !receiver.is_active) return ApiResponse.error(res, 'Receiver not found', 404);
+    const receiverInfo = await getUserDisplayInfo(receiverId);
+    if (!receiverInfo || !receiverInfo.isActive) return ApiResponse.error(res, 'Receiver not found', 404);
 
     const channelName = `call_${crypto.randomUUID()}`;
 
@@ -140,11 +150,12 @@ const initiateCall = async (req, res, next) => {
 
     const { token, appId } = generateRtcToken(channelName, callerId, 'publisher');
 
-    const caller = await repositories.users.findById(callerId);
+    const callerInfo = await getUserDisplayInfo(callerId);
     emitToUser(receiverId, 'call:incoming', {
       callId: call.id,
       callerId,
-      callerName: displayName(caller),
+      callerName: callerInfo?.name || 'Unknown caller',
+      callerAvatar: callerInfo?.avatarUrl || null,
       orderId: orderId || null,
       channelName,
     });
@@ -168,7 +179,7 @@ const initiateCall = async (req, res, next) => {
     }, RING_TIMEOUT_SECONDS * 1000);
     pendingTimers.set(call.id, timer);
 
-    ApiResponse.withEntity(res, 'call', { id: call.id, channelName, token, appId, durationCapSeconds: CALL_DURATION_SECONDS }, 'Call initiated', null, 201);
+    ApiResponse.withEntity(res, 'call', { id: call.id, channelName, token, appId, durationCapSeconds: CALL_DURATION_SECONDS, receiverAvatar: receiverInfo.avatarUrl || null }, 'Call initiated', null, 201);
   } catch (error) {
     next(error);
   }

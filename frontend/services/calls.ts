@@ -12,6 +12,7 @@ export type CallLifecycle = {
   appId: string;
   startedAt?: string;
   durationCapSeconds: number;
+  receiverAvatar?: string | null;
 };
 
 export const initiateCall = async (receiverId: string, orderId?: string): Promise<CallLifecycle> => {
