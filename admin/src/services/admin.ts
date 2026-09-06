@@ -71,7 +71,7 @@ export const deleteExpense = async (id: string) => { const response = await api.
 // Lives under /payouts, not /admin/payouts: that legacy admin route only flips a status
 // column with no Paystack integration, so "completing" a payout there would never move money.
 export const getAdminPayoutList = async (params?: {
-  type?: 'seller' | 'driver'; status?: string; search?: string; from?: string; to?: string; page?: number; limit?: number;
+  type?: 'seller' | 'driver' | 'hub'; status?: string; search?: string; from?: string; to?: string; page?: number; limit?: number;
 }) => {
   const response = await api.get('/payouts/admin/all', { params });
   return response.data;
