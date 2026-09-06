@@ -63,6 +63,7 @@ const disclaimerRoutes = require('./routes/disclaimerRoutes');
 const parcelPartnerRoutes = require('./routes/parcelPartnerRoutes');
 const supportRoutes = require('./routes/supportRoutes');
 const buyerAnalyticsRoutes = require('./routes/buyerAnalyticsRoutes');
+const callRoutes = require('./routes/callRoutes');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
@@ -289,6 +290,7 @@ app.use('/api/v1/disclaimers', disclaimerRoutes);
 app.use('/api/v1/parcel-partner', parcelPartnerRoutes);
 app.use('/api/v1/support', supportRoutes);
 app.use('/api/v1/buyers', buyerAnalyticsRoutes);
+app.use('/api/v1/calls', callRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {

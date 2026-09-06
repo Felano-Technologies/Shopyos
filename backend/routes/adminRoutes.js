@@ -14,6 +14,7 @@ const {
   deleteExpense,
 } = require('../controllers/expenseController');
 const { getFinancialSummary } = require('../controllers/financialController');
+const { getAllCallsAdmin, getCallDetailsAdmin } = require('../controllers/callController');
 const {
   getDashboard,
   getDashboardRevenueTrend,
@@ -1076,6 +1077,10 @@ router.get('/expenses', getExpenses);
 router.post('/expenses', auditLog('create_expense', 'expense'), createExpense);
 router.put('/expenses/:id', auditLog('update_expense', 'expense'), updateExpense);
 router.delete('/expenses/:id', auditLog('delete_expense', 'expense'), deleteExpense);
+
+// In-app calls — audit/dispute review
+router.get('/calls', getAllCallsAdmin);
+router.get('/calls/:id', getCallDetailsAdmin);
 
 // Driver Management
 /**

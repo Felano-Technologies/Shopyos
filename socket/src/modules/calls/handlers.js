@@ -1,53 +1,17 @@
-const logger = require('../../config/logger');
-
-const registerCallHandlers = (io) => {
-  io.on('connection', (socket) => {
-    const userId = socket.userId;
-
-    socket.on('call:initiate', ({ conversationId, callerName, callerAvatar }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:incoming', {
-        conversationId,
-        callerId: userId,
-        callerName,
-        callerAvatar,
-      });
-    });
-
-    socket.on('call:accept', ({ conversationId }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:accepted', { conversationId });
-    });
-
-    socket.on('call:reject', ({ conversationId }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:rejected', { conversationId });
-    });
-
-    socket.on('call:end', ({ conversationId }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:ended', { conversationId });
-    });
-
-    socket.on('call:offer', ({ conversationId, offer }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:offer', { conversationId, offer });
-    });
-
-    socket.on('call:answer', ({ conversationId, answer }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:answer', { conversationId, answer });
-    });
-
-    socket.on('call:ice-candidate', ({ conversationId, candidate }) => {
-      if (!conversationId) return;
-      socket.to(`conversation:${conversationId}`).emit('call:ice-candidate', { conversationId, candidate });
-    });
-
-    socket.on('call:error', (payload) => {
-      logger.warn('Call error event', { userId, payload });
-    });
-  });
-};
+// modules/calls/handlers.js
+// In-app calling now uses Agora RTC (an SFU — clients connect to Agora's
+// cloud via a minted token, not to each other via WebRTC offer/answer/ICE),
+// so there is no media-signaling passthrough to register here anymore.
+// The call lifecycle events (call:incoming/accepted/rejected/ended/missed)
+// are triggered by the REST backend (backend/controllers/callController.js)
+// and delivered to the right device via the existing Redis-bridged
+// realtime path (publishRealtimeEvent → this service's realtimeSubscriber →
+// emitToUser, scope 'user') rather than a socket-room broadcast — so no
+// per-connection handlers are needed for that either.
+//
+// Kept as a no-op registrar (rather than deleting the module) so the
+// require() in server.js/index.js doesn't need to change if it's still
+// wired in; safe to remove entirely once confirmed unused.
+const registerCallHandlers = () => {};
 
 module.exports = { registerCallHandlers };
