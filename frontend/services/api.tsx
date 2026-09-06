@@ -68,7 +68,10 @@ export {
   getAdminAuditLogs, getAdminOrders, getAdminRevenue, getAdminRevenueBreakdown, adminUpdateUserStatus,
   getAdminPayouts, updateAdminPayoutStatus, getPendingDriverVerifications,
   getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification,
+  getExpenseCategories, createExpenseCategory, updateExpenseCategory, toggleExpenseCategory,
+  getExpenses, createExpense, updateExpense, deleteExpense, getFinancialSummary,
 } from './admin';
+export type { AdminExpenseCategory, AdminExpense, AdminExpensePayload } from './admin';
 
 export {
   createCampaign, getMyCampaigns, updateCampaignStatus, recordAdClick,

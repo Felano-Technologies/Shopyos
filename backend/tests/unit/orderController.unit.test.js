@@ -1008,8 +1008,11 @@ describe('OrderController Unit Tests', () => {
     });
 
     // line 145: cross-region delivery fee floored to 40
-    test('test_createOrder_crossRegionDelivery_floorsDeliveryFeeTo40', async () => {
-      // Arrange
+    test('test_createOrder_crossRegionDelivery_noHubCoords_usesStoreBaseFeeUnfloored', async () => {
+      // Arrange — cross-region store→origin-hub leg no longer has an
+      // artificial minimum (matches calcLastMileFee's unfloored base+per-km
+      // model): with no store/hub coords to compute a distance, it falls
+      // back to the store's own base fee as-is, not a bumped-up floor.
       const mockCart = {
         cart_items: [
           { product_id: 'p-1', quantity: 1, products: { store_id: 'store-1', price: 50, title: 'Z' } },
@@ -1020,7 +1023,7 @@ describe('OrderController Unit Tests', () => {
         store_name: 'Store Delta',
         latitude: null,
         longitude: null,
-        delivery_base_fee: 5, // will be bumped to 40 for cross-region
+        delivery_base_fee: 5,
         state_province: 'Ashanti',
         owner_id: 'seller-id',
       };
@@ -1046,10 +1049,10 @@ describe('OrderController Unit Tests', () => {
       // Act
       await createOrder(req, res, next);
 
-      // Assert — order created; delivery fee must have been >= 40
+      // Assert — order created; delivery fee is the store's raw base fee, unfloored
       expect(repositories.orders.createOrderWithItems).toHaveBeenCalled();
       const callArgs = repositories.orders.createOrderWithItems.mock.calls[0][0];
-      expect(callArgs.delivery_fee).toBeGreaterThanOrEqual(40);
+      expect(callArgs.delivery_fee).toBe(5);
     });
 
     // line 266: unexpected error forwarded to next()

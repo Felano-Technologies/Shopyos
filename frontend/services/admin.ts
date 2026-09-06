@@ -482,3 +482,124 @@ export const adminGetDisclaimerAudit = async (type?: string, limit?: number) => 
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+// ─── Financial Dashboard — Expense Categories, Expenses, Financial Summary ─
+
+export interface AdminExpenseCategory {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminExpense {
+  id: string;
+  category_id: string;
+  category?: { id: string; name: string } | null;
+  amount: number;
+  description?: string | null;
+  expense_date: string;
+  is_recurring: boolean;
+  recurrence_frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence_end_date?: string | null;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const getExpenseCategories = async (activeOnly?: boolean) => {
+  try {
+    const response = await api.get('/admin/expense-categories', {
+      params: activeOnly ? { activeOnly: 'true' } : undefined,
+    });
+    return { success: response.data.success, ...response.data.data };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const createExpenseCategory = async (data: { name: string; description?: string }) => {
+  try {
+    const response = await api.post('/admin/expense-categories', data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateExpenseCategory = async (id: string, data: { name: string; description?: string }) => {
+  try {
+    const response = await api.put(`/admin/expense-categories/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const toggleExpenseCategory = async (id: string) => {
+  try {
+    const response = await api.patch(`/admin/expense-categories/${id}/toggle`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getExpenses = async (
+  params: { categoryId?: string; from?: string; to?: string; limit?: number; offset?: number } = {}
+) => {
+  try {
+    const response = await api.get('/admin/expenses', { params });
+    return { success: response.data.success, ...response.data.data };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export interface AdminExpensePayload {
+  categoryId: string;
+  amount: number;
+  description?: string;
+  expenseDate: string;
+  isRecurring?: boolean;
+  recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceEndDate?: string;
+}
+
+export const createExpense = async (data: AdminExpensePayload) => {
+  try {
+    const response = await api.post('/admin/expenses', data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateExpense = async (id: string, data: AdminExpensePayload) => {
+  try {
+    const response = await api.put(`/admin/expenses/${id}`, data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteExpense = async (id: string) => {
+  try {
+    const response = await api.delete(`/admin/expenses/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getFinancialSummary = async (params: { from?: string; to?: string } = {}) => {
+  try {
+    const response = await api.get('/admin/financial-summary', { params });
+    return { success: response.data.success, ...response.data.data };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

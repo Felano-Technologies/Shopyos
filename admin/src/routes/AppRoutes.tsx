@@ -23,6 +23,9 @@ const Hubs = React.lazy(() => import('../pages/Hubs').then(m => ({ default: m.Hu
 const Ads = React.lazy(() => import('../pages/Ads').then(m => ({ default: m.Ads })));
 const Notifications = React.lazy(() => import('../pages/Notifications').then(m => ({ default: m.Notifications })));
 const Revenue = React.lazy(() => import('../pages/Revenue').then(m => ({ default: m.Revenue })));
+const FinancialDashboard = React.lazy(() => import('../pages/FinancialDashboard').then(m => ({ default: m.FinancialDashboard })));
+const Expenses = React.lazy(() => import('../pages/Expenses').then(m => ({ default: m.Expenses })));
+const ExpenseCategories = React.lazy(() => import('../pages/ExpenseCategories').then(m => ({ default: m.ExpenseCategories })));
 const SupportAdmin = React.lazy(() => import('../pages/Support').then(m => ({ default: m.Support })));
 const NotFound = React.lazy(() => import('../pages/NotFound').then(m => ({ default: m.NotFound })));
 
@@ -76,6 +79,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="ads" element={<Ads />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="revenue" element={<Revenue />} />
+          <Route path="financial-dashboard" element={<FinancialDashboard />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="expense-categories" element={<ExpenseCategories />} />
           <Route path="support" element={<SupportAdmin />} />
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />

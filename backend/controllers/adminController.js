@@ -780,147 +780,185 @@ const getRevenue = async (req, res, next) => {
   }
 };
 
+// Shared by getRevenueBreakdown and the Financial Dashboard's getFinancialSummary
+// (financialController.js) so both aggregate revenue the exact same way instead
+// of duplicating this query set. `endDate` defaults to now for callers (like the
+// original getRevenueBreakdown) that only ever priced "since startDate".
+async function computeRevenueForRange(db, startDate, endDate = new Date()) {
+  const [
+    reserveResult,
+    ordersResult,
+    bannerResult,
+    promotedResult,
+    deliveryResult,
+    hubResult,
+    chartResult,
+    topSpendersResult,
+  ] = await Promise.all([
+    db.query(`SELECT balance FROM platform_reserve LIMIT 1`),
+    db.query(`
+      SELECT
+        COUNT(o.id) AS order_count,
+        COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee,
+        COALESCE(SUM(o.buyer_protection_fee), 0) AS total_buyer_protection
+      FROM orders o
+      WHERE o.status IN ('completed', 'delivered')
+        AND o.created_at >= $1 AND o.created_at <= $2
+    `, [startDate, endDate]),
+    db.query(`
+      SELECT
+        COALESCE(SUM(
+          (bc.paid_amount / NULLIF(bc.duration_days, 0)) *
+          (EXTRACT(EPOCH FROM GREATEST(
+            LEAST(COALESCE(bc.end_date, $2::timestamptz), $2::timestamptz) - GREATEST(COALESCE(bc.start_date, $2::timestamptz), $1::timestamptz),
+            INTERVAL '0 days'
+          )) / 86400)
+        ), 0) AS banner_revenue,
+        COUNT(bc.id) FILTER (WHERE bc.status = 'Active') AS active_campaigns
+      FROM banner_campaigns bc
+      WHERE bc.status = 'Active'
+        AND (bc.start_date IS NULL OR bc.start_date <= $2)
+        AND (bc.end_date IS NULL OR bc.end_date >= $1)
+    `, [startDate, endDate]),
+    db.query(`
+      SELECT COALESCE(SUM(pp.spent_amount), 0) AS promoted_product_spend
+      FROM promoted_products pp
+      WHERE pp.is_active = true
+        AND pp.start_date >= $1 AND pp.start_date <= $2
+    `, [startDate, endDate]),
+    db.query(`
+      SELECT COALESCE(SUM(d.delivery_fee - COALESCE(d.driver_earnings, 0)), 0) AS delivery_retained
+      FROM deliveries d
+      WHERE d.status = 'delivered'
+        AND d.delivered_at >= $1 AND d.delivered_at <= $2
+        AND (d.delivery_fee - COALESCE(d.driver_earnings, 0)) > 0
+    `, [startDate, endDate]),
+    // Parcel-hub commission: transitFee collected minus what was actually
+    // paid out to hubs (hub_balance_logs) for the same order — the platform
+    // cut that payHubTransitFee() retains but never records anywhere on its
+    // own. Pre-aggregate hub payouts per order first so a 2-row origin+
+    // destination split doesn't get joined against (and inflate) the same
+    // order's parcel_transit_fee twice.
+    db.query(`
+      SELECT COALESCE(SUM(o.parcel_transit_fee), 0) - COALESCE(SUM(hub_sums.hub_total), 0) AS hub_commission
+      FROM orders o
+      LEFT JOIN (
+        SELECT order_id, SUM(amount) AS hub_total
+        FROM hub_balance_logs
+        WHERE transaction_type = 'transit_fee'
+        GROUP BY order_id
+      ) hub_sums ON hub_sums.order_id = o.id
+      WHERE o.transit_fee_paid_at IS NOT NULL
+        AND o.transit_fee_paid_at >= $1 AND o.transit_fee_paid_at <= $2
+    `, [startDate, endDate]),
+    db.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', o.created_at), 'Mon') AS label,
+        COALESCE(SUM(o.platform_fee), 0) AS buyer_protection,
+        COALESCE(SUM(o.platform_fee), 0) AS commission
+      FROM orders o
+      WHERE o.status IN ('completed', 'delivered')
+        AND o.created_at >= $1 AND o.created_at <= $2
+      GROUP BY DATE_TRUNC('month', o.created_at)
+      ORDER BY DATE_TRUNC('month', o.created_at)
+    `, [startDate, endDate]),
+    db.query(`
+      SELECT s.store_name, COALESCE(SUM(pp.spent_amount), 0) AS spent
+      FROM promoted_products pp
+      JOIN stores s ON pp.store_id = s.id
+      WHERE pp.is_active = true
+        AND pp.start_date >= $1 AND pp.start_date <= $2
+      GROUP BY s.id, s.store_name
+      ORDER BY spent DESC
+      LIMIT 5
+    `, [startDate, endDate]),
+  ]);
+
+  const orderCount = parseInt(ordersResult.rows[0]?.order_count || 0, 10);
+  const totalPlatformFee = parseFloat(ordersResult.rows[0]?.total_platform_fee || 0);
+  const reserveBalance = parseFloat(reserveResult.rows[0]?.balance || 0);
+  const bannerRevenue = parseFloat(bannerResult.rows[0]?.banner_revenue || 0);
+  const activeCampaigns = parseInt(bannerResult.rows[0]?.active_campaigns || 0, 10);
+  const promotedSpend = parseFloat(promotedResult.rows[0]?.promoted_product_spend || 0);
+  const deliveryRetained = parseFloat(deliveryResult.rows[0]?.delivery_retained || 0);
+  const hubCommission = Math.max(0, parseFloat(hubResult.rows[0]?.hub_commission || 0));
+
+  // Real, tracked figure now (orders.buyer_protection_fee), not an estimate.
+  const buyerProtectionTotal = parseFloat(ordersResult.rows[0]?.total_buyer_protection || 0);
+  const platformCommission = totalPlatformFee - buyerProtectionTotal;
+  const adRevenue = bannerRevenue + promotedSpend;
+
+  const chartLabels = [];
+  const chartBuyerProtection = [];
+  const chartAdRevenue = [];
+  const chartCommission = [];
+
+  (chartResult.rows || []).forEach(row => {
+    chartLabels.push(row.label);
+    const bp = buyerProtectionTotal > 0 && orderCount > 0
+      ? (parseFloat(row.buyer_protection) * buyerProtectionTotal / totalPlatformFee)
+      : 0;
+    chartBuyerProtection.push(Math.round(bp * 100) / 100);
+    chartAdRevenue.push(adRevenue > 0 ? adRevenue / Math.max(chartResult.rows.length, 1) : 0);
+    chartCommission.push(parseFloat(row.commission) - bp);
+  });
+
+  const grandTotal = Math.round((buyerProtectionTotal + adRevenue + platformCommission + deliveryRetained + hubCommission) * 100) / 100;
+
+  return {
+    reserve_balance: Math.round(reserveBalance * 100) / 100,
+    sources: {
+      buyer_protection_fees: { total: buyerProtectionTotal, order_count: orderCount },
+      ad_revenue: {
+        total: adRevenue,
+        banner_revenue: Math.round(bannerRevenue * 100) / 100,
+        promoted_product_spend: Math.round(promotedSpend * 100) / 100,
+        active_campaigns: activeCampaigns,
+      },
+      platform_commission: { total: Math.round(platformCommission * 100) / 100 },
+      delivery_fees_retained: { total: Math.round(deliveryRetained * 100) / 100 },
+      hub_commission: { total: Math.round(hubCommission * 100) / 100 },
+    },
+    grand_total: grandTotal,
+    chart: {
+      labels: chartLabels,
+      datasets: [
+        { label: 'Buyer Protection', data: chartBuyerProtection },
+        { label: 'Ad Revenue', data: chartAdRevenue.map(() => Math.round(adRevenue / Math.max(chartLabels.length, 1) * 100) / 100) },
+        { label: 'Commission', data: chartCommission.map(v => Math.round(v * 100) / 100) },
+      ],
+    },
+    top_ad_spenders: (topSpendersResult.rows || []).map(r => ({
+      store_name: r.store_name,
+      spent: parseFloat(r.spent),
+    })),
+  };
+}
+
 const getRevenueBreakdown = async (req, res, next) => {
   try {
-    const { period = 'month' } = req.query;
+    const { period = 'month', from, to } = req.query;
     const db = require('../config/postgres').getPool();
 
-    const now = new Date();
-    let startDate;
-    if (period === 'week') {
-      startDate = new Date(now);
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (period === 'year') {
-      startDate = new Date(now.getFullYear(), 0, 1);
+    let startDate, endDate;
+    if (from) {
+      startDate = new Date(from);
+      endDate = to ? new Date(to) : new Date();
     } else {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const now = new Date();
+      endDate = now;
+      if (period === 'week') {
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 7);
+      } else if (period === 'year') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+      } else {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
     }
 
-    const [
-      reserveResult,
-      ordersResult,
-      bannerResult,
-      promotedResult,
-      deliveryResult,
-      chartResult,
-      topSpendersResult,
-    ] = await Promise.all([
-      db.query(`SELECT balance FROM platform_reserve LIMIT 1`),
-      db.query(`
-        SELECT
-          COUNT(o.id) AS order_count,
-          COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee,
-          COALESCE(SUM(o.buyer_protection_fee), 0) AS total_buyer_protection
-        FROM orders o
-        WHERE o.status IN ('completed', 'delivered')
-          AND o.created_at >= $1
-      `, [startDate]),
-      db.query(`
-        SELECT
-          COALESCE(SUM(
-            (bc.paid_amount / NULLIF(bc.duration_days, 0)) *
-            (EXTRACT(EPOCH FROM GREATEST(
-              LEAST(COALESCE(bc.end_date, NOW()), NOW()) - GREATEST(COALESCE(bc.start_date, NOW()), $1::timestamptz),
-              INTERVAL '0 days'
-            )) / 86400)
-          ), 0) AS banner_revenue,
-          COUNT(bc.id) FILTER (WHERE bc.status = 'Active') AS active_campaigns
-        FROM banner_campaigns bc
-        WHERE bc.status = 'Active'
-          AND (bc.start_date IS NULL OR bc.start_date <= NOW())
-          AND (bc.end_date IS NULL OR bc.end_date >= $1)
-      `, [startDate]),
-      db.query(`
-        SELECT COALESCE(SUM(pp.spent_amount), 0) AS promoted_product_spend
-        FROM promoted_products pp
-        WHERE pp.is_active = true
-          AND pp.start_date >= $1
-      `, [startDate]),
-      db.query(`
-        SELECT COALESCE(SUM(d.delivery_fee - COALESCE(d.driver_earnings, 0)), 0) AS delivery_retained
-        FROM deliveries d
-        WHERE d.status = 'delivered'
-          AND d.delivered_at >= $1
-          AND (d.delivery_fee - COALESCE(d.driver_earnings, 0)) > 0
-      `, [startDate]),
-      db.query(`
-        SELECT
-          TO_CHAR(DATE_TRUNC('month', o.created_at), 'Mon') AS label,
-          COALESCE(SUM(o.platform_fee), 0) AS buyer_protection,
-          COALESCE(SUM(o.platform_fee), 0) AS commission
-        FROM orders o
-        WHERE o.status IN ('completed', 'delivered')
-          AND o.created_at >= $1
-        GROUP BY DATE_TRUNC('month', o.created_at)
-        ORDER BY DATE_TRUNC('month', o.created_at)
-      `, [startDate]),
-      db.query(`
-        SELECT s.store_name, COALESCE(SUM(pp.spent_amount), 0) AS spent
-        FROM promoted_products pp
-        JOIN stores s ON pp.store_id = s.id
-        WHERE pp.is_active = true
-          AND pp.start_date >= $1
-        GROUP BY s.id, s.store_name
-        ORDER BY spent DESC
-        LIMIT 5
-      `, [startDate]),
-    ]);
-
-    const orderCount = parseInt(ordersResult.rows[0]?.order_count || 0, 10);
-    const totalPlatformFee = parseFloat(ordersResult.rows[0]?.total_platform_fee || 0);
-    const reserveBalance = parseFloat(reserveResult.rows[0]?.balance || 0);
-    const bannerRevenue = parseFloat(bannerResult.rows[0]?.banner_revenue || 0);
-    const activeCampaigns = parseInt(bannerResult.rows[0]?.active_campaigns || 0, 10);
-    const promotedSpend = parseFloat(promotedResult.rows[0]?.promoted_product_spend || 0);
-    const deliveryRetained = parseFloat(deliveryResult.rows[0]?.delivery_retained || 0);
-
-    // Real, tracked figure now (orders.buyer_protection_fee), not an estimate.
-    const buyerProtectionTotal = parseFloat(ordersResult.rows[0]?.total_buyer_protection || 0);
-    const platformCommission = totalPlatformFee - buyerProtectionTotal;
-    const adRevenue = bannerRevenue + promotedSpend;
-
-    const chartLabels = [];
-    const chartBuyerProtection = [];
-    const chartAdRevenue = [];
-    const chartCommission = [];
-
-    (chartResult.rows || []).forEach(row => {
-      chartLabels.push(row.label);
-      const bp = buyerProtectionTotal > 0 && orderCount > 0
-        ? (parseFloat(row.buyer_protection) * buyerProtectionTotal / totalPlatformFee)
-        : 0;
-      chartBuyerProtection.push(Math.round(bp * 100) / 100);
-      chartAdRevenue.push(adRevenue > 0 ? adRevenue / Math.max(chartResult.rows.length, 1) : 0);
-      chartCommission.push(parseFloat(row.commission) - bp);
-    });
-
-    ApiResponse.success(res, {
-      reserve_balance: Math.round(reserveBalance * 100) / 100,
-      sources: {
-        buyer_protection_fees: { total: buyerProtectionTotal, order_count: orderCount },
-        ad_revenue: {
-          total: adRevenue,
-          banner_revenue: Math.round(bannerRevenue * 100) / 100,
-          promoted_product_spend: Math.round(promotedSpend * 100) / 100,
-          active_campaigns: activeCampaigns,
-        },
-        platform_commission: { total: Math.round(platformCommission * 100) / 100 },
-        delivery_fees_retained: { total: Math.round(deliveryRetained * 100) / 100 },
-      },
-      grand_total: Math.round((buyerProtectionTotal + adRevenue + platformCommission + deliveryRetained) * 100) / 100,
-      chart: {
-        labels: chartLabels,
-        datasets: [
-          { label: 'Buyer Protection', data: chartBuyerProtection },
-          { label: 'Ad Revenue', data: chartAdRevenue.map(() => Math.round(adRevenue / Math.max(chartLabels.length, 1) * 100) / 100) },
-          { label: 'Commission', data: chartCommission.map(v => Math.round(v * 100) / 100) },
-        ],
-      },
-      top_ad_spenders: (topSpendersResult.rows || []).map(r => ({
-        store_name: r.store_name,
-        spent: parseFloat(r.spent),
-      })),
-    });
+    const breakdown = await computeRevenueForRange(db, startDate, endDate);
+    ApiResponse.success(res, breakdown);
   } catch (error) {
     next(error);
   }
@@ -1515,6 +1553,7 @@ const updatePlatformSettings = async (req, res, next) => {
 };
 
 module.exports = {
+  computeRevenueForRange,
   getDashboard,
   getAllUsers,
   getUserStats,

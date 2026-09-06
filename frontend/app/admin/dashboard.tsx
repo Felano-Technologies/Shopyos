@@ -100,6 +100,15 @@ export default function AdminDashboard() {
         accentColor: '#16A34A',
       },
       {
+        label: 'Financial Dashboard',
+        value: 'P&L',
+        route: '/admin/financial-dashboard',
+        icon: 'bar-chart-outline',
+        iconBg: '#FEF3C7',
+        iconColor: '#D97706',
+        accentColor: '#D97706',
+      },
+      {
         label: 'Orders',
         value: (stats.totalOrders ?? 0).toLocaleString(),
         route: '/admin/orders',

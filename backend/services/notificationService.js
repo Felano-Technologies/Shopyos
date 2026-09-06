@@ -117,14 +117,14 @@ class NotificationService {
       }
 
       // Send push notification if enabled — queued through RabbitMQ for observability.
-      // Skipped when the user has a live socket connection (the in-app emit above
-      // already reached them); pass push.force = true for critical events that
-      // should push regardless of presence.
+      // Previously skipped whenever the user had a live socket connection, on the
+      // assumption the in-app emit above already reached them — but "connected"
+      // only means the app is open somewhere, not that the user is looking at the
+      // screen a given event is relevant to (order status, promos, etc. can land
+      // while the user is anywhere else in the app), so that optimization caused
+      // real notifications to silently never arrive. Always push now regardless
+      // of presence; `_isUserConnected` is kept for any future opt-in use.
       if (preferences.push_enabled && params.push) {
-        if (!params.push.force && !silent && await this._isUserConnected(userId)) {
-          logger.debug(`[NotificationService] Push skipped for user ${userId} (${type}) — active socket connection`);
-          return true;
-        }
         const queued = await this._publishPushJob({
           eventType: type,
           userId,

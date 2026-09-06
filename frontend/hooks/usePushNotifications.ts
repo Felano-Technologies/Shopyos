@@ -10,6 +10,12 @@ import { getRouteFromPushData } from '../utils/notificationRouting';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+// Expo Go's own SDK-53+ limitation is Android-only (remote push notifications
+// were dropped there); iOS under Expo Go still supports registration, receipt,
+// and tap/deep-link handling. Gating on isExpoGo alone disabled the entire
+// notification response listener — including deep-linking — for iOS Expo Go
+// users too, even though nothing about it actually requires a dev build there.
+const isExpoGoUnsupportedPlatform = isExpoGo && Platform.OS === 'android';
 
 // Android re-delivers the launch intent when the app is reopened from
 // recents, replaying an old notification tap and yanking the user to the
@@ -78,7 +84,7 @@ async function handleNotificationResponse(response: any, router: ReturnType<type
 let notificationHandlerConfigured = false;
 
 const getNotificationsModule = () => {
-    if (isExpoGo) return null;
+    if (isExpoGoUnsupportedPlatform) return null;
     return require('expo-notifications');
 };
 
@@ -163,8 +169,8 @@ export function usePushNotifications() {
     };
 
     useEffect(() => {
-        if (isExpoGo) {
-            console.log('[PushNotifications] Skipping remote push setup in Expo Go. Use a development build for Android push support.');
+        if (isExpoGoUnsupportedPlatform) {
+            console.log('[PushNotifications] Skipping remote push setup — Expo Go on Android does not support it. Use a development build.');
             return;
         }
 

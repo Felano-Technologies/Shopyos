@@ -4,6 +4,17 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getExpenseCategories,
+  createExpenseCategory,
+  updateExpenseCategory,
+  toggleExpenseCategory,
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+} = require('../controllers/expenseController');
+const { getFinancialSummary } = require('../controllers/financialController');
+const {
   getDashboard,
   getDashboardRevenueTrend,
   getDashboardUserGrowth,
@@ -59,6 +70,7 @@ const {
 } = require('../controllers/adminNotificationController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const { cacheMiddleware } = require('../middleware/cache');
+const { auditLog } = require('../middleware/auditMiddleware');
 const adminExportController = require('../controllers/adminExportController');
 const {
   getFeeConfigs,
@@ -1053,6 +1065,17 @@ router.get('/deliveries/stats', getDeliveryStats);
  */
 router.get('/revenue', getRevenue);
 router.get('/revenue-breakdown', getRevenueBreakdown);
+
+// Financial Dashboard — Profit & Loss (revenue vs. configurable expenses)
+router.get('/financial-summary', getFinancialSummary);
+router.get('/expense-categories', getExpenseCategories);
+router.post('/expense-categories', auditLog('create_expense_category', 'expense_category'), createExpenseCategory);
+router.put('/expense-categories/:id', auditLog('update_expense_category', 'expense_category'), updateExpenseCategory);
+router.patch('/expense-categories/:id/toggle', auditLog('toggle_expense_category', 'expense_category'), toggleExpenseCategory);
+router.get('/expenses', getExpenses);
+router.post('/expenses', auditLog('create_expense', 'expense'), createExpense);
+router.put('/expenses/:id', auditLog('update_expense', 'expense'), updateExpense);
+router.delete('/expenses/:id', auditLog('delete_expense', 'expense'), deleteExpense);
 
 // Driver Management
 /**

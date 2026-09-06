@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut, FiPieChart, FiTrendingDown } from 'react-icons/fi';
 import { logoutUser } from '../../services/auth';
 import { getCachedUserProfile } from '../../services/storage';
 import { useAuthStore } from '../../store/authStore';
@@ -53,6 +53,9 @@ export const AdminSidebar: React.FC = () => {
     { name: 'Payouts', path: '/payouts', icon: <FiCreditCard className="w-5 h-5" /> },
     { name: 'Platform Ads', path: '/ads', icon: <FiMonitor className="w-5 h-5" /> },
     { name: 'Revenue', path: '/revenue', icon: <FiDollar className="w-5 h-5" /> },
+    { name: 'Financial Dashboard', path: '/financial-dashboard', icon: <FiPieChart className="w-5 h-5" /> },
+    { name: 'Expenses', path: '/expenses', icon: <FiTrendingDown className="w-5 h-5" /> },
+    { name: 'Expense Categories', path: '/expense-categories', icon: <FiTag className="w-5 h-5" /> },
     { name: 'Notifications', path: '/notifications', icon: <FiBell className="w-5 h-5" /> },
     { name: 'Support', path: '/support', icon: <FiMessageSquare className="w-5 h-5" /> },
     { name: 'Audit Logs', path: '/audit-logs', icon: <FiFileText className="w-5 h-5" /> },

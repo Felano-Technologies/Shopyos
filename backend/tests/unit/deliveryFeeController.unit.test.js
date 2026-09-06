@@ -220,8 +220,11 @@ describe('DeliveryFeeController Unit Tests', () => {
     expect(callArg.quote.note).toContain('25.50 km away');
   });
 
-  test('test_getDeliveryQuote_crossRegionDelivery_appliesCrossRegionMinimumFee', async () => {
-    // Arrange
+  test('test_getDeliveryQuote_crossRegionDelivery_noHubCoords_usesStoreBaseFeeUnfloored', async () => {
+    // Arrange — the store→origin-hub leg has no artificial minimum (matches
+    // calcLastMileFee's unfloored base+per-km model): with no store/hub
+    // coords to compute a distance, it falls back to the store's own base
+    // fee as-is, not a bumped-up floor.
     const mockStore = {
       id: 'store-1',
       delivery_base_fee: '10',
@@ -241,8 +244,7 @@ describe('DeliveryFeeController Unit Tests', () => {
     // Assert
     expect(res.status).toHaveBeenCalledWith(200);
     const callArg = res.json.mock.calls[0][0];
-    // Cross-region: Math.max(10, 40) = 40
-    expect(callArg.quote.deliveryFee).toBe(40);
+    expect(callArg.quote.deliveryFee).toBe(10);
   });
 
   test('test_getDeliveryQuote_invalidBuyerCoordinates_fallsBackToBaseFee', async () => {

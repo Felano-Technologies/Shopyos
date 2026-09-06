@@ -3,7 +3,13 @@ import { api } from './client';
 export const getAdminDashboard = async () => { const response = await api.get('/admin/dashboard'); return response.data; };
 export const getDashboardRevenueTrend = async (days = 14) => { const response = await api.get('/admin/dashboard/revenue-trend', { params: { days } }); return response.data; };
 export const getDashboardUserGrowth = async (days = 14) => { const response = await api.get('/admin/dashboard/user-growth', { params: { days } }); return response.data; };
-export const getAdminRevenueBreakdown = async (period: 'week' | 'month' | 'year' = 'month') => { const response = await api.get('/admin/revenue-breakdown', { params: { period } }); return response.data; };
+export const getAdminRevenueBreakdown = async (
+  arg: 'week' | 'month' | 'year' | { period?: 'week' | 'month' | 'year'; from?: string; to?: string } = 'month'
+) => {
+  const params = typeof arg === 'string' ? { period: arg } : arg;
+  const response = await api.get('/admin/revenue-breakdown', { params });
+  return response.data;
+};
 export const getAdminUsers = async (params?: any) => { const response = await api.get('/admin/users', { params }); return response.data; };
 export const getAdminUserStats = async () => { const response = await api.get('/admin/users/stats'); return response.data; };
 export const createAdminUser = async (data: { full_name: string; email: string; phone?: string; password: string; role: string }) => {
@@ -41,6 +47,25 @@ export const releaseEscrow = async (id: string, reason?: string) => { const resp
 
 // Revenue
 export const getAdminRevenue = async (params?: { limit?: number; offset?: number }) => { const response = await api.get('/admin/revenue', { params }); return response.data; };
+
+// Financial Dashboard — Profit & Loss (revenue vs. configurable expenses)
+export const getFinancialSummary = async (params?: { from?: string; to?: string }) => { const response = await api.get('/admin/financial-summary', { params }); return response.data; };
+
+export const getExpenseCategories = async (activeOnly?: boolean) => { const response = await api.get('/admin/expense-categories', { params: activeOnly ? { activeOnly: 'true' } : undefined }); return response.data; };
+export const createExpenseCategory = async (data: { name: string; description?: string }) => { const response = await api.post('/admin/expense-categories', data); return response.data; };
+export const updateExpenseCategory = async (id: string, data: { name: string; description?: string }) => { const response = await api.put(`/admin/expense-categories/${id}`, data); return response.data; };
+export const toggleExpenseCategory = async (id: string) => { const response = await api.patch(`/admin/expense-categories/${id}/toggle`); return response.data; };
+
+export const getExpenses = async (params?: { categoryId?: string; from?: string; to?: string; limit?: number; offset?: number }) => { const response = await api.get('/admin/expenses', { params }); return response.data; };
+export const createExpense = async (data: {
+  categoryId: string; amount: number; description?: string; expenseDate: string;
+  isRecurring?: boolean; recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly'; recurrenceEndDate?: string;
+}) => { const response = await api.post('/admin/expenses', data); return response.data; };
+export const updateExpense = async (id: string, data: {
+  categoryId: string; amount: number; description?: string; expenseDate: string;
+  isRecurring?: boolean; recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly'; recurrenceEndDate?: string;
+}) => { const response = await api.put(`/admin/expenses/${id}`, data); return response.data; };
+export const deleteExpense = async (id: string) => { const response = await api.delete(`/admin/expenses/${id}`); return response.data; };
 
 // Payouts — the real seller+driver payout pipeline (Paystack transfers, balance refunds).
 // Lives under /payouts, not /admin/payouts: that legacy admin route only flips a status
