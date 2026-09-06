@@ -61,9 +61,22 @@ function displayName(user) {
 // profile has to be fetched as a separate query instead of `users.findOne`
 // with an embedded `user_profiles(...)` select (which silently comes back
 // undefined).
+// A seller is calling/being called AS their store, not as a private
+// individual — their store's logo/name is what the other party actually
+// recognizes (the owner's personal profile picture is often never set at
+// all), so prefer the store's own profile over the owner's user_profiles.
 async function getUserDisplayInfo(userId) {
   const user = await repositories.users.findById(userId);
   if (!user) return null;
+
+  const { data: stores } = await repositories.stores.findByOwnerId(userId);
+  const store = stores?.[0] || null;
+
+  if (store) {
+    const transformedStore = await transformImageUrlsAsync(store);
+    return { id: user.id, isActive: user.is_active, name: transformedStore.store_name || displayName(user), avatarUrl: transformedStore.logo_url || null };
+  }
+
   const profile = await repositories.userProfiles.findByUserId(userId);
   const transformed = await transformImageUrlsAsync({ ...user, user_profiles: profile });
   return { id: transformed.id, isActive: transformed.is_active, name: displayName(transformed), avatarUrl: transformed.user_profiles?.avatar_url || null };
