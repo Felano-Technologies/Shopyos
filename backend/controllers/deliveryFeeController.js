@@ -91,7 +91,6 @@ const getDeliveryQuote = async (req, res, next) => {
                 ? await repositories.parcelPartner.getHubByRegionName(resolvedRegion)
                 : null;
 
-            const minInter = await feeConfigService.get('delivery_inter_min_fee');
             const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
 
             const { lat: storeLatForHub, lng: storeLngForHub } = await resolveStoreCoords(store, repositories);
@@ -105,10 +104,13 @@ const getDeliveryQuote = async (req, res, next) => {
                 );
                 const hubCalc = calculateDeliveryFee(store, storeToHubKm, defaultPerKmFee);
                 const defaultBase = await feeConfigService.get('delivery_default_base_fee');
-                const rawFee = hubCalc.fee ?? (Number.parseFloat(store.delivery_base_fee) || defaultBase);
-                deliveryFee = Math.max(minInter, rawFee);
+                // Same unfloored base+per-km model as the last-mile leg below
+                // (calcLastMileFee) — no artificial minimum, so it actually
+                // scales with distance instead of pinning to a flat floor
+                // regardless of how close the store is to its hub.
+                deliveryFee = hubCalc.fee ?? (Number.parseFloat(store.delivery_base_fee) || defaultBase);
             } else {
-                deliveryFee = Math.max(minInter, fee ?? 0);
+                deliveryFee = fee ?? 0;
             }
 
             // Fixed hub-to-hub transit fee from parcel_transit_config

@@ -345,9 +345,15 @@ async function calcOrderDeliveryFee(store, targetLat, targetLng, isInterRegional
     fee = calc.fee ?? baseFee;
   }
 
-  // Floor only — no ceiling (Bolt model: fee scales linearly with distance).
-  // Cross-region orders use the inter-regional floor (sync with deliveryFeeController).
-  const minFee = await feeConfigService.get(isInterRegional ? 'delivery_inter_min_fee' : 'delivery_intra_min_fee');
+  // Intra-regional: floor only, no ceiling (Bolt model: fee scales linearly
+  // with distance). Inter-regional (store→origin hub leg): no floor at all —
+  // same unfloored base+per-km model as the last-mile leg (calcLastMileFee
+  // below), so it actually scales with distance instead of pinning to a flat
+  // minimum regardless of how close the store is to its hub. Sync with
+  // deliveryFeeController.js's getDeliveryQuote, which computes this leg the
+  // same way for the pre-checkout estimate.
+  if (isInterRegional) return fee;
+  const minFee = await feeConfigService.get('delivery_intra_min_fee');
   return Math.max(minFee, fee);
 }
 
