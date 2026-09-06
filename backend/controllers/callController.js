@@ -53,22 +53,38 @@ function displayName(user) {
   return profile?.full_name || user?.email?.split('@')[0] || 'User';
 }
 
-// Determines whether callerId may call receiverId, optionally scoped to an
-// order. Mirrors the isBuyer/isSeller checks already used in
-// orderController.getOrderDetails / deliveryController's access checks.
+// Role pairs allowed to call each other, independent of any specific order —
+// a buyer can call any store, driver, etc. at any time, not just during an
+// active order. Admin may call anyone unconditionally (checked separately).
+const ALLOWED_ROLE_PAIRS = [
+  ['buyer', 'seller'],
+  ['buyer', 'driver'],
+  ['seller', 'driver'],
+];
+
+function extractRoleNames(userWithRoles) {
+  return (userWithRoles?.user_roles || [])
+    .filter((ur) => ur.is_active)
+    .map((ur) => (ur.roles || ur.role)?.name)
+    .filter(Boolean);
+}
+
+// Determines whether callerId may call receiverId, based on their roles —
+// no order relationship required (any buyer/seller/driver pairing is
+// callable at any time).
 async function canUsersCall(callerId, receiverId, orderId, callerRoles = []) {
   if (callerRoles.includes('admin')) return true;
-  if (!orderId) return false;
 
-  const order = await repositories.orders.getOrderDetails(orderId);
-  if (!order) return false;
+  const receiverWithRoles = await repositories.users.getUserWithRoles(receiverId);
+  if (!receiverWithRoles) return false;
+  const receiverRoles = extractRoleNames(receiverWithRoles);
+  if (receiverRoles.includes('admin')) return true;
 
-  const buyerId = order.buyer_id;
-  const sellerId = order.store?.owner_id;
-  const driverIds = (order.deliveries || []).map((d) => d.driver_id).filter(Boolean);
-
-  const parties = new Set([buyerId, sellerId, ...driverIds].filter(Boolean));
-  return parties.has(callerId) && parties.has(receiverId);
+  return ALLOWED_ROLE_PAIRS.some(
+    ([a, b]) =>
+      (callerRoles.includes(a) && receiverRoles.includes(b)) ||
+      (callerRoles.includes(b) && receiverRoles.includes(a))
+  );
 }
 
 // Server-authoritative end: duration is always computed here from the
@@ -176,7 +192,7 @@ const acceptCall = async (req, res, next) => {
       started_at: startedAt,
     });
 
-    emitToUser(call.caller_id, 'call:accepted', { callId: call.id });
+    emitToUser(call.caller_id, 'call:accepted', { callId: call.id, startedAt });
 
     // Server-side 30s cap — independent of whatever the client's own
     // countdown UI does, so a stalled/tampered client can't extend a call.

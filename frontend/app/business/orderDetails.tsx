@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, Linking, Alert, ActivityIndicator, RefreshControl,
+  Dimensions, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { getOrderDetails, updateOrderStatus, startConversation } from '@/service
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useStartCall } from '@/hooks/useStartCall';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -74,6 +75,7 @@ export default function OrderDetailsScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmLabel, setConfirmLabel] = useState('');
   const [confirmStatus, setConfirmStatus] = useState('');
+  const startCall = useStartCall();
   const fetchOrder = useCallback(async () => {
     try {
       const data = await getOrderDetails(id as string);
@@ -369,7 +371,7 @@ export default function OrderDetailsScreen() {
                     accessibilityLabel={`Call customer at ${order.customer.phone}`}
                     accessibilityRole="button"
                     style={S.iconBtn}
-                    onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}
+                    onPress={() => startCall(order.customer.id, order.customer.name, order.id)}
                   >
                     <Ionicons name="call" size={rs(18)} color={C.navy} />
                   </TouchableOpacity>
@@ -391,7 +393,9 @@ export default function OrderDetailsScreen() {
                     : {
                         pathname: '/order/tracking',
                         params: {
+                          orderId:          order.id,
                           deliveryId:       order.delivery.id,
+                          driverId:         order.driver?.id,
                           deliveryAddress:  order.customer.address,
                           orderNumber:      order.orderNumber,
                           deliveryLatitude:  order.delivery.deliveryLat,
@@ -446,7 +450,7 @@ export default function OrderDetailsScreen() {
                             accessibilityLabel={`Call driver at ${order.driver.phone}`}
                             accessibilityRole="button"
                             style={S.iconBtn}
-                            onPress={() => Linking.openURL(`tel:${order.driver.phone}`)}
+                            onPress={() => startCall(order.driver.id, order.driver.name, order.id)}
                          >
                             <Ionicons name="call" size={rs(18)} color={C.navy} />
                          </TouchableOpacity>

@@ -436,6 +436,25 @@ class SocketService {
   }
 
   /**
+   * Generic listener for a named event (used by in-app calling:
+   * call:incoming/accepted/rejected/ended/missed — one method covers all of
+   * them rather than a dedicated pair per event).
+   */
+  async on(event: string, callback: SocketEventCallback): Promise<void> {
+    const socket = await this.connect();
+    this.addEventHandler(event, callback);
+    socket.off(event, callback);
+    socket.on(event, callback);
+  }
+
+  off(event: string, callback: SocketEventCallback): void {
+    if (this.socket) {
+      this.socket.off(event, callback);
+      this.removeEventHandler(event, callback);
+    }
+  }
+
+  /**
    * Get socket instance (for direct access if needed)
    */
   getSocket(): Socket | null {

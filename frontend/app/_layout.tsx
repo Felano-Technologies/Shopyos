@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -14,6 +14,9 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useSocketSetup } from '../hooks/useSocketSetup';
+import { useCallListener } from '../hooks/useCallListener';
+import { CallOverlay } from '@/components/calls/CallOverlay';
+import { drainRecordingUploadQueue } from '@/services/recordingUploadQueue';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
 import { PermissionDisclosureHost } from '../components/PermissionDisclosureHost';
@@ -137,6 +140,19 @@ function AppContent() {
 
   // Connect socket and load currentUserId into Zustand (replaces ChatProvider)
   useSocketSetup();
+
+  // In-app calling: global incoming/accepted/rejected/ended listener
+  useCallListener();
+
+  // Retry any call recordings that failed to upload earlier — on launch and
+  // whenever the app comes back to the foreground.
+  useEffect(() => {
+    drainRecordingUploadQueue();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') drainRecordingUploadQueue();
+    });
+    return () => sub.remove();
+  }, []);
 
   const navTheme = resolvedTheme === 'dark' ? DarkTheme : DefaultTheme;
   const isIndexRoute = pathname === '/' || pathname === '/index';
@@ -319,6 +335,7 @@ function AppContent() {
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
             <InAppToastHost />
             <PermissionDisclosureHost />
+            <CallOverlay />
             {activeMode === 'buyer' && (
               <TouchableOpacity
                 accessibilityLabel="Return to original dashboard"

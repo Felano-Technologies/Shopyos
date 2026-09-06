@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Linking,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { socketService } from '@/services/socket';
 import { getLatestLocation, fetchDrivingRoute, haversineMetres } from '@/services/delivery';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { useStartCall } from '@/hooks/useStartCall';
 
 const { height } = Dimensions.get('window');
 
@@ -84,6 +84,9 @@ export default function OrderTrackingMap() {
   const C = useMemo(() => buildC(themeColors), [themeColors]);
   const styles = useMemo(() => getStyles(C), [C]);
 
+  const startCall = useStartCall();
+  const orderId = params.orderId as string | undefined;
+  const driverId = params.driverId as string | undefined;
   const deliveryId = params.deliveryId as string | undefined;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
   const orderNumber = (params.orderNumber as string) || '';
@@ -352,10 +355,10 @@ export default function OrderTrackingMap() {
               {driverPlate ? <Text style={styles.plateText}>{driverPlate}</Text> : null}
             </View>
             <View style={styles.actionButtons}>
-              {driverPhone && (
+              {driverPhone && driverId && (
                 <TouchableOpacity
                   style={styles.actionBtn}
-                  onPress={() => Linking.openURL(`tel:${driverPhone}`)}
+                  onPress={() => startCall(driverId, driverName || 'Driver', orderId)}
                 >
                   <Ionicons name="call" size={22} color={C.primary} />
                 </TouchableOpacity>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, ActivityIndicator, Alert, Linking,
+  Dimensions, ActivityIndicator, Alert,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { createReturnRequest } from '@/services/orders';
 import { useOrderDetail } from '@/hooks/useOrders';
+import { useStartCall } from '@/hooks/useStartCall';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -188,6 +189,7 @@ const OrderDetailsScreen = () => {
 
   const [chatLoading, setChatLoading] = useState(false);
   const [driverChatLoading, setDriverChatLoading] = useState(false);
+  const startCall = useStartCall();
 
   const handleChat = async (
     ownerId: string, name: string, avatar: string,
@@ -277,6 +279,7 @@ const OrderDetailsScreen = () => {
       params: {
         orderId: order.id,
         deliveryId: delivery?.id,
+        driverId: delivery?.driver_id,
         deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
         orderNumber: order.order_number,
         deliveryLatitude: delivery?.delivery_latitude,
@@ -435,7 +438,7 @@ const OrderDetailsScreen = () => {
               </View>
               <TouchableOpacity
                 style={S.chatCircle}
-                onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
+                onPress={() => startCall(delivery.driver_id, driver.user_profiles?.full_name || 'Driver', order.id)}
               >
                 <Ionicons name="call-outline" size={rs(18)} color={Cx.navy} />
               </TouchableOpacity>
@@ -487,7 +490,11 @@ const OrderDetailsScreen = () => {
             {order.store?.phone || order.store?.store_phone ? (
               <TouchableOpacity
                 style={S.chatCircle}
-                onPress={() => Linking.openURL(`tel:${order.store?.phone || order.store?.store_phone}`)}
+                onPress={() => startCall(
+                  order.store?.owner_id || order.store?.owner?._id || order.store?.owner,
+                  order.store?.store_name || 'Store',
+                  order.id,
+                )}
               >
                 <Ionicons name="call-outline" size={rs(18)} color={Cx.navy} />
               </TouchableOpacity>
