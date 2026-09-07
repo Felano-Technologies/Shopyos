@@ -7,6 +7,7 @@ import AppImage from '@/components/AppImage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAllConversations, useChatActions } from '@/hooks/useChat';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { SwipeableConversationRow } from '@/components/chat/SwipeableConversationRow';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { startConversation, getChatContacts } from '@/services/api';
@@ -147,7 +148,7 @@ export default function ChatInbox() {
   };
 
   const openChat = useCallback(async (item: any) => {
-    if (item.unread > 0 && item.id !== 'pinned-bot') markAsRead(item.id, 'buyer');
+    if (item.unread > 0 && item.id !== 'pinned-bot') markAsRead(item.id);
 
     let targetConversationId = item.id;
 
@@ -186,7 +187,7 @@ export default function ChatInbox() {
     if (!deleteTarget) return;
     const item = deleteTarget;
     setDeleteTarget(null);
-    const ok = await deleteConversation(item.id, 'buyer');
+    const ok = await deleteConversation(item.id);
     CustomInAppToast.show({
       type: ok ? 'success' : 'error',
       title: ok ? 'Deleted' : 'Error',
@@ -203,50 +204,56 @@ export default function ChatInbox() {
   const renderItem = useCallback(({ item }: { item: any }) => {
     const unread = item.unread > 0;
     return (
-      <TouchableOpacity
-        style={[styles.row, unread && styles.rowUnread]}
-        onPress={() => openChat(item)}
-        onLongPress={() => handleLongPress(item)}
-        delayLongPress={500}
-        activeOpacity={0.72}
+      <SwipeableConversationRow
+        unread={unread}
+        onMarkRead={() => markAsRead(item.id)}
+        onDeletePress={() => handleLongPress(item)}
       >
-        {/* Lime left accent on unread — mirrors active chip bar */}
-        {unread && <View style={styles.accentBar} />}
+        <TouchableOpacity
+          style={[styles.row, unread && styles.rowUnread]}
+          onPress={() => openChat(item)}
+          onLongPress={() => handleLongPress(item)}
+          delayLongPress={500}
+          activeOpacity={0.72}
+        >
+          {/* Lime left accent on unread — mirrors active chip bar */}
+          {unread && <View style={styles.accentBar} />}
 
-        {/* Avatar */}
-        <View style={styles.avatarWrap}>
-          {item.avatar
-            ? <AppImage uri={item.avatar} style={styles.avatar} />
-            : <View style={styles.avatarFallback}>
-                <Text style={styles.avatarLetters}>{initials(item.name)}</Text>
-              </View>
-          }
-          {item.online && <View style={styles.onlineDot} />}
-        </View>
-
-        {/* Body */}
-        <View style={styles.rowBody}>
-          <View style={styles.topRow}>
-            <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={[styles.time, unread && styles.timeUnread]}>{item.time}</Text>
-          </View>
-          <View style={styles.bottomRow}>
-            <Text style={[styles.preview, unread && styles.previewUnread]} numberOfLines={1}>
-              {item.lastMessage}
-            </Text>
-            {unread
-              ? <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.unread > 9 ? '9+' : item.unread}</Text>
+          {/* Avatar */}
+          <View style={styles.avatarWrap}>
+            {item.avatar
+              ? <AppImage uri={item.avatar} style={styles.avatar} />
+              : <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarLetters}>{initials(item.name)}</Text>
                 </View>
-              : <Ionicons name="checkmark-done" size={14} color={colors.borderStrong} />
             }
+            {item.online && <View style={styles.onlineDot} />}
           </View>
-        </View>
-      </TouchableOpacity>
+
+          {/* Body */}
+          <View style={styles.rowBody}>
+            <View style={styles.topRow}>
+              <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={[styles.time, unread && styles.timeUnread]}>{item.time}</Text>
+            </View>
+            <View style={styles.bottomRow}>
+              <Text style={[styles.preview, unread && styles.previewUnread]} numberOfLines={1}>
+                {item.lastMessage}
+              </Text>
+              {unread
+                ? <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.unread > 9 ? '9+' : item.unread}</Text>
+                  </View>
+                : <Ionicons name="checkmark-done" size={14} color={colors.borderStrong} />
+              }
+            </View>
+          </View>
+        </TouchableOpacity>
+      </SwipeableConversationRow>
     );
-  }, [openChat, handleLongPress]);
+  }, [openChat, handleLongPress, markAsRead]);
 
   return (
     <View style={styles.root}>

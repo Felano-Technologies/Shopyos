@@ -297,7 +297,7 @@ export default function DriverVerification() {
   // --- FORM VIEW ---
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}

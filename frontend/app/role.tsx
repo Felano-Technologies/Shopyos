@@ -287,7 +287,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   },
   // Optional: Adds a subtle tint to selected image
   selectedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(132, 204, 22, 0.1)', // Very light green tint
   },
   instructionText: {

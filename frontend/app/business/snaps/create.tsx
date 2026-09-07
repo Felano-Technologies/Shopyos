@@ -351,7 +351,7 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: c.textSecondary, lineHeight: 18 },
   disclaimerLink: { color: c.primary, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   progressOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',

@@ -137,7 +137,7 @@ export default function AdminAuditLogs() {
         <View style={styles.container}>
             <StatusBar style="light" />
 
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <View style={styles.watermarkContainer}>
                     <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>

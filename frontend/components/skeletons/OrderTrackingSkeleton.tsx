@@ -73,7 +73,7 @@ export const OrderTrackingSkeleton = () => {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.borderStrong },
-  mapBg: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.borderStrong },
+  mapBg: { ...StyleSheet.absoluteFill, backgroundColor: colors.borderStrong },
   topSafeArea: { position: 'absolute', top: 0, left: 20 },
   backBtn: { marginTop: 10, backgroundColor: colors.surface },
   bottomSheet: {

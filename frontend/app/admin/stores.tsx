@@ -794,7 +794,7 @@ const getStyles = (C: AdminColors) => StyleSheet.create({
     height: '100%',
   },
   bannerFallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   brandBody: {
     padding: 16,

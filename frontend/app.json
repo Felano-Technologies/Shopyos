@@ -8,6 +8,7 @@
     "icon": "./assets/images/logo - blue.png",
     "scheme": [
       "shopyos",
+      "com.eugeneanokye99.shopyos",
       "com.googleusercontent.apps.683446864153-lmpgj403l7ip1jufnkqd2ue5b4prv09a"
     ],
     "userInterfaceStyle": "automatic",

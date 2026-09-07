@@ -21,6 +21,7 @@ import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 import LocationPickerModal from '@/components/LocationPickerModal';
 import { useLocationStore } from '@/store/locationStore';
+import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
 
 type CartItem = {
   id: string;
@@ -66,6 +67,7 @@ const CartItemRow = React.memo(function CartItemRow({ item, index, refQty, measu
 
   return (
     <View style={styles.swipeContainer}>
+      <SwipeToDeleteRow onDeletePress={() => setShowRemoveConfirm(true)}>
       <View style={styles.cartItem}>
         <TouchableOpacity
           accessibilityLabel={`View ${item.title} details`}
@@ -99,9 +101,6 @@ const CartItemRow = React.memo(function CartItemRow({ item, index, refQty, measu
           </View>
         </TouchableOpacity>
         <View style={styles.itemSideControls}>
-          <TouchableOpacity accessibilityLabel="Delete item" accessibilityRole="button" onPress={() => setShowRemoveConfirm(true)} style={styles.deleteBtn}>
-            <Feather name="trash-2" size={16} color={colors.error} />
-          </TouchableOpacity>
           <View
             style={styles.qtyContainer}
             ref={index === 0 ? refQty : undefined}
@@ -129,6 +128,7 @@ const CartItemRow = React.memo(function CartItemRow({ item, index, refQty, measu
           </View>
         </View>
       </View>
+      </SwipeToDeleteRow>
       <ConfirmModal
         visible={showRemoveConfirm}
         onClose={() => setShowRemoveConfirm(false)}
@@ -368,7 +368,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   itemDetails: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   itemTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.text, lineHeight: 18 },
-  deleteBtn: { padding: 4, backgroundColor: colors.errorBg, borderRadius: 6, marginBottom: 6 },
   itemCategory: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, marginTop: 2 },
   itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: colors.primary },
   itemPriceStrikethrough: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: colors.textMuted, textDecorationLine: 'line-through' },

@@ -180,7 +180,7 @@ export default function PayoutScreen() {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={StyleSheet.absoluteFill}>
         <View style={styles.bottomLogos}>
           <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>

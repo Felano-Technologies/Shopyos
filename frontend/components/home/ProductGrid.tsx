@@ -11,6 +11,7 @@ import { SectionHeader } from './SectionHeader';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 const { width } = Dimensions.get('window');
@@ -308,9 +309,8 @@ function ProductCardBase({
     const isOutOfStock = stock !== null && stock === 0;
 
     return (
-      <TouchableOpacity
+      <PressableScale
         style={S.card}
-        activeOpacity={0.88}
         onPress={() => onPressProduct(item)}
       >
         <View style={S.imgWrap}>
@@ -376,7 +376,7 @@ function ProductCardBase({
             </TouchableOpacity>
           </View>
         </View>
-      </TouchableOpacity>
+      </PressableScale>
     );
   }
 }
@@ -400,7 +400,7 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
   }
 
   return (
-    <TouchableOpacity style={[S.card, S.adCard]} activeOpacity={0.9}>
+    <PressableScale style={[S.card, S.adCard]}>
       {ad.banner_url ? (
         <AppImage uri={ad.banner_url} style={S.adImg} />
       ) : (
@@ -417,7 +417,7 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
           {ad.title || ad.business?.businessName || 'Special Offer'}
         </Text>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -438,7 +438,7 @@ function SpotlightCardBase({
   const origPrice = Number(item.compareAtPrice || item.compare_at_price || item.oldPrice || 0);
 
   return (
-    <TouchableOpacity style={S.spotlightCard} activeOpacity={0.92} onPress={() => onPress(item)}>
+    <PressableScale style={S.spotlightCard} onPress={() => onPress(item)}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/600'} style={S.spotlightImg} />
       <LinearGradient
         colors={['transparent', 'rgba(12,21,89,0.85)']}
@@ -456,7 +456,7 @@ function SpotlightCardBase({
           {origPrice > price && <Text style={S.spotlightOrigPrice}>{formatCurrency(origPrice)}</Text>}
         </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -473,14 +473,14 @@ function StoreSpotlightCardBase({
 
   return (
     <View style={S.storeCard}>
-      <TouchableOpacity style={S.storeCardHeader} activeOpacity={0.8} onPress={() => onPressStore(item)}>
+      <PressableScale style={S.storeCardHeader} onPress={() => onPressStore(item)}>
         <AppImage uri={item.storeLogo || 'https://via.placeholder.com/100?text=Store'} style={S.storeLogo} />
         <Text style={S.storeCardName} numberOfLines={1}>{item.storeName}</Text>
         <View style={S.storeCardVisitRow}>
           <Text style={S.storeCardVisit}>Visit store</Text>
           <Ionicons name="chevron-forward" size={14} color={C.navy} />
         </View>
-      </TouchableOpacity>
+      </PressableScale>
       <View style={S.storeCardRow}>
         {item.products.map((p: any, i: number) => (
           <TouchableOpacity

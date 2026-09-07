@@ -87,7 +87,7 @@ export default function DriverPayoutSettings() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
-        <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+        <StatusBar style="light" />
         <Stack.Screen options={{ headerShown: false }} />
 
         <View style={styles.header}>

@@ -34,7 +34,7 @@ import { storage } from '@/services/api';
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
-import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
+import { MediaViewerProvider } from '@/context/MediaViewerContext';
 import ParcelPartnerBottomNav from '@/components/ParcelPartnerBottomNav';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -391,9 +391,9 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryProvider>
           <OnboardingProvider>
-            <ImagePreviewProvider>
+            <MediaViewerProvider>
               <AppContent />
-            </ImagePreviewProvider>
+            </MediaViewerProvider>
           </OnboardingProvider>
         </QueryProvider>
       </ErrorBoundary>

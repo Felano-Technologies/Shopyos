@@ -245,7 +245,14 @@ export default function PaymentProcessingScreen() {
                 <Text style={styles.subtitle}>Your transaction was successful. We are now processing your order.</Text>
                 <TouchableOpacity
                     style={styles.doneBtn}
-                    onPress={() => router.replace(`/order/${id}` as any)}
+                    onPress={() => {
+                        // Pop the whole cart → checkout → payment flow off the
+                        // stack first — the cart is empty now, so "back" from
+                        // order details should land on home, not walk back
+                        // through a stale checkout/cart.
+                        router.dismissAll();
+                        router.push(`/order/${id}` as any);
+                    }}
                 >
                     <Text style={styles.doneBtnText}>Track My Order</Text>
                 </TouchableOpacity>

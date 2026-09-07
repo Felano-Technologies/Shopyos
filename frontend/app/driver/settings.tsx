@@ -206,7 +206,7 @@ export default function DriverSettings() {
   };
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Fixed Header --- */}
       <View style={styles.header}>

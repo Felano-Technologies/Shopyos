@@ -379,7 +379,7 @@ export default function SecurityPrivacySettings() {
       <StatusBar style="light" />
 
       {/* Watermark */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <View style={styles.watermarkWrap}>
           <AppImage
             source={require('../../assets/images/splash-icon.png')}

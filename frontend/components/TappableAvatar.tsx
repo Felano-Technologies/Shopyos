@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { useImagePreview } from '@/context/ImagePreviewContext';
+import { useImagePreview } from '@/context/MediaViewerContext';
 import { Ionicons } from '@expo/vector-icons';
 
 interface TappableAvatarProps {

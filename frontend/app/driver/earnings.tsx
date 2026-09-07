@@ -99,7 +99,7 @@ export default function DriverEarnings() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
@@ -186,6 +186,7 @@ export default function DriverEarnings() {
                   chartConfig={chartConfig}
                   style={{ borderRadius: 12 }}
                   yAxisLabel="₵"
+                  yAxisSuffix=""
                   yAxisInterval={1}
                   fromZero
                   withCustomBarColorFromData={false}

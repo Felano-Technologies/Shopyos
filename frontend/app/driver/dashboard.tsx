@@ -325,7 +325,7 @@ export default function Dashboard() {
   }
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>

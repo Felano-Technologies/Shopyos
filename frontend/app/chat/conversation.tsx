@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  Dimensions, Modal, Pressable, Alert,
-  Clipboard, Vibration, ActivityIndicator,
+  Dimensions, Modal, Pressable, Alert, ScrollView,
+  Clipboard, ActivityIndicator, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,9 +32,12 @@ import MediaMessage from '../../components/chat/MediaMessage';
 import VoiceRecorder from '../../components/chat/VoiceRecorder';
 import VoiceMessage from '../../components/chat/VoiceMessage';
 import StickerPicker from '../../components/chat/StickerPicker';
+import { SwipeableMessageRow, BubbleLayout } from '../../components/chat/SwipeableMessageRow';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { useStartCall } from '@/hooks/useStartCall';
+import Animated, { FadeInDown, FadeOutDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -114,12 +117,13 @@ async function uploadAndSendMedia(
   type: 'image' | 'video',
   onProgress: (prog: number) => void,
   appendMessage: (msg: any) => void,
+  caption: string = '',
 ) {
   const uploadRes = await uploadChatMedia(uri, conversationId, (prog: number) => {
     onProgress(Math.round(prog * 100));
   }, mimeType);
   if (uploadRes?.success && uploadRes.media) {
-    const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
+    const res = await apiSendMessage(conversationId, caption, undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
     const sentMsg = res.message;
     if (sentMsg) { appendMessage(sentMsg); }
   }
@@ -179,6 +183,8 @@ const buildC = (colors: ThemeColors): LegacyPalette => ({
   surfaceElevated: colors.surfaceElevated,
 });
 
+type PendingMediaItem = { id: string; uri: string; type: 'image' | 'video' };
+
 type MessageItem = {
   id: string;
   content: string;
@@ -215,6 +221,7 @@ type MessageItem = {
 export default function ConversationScreen() {
   const router = useRouter();
   const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const C = useMemo(() => buildC(colors), [colors]);
   const styles = useMemo(() => getStyles(C), [C]);
   const insets = useSafeAreaInsets();
@@ -256,6 +263,30 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [selectedMsg, setSelectedMsg] = useState<MessageItem | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<BubbleLayout | null>(null);
+  const menuScale = useSharedValue(0);
+  useEffect(() => {
+    if (menuVisible) {
+      menuScale.value = 0;
+      menuScale.value = withSpring(1, { damping: 16, stiffness: 260 });
+    }
+  }, [menuVisible]);
+  const menuAnimStyle = useAnimatedStyle(() => ({
+    opacity: menuScale.value,
+    transform: [{ scale: 0.85 + menuScale.value * 0.15 }],
+  }));
+  const menuPositionStyle = useMemo(() => {
+    if (!menuAnchor) return null;
+    const MENU_WIDTH = width * 0.78;
+    const ESTIMATED_MENU_HEIGHT = 220;
+    const screenHeight = Dimensions.get('window').height;
+    const fitsBelow = menuAnchor.y + menuAnchor.height + 8 + ESTIMATED_MENU_HEIGHT < screenHeight - insets.bottom - 16;
+    const top = fitsBelow
+      ? menuAnchor.y + menuAnchor.height + 8
+      : Math.max(insets.top + 16, menuAnchor.y - ESTIMATED_MENU_HEIGHT - 8);
+    const left = Math.min(Math.max(menuAnchor.x, 12), width - MENU_WIDTH - 12);
+    return { position: 'absolute' as const, top, left };
+  }, [menuAnchor, insets.top, insets.bottom]);
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
   const [moreVisible, setMoreVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -272,7 +303,13 @@ export default function ConversationScreen() {
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [uploadingProgress, setUploadingProgress] = useState<number | null>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-  const [pendingMedia, setPendingMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+  const [sendProgress, setSendProgress] = useState<{ current: number; total: number } | null>(null);
+  // Multi-select: WhatsApp-style batch of images/video queued for one preview
+  // screen — a filmstrip of thumbnails, one shared caption, sent as separate
+  // messages in sequence (the backend has no multi-attachment message).
+  const [pendingMediaItems, setPendingMediaItems] = useState<PendingMediaItem[]>([]);
+  const [activePreviewIndex, setActivePreviewIndex] = useState(0);
+  const [mediaCaption, setMediaCaption] = useState('');
 
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -454,6 +491,8 @@ export default function ConversationScreen() {
     setShowAttachMedia(true);
   };
 
+  const MAX_MEDIA_ITEMS = 10;
+
   const handlePickMedia = async (type: 'image' | 'video') => {
     if (!conversationId) return;
     try {
@@ -462,23 +501,36 @@ export default function ConversationScreen() {
         CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Photos permissions are required to upload media.' });
         return;
       }
+      // Multi-select is offered for photos (the common "send a few pics"
+      // case); videos stay single-select since our size cap makes batches
+      // impractical anyway.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: type === 'image' ? ['images'] : ['videos'],
+        allowsMultipleSelection: type === 'image',
+        selectionLimit: type === 'image' ? MAX_MEDIA_ITEMS - pendingMediaItems.length : 1,
         allowsEditing: false,
         quality: 0.8,
       });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
+      if (result.canceled || !result.assets?.length) return;
+
+      const accepted: PendingMediaItem[] = [];
+      let rejectedForSize = 0;
+      for (const asset of result.assets) {
         const fileSize = asset.fileSize || 0;
-        if (type === 'image' && fileSize > 10 * 1024 * 1024) {
-          CustomInAppToast.show({ type: 'error', title: 'Image Too Large', message: 'Images are limited to 10 MB.' });
-          return;
-        }
-        if (type === 'video' && fileSize > 20 * 1024 * 1024) {
-          CustomInAppToast.show({ type: 'error', title: 'Video Too Large', message: 'Video is too large. Max 20 MB. Try trimming it first.' });
-          return;
-        }
-        setPendingMedia({ uri: asset.uri, type });
+        if (type === 'image' && fileSize > 10 * 1024 * 1024) { rejectedForSize++; continue; }
+        if (type === 'video' && fileSize > 20 * 1024 * 1024) { rejectedForSize++; continue; }
+        accepted.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, uri: asset.uri, type });
+      }
+      if (rejectedForSize > 0) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: type === 'image' ? 'Some images skipped' : 'Video Too Large',
+          message: type === 'image' ? `${rejectedForSize} image(s) over 10 MB were skipped.` : 'Video is too large. Max 20 MB. Try trimming it first.',
+        });
+      }
+      if (accepted.length) {
+        setPendingMediaItems((prev) => [...prev, ...accepted].slice(0, MAX_MEDIA_ITEMS));
+        setActivePreviewIndex(pendingMediaItems.length); // land on the first newly-added item
       }
     } catch (err: any) {
       if (__DEV__) console.error('Pick media error', err);
@@ -486,38 +538,62 @@ export default function ConversationScreen() {
     }
   };
 
-  const cancelPendingMedia = () => setPendingMedia(null);
+  const cancelPendingMedia = () => {
+    setPendingMediaItems([]);
+    setActivePreviewIndex(0);
+    setMediaCaption('');
+  };
+
+  const removePendingMediaItem = (id: string) => {
+    setPendingMediaItems((prev) => {
+      const next = prev.filter((m) => m.id !== id);
+      setActivePreviewIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
+      if (next.length === 0) setMediaCaption('');
+      return next;
+    });
+  };
 
   const confirmSendMedia = async () => {
-    if (!conversationId || !pendingMedia) return;
-    const { uri, type } = pendingMedia;
-    setPendingMedia(null);
+    if (!conversationId || pendingMediaItems.length === 0) return;
+    const items = pendingMediaItems;
+    const caption = mediaCaption.trim();
+    setPendingMediaItems([]);
+    setActivePreviewIndex(0);
+    setMediaCaption('');
     setIsUploadingMedia(true);
-    setUploadingProgress(0);
     try {
-      let finalUri = uri;
-      let mimeType: string | undefined;
-      if (type === 'image') {
-        // Always re-encode to JPEG client-side — a photo picked on iOS is
-        // very often HEIC (the default capture format since iOS 11), which
-        // isn't reliably decodable by every viewer (notably Android), and
-        // renders as a blank/white bubble instead of an error.
-        // Uses the current context API (not the deprecated manipulateAsync
-        // with an empty actions array, which produced a zero-byte/empty
-        // output file here — the uploaded "image" had no actual data).
-        const context = ImageManipulator.manipulate(uri);
-        const rendered = await context.renderAsync();
-        const manipulated = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
-        finalUri = manipulated.uri;
-        mimeType = 'image/jpeg';
+      for (let i = 0; i < items.length; i++) {
+        setSendProgress({ current: i + 1, total: items.length });
+        setUploadingProgress(0);
+        const item = items[i];
+        let finalUri = item.uri;
+        let mimeType: string | undefined;
+        if (item.type === 'image') {
+          // Always re-encode to JPEG client-side — a photo picked on iOS is
+          // very often HEIC (the default capture format since iOS 11), which
+          // isn't reliably decodable by every viewer (notably Android), and
+          // renders as a blank/white bubble instead of an error.
+          // Uses the current context API (not the deprecated manipulateAsync
+          // with an empty actions array, which produced a zero-byte/empty
+          // output file here — the uploaded "image" had no actual data).
+          const context = ImageManipulator.manipulate(item.uri);
+          const rendered = await context.renderAsync();
+          const manipulated = await rendered.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
+          finalUri = manipulated.uri;
+          mimeType = 'image/jpeg';
+        }
+        // The caption applies to the whole batch but only one message can
+        // carry text — attach it to the last item, same convention WhatsApp uses.
+        const isLast = i === items.length - 1;
+        await uploadAndSendMedia(conversationId, finalUri, mimeType, item.type, setUploadingProgress, appendMessage, isLast ? caption : '');
       }
-      await uploadAndSendMedia(conversationId, finalUri, mimeType, type, setUploadingProgress, appendMessage);
     } catch (err: any) {
       if (__DEV__) console.error('Send media error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not send media.' });
     } finally {
       setIsUploadingMedia(false);
       setUploadingProgress(null);
+      setSendProgress(null);
     }
   };
 
@@ -593,10 +669,15 @@ export default function ConversationScreen() {
 
   // ---- Context actions ----
 
-  const doLongPress = (msg: MessageItem) => { Vibration.vibrate(28); setSelectedMsg(msg); setMenuVisible(true); };
-  const doReply = () => {
-    if (!selectedMsg) { return; }
-    setReplyTo(selectedMsg);
+  const doLongPress = (msg: MessageItem, layout?: BubbleLayout) => {
+    setSelectedMsg(msg);
+    setMenuAnchor(layout || null);
+    setMenuVisible(true);
+  };
+  const doReply = (msg?: MessageItem) => {
+    const target = msg || selectedMsg;
+    if (!target) { return; }
+    setReplyTo(target);
     setMenuVisible(false);
     setTimeout(() => inputRef.current?.focus(), 80);
   };
@@ -735,24 +816,26 @@ export default function ConversationScreen() {
         {showDate(index) && (
           <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
         )}
-        <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
-          {!isMe && (
+        <SwipeableMessageRow
+          rowStyle={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}
+          avatar={!isMe && (
             displayAvatar
               ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
               : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
           )}
-          <View>
-            <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
-              <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
-            </TouchableOpacity>
-            <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
-              <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-              {isMe && !item.failed && (
-                <Ionicons name={stickerName} size={13} color={stickerColor} />
-              )}
-            </View>
+          onSwipeReply={() => doReply(item)}
+          onLongPress={(layout) => doLongPress(item, layout)}
+        >
+          <View style={styles.stickerBubble}>
+            <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
           </View>
-        </View>
+          <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
+            <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+            {isMe && !item.failed && (
+              <Ionicons name={stickerName} size={13} color={stickerColor} />
+            )}
+          </View>
+        </SwipeableMessageRow>
       </>
     );
   };
@@ -778,56 +861,55 @@ export default function ConversationScreen() {
         {showDate(index) && (
           <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
         )}
-        <View style={[styles.msgRow, rowStyle]}>
-          {!isMe && (
+        <SwipeableMessageRow
+          rowStyle={[styles.msgRow, rowStyle]}
+          bubbleStyle={[
+            styles.bubble,
+            bubbleSideStyle,
+            item.pending && styles.bubblePending,
+            item.failed && styles.bubbleFailed,
+          ]}
+          avatar={!isMe && (
             displayAvatar
               ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
               : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
           )}
-          <TouchableOpacity
-            activeOpacity={0.82}
-            onLongPress={() => !item.failed && doLongPress(item)}
-            onPress={() => item.failed && handleRetry(item)}
-            delayLongPress={280}
-            style={[
-              styles.bubble,
-              bubbleSideStyle,
-              item.pending && styles.bubblePending,
-              item.failed && styles.bubbleFailed,
-            ]}
-          >
-            {isMe && !item.failed ? (
-              <LinearGradient
-                colors={[C.navyDeep, C.navyMid]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[styles.bubbleMeGrad, gradMediaStyle]}
-              >
-                {renderMsgContent(item, true)}
-                <View style={[styles.metaRow, hasMedia && { paddingRight: 10, paddingBottom: 6 }]}>
-                  <Text style={styles.metaTimeMe}>{fmtTime(item)}</Text>
-                  {!item.failed && (
-                    <Ionicons name={iconName} size={13} color={iconColor} />
-                  )}
-                </View>
-              </LinearGradient>
-            ) : item.failed ? (
-              <View style={styles.bubbleFailedInner}>
-                <View style={styles.failRow}>
-                  <Ionicons name="alert-circle-outline" size={12} color={C.alertRed} />
-                  <Text style={styles.failText}>Tap to retry</Text>
-                </View>
-                <Text style={styles.bubbleTxtFailed}>{item.content}</Text>
+          disabled={item.pending}
+          onSwipeReply={() => doReply(item)}
+          onLongPress={(layout) => !item.failed && doLongPress(item, layout)}
+          onPress={() => item.failed && handleRetry(item)}
+        >
+          {isMe && !item.failed ? (
+            <LinearGradient
+              colors={[C.navyDeep, C.navyMid]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={[styles.bubbleMeGrad, gradMediaStyle]}
+            >
+              {renderMsgContent(item, true)}
+              <View style={[styles.metaRow, hasMedia && { paddingRight: 10, paddingBottom: 6 }]}>
+                <Text style={styles.metaTimeMe}>{fmtTime(item)}</Text>
+                {!item.failed && (
+                  <Ionicons name={iconName} size={13} color={iconColor} />
+                )}
               </View>
-            ) : (
-              <>
-                {renderMsgContent(item, false)}
-                <View style={[styles.metaRow, metaPaddingStyle]}>
-                  <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+            </LinearGradient>
+          ) : item.failed ? (
+            <View style={styles.bubbleFailedInner}>
+              <View style={styles.failRow}>
+                <Ionicons name="alert-circle-outline" size={12} color={C.alertRed} />
+                <Text style={styles.failText}>Tap to retry</Text>
+              </View>
+              <Text style={styles.bubbleTxtFailed}>{item.content}</Text>
+            </View>
+          ) : (
+            <>
+              {renderMsgContent(item, false)}
+              <View style={[styles.metaRow, metaPaddingStyle]}>
+                <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+              </View>
+            </>
+          )}
+        </SwipeableMessageRow>
       </>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -859,6 +941,17 @@ export default function ConversationScreen() {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
+
+      {/* Faded Shopyos watermark, sitting behind the header/message list —
+          the logo variant swaps with dark mode but the fade always applies,
+          so the chat surface always carries brand identity, not a flat fill. */}
+      <View style={styles.watermark} pointerEvents="none">
+        <Image
+          source={resolvedTheme === 'dark' ? require('../../assets/images/iconwhite.png') : require('../../assets/images/icondark.png')}
+          style={[styles.watermarkImage, { opacity: resolvedTheme === 'dark' ? 0.14 : 0.06 }]}
+          resizeMode="contain"
+        />
+      </View>
 
       {/* Header */}
       <LinearGradient colors={colors.headerGradient} style={[styles.header, { paddingTop: insets.top }]}>
@@ -935,7 +1028,11 @@ export default function ConversationScreen() {
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           {/* Reply preview */}
           {replyTo && (
-            <View style={styles.replyPreview}>
+            <Animated.View
+              entering={FadeInDown.duration(180).springify().damping(18)}
+              exiting={FadeOutDown.duration(140)}
+              style={styles.replyPreview}
+            >
               <View style={styles.replyAccent} />
               <View style={styles.replyBody}>
                 <Text style={styles.replyLabel}>{replyLabelText}</Text>
@@ -944,14 +1041,16 @@ export default function ConversationScreen() {
               <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyClose}>
                 <Ionicons name="close" size={16} color={C.mutedText} />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
 
           {/* Upload progress */}
           {isUploadingMedia && uploadingProgress !== null && (
             <View style={styles.uploadBar}>
               <View style={[styles.uploadFill, { width: `${uploadingProgress}%` }]} />
-              <Text style={styles.uploadPct}>{uploadingProgress}%</Text>
+              <Text style={styles.uploadPct}>
+                {sendProgress && sendProgress.total > 1 ? `${sendProgress.current}/${sendProgress.total} · ` : ''}{uploadingProgress}%
+              </Text>
             </View>
           )}
 
@@ -1010,27 +1109,31 @@ export default function ConversationScreen() {
         )}
       </KeyboardAvoidingView>
 
-      {/* Context menu */}
-      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
-          <Pressable>
-            <GlassSurface style={styles.contextMenu}>
-              {selectedMsg && (
-                <View style={styles.ctxPreview}><Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text></View>
-              )}
-              <TouchableOpacity style={styles.ctxItem} onPress={doReply}>
-                <Feather name="corner-up-left" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Reply</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
-                <Feather name="copy" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Copy</Text>
-              </TouchableOpacity>
-              {selectedMsg?.sender_id === currentUserId && (
-                <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
-                  <Feather name="trash-2" size={16} color={colors.error} /><Text style={[styles.ctxItemTxt, { color: colors.error }]}>Unsend</Text>
+      {/* Context menu — anchored near the bubble that was long-pressed, spring-scaling
+          in from there rather than a generic centered fade, so it reads as coming
+          from the message. */}
+      <Modal visible={menuVisible} transparent animationType="none" onRequestClose={() => setMenuVisible(false)}>
+        <Pressable style={styles.overlayAnchored} onPress={() => setMenuVisible(false)}>
+          <Animated.View style={[menuPositionStyle || styles.overlayFallbackCenter, menuAnimStyle]}>
+            <Pressable>
+              <GlassSurface style={styles.contextMenu}>
+                {selectedMsg && (
+                  <View style={styles.ctxPreview}><Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text></View>
+                )}
+                <TouchableOpacity style={styles.ctxItem} onPress={() => doReply()}>
+                  <Feather name="corner-up-left" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Reply</Text>
                 </TouchableOpacity>
-              )}
-            </GlassSurface>
-          </Pressable>
+                <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
+                  <Feather name="copy" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Copy</Text>
+                </TouchableOpacity>
+                {selectedMsg?.sender_id === currentUserId && (
+                  <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
+                    <Feather name="trash-2" size={16} color={colors.error} /><Text style={[styles.ctxItemTxt, { color: colors.error }]}>Unsend</Text>
+                  </TouchableOpacity>
+                )}
+              </GlassSurface>
+            </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
 
@@ -1137,43 +1240,103 @@ export default function ConversationScreen() {
         </Pressable>
       )}
 
-      {/* ── Media preview, shown before sending ─────────────────────── */}
-      <Modal visible={!!pendingMedia} transparent animationType="fade" onRequestClose={cancelPendingMedia}>
-        <View style={styles.mediaPreviewBackground}>
-          <TouchableOpacity style={styles.mediaPreviewClose} onPress={cancelPendingMedia} disabled={isUploadingMedia}>
-            <Ionicons name="close" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {pendingMedia?.type === 'image' ? (
-            <AppImage uri={pendingMedia.uri} style={styles.mediaPreviewImage} contentFit="contain" />
-          ) : pendingMedia ? (
-            <MediaPreviewVideo uri={pendingMedia.uri} style={styles.mediaPreviewImage} />
-          ) : null}
-
-          <View style={styles.mediaPreviewActions}>
-            <TouchableOpacity
-              style={[styles.mediaPreviewBtn, styles.mediaPreviewCancelBtn]}
-              onPress={cancelPendingMedia}
-              disabled={isUploadingMedia}
-            >
-              <Text style={styles.mediaPreviewCancelTxt}>Cancel</Text>
+      {/* ── Media preview, shown before sending — WhatsApp-style: main
+          preview + filmstrip of the whole batch + one caption bar. ────── */}
+      <Modal visible={pendingMediaItems.length > 0} transparent animationType="fade" onRequestClose={cancelPendingMedia} statusBarTranslucent>
+        <KeyboardAvoidingView
+          style={styles.mediaPreviewBackground}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.mediaPreviewTopBar}>
+            <TouchableOpacity style={styles.mediaPreviewClose} onPress={cancelPendingMedia} disabled={isUploadingMedia}>
+              <Ionicons name="close" size={26} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.mediaPreviewBtn, styles.mediaPreviewSendBtn]}
-              onPress={confirmSendMedia}
-              disabled={isUploadingMedia}
-            >
+            {pendingMediaItems.length > 1 && (
+              <Text style={styles.mediaPreviewCounter}>{activePreviewIndex + 1} / {pendingMediaItems.length}</Text>
+            )}
+            {pendingMediaItems.length > 0 && (
+              <TouchableOpacity
+                style={styles.mediaPreviewClose}
+                onPress={() => removePendingMediaItem(pendingMediaItems[activePreviewIndex].id)}
+                disabled={isUploadingMedia}
+              >
+                <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.mediaPreviewMain}>
+            {pendingMediaItems[activePreviewIndex]?.type === 'image' ? (
+              <AppImage uri={pendingMediaItems[activePreviewIndex].uri} style={styles.mediaPreviewImage} contentFit="contain" />
+            ) : pendingMediaItems[activePreviewIndex] ? (
+              <MediaPreviewVideo uri={pendingMediaItems[activePreviewIndex].uri} style={styles.mediaPreviewImage} />
+            ) : null}
+          </View>
+
+          {/* Filmstrip */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filmstrip}
+            contentContainerStyle={styles.filmstripContent}
+          >
+            {pendingMediaItems.map((item, idx) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => setActivePreviewIndex(idx)}
+                style={[styles.filmThumbWrap, idx === activePreviewIndex && styles.filmThumbWrapActive]}
+              >
+                {item.type === 'video' ? (
+                  <View style={[styles.filmThumb, styles.filmThumbVideoPlaceholder]} />
+                ) : (
+                  <AppImage uri={item.uri} style={styles.filmThumb} contentFit="cover" />
+                )}
+                {item.type === 'video' && (
+                  <View style={styles.filmThumbVideoBadge}>
+                    <Ionicons name="videocam" size={12} color="#FFFFFF" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.filmThumbRemove}
+                  onPress={() => removePendingMediaItem(item.id)}
+                  disabled={isUploadingMedia}
+                >
+                  <Ionicons name="close" size={11} color="#FFFFFF" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+            {pendingMediaItems.length < MAX_MEDIA_ITEMS && (
+              <TouchableOpacity
+                style={styles.filmAddBtn}
+                onPress={() => handlePickMedia(pendingMediaItems[0]?.type || 'image')}
+                disabled={isUploadingMedia}
+              >
+                <Ionicons name="add" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+
+          {/* Caption bar */}
+          <GlassSurface style={styles.mediaCaptionBar}>
+            <TextInput
+              style={styles.mediaCaptionInput}
+              placeholder="Add a caption…"
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={mediaCaption}
+              onChangeText={setMediaCaption}
+              multiline
+              editable={!isUploadingMedia}
+            />
+            <TouchableOpacity style={styles.mediaSendBtn} onPress={confirmSendMedia} disabled={isUploadingMedia}>
               {isUploadingMedia ? (
-                <ActivityIndicator size="small" color="#0C1559" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <>
-                  <Ionicons name="send" size={16} color="#0C1559" style={{ marginRight: 6 }} />
-                  <Text style={styles.mediaPreviewSendTxt}>Send</Text>
-                </>
+                <Ionicons name="send" size={17} color="#FFFFFF" />
               )}
             </TouchableOpacity>
-          </View>
-        </View>
+          </GlassSurface>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1186,6 +1349,19 @@ function MediaPreviewVideo({ uri, style }: Readonly<{ uri: string; style: any }>
 
 const getStyles = (C: LegacyPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
+  watermark: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 260,
+    height: 260,
+    marginLeft: -130,
+    marginTop: -130,
+  },
+  watermarkImage: {
+    width: '100%',
+    height: '100%',
+  },
   body: { flex: 1 },
 
   // Header
@@ -1376,28 +1552,63 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   attachCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
 
   // Media preview (before send)
-  mediaPreviewBackground: { flex: 1, backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' },
+  mediaPreviewBackground: { flex: 1, backgroundColor: '#000000' },
+  mediaPreviewTopBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 50, paddingHorizontal: 16,
+  },
   mediaPreviewClose: {
-    position: 'absolute', top: 50, right: 20, zIndex: 10,
-    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
   },
-  mediaPreviewImage: { width: '100%', height: '75%' },
-  mediaPreviewActions: {
-    position: 'absolute', bottom: 40, left: 20, right: 20,
-    flexDirection: 'row', gap: 12,
+  mediaPreviewCounter: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#FFFFFF' },
+  mediaPreviewMain: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  mediaPreviewImage: { width: '100%', height: '100%' },
+
+  filmstrip: { flexGrow: 0, marginBottom: 8 },
+  filmstripContent: { paddingHorizontal: 12, gap: 8, alignItems: 'center' },
+  filmThumbWrap: {
+    width: 56, height: 56, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 2, borderColor: 'transparent',
   },
-  mediaPreviewBtn: {
-    flex: 1, height: 50, borderRadius: 16,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+  filmThumbWrapActive: { borderColor: '#84cc16' },
+  filmThumb: { width: '100%', height: '100%' },
+  filmThumbVideoPlaceholder: { backgroundColor: '#000000' },
+  filmThumbVideoBadge: {
+    position: 'absolute', bottom: 3, left: 3,
+    width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  mediaPreviewCancelBtn: { backgroundColor: 'rgba(255,255,255,0.15)' },
-  mediaPreviewCancelTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#FFFFFF' },
-  mediaPreviewSendBtn: { backgroundColor: '#84cc16' },
-  mediaPreviewSendTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  filmThumbRemove: {
+    position: 'absolute', top: 2, right: 2,
+    width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(12,21,89,0.75)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  filmAddBtn: {
+    width: 56, height: 56, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center',
+  },
+
+  mediaCaptionBar: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    marginHorizontal: 12, marginBottom: Platform.OS === 'ios' ? 34 : 16,
+    borderRadius: 24, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  mediaCaptionInput: {
+    flex: 1, maxHeight: 100, fontSize: 14, fontFamily: 'Montserrat-Regular',
+    color: '#FFFFFF', paddingVertical: 6,
+  },
+  mediaSendBtn: {
+    width: 38, height: 38, borderRadius: 19, backgroundColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center',
+  },
 
   // Modals / context menu
   overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.45)', justifyContent: 'center', alignItems: 'center' },
+  overlayAnchored: { flex: 1, backgroundColor: 'rgba(12,21,89,0.45)' },
+  overlayFallbackCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   contextMenu: {
     backgroundColor: C.cardBg, borderRadius: 24, width: width * 0.78, overflow: 'hidden',
     elevation: 24, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 28,

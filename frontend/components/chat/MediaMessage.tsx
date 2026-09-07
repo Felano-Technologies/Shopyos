@@ -1,16 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
+import { useMediaViewer } from '@/context/MediaViewerContext';
 
 interface MediaMessageProps {
   url: string;
   mimeType?: string;
   isMe: boolean;
 }
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const MAX_LOAD_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
@@ -19,8 +17,8 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const [fullscreenVisible, setFullscreenVisible] = useState(false);
   const retryCountRef = useRef(0);
+  const { showMedia } = useMediaViewer();
   const isVideo = mimeType?.startsWith('video/') || url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.mov');
 
   const handleError = useCallback(() => {
@@ -37,23 +35,21 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
     setFailed(true);
   }, [url, mimeType]);
 
+  const openViewer = () => showMedia([{ uri: url, type: isVideo ? 'video' : 'image' }]);
+
   if (isVideo) {
     return (
       <View style={styles.container}>
         <TouchableOpacity
-          onPress={() => setFullscreenVisible(true)}
+          onPress={openViewer}
           style={[styles.mediaWrapper, isMe ? styles.meBorder : styles.otherBorder]}
           activeOpacity={0.8}
         >
-          {/* Video Placeholder/Thumbnail */}
+          {/* No real video thumbnail is generated server-side yet, so this is
+              a plain dark placeholder — feeding the video URL into AppImage
+              (expo-image) fails silently since it can't decode a video frame,
+              and its own light placeholder background then covers the tile. */}
           <View style={styles.videoThumbnail}>
-            <AppImage
-              key={retryKey}
-              uri={url}
-              style={StyleSheet.absoluteFillObject}
-              onLoadEnd={() => setLoading(false)}
-              onError={handleError}
-            />
             <View style={styles.playButtonWrapper}>
               <Ionicons name="play" size={32} color="#FFFFFF" style={{ marginLeft: 3 }} />
             </View>
@@ -62,27 +58,6 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
             </View>
           </View>
         </TouchableOpacity>
-
-        {/* Fullscreen Video Modal */}
-        <Modal
-          visible={fullscreenVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setFullscreenVisible(false)}
-        >
-          <View style={styles.modalBackground}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setFullscreenVisible(false)}
-            >
-              <Ionicons name="close" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            {fullscreenVisible && (
-              <FullscreenVideo uri={url} style={styles.fullscreenVideo} />
-            )}
-          </View>
-        </Modal>
       </View>
     );
   }
@@ -91,7 +66,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        onPress={() => setFullscreenVisible(true)}
+        onPress={openViewer}
         style={[styles.mediaWrapper, isMe ? styles.meBorder : styles.otherBorder]}
         activeOpacity={0.8}
       >
@@ -114,47 +89,7 @@ export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMess
           </View>
         )}
       </TouchableOpacity>
-
-      {/* Fullscreen Image Modal */}
-      <Modal
-        visible={fullscreenVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setFullscreenVisible(false)}
-      >
-        <View style={styles.modalBackground}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setFullscreenVisible(false)}
-          >
-            <Ionicons name="close" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <AppImage
-            uri={url}
-            style={styles.fullscreenImage}
-            contentFit="contain"
-          />
-        </View>
-      </Modal>
     </View>
-  );
-}
-
-function FullscreenVideo({ uri, style }: Readonly<{ uri: string; style: any }>) {
-  const player = useVideoPlayer({ uri }, (p) => {
-    p.muted = false;
-    p.volume = 1;
-    p.play();
-  });
-
-  return (
-    <VideoView
-      player={player}
-      style={style}
-      contentFit="contain"
-      nativeControls
-    />
   );
 }
 
@@ -182,7 +117,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   loaderWrapper: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.05)',
@@ -214,31 +149,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     zIndex: 2,
-  },
-  modalBackground: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullscreenImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.8,
-  },
-  fullscreenVideo: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.8,
   },
 });

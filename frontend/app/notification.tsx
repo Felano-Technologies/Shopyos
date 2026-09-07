@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { getRouteFromNotification } from '@/utils/notificationRouting';
+import { getCachedUserProfile } from '@/services/storage';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 
@@ -133,7 +134,14 @@ const NotificationScreen = () => {
   const handleItemPress = useCallback(async (item: any) => {
     setReadIds((prev) => new Set([...prev, item.id]));
     try { await markOneMutation.mutateAsync(item.id); } catch (e) { console.error('Mark one read failed', e); }
-    const route = getRouteFromNotification(item, 'buyer');
+    let role = 'buyer';
+    try {
+      const profile: any = await getCachedUserProfile();
+      if (profile?.role) role = profile.role.toLowerCase();
+    } catch {
+      // fall back to buyer routing
+    }
+    const route = getRouteFromNotification(item, role);
     if (route) router.push(route as any);
   }, [markOneMutation]);
 

@@ -23,11 +23,6 @@ const isExpoGoUnsupportedPlatform = isExpoGo && Platform.OS === 'android';
 let lastHandledNotificationId: string | null = null;
 let hydrateHandledId: Promise<void> | null = null;
 
-// A replayed intent from process recreation is, by definition, old — a
-// genuinely fresh tap always arrives within a few seconds of the user
-// actually tapping it.
-const NOTIFICATION_STALE_MS = 2 * 60 * 1000;
-
 async function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
     // Make sure the persisted marker is loaded before deciding (cold-start
     // replays can arrive before the listener-setup hydration completes)
@@ -41,16 +36,6 @@ async function handleNotificationResponse(response: any, router: ReturnType<type
     if (notificationId) {
         lastHandledNotificationId = notificationId;
         storage.setItem('lastHandledNotificationId', notificationId).catch(() => {});
-    }
-
-    // Never navigate anywhere on a stale/replayed intent (Android's singleTask
-    // launch mode redelivers the last Intent when the OS recreates the killed
-    // process on resume) — the id-based dedup above doesn't catch a "new to
-    // this process lifetime but old in wall-clock time" replay.
-    const notifiedAt = response?.notification?.date;
-    if (typeof notifiedAt === 'number' && Date.now() - notifiedAt > NOTIFICATION_STALE_MS) {
-        console.log('[PushNotifications] Ignoring stale notification tap (likely a replayed intent)');
-        return;
     }
 
     // Never navigate to a screen requiring auth if the user is logged out —
@@ -95,7 +80,7 @@ const ensureNotificationHandler = () => {
     if (!Notifications) return;
 
     Notifications.setNotificationHandler({
-        handleNotification: async (notification) => {
+        handleNotification: async (notification: any) => {
             const data = notification?.request?.content?.data;
             const activeId = (globalThis as any).activeConversationId;
 
@@ -188,12 +173,12 @@ export function usePushNotifications() {
             }
         });
 
-        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+        notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
             console.log('🔔 Notification Received (Foreground):', JSON.stringify(notification, null, 2));
             setNotification(notification);
         });
 
-        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
             console.log('タップ Notification Tapped:', JSON.stringify(response, null, 2));
             handleNotificationResponse(response, router);
         });

@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
 import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useStores } from '@/hooks/useStores';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -158,9 +159,8 @@ export default function StoresScreen() {
   const onRefresh = useCallback(() => { refetch(); }, [refetch]);
   // ── Popular card — single logo image, verified badge overlaid on it ────────
   const renderPopularCard = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
+    <PressableScale
       style={styles.popularCard}
-      activeOpacity={0.85}
       onPress={() => handleVisitStore(item)}
     >
       {/* Single image block — logo fills the top, gradient fades it into the card */}
@@ -201,13 +201,12 @@ export default function StoresScreen() {
           <Text style={styles.popularItems}>{item.catalogues} items</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   ), [handleVisitStore]);
   // ── Store row ──────────────────────────────────────────────────────────────
   const renderStoreRow = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
+    <PressableScale
       style={styles.storeRow}
-      activeOpacity={0.82}
       onPress={() => handleVisitStore(item)}
     >
       {item.logo
@@ -241,7 +240,7 @@ export default function StoresScreen() {
         <Text style={styles.visitTxt}>Visit</Text>
         <Ionicons name="chevron-forward" size={12} color={colors.primary} />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </PressableScale>
   ), [handleVisitStore]);
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyWrap}>

@@ -125,13 +125,13 @@ const BusinessDashboard = () => {
     return (
       <View style={styles.headerContainer} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
         {headerBg ? (
-          <AppImage uri={headerBg} style={StyleSheet.absoluteFillObject} />
+          <AppImage uri={headerBg} style={StyleSheet.absoluteFill} />
         ) : (
-          <LinearGradient colors={colors.headerGradient} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={colors.headerGradient} style={StyleSheet.absoluteFill} />
         )}
         <LinearGradient
           colors={['rgba(12, 21, 89, 0.7)', 'rgba(12, 21, 89, 0.9)']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
 
         <View style={styles.headerContentWrapper}>
@@ -263,7 +263,7 @@ const BusinessDashboard = () => {
       <StatusBar style="light" />
 
       {/* --- Background Watermark --- */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <View style={styles.bottomLogos}>
           <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>

@@ -38,7 +38,7 @@ export default function DriverGatekeeper() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" backgroundColor={colors.primary} />
+      <StatusBar style="light" />
 
       <View style={styles.content}>
         <AppImage
