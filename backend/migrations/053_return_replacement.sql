@@ -24,6 +24,13 @@ CREATE INDEX IF NOT EXISTS idx_return_requests_resolution_type ON return_request
 
 -- Extend vw_return_request_detail with the new columns and the original /
 -- target variant details needed by the buyer app to render a replacement.
+--
+-- IMPORTANT: Postgres's CREATE OR REPLACE VIEW can only APPEND columns at
+-- the end of the SELECT list — it cannot rename, remove, or reorder an
+-- existing output column (that's a "cannot change name of view column X to
+-- Y" error). The first 19 columns below are migration 008's original
+-- vw_return_request_detail definition, kept in their exact original order;
+-- everything past `s.store_name` is new, appended at the end.
 CREATE OR REPLACE VIEW vw_return_request_detail AS
 SELECT
   rr.id,
@@ -36,14 +43,6 @@ SELECT
   rr.refund_amount,
   rr.created_at,
   rr.resolved_at,
-  rr.delivery_fee_at_time,
-  rr.refundable_amount,
-  rr.resolution_type,
-  rr.order_item_id,
-  rr.target_variant_id,
-  rr.replacement_shipped_at,
-  rr.replacement_delivered_at,
-  rr.replacement_tracking_info,
   rr.order_id,
   o.order_number,
   o.total_amount  AS order_total,
@@ -53,6 +52,14 @@ SELECT
   rr.seller_id,
   o.store_id,
   s.store_name,
+  rr.delivery_fee_at_time,
+  rr.refundable_amount,
+  rr.resolution_type,
+  rr.order_item_id,
+  rr.target_variant_id,
+  rr.replacement_shipped_at,
+  rr.replacement_delivered_at,
+  rr.replacement_tracking_info,
   oi.product_title       AS returned_product_title,
   oi.variant_id          AS original_variant_id,
   oi.variant_attributes  AS original_variant_attributes,

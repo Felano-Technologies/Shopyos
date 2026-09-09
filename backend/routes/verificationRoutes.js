@@ -16,6 +16,7 @@ const {
   submitLivenessAttempt,
   submitApplication,
   requestShopLocationChange,
+  requestDriverVehicleChange,
 } = require('../controllers/verificationController');
 const { envInt } = require('../config/envConfig');
 
@@ -40,5 +41,6 @@ router.post('/:applicationId/documents', documentUpload.single('document'), uplo
 router.post('/:applicationId/liveness', documentUpload.single('capturedFrame'), submitLivenessAttempt);
 router.post('/:applicationId/submit', submitApplication);
 router.post('/shop-location-change', requestShopLocationChange);
+router.post('/vehicle-change', requestDriverVehicleChange);
 
 module.exports = router;

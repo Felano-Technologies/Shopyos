@@ -25,7 +25,7 @@ const {
   updateAvailability
 } = require('../controllers/driverController');
 const upload = require('../middleware/upload');
-const { protect, driver, hasAnyRole } = require('../middleware/authMiddleware');
+const { protect, driver, hasAnyRole, requireVerified } = require('../middleware/authMiddleware');
 const { auditLog } = require('../middleware/auditMiddleware');
 
 const driverUploadFields = upload.fields([
@@ -295,7 +295,11 @@ router.get('/:deliveryId', getDeliveryDetails);
 // @route   PUT /api/deliveries/:deliveryId/assign
 // @desc    Assign driver to delivery
 // @access  Private (Driver)
-router.put('/:deliveryId/assign', driver, assignDriver);
+// requireVerified('driver') is the real "driver verification approved" gate
+// (canActivateDriver) — belt-and-suspenders alongside `driver`, since today
+// the driver role is only granted at approval time (accidental gate) rather
+// than checked here directly.
+router.put('/:deliveryId/assign', driver, requireVerified('driver'), assignDriver);
 
 /**
  * @swagger

@@ -351,6 +351,62 @@ class VerificationRepository extends BaseRepository {
     return data;
   }
 
+  // ── Post-approval vehicle changes ─────────────────────────────────────
+  // Mirrors the shop_location_changes methods above — an approved driver's
+  // current verified vehicle stays active/operational while a new one is
+  // reviewed (see plan §Vehicle lifecycle).
+  async createDriverVehicle(driverProfileId, { vehicleType, make, model, year, colour, plateNumber, relationship }) {
+    const { data, error } = await this.db
+      .from('driver_vehicles')
+      .insert({
+        driver_profile_id: driverProfileId,
+        vehicle_type: vehicleType || null,
+        make: make || null,
+        model: model || null,
+        year: year || null,
+        colour: colour || null,
+        plate_number: plateNumber || null,
+        relationship,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getDriverVehicles(driverProfileId) {
+    const { data, error } = await this.db
+      .from('driver_vehicles')
+      .select('*')
+      .eq('driver_profile_id', driverProfileId)
+      .order('submitted_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async reviewDriverVehicle(id, { status, rejectionReason, reviewedBy }) {
+    const { data, error } = await this.db
+      .from('driver_vehicles')
+      .update({
+        status,
+        rejection_reason: rejectionReason || null,
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    // A newly-verified vehicle becomes the one in active use; every other
+    // vehicle for this driver stops being active.
+    if (status === 'verified') {
+      await this.db.from('driver_vehicles').update({ is_active: false }).eq('driver_profile_id', data.driver_profile_id).neq('id', id);
+      await this.db.from('driver_vehicles').update({ is_active: true }).eq('id', id);
+    }
+    return data;
+  }
+
   async getLatestOutboundMessage(applicationId) {
     const { data, error } = await this.db
       .from('verification_communications')

@@ -300,6 +300,46 @@ async function _createStoreFromApplication(application, steps, userId) {
   return store;
 }
 
+// Same idea as _createStoreFromApplication, for the driver role — assembles
+// a real driver_profiles row from the driver_licence/vehicle/vehicle_docs
+// step data the first time a driver submits. Reuses DriverRepository's
+// existing upsertProfile() (already used by the legacy submitVerification
+// endpoint) for the fields it already maps, then fills in the handful of
+// fields upsertProfile doesn't cover (vehicle make/model/year, insurance
+// policy number/expiry) with a follow-up update.
+async function _createDriverProfileFromApplication(application, steps, userId) {
+  const stepData = Object.fromEntries(steps.map(s => [s.step_key, s.data || {}]));
+  const licence = stepData.driver_licence || {};
+  const vehicle = stepData.vehicle || {};
+
+  const documents = await repositories.verification.getDocumentsForParent('application', application.id);
+  const latestDocOfType = (type) => documents
+    .filter(d => d.document_type === type && !d.deleted_at)
+    .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at))[0];
+
+  const profile = await repositories.drivers.upsertProfile(userId, {
+    vehicleType: vehicle.vehicleType,
+    plateNumber: vehicle.plateNumber,
+    licenseNumber: licence.licenseNumber,
+    licenseExpiryDate: licence.expiryDate,
+    license_image_url: latestDocOfType('drivers_licence')?.storage_key || null,
+    national_id_url: latestDocOfType('identity')?.storage_key || null,
+    insurance_doc_url: latestDocOfType('insurance')?.storage_key || null,
+    vehicle_reg_url: latestDocOfType('vehicle_registration')?.storage_key || null,
+    roadworthy_url: latestDocOfType('roadworthy')?.storage_key || null,
+  });
+
+  await repositories.drivers.update(profile.id, {
+    vehicle_make: vehicle.make || null,
+    vehicle_model: vehicle.model || null,
+    vehicle_year: vehicle.year ? Number(vehicle.year) : null,
+    insurance_policy_number: vehicle.insurancePolicyNumber || null,
+    insurance_expiry_date: vehicle.insuranceExpiryDate || null,
+  });
+
+  return profile;
+}
+
 // POST /verification/:applicationId/submit
 async function submitApplication(req, res) {
   try {
@@ -320,6 +360,9 @@ async function submitApplication(req, res) {
     if (!entityId && application.role === 'seller') {
       const store = await _createStoreFromApplication(application, steps, application.user_id);
       entityId = store.id;
+    } else if (!entityId && application.role === 'driver') {
+      const profile = await _createDriverProfileFromApplication(application, steps, application.user_id);
+      entityId = profile.id;
     }
 
     const updated = await repositories.verification.updateApplication(application.id, {
@@ -372,6 +415,29 @@ async function requestShopLocationChange(req, res) {
   } catch (error) {
     logger.error('requestShopLocationChange failed', { error: error.message });
     return ApiResponse.error(res, 'Failed to submit location change', 500);
+  }
+}
+
+// POST /verification/vehicle-change — an already-approved driver adding a
+// new vehicle. Their current verified vehicle stays active/operational
+// (driver_profiles' own vehicle_* fields untouched) until this one is
+// reviewed and flips to 'verified', at which point VerificationRepository's
+// reviewDriverVehicle() makes it the new active one.
+async function requestDriverVehicleChange(req, res) {
+  try {
+    const { vehicleType, make, model, year, colour, plateNumber, relationship } = req.body;
+    if (!relationship) return ApiResponse.error(res, 'relationship is required', 400);
+
+    const driverProfile = await repositories.drivers.findByUserId(req.user.id);
+    if (!driverProfile) return ApiResponse.error(res, 'Driver profile not found', 404);
+
+    const change = await repositories.verification.createDriverVehicle(driverProfile.id, {
+      vehicleType, make, model, year, colour, plateNumber, relationship,
+    });
+    return ApiResponse.created(res, change, 'Vehicle change submitted for review');
+  } catch (error) {
+    logger.error('requestDriverVehicleChange failed', { error: error.message });
+    return ApiResponse.error(res, 'Failed to submit vehicle change', 500);
   }
 }
 
@@ -550,6 +616,7 @@ module.exports = {
   submitLivenessAttempt,
   submitApplication,
   requestShopLocationChange,
+  requestDriverVehicleChange,
   listApplicationsAdmin,
   getApplicationDetailAdmin,
   approveApplication,
