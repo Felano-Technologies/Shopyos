@@ -7,11 +7,18 @@ export {
   requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken, forceResetPassword,
   logoutUser, loginUser, getUserData, updateProfile, updateUserRole, updateOnboardingState,
   uploadAvatar, updateUserLocation, blockUser, unblockUser, getBlockedUsers, reportEntity,
-  verifyTwoFactorLogin, getSecuritySettings, updateSecuritySettings,
+  verifyTwoFactorLogin, verifySignupOtp, resendSignupOtp, getSecuritySettings, updateSecuritySettings,
   getThemePreference, updateThemePreference,
   getActiveSessions, revokeSession, logoutAllSessions, requestDataExport, requestAccountDeletion,
 } from './auth';
 export type { ThemePreference } from './auth';
+
+export {
+  getOrCreateVerificationApplication, recordVerificationConsent, saveVerificationStep,
+  uploadVerificationDocument, submitVerificationLivenessAttempt, submitVerificationApplication,
+  requestShopLocationChange,
+} from './verification';
+export type { VerificationApplication, VerificationStep, VerificationRole } from './verification';
 
 export {
   uploadStoreLogo, businessRegister, getMyBusinesses, updateBusiness,

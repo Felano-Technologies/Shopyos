@@ -39,6 +39,7 @@ const ParcelPartnerRepository = require('./ParcelPartnerRepository');
 const PromoCodeRepository = require('./PromoCodeRepository');
 const ExpenseRepository = require('./ExpenseRepository');
 const CallRepository = require('./CallRepository');
+const VerificationRepository = require('./VerificationRepository');
 
 
 // Initialize repositories with selected client
@@ -78,6 +79,7 @@ const repositories = {
   promoCodes: new PromoCodeRepository(repositoryClient),
   expenses: new ExpenseRepository(repositoryClient),
   calls: new CallRepository(repositoryClient),
+  verification: new VerificationRepository(repositoryClient),
 };
 
 module.exports = repositories;

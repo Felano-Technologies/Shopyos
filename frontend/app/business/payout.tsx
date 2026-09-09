@@ -293,7 +293,7 @@ export default function PayoutScreen() {
                     <Text style={styles.methodTitle}>Payout Method</Text>
                     <Text style={styles.methodSub}>{activeBusiness.payout_method === 'mobile_money' ? 'Mobile Money' : 'Bank Transfer'}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => router.push('/business/businessRegistration')}>
+                  <TouchableOpacity onPress={() => router.push('/business/onboarding' as any)}>
                     <Text style={styles.editText}>Edit</Text>
                   </TouchableOpacity>
                 </View>
@@ -358,7 +358,7 @@ export default function PayoutScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.actionBtn}
-                onPress={() => router.push('/business/businessRegistration')}
+                onPress={() => router.push('/business/onboarding' as any)}
               >
                 <Text style={styles.actionBtnText}>Set Up Payout Method</Text>
                 <Feather name="arrow-right" size={18} color={colors.textInverse} />

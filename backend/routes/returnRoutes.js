@@ -30,33 +30,33 @@ const {
  *             type: object
  *             required:
  *               - orderId
- *               - items
  *               - reason
  *             properties:
  *               orderId:
  *                 type: string
  *                 description: ID of the order being returned
- *               items:
- *                 type: array
- *                 items:
- *                   type: object
- *                   required:
- *                     - productId
- *                     - quantity
- *                   properties:
- *                     productId:
- *                       type: string
- *                       description: ID of the product to return
- *                     quantity:
- *                       type: integer
- *                       minimum: 1
- *                       description: Quantity of the product to return
  *               reason:
  *                 type: string
  *                 description: Reason for the return
- *               description:
+ *               reasonCategory:
  *                 type: string
- *                 description: Additional description for the return request
+ *                 description: Category of the reason (e.g. defective, wrong_item, size_fit)
+ *               evidenceImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Up to 3 evidence photo URLs
+ *               resolutionType:
+ *                 type: string
+ *                 enum: [refund, replacement]
+ *                 default: refund
+ *                 description: Whether the buyer wants a refund or a replacement (different variant of the same product)
+ *               orderItemId:
+ *                 type: string
+ *                 description: Required when resolutionType is 'replacement' — the order_items row being returned
+ *               targetVariantId:
+ *                 type: string
+ *                 description: Required when resolutionType is 'replacement' — the product_variants row (same product, different size/color) to send instead
  *     responses:
  *       200:
  *         description: Return request created successfully
@@ -125,14 +125,18 @@ router.get('/seller', protect, isSeller, getSellerReturns);
  *           schema:
  *             type: object
  *             required:
- *               - status
+ *               - action
  *             properties:
- *               status:
+ *               action:
  *                 type: string
- *                 description: New status for the return request
- *               message:
+ *                 enum: [approve, decline, ship, deliver]
+ *                 description: approve/decline apply to a pending request; ship/deliver apply only to an approved replacement's shipping lifecycle
+ *               sellerResponse:
  *                 type: string
- *                 description: Seller's response message to the buyer
+ *                 description: Seller's response message to the buyer (approve/decline)
+ *               trackingInfo:
+ *                 type: string
+ *                 description: Optional free-text shipping note when marking a replacement as shipped
  *     responses:
  *       200:
  *         description: Return request updated successfully

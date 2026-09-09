@@ -9,21 +9,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { verifySignupOtp, resendSignupOtp } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+import { resetToRoute } from '@/utils/navigation';
 
 const { width } = Dimensions.get('window');
 
 const OtpVerificationScreen = () => {
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const { userId, maskedTarget } = useLocalSearchParams<{ userId: string; maskedTarget?: string }>();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputs = useRef<TextInput[]>([]);
 
   const handleChange = (text: string, index: number) => {
@@ -38,9 +45,30 @@ const OtpVerificationScreen = () => {
 
   const isOtpComplete = otp.every((digit) => digit !== '');
 
-  const handleVerify = () => {
-    if (isOtpComplete) {
-      router.replace('/home'); // Replace this with actual verification logic
+  const handleVerify = async () => {
+    if (!isOtpComplete || !userId) return;
+    setVerifying(true);
+    try {
+      const data = await verifySignupOtp(userId, otp.join(''));
+      CustomInAppToast.show({ type: 'success', title: 'Account verified', message: 'Welcome to Shopyos!' });
+      resetToRoute(data.needsRole ? '/role' : '/home');
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Verification failed', message: error.message || 'Please check the code and try again.' });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!userId || resending) return;
+    setResending(true);
+    try {
+      await resendSignupOtp(userId);
+      CustomInAppToast.show({ type: 'success', title: 'Code resent', message: maskedTarget ? `Check ${maskedTarget}` : 'Check your email/phone.' });
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Could not resend code', message: error.message || 'Please try again shortly.' });
+    } finally {
+      setResending(false);
     }
   };
 
@@ -64,7 +92,7 @@ const OtpVerificationScreen = () => {
           {/* Instruction text */}
           <Text style={styles.instructionText}>
             Please Enter The 6 Digit Code Sent To{'\n'}
-            Your email or number
+            {maskedTarget || 'your email or number'}
           </Text>
 
           {/* OTP Input Boxes */}
@@ -87,9 +115,9 @@ const OtpVerificationScreen = () => {
           <TouchableOpacity
             style={[
               styles.verifyButton,
-              { opacity: isOtpComplete ? 1 : 0.6 },
+              { opacity: isOtpComplete && !verifying ? 1 : 0.6 },
             ]}
-            disabled={!isOtpComplete}
+            disabled={!isOtpComplete || verifying}
             onPress={handleVerify}
             activeOpacity={0.8}
           >
@@ -99,8 +127,12 @@ const OtpVerificationScreen = () => {
               end={{ x: 1, y: 1 }}
               style={styles.verifyGradient}
             >
-              <Text style={styles.verifyText}>Verify</Text>
+              {verifying ? <ActivityIndicator color={colors.accentText} /> : <Text style={styles.verifyText}>Verify</Text>}
             </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.resendBtn}>
+            <Text style={styles.resendText}>{resending ? 'Resending…' : "Didn't get a code? Resend"}</Text>
           </TouchableOpacity>
 
           {/* Footer Logo */}
@@ -176,7 +208,15 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     width: width * 0.85,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 40,
+    marginBottom: 16,
+  },
+  resendBtn: {
+    marginBottom: 24,
+  },
+  resendText: {
+    color: c.primaryMid,
+    fontSize: 14,
+    fontWeight: '600',
   },
   verifyGradient: {
     paddingVertical: 16,

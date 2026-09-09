@@ -48,6 +48,8 @@ const { validateRegister, validateLogin } = require('../middleware/validators');
  *         description: Validation error or email already in use
  */
 router.post('/register', validateRegister, authController.register);
+router.post('/signup/verify-otp', authController.verifySignupOtp);
+router.post('/signup/resend-otp', authController.resendSignupOtp);
 
 /**
  * @swagger

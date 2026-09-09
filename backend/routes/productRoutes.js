@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, optionalAuth, hasAnyRole } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, hasAnyRole, requireVerified } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
@@ -259,7 +259,10 @@ router.get('/:id', cacheMiddleware(
  *       403:
  *         description: Forbidden — seller or admin role required
  */
-router.post('/', protect, hasAnyRole('seller', 'admin'), validateCreateProduct, createProduct);
+// requireVerified('seller') is the actual "seller verification approved" gate
+// (see verificationRequirements.js's canActivateSeller) — hasAnyRole alone
+// only checked role membership, which today is granted without any real KYC.
+router.post('/', protect, hasAnyRole('seller', 'admin'), requireVerified('seller'), validateCreateProduct, createProduct);
 
 /**
  * @swagger

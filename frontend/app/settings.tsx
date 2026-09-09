@@ -386,7 +386,7 @@ export default function SettingsScreen() {
               {!roles.includes('seller') && renderSettingItem({
                 icon: 'shopping-bag',
                 label: 'Become a Seller',
-                onPress: () => router.push('/business/register' as any)
+                onPress: () => router.push('/business/onboarding' as any)
               })}
               {!roles.includes('seller') && !roles.includes('driver') && (
                 <View style={styles.separator} />

@@ -24,6 +24,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { createReturnRequest } from '@/services/orders';
+import { getProductById } from '@/services/products';
 import { uriToBlob } from '@/services/uploadUtils';
 import { formatCurrency } from '@/utils/formatCurrency';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -86,6 +87,19 @@ const CATEGORIES = [
   { id: 'other', label: 'Other Reason' },
 ];
 
+const RESOLUTION_TYPES: { id: 'refund' | 'replacement'; label: string }[] = [
+  { id: 'refund', label: 'Refund' },
+  { id: 'replacement', label: 'Replace Item' },
+];
+
+function resolveVariant(variants: any[], attrs: Record<string, string>): any {
+  if (!variants.length) return null;
+  return variants.find((v) => {
+    const vAttrs: Record<string, string> = v.attributes || {};
+    return Object.entries(attrs).every(([k, val]) => vAttrs[k] === val);
+  }) ?? null;
+}
+
 export default function ReturnSubmitScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
@@ -103,6 +117,46 @@ export default function ReturnSubmitScreen() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Replacement states
+  const [resolutionType, setResolutionType] = useState<'refund' | 'replacement'>('refund');
+  const [selectedOrderItemId, setSelectedOrderItemId] = useState<string | null>(null);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [variantOptions, setVariantOptions] = useState<any[]>([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
+
+  const orderItems: any[] = order?.order_items ?? [];
+  const selectedOrderItem = orderItems.find((oi) => oi.id === selectedOrderItemId) ?? orderItems[0] ?? null;
+  const selectedTargetVariant = useMemo(() => resolveVariant(variants, selectedAttributes), [variants, selectedAttributes]);
+
+  useEffect(() => {
+    if (orderItems.length && !selectedOrderItemId) {
+      setSelectedOrderItemId(orderItems[0].id);
+    }
+  }, [orderItems, selectedOrderItemId]);
+
+  useEffect(() => {
+    if (resolutionType !== 'replacement' || !selectedOrderItem?.product_id) return;
+    setVariantsLoading(true);
+    setSelectedAttributes({});
+    getProductById(selectedOrderItem.product_id)
+      .then((res) => {
+        if (res.success) {
+          setVariantOptions(res.product.variantOptions || []);
+          setVariants(res.product.variants || []);
+        }
+      })
+      .catch((err) => console.error('Failed to load replacement options:', err))
+      .finally(() => setVariantsLoading(false));
+  }, [resolutionType, selectedOrderItem?.product_id]);
+
+  const handleAttributeSelect = (optionName: string, value: string) => {
+    setSelectedAttributes((prev) => ({ ...prev, [optionName]: value }));
+  };
+
+  const allOptionsSelected = variantOptions.every((opt) => selectedAttributes[opt.option_name]);
+  const isReplacement = resolutionType === 'replacement';
 
   // Disclaimer states
   const [refundPolicy, setRefundPolicy] = useState<Disclaimer | null>(null);
@@ -192,6 +246,10 @@ export default function ReturnSubmitScreen() {
       CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'You must agree to the Return & Refund Policy to proceed.' });
       return;
     }
+    if (isReplacement && (!selectedOrderItem || !selectedTargetVariant)) {
+      CustomInAppToast.show({ type: 'info', title: 'Select options', message: 'Please select the replacement option before submitting.' });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -207,9 +265,20 @@ export default function ReturnSubmitScreen() {
         reason: reason.trim(),
         reasonCategory: selectedCategory,
         evidenceImages: uploadedUrls,
+        resolutionType,
+        ...(isReplacement ? {
+          orderItemId: selectedOrderItem.id,
+          targetVariantId: selectedTargetVariant.id,
+        } : {}),
       });
 
-      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your return request has been submitted successfully.' });
+      CustomInAppToast.show({
+        type: 'success',
+        title: 'Success',
+        message: isReplacement
+          ? 'Your replacement request has been submitted successfully.'
+          : 'Your return request has been submitted successfully.',
+      });
       router.push('/returns');
     } catch (err: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to submit return request. Please try again.' });
@@ -272,27 +341,117 @@ export default function ReturnSubmitScreen() {
           <Text style={styles.orderNum}>Order ID: #{order.order_number || order.id?.slice(-8)}</Text>
           <Text style={styles.orderStore}>Store: {order.store?.name || 'Seller'}</Text>
           <View style={styles.divider} />
-          
-          {/* Refund Calculation Breakdown */}
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Product Subtotal</Text>
-            <Text style={styles.breakdownValue}>{formatCurrency(subtotal)}</Text>
-          </View>
-          {discount > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Discounts Applied</Text>
-              <Text style={[styles.breakdownValue, { color: C.red }]}>-{formatCurrency(discount)}</Text>
-            </View>
+
+          {isReplacement ? (
+            <Text style={styles.breakdownLabel}>No refund — the seller will send a replacement item instead.</Text>
+          ) : (
+            <>
+              {/* Refund Calculation Breakdown */}
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Product Subtotal</Text>
+                <Text style={styles.breakdownValue}>{formatCurrency(subtotal)}</Text>
+              </View>
+              {discount > 0 && (
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>Discounts Applied</Text>
+                  <Text style={[styles.breakdownValue, { color: C.red }]}>-{formatCurrency(discount)}</Text>
+                </View>
+              )}
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Delivery Fee (Non-Refundable)</Text>
+                <Text style={[styles.breakdownValue, { color: C.muted }]}>{formatCurrency(deliveryFee)}</Text>
+              </View>
+              <View style={[styles.breakdownRow, { marginTop: rs(8), paddingTop: rs(8), borderTopWidth: 1, borderTopColor: C.border }]}>
+                <Text style={[styles.breakdownLabel, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Max Refundable Amount</Text>
+                <Text style={[styles.breakdownValue, { fontFamily: 'Montserrat-Bold', color: C.green }]}>{formatCurrency(maxRefundable)}</Text>
+              </View>
+            </>
           )}
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Delivery Fee (Non-Refundable)</Text>
-            <Text style={[styles.breakdownValue, { color: C.muted }]}>{formatCurrency(deliveryFee)}</Text>
-          </View>
-          <View style={[styles.breakdownRow, { marginTop: rs(8), paddingTop: rs(8), borderTopWidth: 1, borderTopColor: C.border }]}>
-            <Text style={[styles.breakdownLabel, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Max Refundable Amount</Text>
-            <Text style={[styles.breakdownValue, { fontFamily: 'Montserrat-Bold', color: C.green }]}>{formatCurrency(maxRefundable)}</Text>
+        </View>
+
+        {/* Resolution Type Toggle Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>What would you like?</Text>
+          <View style={styles.categoryContainer}>
+            {RESOLUTION_TYPES.map((rt) => {
+              const isSelected = resolutionType === rt.id;
+              return (
+                <TouchableOpacity
+                  key={rt.id}
+                  style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+                  onPress={() => setResolutionType(rt.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.categoryChipTxt, isSelected && styles.categoryChipTxtActive]}>
+                    {rt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
+
+        {/* Replacement Item + Variant Picker Card */}
+        {isReplacement && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Choose replacement option</Text>
+
+            {orderItems.length > 1 && (
+              <View style={[styles.categoryContainer, { marginBottom: rs(12) }]}>
+                {orderItems.map((oi) => {
+                  const isSelected = selectedOrderItemId === oi.id;
+                  return (
+                    <TouchableOpacity
+                      key={oi.id}
+                      style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+                      onPress={() => setSelectedOrderItemId(oi.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.categoryChipTxt, isSelected && styles.categoryChipTxtActive]}>
+                        {oi.product_title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {variantsLoading ? (
+              <ActivityIndicator color={C.navy} />
+            ) : variantOptions.length === 0 ? (
+              <Text style={styles.breakdownLabel}>This product has no other size/color options available.</Text>
+            ) : (
+              variantOptions.map((opt) => (
+                <View key={opt.option_name} style={{ marginBottom: rs(12) }}>
+                  <Text style={[styles.sectionTitle, { fontSize: rf(13), marginBottom: rs(8) }]}>
+                    {opt.option_name.charAt(0).toUpperCase() + opt.option_name.slice(1)}
+                  </Text>
+                  <View style={styles.categoryContainer}>
+                    {opt.option_values.map((val: string) => {
+                      const active = selectedAttributes[opt.option_name] === val;
+                      const testAttrs = { ...selectedAttributes, [opt.option_name]: val };
+                      const matched = resolveVariant(variants, testAttrs);
+                      const outOfStock = matched && Number(matched.stock_quantity) === 0;
+                      return (
+                        <TouchableOpacity
+                          key={val}
+                          style={[styles.categoryChip, active && styles.categoryChipActive, outOfStock && { opacity: 0.4 }]}
+                          onPress={() => handleAttributeSelect(opt.option_name, val)}
+                          activeOpacity={0.75}
+                          disabled={outOfStock}
+                        >
+                          <Text style={[styles.categoryChipTxt, active && styles.categoryChipTxtActive]}>
+                            {val}{outOfStock ? ' (Out of stock)' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Category Picker Card */}
         <View style={styles.card}>
@@ -383,24 +542,33 @@ export default function ReturnSubmitScreen() {
         )}
 
         {/* Submit button */}
-        <TouchableOpacity
-          style={[styles.submitBtn, (isSubmitting || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || (refundPolicy !== null && !isDisclaimerChecked)}
-        >
-          <LinearGradient colors={[C.navy, C.navyMid]} style={styles.submitGradient}>
-            {isSubmitting ? (
-              <View style={styles.submitLoaderContainer}>
-                <ActivityIndicator color={C.textInverse} style={{ marginRight: rs(10) }} />
-                <Text style={styles.submitBtnTxt}>
-                  {uploadingImage ? 'Uploading Photos...' : 'Submitting...'}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.submitBtnTxt}>Submit Return Request</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+        {(() => {
+          const disabled = isSubmitting
+            || (refundPolicy !== null && !isDisclaimerChecked)
+            || (isReplacement && (variantsLoading || !allOptionsSelected || !selectedTargetVariant));
+          return (
+            <TouchableOpacity
+              style={[styles.submitBtn, disabled && { opacity: 0.6 }]}
+              onPress={handleSubmit}
+              disabled={disabled}
+            >
+              <LinearGradient colors={[C.navy, C.navyMid]} style={styles.submitGradient}>
+                {isSubmitting ? (
+                  <View style={styles.submitLoaderContainer}>
+                    <ActivityIndicator color={C.textInverse} style={{ marginRight: rs(10) }} />
+                    <Text style={styles.submitBtnTxt}>
+                      {uploadingImage ? 'Uploading Photos...' : 'Submitting...'}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.submitBtnTxt}>
+                    {isReplacement ? 'Submit Replacement Request' : 'Submit Return Request'}
+                  </Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          );
+        })()}
       </ScrollView>
 
       {refundPolicy && (

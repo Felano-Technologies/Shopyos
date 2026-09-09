@@ -27,10 +27,16 @@ async function setBalanceLogEligibility(orderId, eligibleAt) {
 const createReturnRequest = async (req, res, next) => {
   try {
     const buyerId = req.user.id;
-    const { orderId, reason, reasonCategory, evidenceImages = [] } = req.body;
+    const {
+      orderId, reason, reasonCategory, evidenceImages = [],
+      resolutionType = 'refund', orderItemId, targetVariantId
+    } = req.body;
 
     if (!orderId || !reason?.trim()) {
       return ApiResponse.error(res, 'orderId and reason are required', 400);
+    }
+    if (!['refund', 'replacement'].includes(resolutionType)) {
+      return ApiResponse.error(res, "resolutionType must be 'refund' or 'replacement'", 400);
     }
 
     const order = await repositories.orders.findById(orderId);
@@ -52,6 +58,32 @@ const createReturnRequest = async (req, res, next) => {
       return ApiResponse.error(res, 'Could not determine seller for this order', 400);
     }
 
+    let orderItem = null;
+    let targetVariant = null;
+    if (resolutionType === 'replacement') {
+      if (!orderItemId || !targetVariantId) {
+        return ApiResponse.error(res, 'orderItemId and targetVariantId are required for a replacement request', 400);
+      }
+
+      const db = require('../config/postgres').getPool();
+      const { rows: orderItemRows } = await db.query(
+        `SELECT * FROM order_items WHERE id = $1 AND order_id = $2`,
+        [orderItemId, orderId]
+      );
+      orderItem = orderItemRows[0] || null;
+      if (!orderItem) {
+        return ApiResponse.error(res, 'orderItemId does not belong to this order', 400);
+      }
+
+      targetVariant = await repositories.productVariants.findWithProduct(targetVariantId);
+      if (!targetVariant || targetVariant.product_id !== orderItem.product_id) {
+        return ApiResponse.error(res, 'targetVariantId must be a variant of the ordered product', 400);
+      }
+      if (!targetVariant.is_active || Number(targetVariant.stock_quantity) <= 0) {
+        return ApiResponse.error(res, 'The selected replacement option is currently out of stock', 400);
+      }
+    }
+
     const subtotal = Number.parseFloat(order.subtotal || 0);
     const discount = Number.parseFloat(order.discount_amount || 0);
     const refundableAmount = Math.max(0, subtotal - discount);
@@ -65,6 +97,9 @@ const createReturnRequest = async (req, res, next) => {
       evidence_images: evidenceImages.length ? evidenceImages : null,
       delivery_fee_at_time: order.delivery_fee,
       refundable_amount: refundableAmount,
+      resolution_type: resolutionType,
+      order_item_id: resolutionType === 'replacement' ? orderItemId : null,
+      target_variant_id: resolutionType === 'replacement' ? targetVariantId : null,
       policy_version: '1.0',
       disclaimer_acknowledged: true,
       acknowledged_at: new Date().toISOString()
@@ -74,11 +109,14 @@ const createReturnRequest = async (req, res, next) => {
     await setBalanceLogEligibility(orderId, null);
 
     // Notify seller
+    const isReplacement = resolutionType === 'replacement';
     await notificationService.sendNotification({
       userId: sellerId,
-      type: 'return_requested',
-      title: 'New return request',
-      message: `A buyer has requested a return for order #${order.order_number}.`,
+      type: isReplacement ? 'replacement_requested' : 'return_requested',
+      title: isReplacement ? 'New replacement request' : 'New return request',
+      message: isReplacement
+        ? `A buyer has requested a replacement item for order #${order.order_number}.`
+        : `A buyer has requested a return for order #${order.order_number}.`,
       relatedId: returnReq.id,
       relatedType: 'return_request',
       push: { data: { screen: 'business/orders', returnId: returnReq.id } }
@@ -140,43 +178,73 @@ const getSellerReturns = async (req, res, next) => {
 const sellerRespondToReturn = async (req, res, next) => {
   try {
     const { returnId } = req.params;
-    const { action, sellerResponse } = req.body;
+    const { action, sellerResponse, trackingInfo } = req.body;
     const sellerId = req.user.id;
 
-    if (!['approve', 'decline'].includes(action)) {
-      return ApiResponse.error(res, "action must be 'approve' or 'decline'", 400);
+    const validActions = ['approve', 'decline', 'ship', 'deliver'];
+    if (!validActions.includes(action)) {
+      return ApiResponse.error(res, `action must be one of: ${validActions.join(', ')}`, 400);
     }
 
     const returnReq = await repositories.returns.findById(returnId);
     if (!returnReq || returnReq.seller_id !== sellerId) {
       return ApiResponse.error(res, 'Return request not found', 404);
     }
-    if (returnReq.status !== 'pending') {
+
+    const isReplacement = returnReq.resolution_type === 'replacement';
+
+    // Preconditions: approve/decline act on a pending request; ship/deliver only
+    // apply to an approved replacement moving through its shipping lifecycle.
+    if (['approve', 'decline'].includes(action) && returnReq.status !== 'pending') {
       return ApiResponse.error(res, 'This request has already been actioned', 400);
     }
+    if (action === 'ship' && (!isReplacement || returnReq.status !== 'replacement_approved')) {
+      return ApiResponse.error(res, 'Only an approved replacement can be marked as shipped', 400);
+    }
+    if (action === 'deliver' && (!isReplacement || returnReq.status !== 'replacement_shipped')) {
+      return ApiResponse.error(res, 'Only a shipped replacement can be marked as delivered', 400);
+    }
 
-    const newStatus = action === 'approve' ? 'seller_approved' : 'seller_declined';
-    const updated = await repositories.returns.update(returnId, {
-      status: newStatus,
-      seller_response: sellerResponse?.trim() || null
-    });
+    let newStatus;
+    if (action === 'approve') newStatus = isReplacement ? 'replacement_approved' : 'seller_approved';
+    else if (action === 'decline') newStatus = 'seller_declined';
+    else if (action === 'ship') newStatus = 'replacement_shipped';
+    else newStatus = 'replacement_delivered';
 
-    // Seller declined → unlock balance immediately (return won't proceed)
-    if (newStatus === 'seller_declined') {
+    const updateData = { status: newStatus };
+    if (['approve', 'decline'].includes(action)) {
+      updateData.seller_response = sellerResponse?.trim() || null;
+    }
+    if (action === 'ship') {
+      updateData.replacement_shipped_at = new Date().toISOString();
+      if (trackingInfo) updateData.replacement_tracking_info = trackingInfo.trim();
+    }
+    if (action === 'deliver') {
+      updateData.replacement_delivered_at = new Date().toISOString();
+      updateData.resolved_at = new Date().toISOString();
+    }
+
+    const updated = await repositories.returns.update(returnId, updateData);
+
+    // Declined, or a fully-delivered replacement → unlock balance (no refund follows)
+    if (newStatus === 'seller_declined' || newStatus === 'replacement_delivered') {
       await setBalanceLogEligibility(returnReq.order_id, new Date().toISOString());
     }
 
-    const notificationType = action === 'approve' ? 'return_approved' : 'return_declined';
-    const notificationTitle = action === 'approve' ? 'Return approved' : 'Return declined';
-    const declineReason = sellerResponse ? ` Reason: ${sellerResponse}` : '';
-    const notificationMessage = action === 'approve'
-      ? 'Your return request has been approved. A refund will be processed shortly.'
-      : `Your return request was declined.${declineReason}`;
+    const NOTICES = {
+      approve: isReplacement
+        ? { type: 'replacement_approved', title: 'Replacement approved', message: 'Your replacement request has been approved. The seller will ship your item shortly.' }
+        : { type: 'return_approved', title: 'Return approved', message: 'Your return request has been approved. A refund will be processed shortly.' },
+      decline: { type: isReplacement ? 'replacement_declined' : 'return_declined', title: isReplacement ? 'Replacement declined' : 'Return declined', message: `Your ${isReplacement ? 'replacement' : 'return'} request was declined.${sellerResponse ? ` Reason: ${sellerResponse}` : ''}` },
+      ship: { type: 'replacement_shipped', title: 'Replacement shipped', message: 'Your replacement item is on its way.' },
+      deliver: { type: 'replacement_delivered', title: 'Replacement delivered', message: 'Your replacement item has been marked as delivered.' }
+    };
+    const notice = NOTICES[action];
     await notificationService.sendNotification({
       userId: returnReq.buyer_id,
-      type: notificationType,
-      title: notificationTitle,
-      message: notificationMessage,
+      type: notice.type,
+      title: notice.title,
+      message: notice.message,
       relatedId: returnId,
       relatedType: 'return_request',
       push: { data: { screen: `order/${returnReq.order_id}` } }

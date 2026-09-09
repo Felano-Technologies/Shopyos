@@ -28,6 +28,11 @@ export const adminDeleteStore = async (storeId: string) => {
   return response.data;
 };
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
+export const getAdminVerifications = async (params?: any) => { const response = await api.get('/admin/verifications', { params }); return response.data; };
+export const getAdminVerificationDetail = async (id: string) => { const response = await api.get(`/admin/verifications/${id}`); return response.data; };
+export const approveVerification = async (id: string) => { const response = await api.put(`/admin/verifications/${id}/approve`); return response.data; };
+export const rejectVerification = async (id: string, reason: string) => { const response = await api.put(`/admin/verifications/${id}/reject`, { reason }); return response.data; };
+export const requestVerificationInformation = async (id: string, message: string, channel?: string) => { const response = await api.put(`/admin/verifications/${id}/request-information`, { message, channel }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
 export const getAdminOrderStats = async () => { const response = await api.get('/admin/orders/stats'); return response.data; };
 export const updateOrderStatus = async (orderId: string, status: string) => {

@@ -158,6 +158,9 @@ export const createReturnRequest = async (data: {
   reason: string;
   reasonCategory?: string;
   evidenceImages?: string[];
+  resolutionType?: 'refund' | 'replacement';
+  orderItemId?: string;
+  targetVariantId?: string;
 }) => {
   try {
     const response = await api.post('/returns', data);
@@ -185,9 +188,14 @@ export const getSellerReturns = async (params: { page?: number; limit?: number; 
   }
 };
 
-export const respondToReturn = async (returnId: string, action: 'approve' | 'decline', sellerResponse?: string) => {
+export const respondToReturn = async (
+  returnId: string,
+  action: 'approve' | 'decline' | 'ship' | 'deliver',
+  sellerResponse?: string,
+  trackingInfo?: string
+) => {
   try {
-    const response = await api.patch(`/returns/${returnId}/respond`, { action, sellerResponse });
+    const response = await api.patch(`/returns/${returnId}/respond`, { action, sellerResponse, trackingInfo });
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

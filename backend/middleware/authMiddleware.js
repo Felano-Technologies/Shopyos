@@ -134,4 +134,47 @@ const invalidateUserAuthCache = async (userId) => {
   await cacheDel(`shopyos:users:${userId}:auth`);
 };
 
-module.exports = { protect, optionalAuth, admin, seller, driver, hasAnyRole, invalidateUserAuthCache };
+// Gates a restricted seller/driver operation on actual verification approval,
+// not just role membership — closes the gap where today a seller has no
+// verification gate at all, and a driver's gate is only an accident of role
+// assignment happening at approval time. `canActivateSeller`/`canActivateDriver`
+// (services/verificationRequirements.js) are the single authoritative checks
+// this defers to, so approval logic never drifts between call sites.
+const requireVerified = (role) => async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+  if (req.user.roles?.includes('admin')) return next(); // super admin bypass, consistent with checkRole
+
+  try {
+    const { canActivateSeller, canActivateDriver } = require('../services/verificationRequirements');
+
+    const application = await repositories.verification.findOpenApplication(req.user.id, role);
+    if (!application) return res.status(403).json({ error: `No ${role} verification application found` });
+
+    const steps = await repositories.verification.getStepsForApplication(application.id);
+    const check = role === 'seller' ? canActivateSeller : canActivateDriver;
+    if (!check(application, steps)) {
+      return res.status(403).json({ error: `Your ${role} verification is not yet approved`, status: application.status });
+    }
+    return next();
+  } catch (error) {
+    logger.error('requireVerified check failed', { error: error.message, userId: req.user.id, role });
+    return res.status(503).json({ error: 'Verification check temporarily unavailable' });
+  }
+};
+
+// Small permission matrix for the verification admin console (plain 'admin'
+// satisfies every tier, acting as super-admin). See plan §Admin permission
+// tiers — verification_admin can view identity/liveness docs and approve/
+// reject; support_admin can request info but not view sensitive documents;
+// finance_admin is unrelated to verification review itself.
+const hasVerificationPermission = (...permittedRoles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+  const userRoles = req.user.roles || [];
+  if (userRoles.includes('admin') || permittedRoles.some(r => userRoles.includes(r))) return next();
+  return res.status(403).json({ error: 'Access denied for this verification action' });
+};
+
+module.exports = {
+  protect, optionalAuth, admin, seller, driver, hasAnyRole, invalidateUserAuthCache,
+  requireVerified, hasVerificationPermission,
+};

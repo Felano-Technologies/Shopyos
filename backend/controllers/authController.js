@@ -164,7 +164,11 @@ const register = async (req, res, next) => {
       }
     }
 
-    const user = await repositories.users.createUser({ email, password });
+    // Buyer signup is OTP-gated (once, at signup) rather than the old
+    // click-a-link email_verified flow, which was never actually enforced
+    // anywhere — the account is created inactive and only activated by
+    // verifySignupOtp() below.
+    const user = await repositories.users.createUser({ email, password, is_active: false });
     const cleanPhone = normalizedPhone;
 
     // Log consent for Terms of Service and Privacy Policy at registration time
@@ -190,11 +194,8 @@ const register = async (req, res, next) => {
       await recordReferralSignup(referredById, user.id, name);
     }
 
-    const accessToken = generateAccessToken(user.id);
-    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
-    setAuthCookies(res, accessToken, refreshToken);
-
-    // Queue Welcome Notification (Default format)
+    // Queue Welcome Notification (Default format) — sent regardless of OTP
+    // completion; it's a welcome message, not a functional unlock.
     const publishPayload = {
       eventType: 'WELCOME_EMAIL',
       userId: user.id,
@@ -207,12 +208,95 @@ const register = async (req, res, next) => {
     if (email) rabbitMQService.publishMessage('email', publishPayload);
     if (cleanPhone) rabbitMQService.publishMessage('sms', { ...publishPayload, eventType: 'WELCOME_SMS', phone: cleanPhone });
 
+    const maskedTarget = await _sendSignupOtp(user, cleanPhone);
+
     ApiResponse.created(res, {
-      requiresRoleSelection: true,
-      token: accessToken,
-      refreshToken,
-      expiresIn: ACCESS_TOKEN_EXPIRY
+      requiresOtpVerification: true,
+      userId: user.id,
+      maskedTarget,
     }, 'User created successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Generates and sends the one-time signup OTP (SMS if a phone is on file,
+// email always as a fallback/duplicate channel), caching it 10 minutes under
+// `signup_otp:${userId}` — mirrors the existing 2FA/password-reset OTP
+// pattern (2fa_otp:/pwd_otp:) rather than inventing a new mechanism.
+const _sendSignupOtp = async (user, phone) => {
+  const code = crypto.randomInt(100000, 999999).toString();
+  await cacheSet(`signup_otp:${user.id}`, { code }, 600);
+
+  let smsSent = false;
+  if (phone) {
+    try {
+      await notificationService.sendOTP(phone, code);
+      smsSent = true;
+    } catch (err) {
+      logger.warn('Signup OTP SMS send failed, email only:', err.message);
+    }
+  }
+
+  // Fire-and-forget, same reasoning as the 2FA email send above — never hold
+  // the registration response hostage to SMTP latency.
+  getTransporter().sendMail({
+    to: user.email,
+    from: process.env.EMAIL_FROM,
+    subject: 'Shopyos – Verify your account',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+        <h2 style="color: #0C1559; margin-bottom: 16px;">Verify your account</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 22px;">Welcome to Shopyos! Enter the code below to activate your account. It expires in <strong>10 minutes</strong>.</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <span style="display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #0C1559; background: #EEF2FF; padding: 16px 28px; border-radius: 10px;">${code}</span>
+        </div>
+      </div>
+    `,
+    text: `Your Shopyos account verification code is: ${code}\n\nIt expires in 10 minutes.`
+  }).catch(err => logger.warn('Signup OTP email send failed:', err.message));
+
+  return smsSent && phone ? `${maskEmail(user.email)} and ${maskPhone(phone)}` : maskEmail(user.email);
+};
+
+// POST /api/v1/auth/signup/verify-otp — activates the account and finishes
+// signup exactly like a normal login (issues real tokens via _finishLogin),
+// same shape as verifyTwoFactor() completing a 2FA-gated login.
+const verifySignupOtp = async (req, res, next) => {
+  const { userId, code } = req.body;
+  if (!userId || !code) return ApiResponse.error(res, 'userId and code are required', 400);
+
+  try {
+    const user = await repositories.users.findById(userId);
+    if (!user) return ApiResponse.error(res, 'Account not found', 404);
+    if (user.is_active) return ApiResponse.error(res, 'Account is already verified', 400);
+
+    const stored = await cacheGet(`signup_otp:${userId}`);
+    if (!stored || stored.code !== code.trim()) {
+      return ApiResponse.error(res, 'Invalid or expired code. Please try again.', 400);
+    }
+    await cacheDel(`signup_otp:${userId}`);
+
+    const activatedUser = await repositories.users.update(userId, { is_active: true, email_verified: true });
+    return _finishLogin(req, res, activatedUser);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/v1/auth/signup/resend-otp
+const resendSignupOtp = async (req, res, next) => {
+  const { userId } = req.body;
+  if (!userId) return ApiResponse.error(res, 'userId is required', 400);
+
+  try {
+    const user = await repositories.users.findById(userId);
+    if (!user) return ApiResponse.error(res, 'Account not found', 404);
+    if (user.is_active) return ApiResponse.error(res, 'Account is already verified', 400);
+
+    const profile = await repositories.userProfiles.findByUserId(userId);
+    const maskedTarget = await _sendSignupOtp(user, profile?.phone || null);
+    return ApiResponse.success(res, { maskedTarget }, 'Verification code resent');
   } catch (err) {
     next(err);
   }
@@ -235,6 +319,20 @@ const login = async (req, res, next) => {
         `This account is scheduled for deletion on ${deleteOn.toDateString()}. Contact support if you want to cancel the request.`,
         403
       );
+    }
+
+    // Not yet OTP-verified (accounts predating this gate, or google_id-linked
+    // OAuth accounts, are already is_active:true and unaffected). Not using
+    // ApiResponse.error()'s `details` param here since that's dev-only —
+    // requiresOtpVerification/userId are real routing info the app needs in
+    // every environment.
+    if (!user.is_active) {
+      return res.status(403).json({
+        success: false,
+        error: 'Please verify your account with the code sent at signup before logging in.',
+        requiresOtpVerification: true,
+        userId: user.id,
+      });
     }
 
     if (latitude && longitude) {
@@ -1273,5 +1371,6 @@ module.exports = {
   addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState,
   googleAuth,
   verifyTwoFactor, getSecuritySettings, updateSecuritySettings, requestDataExport, requestAccountDeletion,
-  getThemePreference, updateThemePreference
+  getThemePreference, updateThemePreference,
+  verifySignupOtp, resendSignupOtp,
 };

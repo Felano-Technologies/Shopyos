@@ -7,6 +7,32 @@ const { invalidateStore } = require('../config/cacheInvalidation');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
 
+// Derives the buyer-facing verification status/reason from the new unified
+// verification_applications table instead of stores.verification_status
+// directly, so the new seller wizard (Phase 2) and this legacy response
+// shape share one source of truth. Falls back to the store's own column if
+// no application exists yet (e.g. right after createBusiness, before the
+// seller has started the wizard) or on any lookup error — never let this
+// break the wider business dashboard response.
+const VERIFICATION_STATUS_DISPLAY_MAP = { approved: 'verified', rejected: 'rejected', suspended: 'rejected' };
+const _resolveSellerVerificationStatus = async (store) => {
+  try {
+    const application = await repositories.verification.getApplicationByEntityId(store.id, 'seller');
+    if (!application) {
+      return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '' };
+    }
+    return {
+      verificationStatus: VERIFICATION_STATUS_DISPLAY_MAP[application.status] || 'pending',
+      rejectionReason: application.rejection_reason || store.rejection_reason || '',
+    };
+  } catch (error) {
+    logger.warn('Failed to resolve seller verification status from verification_applications, falling back to store column', {
+      error: error.message, storeId: store.id,
+    });
+    return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '' };
+  }
+};
+
 // --- Helpers for createBusiness ---
 
 const _validateBusinessFields = (body) => {
@@ -248,7 +274,7 @@ const createBusiness = async (req, res, next) => {
       logo_url: await resolveImageUrl(store.logo_url) || '',
       coverImage: await resolveImageUrl(store.banner_url) || '',
       banner_url: await resolveImageUrl(store.banner_url) || '',
-      verificationStatus: store.verification_status,
+      ...(await _resolveSellerVerificationStatus(store)),
       isActive: store.is_active,
       rating: store.average_rating || 0,
       totalReviews: store.total_reviews || 0,
@@ -309,8 +335,7 @@ const getMyBusinesses = async (req, res, next) => {
       logo_url: await resolveImageUrl(store.logo_url) || '',
       coverImage: await resolveImageUrl(store.banner_url) || '',
       banner_url: await resolveImageUrl(store.banner_url) || '',
-      verificationStatus: store.verification_status,
-      rejectionReason: store.rejection_reason || '',
+      ...(await _resolveSellerVerificationStatus(store)),
       isActive: store.is_active,
       isTrusted: store.is_trusted || false,
       rating: store.average_rating || 0,
@@ -379,8 +404,7 @@ const getBusinessById = async (req, res, next) => {
       },
       logo: await resolveImageUrl(store.logo_url) || '',
       coverImage: await resolveImageUrl(store.banner_url) || '',
-      verificationStatus: store.verification_status,
-      rejectionReason: store.rejection_reason || '',
+      ...(await _resolveSellerVerificationStatus(store)),
       isActive: store.is_active,
       isTrusted: store.is_trusted || false,
       rating: store.average_rating || 0,
@@ -596,8 +620,7 @@ const updateBusiness = async (req, res, next) => {
       },
       logo: await resolveImageUrl(updatedStore.logo_url) || '',
       coverImage: await resolveImageUrl(updatedStore.banner_url) || '',
-      verificationStatus: updatedStore.verification_status,
-      rejectionReason: updatedStore.rejection_reason || '',
+      ...(await _resolveSellerVerificationStatus(updatedStore)),
       isActive: updatedStore.is_active,
       rating: updatedStore.average_rating || 0,
       totalReviews: updatedStore.total_reviews || 0,

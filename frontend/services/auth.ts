@@ -330,6 +330,38 @@ export const verifyTwoFactorLogin = async (twoFaToken: string, code: string) => 
   }
 };
 
+// Verify the one-time signup OTP and finish activating the account (same
+// session-completion shape as verifyTwoFactorLogin, since verifySignupOtp on
+// the backend also calls _finishLogin and issues real tokens).
+export const verifySignupOtp = async (userId: string, code: string) => {
+  try {
+    const response = await api.post('/auth/signup/verify-otp', { userId, code });
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await completeAuthSession(payload);
+    }
+    const needsRole =
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Verification failed: ${error.response.status}`);
+    throw new Error(error.message || 'Network error during verification');
+  }
+};
+
+export const resendSignupOtp = async (userId: string) => {
+  try {
+    const response = await api.post('/auth/signup/resend-otp', { userId });
+    return response.data?.data as { maskedTarget: string };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Failed to resend code: ${error.response.status}`);
+    throw new Error(error.message || 'Network error while resending code');
+  }
+};
+
 // ── Security & privacy settings ──────────────────────────────────────────────
 
 export const getSecuritySettings = async (): Promise<{

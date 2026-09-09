@@ -22,12 +22,15 @@ const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 // Return-status badge colors are intentionally fixed across themes (amber/green/red/blue
 // semantics must stay recognizable regardless of light/dark mode), not theme tokens.
 const STATUS_COLORS: Record<string, { color: string; bg: string; label: string }> = {
-  pending:          { color: '#B45309', bg: '#FEF3C7', label: 'Pending' },
-  seller_approved:  { color: '#166534', bg: '#DCFCE7', label: 'Approved' },
-  seller_declined:  { color: '#B91C1C', bg: '#FEE2E2', label: 'Declined' },
-  admin_review:     { color: '#1D4ED8', bg: '#DBEAFE', label: 'Admin Review' },
-  refund_issued:    { color: '#166534', bg: '#DCFCE7', label: 'Refund Issued' },
-  closed:           { color: '#64748B', bg: '#F1F5F9', label: 'Closed' },
+  pending:                { color: '#B45309', bg: '#FEF3C7', label: 'Pending' },
+  seller_approved:        { color: '#166534', bg: '#DCFCE7', label: 'Approved' },
+  seller_declined:        { color: '#B91C1C', bg: '#FEE2E2', label: 'Declined' },
+  admin_review:           { color: '#1D4ED8', bg: '#DBEAFE', label: 'Admin Review' },
+  refund_issued:          { color: '#166534', bg: '#DCFCE7', label: 'Refund Issued' },
+  closed:                 { color: '#64748B', bg: '#F1F5F9', label: 'Closed' },
+  replacement_approved:   { color: '#1D4ED8', bg: '#DBEAFE', label: 'Replacement Approved' },
+  replacement_shipped:    { color: '#1D4ED8', bg: '#DBEAFE', label: 'Shipped' },
+  replacement_delivered:  { color: '#166534', bg: '#DCFCE7', label: 'Delivered' },
 };
 
 const getStatusStyle = (s: string) =>
@@ -46,15 +49,40 @@ const ReturnCard = ({ item }: { item: any }) => {
         </View>
       </View>
       <Text style={styles.reason} numberOfLines={2}>{item.reason}</Text>
-      
-      <View style={styles.breakdownBox}>
-        <Text style={styles.breakdownText}>
-          Product Subtotal (Refundable): <Text style={styles.bold}>{formatCurrency(item.refundable_amount)}</Text>
-        </Text>
-        <Text style={styles.breakdownText}>
-          Delivery Fee (Non-Refundable): <Text style={styles.bold}>{formatCurrency(item.delivery_fee_at_time)}</Text>
-        </Text>
-      </View>
+
+      {item.resolution_type === 'replacement' ? (
+        <View style={styles.breakdownBox}>
+          <Text style={styles.breakdownText}>
+            Replacing: <Text style={styles.bold}>{item.returned_product_title || 'Item'}</Text>
+          </Text>
+          {item.target_variant_attributes ? (
+            <Text style={styles.breakdownText}>
+              With: <Text style={styles.bold}>
+                {Object.entries(item.target_variant_attributes).map(([k, v]) => `${k}: ${v}`).join(', ')}
+              </Text>
+            </Text>
+          ) : null}
+          {item.replacement_shipped_at ? (
+            <Text style={styles.breakdownText}>
+              Shipped: <Text style={styles.bold}>{format(new Date(item.replacement_shipped_at), 'dd MMM yyyy')}</Text>
+            </Text>
+          ) : null}
+          {item.replacement_delivered_at ? (
+            <Text style={styles.breakdownText}>
+              Delivered: <Text style={styles.bold}>{format(new Date(item.replacement_delivered_at), 'dd MMM yyyy')}</Text>
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.breakdownBox}>
+          <Text style={styles.breakdownText}>
+            Product Subtotal (Refundable): <Text style={styles.bold}>{formatCurrency(item.refundable_amount)}</Text>
+          </Text>
+          <Text style={styles.breakdownText}>
+            Delivery Fee (Non-Refundable): <Text style={styles.bold}>{formatCurrency(item.delivery_fee_at_time)}</Text>
+          </Text>
+        </View>
+      )}
 
       {item.seller_response ? (
         <View style={styles.sellerNote}>

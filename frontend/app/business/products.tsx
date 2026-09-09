@@ -407,7 +407,7 @@ export default function ProductsScreen() {
                     accessibilityLabel="Register another store"
                     accessibilityRole="button"
                     style={S.switcherAddCard}
-                    onPress={() => { setShowSwitcher(false); router.push('/business/register'); }}
+                    onPress={() => { setShowSwitcher(false); router.push('/business/onboarding' as any); }}
                   >
                     <View style={S.switcherAddIcon}>
                       <Ionicons name="add" size={22} color={colors.primary} />

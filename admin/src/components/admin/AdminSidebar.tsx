@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut, FiPieChart, FiTrendingDown, FiPhoneCall } from 'react-icons/fi';
+import { FiHome, FiUsers, FiShoppingBag, FiTruck, FiSettings, FiFileText, FiTag, FiClock, FiSend, FiPercent, FiAlertCircle, FiCreditCard, FiMap, FiMonitor, FiBell, FiDollarSign as FiDollar, FiMessageSquare, FiLogOut, FiPieChart, FiTrendingDown, FiPhoneCall, FiShield } from 'react-icons/fi';
 import { logoutUser } from '../../services/auth';
 import { getCachedUserProfile } from '../../services/storage';
 import { useAuthStore } from '../../store/authStore';
@@ -59,6 +59,7 @@ export const AdminSidebar: React.FC = () => {
     { name: 'Expense Categories', path: '/expense-categories', icon: <FiTag className="w-5 h-5" /> },
     { name: 'Notifications', path: '/notifications', icon: <FiBell className="w-5 h-5" /> },
     { name: 'Support', path: '/support', icon: <FiMessageSquare className="w-5 h-5" /> },
+    { name: 'Verifications', path: '/verifications', icon: <FiShield className="w-5 h-5" /> },
     { name: 'Audit Logs', path: '/audit-logs', icon: <FiFileText className="w-5 h-5" /> },
     { name: 'Settings', path: '/settings', icon: <FiSettings className="w-5 h-5" /> },
 

@@ -157,7 +157,7 @@ export default function CommunityLayout() {
                   style={styles.switcherAddCard}
                   onPress={() => {
                     setShowSwitcher(false);
-                    router.push('/business/register');
+                    router.push('/business/onboarding' as any);
                   }}
                 >
                   <View style={styles.switcherAddIcon}>

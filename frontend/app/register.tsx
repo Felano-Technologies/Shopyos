@@ -131,11 +131,11 @@ const RegisterScreen = () => {
       if (data.message === "User created successfully") {
         CustomInAppToast.show({
           type: 'success',
-          title: 'Sign up Successful',
-          message: 'Welcome!',
+          title: 'Almost there!',
+          message: 'Enter the code we just sent you to activate your account.',
         });
-        log('Branch: success -> navigating to /login');
-        resetToRoute('/login');
+        log('Branch: success -> navigating to /otp');
+        router.push({ pathname: '/otp', params: { userId: data.userId, maskedTarget: data.maskedTarget || '' } });
       } else {
         log(`Branch: unexpected message "${data.message}" -> showing error toast, no navigation`);
         CustomInAppToast.show({

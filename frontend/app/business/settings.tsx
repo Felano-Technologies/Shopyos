@@ -201,7 +201,7 @@ export default function BusinessSettingsScreen() {
                 icon="briefcase-outline" iconColor="#2563EB" iconBg="#EFF6FF"
                 label="Update Registration Details"
                 disabled={!isBusinessVerified}
-                onPress={() => router.push('/business/businessRegistration' as any)}
+                onPress={() => router.push('/business/onboarding' as any)}
                 onRestrictedAction={handleRestrictedAction}
                 onNotificationToggle={handleNotificationToggle}
               />
