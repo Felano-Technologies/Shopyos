@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -106,13 +107,17 @@ export default function SellerTrainingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color={colors.text} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>{role === 'driver' ? 'Driver Training' : 'Seller Academy'}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.safeArea}>
+      <StatusBar style="light" />
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color="#FFF" /></TouchableOpacity>
+            <Text style={styles.headerTitle}>{role === 'driver' ? 'Driver Training' : 'Seller Academy'}</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
       {loading || !application ? (
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
@@ -141,17 +146,18 @@ export default function SellerTrainingScreen() {
           </View>
         </>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: c.background },
+  header: { paddingTop: 8, paddingBottom: 16, paddingHorizontal: 8 },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.border,
+    paddingHorizontal: 8, paddingVertical: 4,
   },
-  headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: c.text },
+  headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 20, paddingBottom: 20 },
   intro: { fontSize: 13, color: c.textSecondary, marginBottom: 16, lineHeight: 19 },

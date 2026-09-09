@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -41,11 +42,19 @@ export default function VerificationConsentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+    <View style={styles.safeArea}>
+      <StatusBar style="light" />
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color="#FFF" /></TouchableOpacity>
+            <Text style={styles.headerTitle}>Verification Consent</Text>
+            <View style={{ width: 24 }} />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
       <ScrollView contentContainerStyle={styles.body}>
         <Ionicons name="shield-checkmark-outline" size={48} color={colors.primary} style={{ marginBottom: 16 }} />
-        <Text style={styles.title}>Verification Consent</Text>
         <Text style={styles.paragraph}>
           To verify your identity, Shopyos will ask you to provide a government-issued ID and complete a
           short face/liveness check (we'll ask you to blink, turn your head, or smile on camera).
@@ -68,14 +77,16 @@ export default function VerificationConsentScreen() {
           <Text style={styles.cancelBtnText}>Not now</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: c.background },
+  header: { paddingTop: 8, paddingBottom: 16, paddingHorizontal: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 4 },
+  headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   body: { padding: 24, alignItems: 'center' },
-  title: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: c.text, marginBottom: 12, textAlign: 'center' },
   paragraph: { fontSize: 14, color: c.textSecondary, lineHeight: 21, marginBottom: 12, textAlign: 'left', alignSelf: 'stretch' },
   bulletList: { alignSelf: 'stretch', marginBottom: 12 },
   bullet: { fontSize: 14, color: c.text, lineHeight: 24 },

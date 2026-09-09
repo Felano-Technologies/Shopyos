@@ -34,11 +34,27 @@ const OtpVerificationScreen = () => {
   const inputs = useRef<TextInput[]>([]);
 
   const handleChange = (text: string, index: number) => {
+    const digits = text.replace(/\D/g, '');
+
+    // iOS/Android SMS autofill delivers the WHOLE code into whichever box is
+    // focused (not one digit per box) — split it across all 6 here instead
+    // of just dropping everything but the first character into that one box.
+    if (digits.length > 1) {
+      const chars = digits.slice(0, 6).split('');
+      const newOtp = ['', '', '', '', '', ''];
+      chars.forEach((c, i) => { newOtp[i] = c; });
+      setOtp(newOtp);
+      const nextIndex = Math.min(chars.length, 5);
+      inputs.current[nextIndex]?.focus();
+      if (chars.length >= 6) inputs.current[5]?.blur();
+      return;
+    }
+
     const newOtp = [...otp];
-    newOtp[index] = text;
+    newOtp[index] = digits;
     setOtp(newOtp);
 
-    if (text && index < 5) {
+    if (digits && index < 5) {
       inputs.current[index + 1].focus();
     }
   };
@@ -103,7 +119,12 @@ const OtpVerificationScreen = () => {
                 ref={(ref) => { inputs.current[index] = ref!; }}
                 style={styles.otpInput}
                 keyboardType="numeric"
-                maxLength={1}
+                // No maxLength — a maxLength={1} here would truncate an
+                // autofilled 6-digit code down to 1 char natively before
+                // onChangeText ever sees it. handleChange() already handles
+                // both a single keystroke and a full autofilled code.
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
                 value={digit}
                 onChangeText={(text) => handleChange(text, index)}
                 returnKeyType="next"

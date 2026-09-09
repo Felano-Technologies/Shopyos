@@ -103,13 +103,15 @@ export default function SellerOnboardingHub() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+    <View style={styles.safeArea}>
       {/* status bar is always light here — the gradient header behind it is
           a fixed brand color regardless of light/dark theme, same as every
-          other gradient-header screen in the app (e.g. businessRegistration.tsx) */}
+          other gradient-header screen in the app (e.g. favorites.tsx). Root
+          must be a plain View (not SafeAreaView) for the gradient to bleed
+          behind the status bar — matches favorites.tsx exactly. */}
       <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
-        <SafeAreaView edges={['top']}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -118,7 +120,11 @@ export default function SellerOnboardingHub() {
         </SafeAreaView>
       </LinearGradient>
 
-      {loading || !application ? (
+      {/* Only the very first load shows the full-screen spinner — refocus
+          refetches (coming back from a step screen) keep the existing list
+          on screen and use the ScrollView's own RefreshControl instead, so
+          returning to the hub doesn't flash a blank loading screen. */}
+      {!application ? (
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView
@@ -188,7 +194,7 @@ export default function SellerOnboardingHub() {
           </TouchableOpacity>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

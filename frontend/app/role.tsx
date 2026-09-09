@@ -91,11 +91,12 @@ const RoleSelectionScreen = () => {
   const styles = useMemo(() => getStyles(C), [C]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Parcel Partner is admin-provisioned only (admin/create-driver.tsx-style
+  // flow) — not a self-service role choice here.
   const roles: Role[] = [
     { id: 'customer', image: require('../assets/images/customer.jpg'), label: 'Customer' },
     { id: 'seller', image: require('../assets/images/seller.jpg'), label: 'Seller' },
     { id: 'driver', image: require('../assets/images/driver.jpg'), label: 'Driver' },
-    { id: 'parcel_partner', icon: 'cube-outline', label: 'Parcel Partner' },
   ];
   const handleRoleSelection = async () => {
     if (loading) return; // guard double-taps before the disabled state re-renders
@@ -151,8 +152,6 @@ const RoleSelectionScreen = () => {
           router.replace('/business/onboarding' as any);
         } else if (selectedRole === 'driver') {
           router.replace('/driver/onboarding' as any);
-        } else if (selectedRole === 'parcel_partner') {
-          router.replace('/parcel-partner/dashboard');
         }
       }, 1000);
 

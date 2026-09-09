@@ -99,10 +99,12 @@ export default function DriverOnboardingHub() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+    <View style={styles.safeArea}>
+      {/* Root must be a plain View (not SafeAreaView) for the gradient to
+          bleed behind the status bar — matches favorites.tsx exactly. */}
       <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
-        <SafeAreaView edges={['top']}>
+        <SafeAreaView edges={['top', 'left', 'right']}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#FFF" />
           </TouchableOpacity>
@@ -111,7 +113,10 @@ export default function DriverOnboardingHub() {
         </SafeAreaView>
       </LinearGradient>
 
-      {loading || !application ? (
+      {/* Only the very first load shows the full-screen spinner — refocus
+          refetches (coming back from a step screen) keep the existing list
+          on screen and use the ScrollView's own RefreshControl instead. */}
+      {!application ? (
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView
@@ -181,7 +186,7 @@ export default function DriverOnboardingHub() {
           </TouchableOpacity>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
