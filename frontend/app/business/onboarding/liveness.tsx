@@ -1,20 +1,24 @@
 // app/business/onboarding/liveness.tsx
 // On-device challenge-response liveness capture (plan §Liveness). The device
-// walks the applicant through a short random sequence (blink/turn/smile) and
-// captures a final frame — that result is sent to the backend as EVIDENCE
-// only (liveness_verifications row), never an automatic pass. The backend
-// enforces the 3-attempt cap and requires an admin to actually look at the
-// captured frame before the step can become 'verified'.
+// walks the applicant through a short random sequence (blink/turn/smile),
+// capturing one frame BEFORE the sequence starts (baseline) and one frame
+// right after each challenge completes — that's what makes real comparative
+// analysis possible server-side (e.g. head-yaw delta between baseline and
+// the "turn left" frame, eye-aspect-ratio delta for blink). A single final
+// photo can't prove any of that actually happened, which is why this
+// captures a frame per step instead.
 //
-// IMPORTANT — scope note: this build has no on-device face-landmark tracking
-// or anti-spoofing model wired in yet (no ML Kit/Vision frame-processor or
-// ONNX runtime dependency is installed). The challenge prompts are real and
-// the captured frame is real evidence uploaded for admin review, but nothing
-// here currently verifies the prompted movement actually happened or rejects
-// a photo/video replay — `passed` is optimistically true once the applicant
-// steps through the prompts and a photo is taken. Swapping in a real
-// face-landmark + anti-spoof pipeline behind submitVerificationLivenessAttempt
-// requires no change to this screen's contract with the backend.
+// All frames are sent to the backend as EVIDENCE only (liveness_verifications
+// row) — never an automatic pass. The backend enforces the 3-attempt cap and
+// requires an admin to actually look at the frames before the step can
+// become 'verified'.
+//
+// SCOPE NOTE: no ML/anti-spoof model runs anywhere yet — `passed` is
+// optimistically true once the applicant steps through the prompts and every
+// frame is captured. The multi-frame capture here is specifically so that
+// real face-landmark/anti-spoof analysis can be added later ENTIRELY
+// SERVER-SIDE (e.g. onnxruntime-node) with NO further changes to this screen
+// or any new native frontend dependency — see the plan discussion on this.
 //
 // Shared by both the seller and driver wizards via the `role` param (see
 // consent.tsx's file header for why this lives under business/onboarding).
@@ -44,6 +48,8 @@ function pickChallenges() {
   return shuffled.slice(0, 2 + Math.round(Math.random())); // 2 or 3
 }
 
+type CapturedFrame = { label: string; uri: string };
+
 export default function LivenessCaptureScreen() {
   const router = useRouter();
   const colors = useThemeColors();
@@ -53,10 +59,11 @@ export default function LivenessCaptureScreen() {
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [challenges] = useState(pickChallenges);
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(-1); // -1 = capturing baseline, before any challenge
   const [countdown, setCountdown] = useState(3);
   const [capturing, setCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const framesRef = useRef<CapturedFrame[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -73,43 +80,69 @@ export default function LivenessCaptureScreen() {
     })();
   }, []);
 
+  const captureFrame = async (label: string) => {
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
+      if (photo?.uri) framesRef.current.push({ label, uri: photo.uri });
+    } catch {
+      // A missed frame just means one less data point server-side — never
+      // block the flow over a single failed capture.
+    }
+  };
+
+  // Baseline frame, captured once the camera is ready and before the first
+  // challenge countdown begins.
+  useEffect(() => {
+    if (hasPermission !== true || stepIndex !== -1) return;
+    (async () => {
+      setCapturing(true);
+      await captureFrame('baseline');
+      setCapturing(false);
+      setStepIndex(0);
+    })();
+  }, [hasPermission, stepIndex]);
+
   useEffect(() => {
     if (hasPermission !== true || capturing) return;
-    if (stepIndex >= challenges.length) return;
+    if (stepIndex < 0 || stepIndex >= challenges.length) return;
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(interval);
-          setStepIndex((i) => i + 1);
+          (async () => {
+            setCapturing(true);
+            await captureFrame(challenges[stepIndex].id);
+            setCapturing(false);
+            setStepIndex((i) => i + 1);
+          })();
           return 3;
         }
         return c - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex, hasPermission, capturing, challenges.length]);
 
   useEffect(() => {
     if (stepIndex === challenges.length && !capturing) {
-      captureAndSubmit();
+      finalizeAndSubmit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex]);
 
-  const captureAndSubmit = async () => {
-    setCapturing(true);
+  const finalizeAndSubmit = async () => {
     let applicationId: string | undefined;
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
       setSubmitting(true);
       const application = await getOrCreateVerificationApplication(role || 'seller');
       applicationId = application.id;
       await submitVerificationLivenessAttempt(application.id, {
         passed: true, // see scope note at top of file
         challengeSequence: challenges.map((c) => c.id).join(','),
-        capturedFrameUri: photo?.uri,
-        methodVersion: 'on_device_v1_no_ml',
+        frames: framesRef.current,
+        methodVersion: 'multi_frame_v1_no_ml',
         deviceInfo: Platform.OS,
       });
       CustomInAppToast.show({ type: 'success', title: 'Liveness recorded', message: 'An admin will confirm this during review.' });
@@ -133,7 +166,6 @@ export default function LivenessCaptureScreen() {
       CustomInAppToast.show({ type: 'error', title: 'Liveness check failed', message: err.message });
       router.back();
     } finally {
-      setCapturing(false);
       setSubmitting(false);
     }
   };
@@ -150,7 +182,7 @@ export default function LivenessCaptureScreen() {
     );
   }
 
-  if (hasPermission === null || (submitting)) {
+  if (hasPermission === null || submitting) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
@@ -158,7 +190,7 @@ export default function LivenessCaptureScreen() {
     );
   }
 
-  const currentChallenge = challenges[stepIndex];
+  const currentChallenge = stepIndex >= 0 ? challenges[stepIndex] : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -170,7 +202,12 @@ export default function LivenessCaptureScreen() {
             <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.faceOval} />
-          {currentChallenge ? (
+          {stepIndex === -1 ? (
+            <View style={styles.promptBox}>
+              <ActivityIndicator color="#FFF" />
+              <Text style={styles.promptText}>Hold still…</Text>
+            </View>
+          ) : currentChallenge ? (
             <View style={styles.promptBox}>
               <Text style={styles.promptText}>{currentChallenge.label}</Text>
               <Text style={styles.countdownText}>{countdown}</Text>

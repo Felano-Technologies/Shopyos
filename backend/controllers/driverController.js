@@ -4,6 +4,7 @@ const { logger } = require('../config/logger');
 const ApiResponse = require('../utils/apiResponse');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
+const { getTrustBadges } = require('../services/trustBadges');
 
 /**
  * Submit driver verification details
@@ -111,13 +112,18 @@ const DRIVER_STATUS_DISPLAY_MAP = { approved: 'verified', rejected: 'rejected', 
 const _resolveDriverVerificationStatus = async (profile) => {
   try {
     const application = await repositories.verification.getApplicationByEntityId(profile.id, 'driver');
-    if (!application) return { verification_status: profile.is_verified ? 'verified' : 'pending' };
-    return { verification_status: DRIVER_STATUS_DISPLAY_MAP[application.status] || 'pending', rejection_reason: application.rejection_reason || profile.rejection_reason || null };
+    if (!application) return { verification_status: profile.is_verified ? 'verified' : 'pending', trust_badges: [] };
+    const steps = await repositories.verification.getStepsForApplication(application.id);
+    return {
+      verification_status: DRIVER_STATUS_DISPLAY_MAP[application.status] || 'pending',
+      rejection_reason: application.rejection_reason || profile.rejection_reason || null,
+      trust_badges: getTrustBadges(application, steps),
+    };
   } catch (error) {
     logger.warn('Failed to resolve driver verification status from verification_applications, falling back to is_verified', {
       error: error.message, driverProfileId: profile.id,
     });
-    return { verification_status: profile.is_verified ? 'verified' : 'pending' };
+    return { verification_status: profile.is_verified ? 'verified' : 'pending', trust_badges: [] };
   }
 };
 

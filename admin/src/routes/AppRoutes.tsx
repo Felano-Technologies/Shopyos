@@ -11,6 +11,7 @@ const AdminOrders = React.lazy(() => import('../pages/Orders').then(m => ({ defa
 const AuditLogs = React.lazy(() => import('../pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const Verifications = React.lazy(() => import('../pages/Verifications').then(m => ({ default: m.Verifications })));
 const VerificationDetail = React.lazy(() => import('../pages/VerificationDetail').then(m => ({ default: m.VerificationDetail })));
+const VerificationChangeRequests = React.lazy(() => import('../pages/VerificationChangeRequests').then(m => ({ default: m.VerificationChangeRequests })));
 const Settings = React.lazy(() => import('../pages/Settings').then(m => ({ default: m.Settings })));
 const Categories = React.lazy(() => import('../pages/Categories').then(m => ({ default: m.Categories })));
 const FlashSales = React.lazy(() => import('../pages/FlashSales').then(m => ({ default: m.FlashSales })));
@@ -90,6 +91,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="audit-logs" element={<AuditLogs />} />
           <Route path="verifications" element={<Verifications />} />
           <Route path="verifications/:id" element={<VerificationDetail />} />
+          <Route path="verification-change-requests" element={<VerificationChangeRequests />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 

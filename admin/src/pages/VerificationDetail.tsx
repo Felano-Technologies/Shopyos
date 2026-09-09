@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import {
   getAdminVerificationDetail, approveVerification, rejectVerification, requestVerificationInformation,
-  logVerificationNote, assistedEditVerificationStep,
+  logVerificationNote, assistedEditVerificationStep, getLivenessFrameSignedUrl,
 } from '../services/admin';
 
 export const VerificationDetail: React.FC = () => {
@@ -128,8 +128,26 @@ export const VerificationDetail: React.FC = () => {
         <div className="bg-card rounded-xl shadow-sm border border-border p-5">
           <h2 className="text-sm font-bold text-body mb-3">Liveness attempts ({(application.livenessAttempts || []).length})</h2>
           {(application.livenessAttempts || []).map((a: any) => (
-            <div key={a.id} className="text-sm text-secondary py-1 border-t border-border first:border-t-0">
-              Attempt #{a.attempt_number}: {a.passed ? 'passed on-device (evidence only — confirm visually before verifying)' : 'failed'} — anti-spoof {a.anti_spoof_score ?? '—'}
+            <div key={a.id} className="text-sm text-secondary py-2 border-t border-border first:border-t-0">
+              <div>Attempt #{a.attempt_number}: {a.passed ? 'passed on-device (evidence only — confirm visually before verifying)' : 'failed'} — anti-spoof {a.anti_spoof_score ?? '—'}</div>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {(a.frames || []).map((f: any) => (
+                  <button
+                    key={f.label}
+                    onClick={async () => {
+                      try {
+                        const res = await getLivenessFrameSignedUrl(a.id, f.label);
+                        window.open(res?.frame?.signedUrl, '_blank', 'noopener,noreferrer');
+                      } catch (err: any) {
+                        alert(err?.response?.data?.error || 'Failed to load frame');
+                      }
+                    }}
+                    className="px-2 py-1 rounded-md bg-surface-muted text-xs font-semibold text-navy hover:underline"
+                  >
+                    View {f.label.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </div>

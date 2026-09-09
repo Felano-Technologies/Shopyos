@@ -15,10 +15,21 @@ const {
   requestInformation,
   logInternalNote,
   assistedEditStep,
+  listShopLocationChangesAdmin,
+  reviewShopLocationChangeAdmin,
+  listDriverVehiclesAdmin,
+  reviewDriverVehicleAdmin,
 } = require('../controllers/verificationController');
 
 router.use(protect);
 router.use(hasAnyRole('admin', 'verification_admin', 'support_admin'));
+
+// These fixed-path routes must be registered BEFORE '/:id' below, or Express
+// would match e.g. "location-changes" as an application id.
+router.get('/location-changes', listShopLocationChangesAdmin);
+router.put('/location-changes/:id/review', hasVerificationPermission('verification_admin'), reviewShopLocationChangeAdmin);
+router.get('/vehicle-changes', listDriverVehiclesAdmin);
+router.put('/vehicle-changes/:id/review', hasVerificationPermission('verification_admin'), reviewDriverVehicleAdmin);
 
 router.get('/', listApplicationsAdmin);
 router.get('/:id', getApplicationDetailAdmin);

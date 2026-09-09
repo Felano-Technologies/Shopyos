@@ -6,6 +6,7 @@ const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
+const { getTrustBadges } = require('../services/trustBadges');
 
 // Derives the buyer-facing verification status/reason from the new unified
 // verification_applications table instead of stores.verification_status
@@ -19,17 +20,19 @@ const _resolveSellerVerificationStatus = async (store) => {
   try {
     const application = await repositories.verification.getApplicationByEntityId(store.id, 'seller');
     if (!application) {
-      return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '' };
+      return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '', trustBadges: [] };
     }
+    const steps = await repositories.verification.getStepsForApplication(application.id);
     return {
       verificationStatus: VERIFICATION_STATUS_DISPLAY_MAP[application.status] || 'pending',
       rejectionReason: application.rejection_reason || store.rejection_reason || '',
+      trustBadges: getTrustBadges(application, steps),
     };
   } catch (error) {
     logger.warn('Failed to resolve seller verification status from verification_applications, falling back to store column', {
       error: error.message, storeId: store.id,
     });
-    return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '' };
+    return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '', trustBadges: [] };
   }
 };
 

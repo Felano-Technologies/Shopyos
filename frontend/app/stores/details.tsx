@@ -295,6 +295,7 @@ export default function StoreDetailsScreen() {
     latitude: toFiniteCoordinate(storeData.latitude, DEFAULT_LATITUDE),
     longitude: toFiniteCoordinate(storeData.longitude, DEFAULT_LONGITUDE),
     isTrusted: storeData.isTrusted || false,
+    trustBadges: (storeData.trustBadges || []) as string[],
     createdAt: storeData.createdAt || "",
     followers: storeData.followersCount || 0,
   } : {
@@ -315,6 +316,7 @@ export default function StoreDetailsScreen() {
     latitude: DEFAULT_LATITUDE,
     longitude: DEFAULT_LONGITUDE,
     followers: 0,
+    trustBadges: [] as string[],
     createdAt: "",
   };
   const fetchReviews = useCallback(async () => {
@@ -650,6 +652,28 @@ export default function StoreDetailsScreen() {
               )}
             </View>
             {store.category ? <Text style={styles.storeCat} numberOfLines={1}>{store.category}</Text> : null}
+            {store.trustBadges.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {store.trustBadges.includes('identity_verified') && (
+                  <View style={styles.trustBadgePill}>
+                    <Ionicons name="person-circle-outline" size={12} color="#166534" />
+                    <Text style={styles.trustBadgePillText}>Identity Verified</Text>
+                  </View>
+                )}
+                {store.trustBadges.includes('business_verified') && (
+                  <View style={styles.trustBadgePill}>
+                    <Ionicons name="business-outline" size={12} color="#166534" />
+                    <Text style={styles.trustBadgePillText}>Business Verified</Text>
+                  </View>
+                )}
+                {store.trustBadges.includes('location_verified') && (
+                  <View style={styles.trustBadgePill}>
+                    <Ionicons name="location-outline" size={12} color="#166534" />
+                    <Text style={styles.trustBadgePillText}>Location Verified</Text>
+                  </View>
+                )}
+              </View>
+            )}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
               <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)} ({reviews.length} Reviews)</Text></View>
               <View style={[styles.ratingRow, { backgroundColor: C.badgeBg, borderColor: C.borderStrong, borderWidth: 0.5 }]}><Feather name="users" size={12} color={C.navy} /><Text style={[styles.ratingText, { color: C.navy }]}>{store.followers || 0} Followers</Text></View>
@@ -872,6 +896,8 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   logoWrapper: { position: 'relative' },
   storeLogo: { width: 80, height: 80, borderRadius: 20, borderWidth: 4, borderColor: C.card, backgroundColor: C.card },
   verifiedBadge: { position: 'absolute', bottom: -6, right: -6, backgroundColor: '#3B82F6', borderRadius: 12, padding: 2, borderWidth: 2, borderColor: C.card },
+  trustBadgePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  trustBadgePillText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#166534' },
   infoContent: { flex: 1, marginLeft: 12, paddingTop: 44, paddingBottom: 4 },
   storeName: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 4 },
   storeCat: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: 4 },

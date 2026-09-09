@@ -101,7 +101,11 @@ export const submitVerificationLivenessAttempt = async (
   payload: {
     passed: boolean;
     challengeSequence: string;
-    capturedFrameUri?: string; // local file uri of the final frame — uploaded the same way as a document
+    // One frame per challenge step PLUS a 'baseline' frame captured before
+    // the sequence starts — real (future) server-side liveness analysis
+    // needs to compare frames across the sequence (e.g. head-yaw delta for
+    // "turn left"), which a single final photo can't support.
+    frames: { label: string; uri: string }[];
     antiSpoofScore?: number;
     methodVersion?: string;
     deviceInfo?: string;
@@ -113,13 +117,17 @@ export const submitVerificationLivenessAttempt = async (
     formData.append('passed', String(payload.passed));
     formData.append('challengeSequence', payload.challengeSequence);
     if (payload.antiSpoofScore !== undefined) formData.append('antiSpoofScore', String(payload.antiSpoofScore));
-    formData.append('methodVersion', payload.methodVersion || 'on_device_v1');
+    formData.append('methodVersion', payload.methodVersion || 'multi_frame_v1');
     if (payload.deviceInfo) formData.append('deviceInfo', payload.deviceInfo);
     if (payload.appVersion) formData.append('appVersion', payload.appVersion);
-    if (payload.capturedFrameUri) {
-      const blob = await uriToBlob(payload.capturedFrameUri, 'image/jpeg');
-      formData.append('capturedFrame', blob, 'liveness-frame.jpg');
+
+    const frameLabels: string[] = [];
+    for (const frame of payload.frames) {
+      const blob = await uriToBlob(frame.uri, 'image/jpeg');
+      formData.append('frames', blob, `${frame.label}.jpg`);
+      frameLabels.push(frame.label);
     }
+    formData.append('frameLabels', JSON.stringify(frameLabels));
 
     const response = await api.post(`/verification/${applicationId}/liveness`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

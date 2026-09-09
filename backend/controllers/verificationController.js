@@ -18,6 +18,7 @@ const {
   CURRENT_CONSENT_VERSION,
   MAX_LIVENESS_ATTEMPTS,
 } = require('../services/verificationRequirements');
+const { recomputeAndStoreRiskScore } = require('../services/riskScoring');
 const { logger } = require('../config/logger');
 
 const VALID_ROLES = ['seller', 'driver'];
@@ -197,6 +198,39 @@ async function getDocumentSignedUrl(req, res) {
   }
 }
 
+// GET /verification/liveness/:attemptId/frames/:label/signed-url — same
+// "break glass" pattern as getDocumentSignedUrl, for viewing one captured
+// liveness frame by its label (e.g. 'baseline', 'turn_left').
+async function getLivenessFrameSignedUrl(req, res) {
+  try {
+    const attempt = await repositories.verification.getLivenessAttemptById(req.params.attemptId);
+    if (!attempt) return ApiResponse.error(res, 'Liveness attempt not found', 404);
+
+    const frame = (attempt.frames || []).find(f => f.label === req.params.label);
+    if (!frame) return ApiResponse.error(res, 'Frame not found', 404);
+
+    const application = await repositories.verification.findById(attempt.application_id);
+    const isOwner = application && application.user_id === req.user.id;
+    const isVerificationAdmin = req.user.roles?.includes('admin') || req.user.roles?.includes('verification_admin');
+    if (!isOwner && !isVerificationAdmin) return ApiResponse.error(res, 'Not authorized', 403);
+
+    const url = await getPresignedReadUrl(frame.storageKey, 300);
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'verification_liveness_frame_viewed',
+      entityType: 'liveness_verification',
+      entityId: attempt.id,
+      changes: { label: frame.label, viewedAsAdmin: !isOwner },
+    });
+
+    return ApiResponse.withEntity(res, 'frame', { label: frame.label, signedUrl: url });
+  } catch (error) {
+    logger.error('getLivenessFrameSignedUrl failed', { error: error.message, attemptId: req.params.attemptId });
+    return ApiResponse.error(res, 'Failed to load frame', 500);
+  }
+}
+
 // POST /verification/:applicationId/liveness — records the on-device result
 // as EVIDENCE, not a verdict. Never lets `passed:true` alone move the step
 // past 'complete'; enforces the 3-attempt cap before escalating to
@@ -222,23 +256,27 @@ async function submitLivenessAttempt(req, res) {
       return ApiResponse.error(res, 'Maximum liveness attempts reached — escalated to manual review', 429);
     }
 
-    // multipart/form-data (matches uploadDocument's convention) — the
-    // captured frame is an optional file (req.file), everything else arrives
-    // as string form fields.
-    const { passed, challengeSequence, antiSpoofScore, methodVersion, deviceInfo, appVersion } = req.body;
+    // multipart/form-data — `frames` is 0-N files (multer .array), one per
+    // challenge step plus a 'baseline' frame; `frameLabels` is a JSON array
+    // naming each in upload order so they can be paired back up (multer
+    // doesn't otherwise preserve per-file metadata).
+    const { passed, challengeSequence, antiSpoofScore, methodVersion, deviceInfo, appVersion, frameLabels } = req.body;
 
-    let capturedFrameKey = null;
-    if (req.file) {
-      const uploaded = await uploadImage(req.file, `verification/${application.id}/liveness`);
-      capturedFrameKey = uploaded.url;
+    let labels = [];
+    try { labels = frameLabels ? JSON.parse(frameLabels) : []; } catch { labels = []; }
+
+    const frames = [];
+    for (const [i, file] of (req.files || []).entries()) {
+      const uploaded = await uploadImage(file, `verification/${application.id}/liveness`);
+      frames.push({ label: labels[i] || `frame_${i}`, storageKey: uploaded.url });
     }
 
     const attempt = await repositories.verification.createLivenessAttempt(application.id, {
       passed: passed === true || passed === 'true',
       challengeSequence,
       antiSpoofScore: antiSpoofScore !== undefined && antiSpoofScore !== '' ? Number(antiSpoofScore) : null,
-      capturedFrameKey,
-      methodVersion: methodVersion || 'on_device_v1',
+      frames,
+      methodVersion: methodVersion || 'multi_frame_v1',
       deviceInfo,
       appVersion,
     });
@@ -381,6 +419,7 @@ async function submitApplication(req, res) {
       entity_id: entityId,
     });
     await repositories.verification.updateApplication(application.id, { status: 'under_review' });
+    await recomputeAndStoreRiskScore(application.id);
 
     // notifyAdminsVerificationRequest() hardcodes a store-vs-driver title/type
     // pair (legacy helper) — not reused here since this endpoint serves both
@@ -482,12 +521,129 @@ async function getApplicationDetailAdmin(req, res) {
     return ApiResponse.withEntity(res, 'application', {
       ...application,
       documents: documents.map(d => ({ ...d, storage_key: undefined })), // view individually via the signed-url endpoint
-      livenessAttempts: livenessAttempts.map(a => ({ ...a, captured_frame_key: undefined })),
+      // Storage keys never leave the backend directly — view individually
+      // via getLivenessFrameSignedUrl, same "break glass" audit-on-view
+      // pattern as document signed URLs.
+      livenessAttempts: livenessAttempts.map(a => ({
+        ...a,
+        captured_frame_key: undefined,
+        frames: (a.frames || []).map(f => ({ label: f.label })),
+      })),
       communications,
     });
   } catch (error) {
     logger.error('getApplicationDetailAdmin failed', { error: error.message, id: req.params.id });
     return ApiResponse.error(res, 'Failed to load application', 500);
+  }
+}
+
+// GET /admin/verifications/location-changes — the review queue for
+// requestShopLocationChange() submissions (see plan §Location lifecycle).
+async function listShopLocationChangesAdmin(req, res) {
+  try {
+    const { status, limit, offset } = req.query;
+    const result = await repositories.verification.listShopLocationChangesAdmin({
+      status, limit: limit ? Number(limit) : 25, offset: offset ? Number(offset) : 0,
+    });
+    return ApiResponse.paginated(res, result.changes, { total: result.total });
+  } catch (error) {
+    logger.error('listShopLocationChangesAdmin failed', { error: error.message });
+    return ApiResponse.error(res, 'Failed to list location changes', 500);
+  }
+}
+
+// PUT /admin/verifications/location-changes/:id/review — approving actually
+// applies the new address to the live `stores` row (the seller's current
+// verified location stays in effect right up until this moment, per plan).
+async function reviewShopLocationChangeAdmin(req, res) {
+  try {
+    const { status, reason } = req.body;
+    if (!['verified', 'rejected'].includes(status)) return ApiResponse.error(res, 'status must be verified or rejected', 400);
+    if (status === 'rejected' && !reason) return ApiResponse.error(res, 'A rejection reason is required', 400);
+
+    const change = await repositories.verification.reviewShopLocationChange(req.params.id, {
+      status, rejectionReason: reason, reviewedBy: req.user.id,
+    });
+
+    if (status === 'verified') {
+      // The pg-shim binds every key in the update object as a query
+      // parameter — including ones set to `undefined` — which node-pg
+      // rejects outright, so only include fields that actually changed.
+      const storeUpdate = {};
+      if (change.new_address_line1) storeUpdate.address_line1 = change.new_address_line1;
+      if (change.new_city) storeUpdate.city = change.new_city;
+      if (change.new_region) storeUpdate.state_province = change.new_region;
+      if (change.new_latitude != null) storeUpdate.latitude = change.new_latitude;
+      if (change.new_longitude != null) storeUpdate.longitude = change.new_longitude;
+      if (Object.keys(storeUpdate).length) await repositories.stores.update(change.store_id, storeUpdate);
+    }
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: `shop_location_change_${status}`,
+      entityType: 'shop_location_change',
+      entityId: change.id,
+      changes: { status, reason: reason || null },
+    });
+
+    return ApiResponse.withEntity(res, 'change', change, `Location change ${status}`);
+  } catch (error) {
+    logger.error('reviewShopLocationChangeAdmin failed', { error: error.message, id: req.params.id });
+    return ApiResponse.error(res, 'Failed to review location change', 500);
+  }
+}
+
+// GET /admin/verifications/vehicle-changes — the review queue for
+// requestDriverVehicleChange() submissions (see plan §Vehicle lifecycle).
+async function listDriverVehiclesAdmin(req, res) {
+  try {
+    const { status, limit, offset } = req.query;
+    const result = await repositories.verification.listDriverVehiclesAdmin({
+      status, limit: limit ? Number(limit) : 25, offset: offset ? Number(offset) : 0,
+    });
+    return ApiResponse.paginated(res, result.vehicles, { total: result.total });
+  } catch (error) {
+    logger.error('listDriverVehiclesAdmin failed', { error: error.message });
+    return ApiResponse.error(res, 'Failed to list vehicle changes', 500);
+  }
+}
+
+// PUT /admin/verifications/vehicle-changes/:id/review — approving makes this
+// the driver's active vehicle (VerificationRepository.reviewDriverVehicle
+// already deactivates any previous one) and syncs the operational
+// driver_profiles fields so the rest of the app sees the new vehicle.
+async function reviewDriverVehicleAdmin(req, res) {
+  try {
+    const { status, reason } = req.body;
+    if (!['verified', 'rejected'].includes(status)) return ApiResponse.error(res, 'status must be verified or rejected', 400);
+    if (status === 'rejected' && !reason) return ApiResponse.error(res, 'A rejection reason is required', 400);
+
+    const vehicle = await repositories.verification.reviewDriverVehicle(req.params.id, {
+      status, rejectionReason: reason, reviewedBy: req.user.id,
+    });
+
+    if (status === 'verified') {
+      const profileUpdate = {};
+      if (vehicle.vehicle_type) profileUpdate.vehicle_type = vehicle.vehicle_type;
+      if (vehicle.make) profileUpdate.vehicle_make = vehicle.make;
+      if (vehicle.model) profileUpdate.vehicle_model = vehicle.model;
+      if (vehicle.year) profileUpdate.vehicle_year = vehicle.year;
+      if (vehicle.plate_number) profileUpdate.license_plate = vehicle.plate_number;
+      if (Object.keys(profileUpdate).length) await repositories.drivers.update(vehicle.driver_profile_id, profileUpdate);
+    }
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: `driver_vehicle_change_${status}`,
+      entityType: 'driver_vehicle',
+      entityId: vehicle.id,
+      changes: { status, reason: reason || null },
+    });
+
+    return ApiResponse.withEntity(res, 'vehicle', vehicle, `Vehicle change ${status}`);
+  } catch (error) {
+    logger.error('reviewDriverVehicleAdmin failed', { error: error.message, id: req.params.id });
+    return ApiResponse.error(res, 'Failed to review vehicle change', 500);
   }
 }
 
@@ -517,6 +673,7 @@ async function approveApplication(req, res) {
     const role = await repositories.roles.findByName(application.role);
     if (role) await repositories.roles.assignRoleToUser(application.user_id, role.id);
     await invalidateUserAuthCache(application.user_id);
+    await recomputeAndStoreRiskScore(application.id);
 
     await repositories.auditLogs.createLog({
       userId: req.user.id,
@@ -557,6 +714,7 @@ async function rejectApplication(req, res) {
       reviewed_at: new Date().toISOString(),
       reviewed_by: req.user.id,
     });
+    await recomputeAndStoreRiskScore(application.id);
 
     await repositories.auditLogs.createLog({
       userId: req.user.id,
@@ -707,6 +865,7 @@ module.exports = {
   recordConsent,
   uploadDocument,
   getDocumentSignedUrl,
+  getLivenessFrameSignedUrl,
   submitLivenessAttempt,
   submitApplication,
   requestShopLocationChange,
@@ -718,4 +877,8 @@ module.exports = {
   requestInformation,
   logInternalNote,
   assistedEditStep,
+  listShopLocationChangesAdmin,
+  reviewShopLocationChangeAdmin,
+  listDriverVehiclesAdmin,
+  reviewDriverVehicleAdmin,
 };

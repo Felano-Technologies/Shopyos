@@ -13,6 +13,7 @@ const {
   recordConsent,
   uploadDocument,
   getDocumentSignedUrl,
+  getLivenessFrameSignedUrl,
   submitLivenessAttempt,
   submitApplication,
   requestShopLocationChange,
@@ -33,12 +34,14 @@ const documentUpload = multer({
 router.use(protect);
 
 router.get('/documents/:id/signed-url', getDocumentSignedUrl);
+router.get('/liveness/:attemptId/frames/:label/signed-url', getLivenessFrameSignedUrl);
 
 router.get('/:role', getOrCreateApplication);
 router.post('/:applicationId/consent', recordConsent);
 router.patch('/:applicationId/steps/:stepKey', saveStep);
 router.post('/:applicationId/documents', documentUpload.single('document'), uploadDocument);
-router.post('/:applicationId/liveness', documentUpload.single('capturedFrame'), submitLivenessAttempt);
+// Up to 6 frames per attempt: 1 baseline + up to 5 challenge frames (pickChallenges() caps at 3).
+router.post('/:applicationId/liveness', documentUpload.array('frames', 6), submitLivenessAttempt);
 router.post('/:applicationId/submit', submitApplication);
 router.post('/shop-location-change', requestShopLocationChange);
 router.post('/vehicle-change', requestDriverVehicleChange);

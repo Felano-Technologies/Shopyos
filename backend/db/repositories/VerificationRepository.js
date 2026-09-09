@@ -217,6 +217,7 @@ class VerificationRepository extends BaseRepository {
   // ── Liveness ───────────────────────────────────────────────────────────
   async createLivenessAttempt(applicationId, attemptData) {
     const attemptNumber = (await this._livenessAttemptCount(applicationId)) + 1;
+    const frames = attemptData.frames || []; // [{label, storageKey}]
     const { data, error } = await this.db
       .from('liveness_verifications')
       .insert({
@@ -225,7 +226,8 @@ class VerificationRepository extends BaseRepository {
         passed: attemptData.passed,
         challenge_sequence: attemptData.challengeSequence,
         anti_spoof_score: attemptData.antiSpoofScore,
-        captured_frame_key: attemptData.capturedFrameKey,
+        captured_frame_key: frames.at(-1)?.storageKey || attemptData.capturedFrameKey || null,
+        frames,
         method_version: attemptData.methodVersion,
         device_info: attemptData.deviceInfo,
         app_version: attemptData.appVersion,
@@ -253,6 +255,16 @@ class VerificationRepository extends BaseRepository {
       .order('attempt_number', { ascending: true });
     if (error) throw error;
     return data || [];
+  }
+
+  async getLivenessAttemptById(id) {
+    const { data, error } = await this.db
+      .from('liveness_verifications')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
   }
 
   // ── Consent ────────────────────────────────────────────────────────────
@@ -384,6 +396,30 @@ class VerificationRepository extends BaseRepository {
     return data;
   }
 
+  async getShopLocationChangeById(id) {
+    const { data, error } = await this.db
+      .from('shop_location_changes')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
+  // Admin-wide queue (not scoped to one store) — mirrors listApplicationsAdmin's shape.
+  async listShopLocationChangesAdmin({ status, limit = 25, offset = 0 } = {}) {
+    let query = this.db
+      .from('shop_location_changes')
+      .select('*, store:store_id (id, store_name, owner_id)', { count: 'exact' })
+      .order('submitted_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + limit - 1);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { changes: data || [], total: count || 0 };
+  }
+
   // ── Post-approval vehicle changes ─────────────────────────────────────
   // Mirrors the shop_location_changes methods above — an approved driver's
   // current verified vehicle stays active/operational while a new one is
@@ -438,6 +474,30 @@ class VerificationRepository extends BaseRepository {
       await this.db.from('driver_vehicles').update({ is_active: true }).eq('id', id);
     }
     return data;
+  }
+
+  async getDriverVehicleById(id) {
+    const { data, error } = await this.db
+      .from('driver_vehicles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
+  // Admin-wide queue (not scoped to one driver) — mirrors listApplicationsAdmin's shape.
+  async listDriverVehiclesAdmin({ status, limit = 25, offset = 0 } = {}) {
+    let query = this.db
+      .from('driver_vehicles')
+      .select('*, driver:driver_profile_id (id, user_id)', { count: 'exact' })
+      .order('submitted_at', { ascending: false });
+    if (status) query = query.eq('status', status);
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + limit - 1);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { vehicles: data || [], total: count || 0 };
   }
 
   async getLatestOutboundMessage(applicationId) {
