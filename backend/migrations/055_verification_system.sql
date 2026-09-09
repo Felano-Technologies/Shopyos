@@ -14,7 +14,7 @@
 -- admin" that satisfies every check.
 ALTER TABLE roles DROP CONSTRAINT IF EXISTS valid_role_name;
 ALTER TABLE roles ADD CONSTRAINT valid_role_name CHECK (name IN (
-  'buyer', 'seller', 'driver', 'admin',
+  'buyer', 'seller', 'driver', 'admin', 'parcel_partner',
   'verification_admin', 'support_admin', 'finance_admin', 'operations_admin'
 ));
 INSERT INTO roles (name, display_name, description) VALUES

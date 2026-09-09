@@ -927,7 +927,17 @@ function initScheduler() {
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM)');
+  // Daily 02:30: flip expired seller/driver verification documents (licence,
+  // insurance, roadworthy, etc.) and reopen the affected application.
+  cron.schedule('30 2 * * *', async () => {
+    if (!await acquireLock(`lock:document_expiry_sweep:${new Date().toISOString().slice(0, 10)}`, 3600)) return;
+    const { sweepExpiredVerificationDocuments } = require('../jobs/documentExpiry');
+    sweepExpiredVerificationDocuments().catch(err =>
+      logger.error('[Scheduler] Document expiry sweep error:', err.message)
+    );
+  });
+
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM) + document expiry (2:30 AM)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts, processAccountDeletions };
