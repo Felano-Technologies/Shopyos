@@ -98,6 +98,12 @@ async function saveStep(req, res) {
 
     if (application.status === 'draft') {
       await repositories.verification.updateApplication(application.id, { status: 'in_progress' });
+    } else if (application.status === 'action_required') {
+      // The applicant has responded to an admin's request-information —
+      // resubmitted is its own status (not back to under_review directly)
+      // so an admin can see at a glance which applications are a fresh
+      // resubmission versus one they haven't looked at yet.
+      await repositories.verification.updateApplication(application.id, { status: 'resubmitted' });
     }
 
     return ApiResponse.withEntity(res, 'step', step);
@@ -143,6 +149,10 @@ async function uploadDocument(req, res) {
     const document = previousDocumentId
       ? await repositories.verification.replaceDocument(previousDocumentId, documentData)
       : await repositories.verification.createDocument(documentData);
+
+    if (application.status === 'action_required') {
+      await repositories.verification.updateApplication(application.id, { status: 'resubmitted' });
+    }
 
     return ApiResponse.created(res, document, 'Document uploaded');
   } catch (error) {
@@ -583,12 +593,34 @@ async function requestInformation(req, res) {
 
     const updated = await repositories.verification.updateApplication(application.id, { status: 'action_required' });
 
+    // SMS is the one channel here with a real, trackable delivery outcome —
+    // attempt it and record success/failure so the admin console's delivery
+    // status is honest (PRD §17). in_app/email ride along on
+    // notificationService.sendNotification() below and are marked 'sent'
+    // immediately, same as before.
+    const channel = req.body.channel || 'in_app';
+    let deliveryStatus;
+    let failureReason;
+    if (channel === 'sms') {
+      try {
+        const profile = await repositories.userProfiles.findByUserId(application.user_id);
+        if (!profile?.phone) throw new Error('No phone number on file for this user');
+        await notificationService.sendSMS({ to: profile.phone, message });
+        deliveryStatus = 'sent';
+      } catch (smsError) {
+        deliveryStatus = 'failed';
+        failureReason = smsError.message;
+      }
+    }
+
     await repositories.verification.logCommunication({
       applicationId: application.id,
       adminId: req.user.id,
-      channel: req.body.channel || 'in_app',
+      channel,
       direction: 'outbound',
       message,
+      deliveryStatus,
+      failureReason,
     });
 
     await notificationService.sendNotification({
@@ -607,6 +639,68 @@ async function requestInformation(req, res) {
   }
 }
 
+// POST /admin/verifications/:id/notes — a phone call happened outside the
+// app; the admin logs it as an internal record (PRD §35's "record an
+// internal interaction note"). Distinct from requestInformation: this never
+// notifies the applicant, it's purely an internal audit trail entry.
+async function logInternalNote(req, res) {
+  try {
+    const { message, channel } = req.body;
+    if (!message) return ApiResponse.error(res, 'message is required', 400);
+
+    const application = await repositories.verification.findById(req.params.id);
+    if (!application) return ApiResponse.error(res, 'Application not found', 404);
+
+    const note = await repositories.verification.logCommunication({
+      applicationId: application.id,
+      adminId: req.user.id,
+      channel: channel || 'phone_call',
+      direction: 'internal_note',
+      message,
+    });
+    return ApiResponse.created(res, note, 'Note logged');
+  } catch (error) {
+    logger.error('logInternalNote failed', { error: error.message, id: req.params.id });
+    return ApiResponse.error(res, 'Failed to log note', 500);
+  }
+}
+
+// PATCH /admin/verifications/:id/steps/:stepKey — assisted onboarding (PRD
+// §36): an admin enters/corrects information on behalf of an applicant who
+// is struggling with the digital flow. A `reason` is mandatory and every
+// change is audit-logged with the full before/after (PRD §37) — this is the
+// one place in the whole system an admin can write directly into someone
+// else's application data, so the paper trail has to be complete.
+async function assistedEditStep(req, res) {
+  try {
+    const { data, reason } = req.body;
+    if (!reason) return ApiResponse.error(res, 'A reason is required for assisted edits', 400);
+    if (!data) return ApiResponse.error(res, 'data is required', 400);
+
+    const { id, stepKey } = req.params;
+    const application = await repositories.verification.findById(id);
+    if (!application) return ApiResponse.error(res, 'Application not found', 404);
+
+    const previousStep = await repositories.verification.getStep(id, stepKey);
+    const updated = await repositories.verification.upsertStep(id, stepKey, {
+      data: { ...(previousStep?.data || {}), ...data },
+    });
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'verification_assisted_edit',
+      entityType: 'verification_step',
+      entityId: updated.id,
+      changes: { stepKey, previousData: previousStep?.data || null, newData: updated.data, reason },
+    });
+
+    return ApiResponse.withEntity(res, 'step', updated, 'Step updated');
+  } catch (error) {
+    logger.error('assistedEditStep failed', { error: error.message, id: req.params.id });
+    return ApiResponse.error(res, 'Failed to update step', 500);
+  }
+}
+
 module.exports = {
   getOrCreateApplication,
   saveStep,
@@ -622,4 +716,6 @@ module.exports = {
   approveApplication,
   rejectApplication,
   requestInformation,
+  logInternalNote,
+  assistedEditStep,
 };

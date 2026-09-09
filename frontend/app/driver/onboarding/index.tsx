@@ -1,10 +1,9 @@
-// app/business/onboarding/index.tsx
-// Seller verification wizard hub — the new, unified replacement for the old
-// businessRegistration.tsx + verification.tsx pair. Shows every required
-// step (from the backend requirement engine) with its status, lets the
-// seller jump into any step in any order, and submits once all are complete.
-// Every step is independently save/resumable — closing the app mid-way and
-// coming back just reopens this hub with progress intact.
+// app/driver/onboarding/index.tsx
+// Driver verification wizard hub — mirrors app/business/onboarding/index.tsx
+// exactly (same requirement-engine-driven step list pattern), just with the
+// driver step set and labels. Consent/liveness/training are the same shared
+// screens the seller wizard uses, routed to with role='driver' + a
+// driver-specific basePath so "back" from consent lands here correctly.
 
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
@@ -26,14 +25,14 @@ const STEP_LABELS: Record<string, string> = {
   personal_info: 'Personal Information',
   identity: 'Identity Verification',
   liveness: 'Liveness Verification',
-  business: 'Business Information',
-  shop_location: 'Shop Location',
-  payout: 'Payout Information',
-  training: 'Seller Training',
+  driver_licence: "Driver's Licence",
+  vehicle: 'Vehicle Information',
+  vehicle_docs: 'Vehicle Documents',
+  operating_location: 'Operating Location',
+  emergency_contact: 'Emergency Contact',
+  training: 'Driver Training',
 };
 
-// consent/liveness get their own dedicated screens (camera flow, legal copy);
-// every other step reuses the generic dynamic form at [step].tsx
 const STEP_ROUTES: Record<string, string> = {
   liveness: '/business/onboarding/liveness',
   training: '/business/onboarding/training',
@@ -50,7 +49,7 @@ function statusMeta(status: string, colors: ThemeColors) {
   }
 }
 
-export default function SellerOnboardingHub() {
+export default function DriverOnboardingHub() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
@@ -60,7 +59,7 @@ export default function SellerOnboardingHub() {
 
   const load = useCallback(() => {
     setLoading(true);
-    getOrCreateVerificationApplication('seller')
+    getOrCreateVerificationApplication('driver')
       .then(setApplication)
       .catch((err) => CustomInAppToast.show({ type: 'error', title: 'Failed to load', message: err.message }))
       .finally(() => setLoading(false));
@@ -72,15 +71,12 @@ export default function SellerOnboardingHub() {
 
   const openStep = (key: string) => {
     if (!application) return;
-    // Consent is enforced server-side (saveStep/liveness both reject without
-    // it) — identity/liveness route through the consent screen first so the
-    // seller sees the legal copy before ever being blocked by a 403.
     if (['identity', 'liveness'].includes(key)) {
-      router.push({ pathname: '/business/onboarding/consent' as any, params: { applicationId: application.id, nextStep: key, basePath: '/business/onboarding', role: 'seller' } });
+      router.push({ pathname: '/business/onboarding/consent' as any, params: { applicationId: application.id, nextStep: key, basePath: '/driver/onboarding', role: 'driver' } });
       return;
     }
-    const route = STEP_ROUTES[key] || `/business/onboarding/${key}`;
-    router.push({ pathname: route as any, params: { applicationId: application.id, role: 'seller' } });
+    const route = STEP_ROUTES[key] || `/driver/onboarding/${key}`;
+    router.push({ pathname: route as any, params: { applicationId: application.id, role: 'driver' } });
   };
 
   const allComplete = application ? application.requiredSteps.every((key) => {
@@ -104,16 +100,13 @@ export default function SellerOnboardingHub() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-      {/* status bar is always light here — the gradient header behind it is
-          a fixed brand color regardless of light/dark theme, same as every
-          other gradient-header screen in the app (e.g. businessRegistration.tsx) */}
       <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top']}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={24} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Seller Verification</Text>
+          <Text style={styles.headerTitle}>Driver Verification</Text>
           <Text style={styles.headerSubtitle}>Complete every section below at your own pace.</Text>
         </SafeAreaView>
       </LinearGradient>
@@ -178,7 +171,7 @@ export default function SellerOnboardingHub() {
               pathname: '/support' as any,
               params: {
                 prefillCategory: 'verification_issue',
-                prefillSubject: 'Cannot complete seller verification',
+                prefillSubject: 'Cannot complete driver verification',
                 entityType: 'verification_application',
                 entityId: application.id,
               },

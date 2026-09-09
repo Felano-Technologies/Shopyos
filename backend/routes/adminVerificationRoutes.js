@@ -13,6 +13,8 @@ const {
   approveApplication,
   rejectApplication,
   requestInformation,
+  logInternalNote,
+  assistedEditStep,
 } = require('../controllers/verificationController');
 
 router.use(protect);
@@ -25,5 +27,9 @@ router.get('/:id', getApplicationDetailAdmin);
 router.put('/:id/approve', hasVerificationPermission('verification_admin'), approveApplication);
 router.put('/:id/reject', hasVerificationPermission('verification_admin'), rejectApplication);
 router.put('/:id/request-information', hasVerificationPermission('verification_admin', 'support_admin'), requestInformation);
+router.post('/:id/notes', hasVerificationPermission('verification_admin', 'support_admin'), logInternalNote);
+// Assisted onboarding — only the full verification_admin tier may write
+// directly into an applicant's step data (see plan §Admin permission tiers).
+router.patch('/:id/steps/:stepKey', hasVerificationPermission('verification_admin'), assistedEditStep);
 
 module.exports = router;

@@ -17,7 +17,10 @@ class VerificationRepository extends BaseRepository {
       .select('*')
       .eq('user_id', userId)
       .eq('role', role)
-      .not('status', 'in', '(rejected,suspended)')
+      // The custom pg-shim client has no .not()/"not in" operator — two
+      // .neq() calls are equivalent for excluding these two fixed statuses.
+      .neq('status', 'rejected')
+      .neq('status', 'suspended')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -275,7 +278,8 @@ class VerificationRepository extends BaseRepository {
   }
 
   // ── Communications ─────────────────────────────────────────────────────
-  async logCommunication({ applicationId, adminId, channel, direction, message, deliveryStatus }) {
+  async logCommunication({ applicationId, adminId, channel, direction, message, deliveryStatus, failureReason, providerMessageId }) {
+    const status = deliveryStatus || (direction === 'internal_note' || channel === 'in_app' ? 'sent' : 'pending');
     const { data, error } = await this.db
       .from('verification_communications')
       .insert({
@@ -284,13 +288,42 @@ class VerificationRepository extends BaseRepository {
         channel,
         direction,
         message,
-        delivery_status: deliveryStatus || (direction === 'internal_note' || channel === 'in_app' ? 'sent' : 'pending'),
-        sent_at: deliveryStatus === 'sent' ? new Date().toISOString() : null,
+        delivery_status: status,
+        failure_reason: failureReason || null,
+        provider_message_id: providerMessageId || null,
+        sent_at: status === 'sent' ? new Date().toISOString() : null,
       })
       .select()
       .single();
     if (error) throw error;
     return data;
+  }
+
+  async updateCommunicationDeliveryStatus(id, { deliveryStatus, failureReason, providerMessageId }) {
+    const { data, error } = await this.db
+      .from('verification_communications')
+      .update({
+        delivery_status: deliveryStatus,
+        failure_reason: failureReason || null,
+        provider_message_id: providerMessageId || null,
+        sent_at: deliveryStatus === 'sent' ? new Date().toISOString() : null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getFailedCommunications(maxAgeHours = 72) {
+    const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000).toISOString();
+    const { data, error } = await this.db
+      .from('verification_communications')
+      .select('*')
+      .in('delivery_status', ['failed', 'retrying'])
+      .gte('created_at', cutoff);
+    if (error) throw error;
+    return data || [];
   }
 
   async getCommunications(applicationId) {

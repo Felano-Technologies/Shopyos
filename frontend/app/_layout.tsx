@@ -282,6 +282,8 @@ function AppContent() {
               <Stack.Screen name="driver/history" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/settings" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/verification" />
+              <Stack.Screen name="driver/onboarding/index" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="driver/onboarding/[step]" options={{ animation: 'slide_from_right' }} />
 
               {/* --- PARCEL PARTNER SCREENS --- */}
               <Stack.Screen name="parcel-partner/dashboard" options={{ animation: 'none' }} />

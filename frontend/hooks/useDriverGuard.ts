@@ -7,6 +7,8 @@ import { secureStorage } from '../services/api';
 const UNGUARDED_DRIVER_ROUTES = [
   '/driver/verification',
   '/driver/verification-status',
+  '/driver/onboarding',
+  '/verification',
 ];
 
 export const useDriverGuard = () => {
@@ -49,8 +51,8 @@ export const useDriverGuard = () => {
         const status = driver.verification_status || (driver.is_verified ? 'verified' : 'pending');
         
         if (status === 'rejected') {
-          if (!pathname.startsWith('/driver/verification')) {
-             router.replace('/driver/verification');
+          if (!pathname.startsWith('/driver/onboarding')) {
+             router.replace('/driver/onboarding' as any);
           }
           return;
         }
@@ -58,8 +60,8 @@ export const useDriverGuard = () => {
         // If they haven't submitted anything yet (no record at all)
         // But getDriverProfile usually returns 404 if no profile.
         // The isLoading/error handles that.
-      } else if (!pathname.startsWith('/driver/verification') && !pathname.startsWith('/driver/index')) {
-        router.replace('/driver/verification');
+      } else if (!pathname.startsWith('/driver/onboarding') && !pathname.startsWith('/driver/index')) {
+        router.replace('/driver/onboarding' as any);
       }
 
       setIsChecking(false);

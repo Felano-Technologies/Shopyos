@@ -150,7 +150,7 @@ const RoleSelectionScreen = () => {
         } else if (selectedRole === 'seller') {
           router.replace('/business/onboarding' as any);
         } else if (selectedRole === 'driver') {
-          router.replace('/driver/dashboard');
+          router.replace('/driver/onboarding' as any);
         } else if (selectedRole === 'parcel_partner') {
           router.replace('/parcel-partner/dashboard');
         }

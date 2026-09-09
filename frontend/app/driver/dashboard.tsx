@@ -333,7 +333,7 @@ export default function Dashboard() {
             <TouchableOpacity
               style={styles.verificationBanner}
               activeOpacity={0.9}
-              onPress={() => router.push('/driver/verification')}
+              onPress={() => router.push('/driver/onboarding' as any)}
             >
               <Feather name="shield" size={16} color={colors.accentText} />
               <Text style={styles.verificationText}>{verificationBannerText}</Text>

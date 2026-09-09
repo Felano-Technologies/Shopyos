@@ -20,14 +20,14 @@ export default function DriverGatekeeper() {
         router.replace('/driver/dashboard');
       } else {
         router.replace({
-          pathname: '/driver/verification',
+          pathname: '/driver/onboarding' as any,
           params: { status: 'new' }
         });
       }
     } catch {
       // If profile not found, it's a new driver
       router.replace({
-        pathname: '/driver/verification',
+        pathname: '/driver/onboarding' as any,
         params: { status: 'new' }
       });
     }

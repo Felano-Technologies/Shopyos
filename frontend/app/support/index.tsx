@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getCachedUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { createSupportTicket, TicketCategory, ReporterRole } from '@/services/support';
@@ -59,6 +59,7 @@ const CATEGORIES: CategoryOption[] = [
   { key: 'driver_issue', label: 'Driver Issue', icon: 'person-outline', roles: ['buyer', 'seller'] },
   { key: 'parcel_partner_issue', label: 'Parcel Partner Issue', icon: 'cube-outline', roles: ['buyer', 'seller', 'parcel_partner'] },
   { key: 'platform_issue', label: 'Platform Issue', icon: 'phone-portrait-outline', roles: ['buyer', 'seller', 'driver', 'parcel_partner'] },
+  { key: 'verification_issue', label: 'Verification Help', icon: 'shield-checkmark-outline', roles: ['seller', 'driver'] },
   { key: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline', roles: ['buyer', 'seller', 'driver', 'parcel_partner'] },
 ];
 
@@ -76,6 +77,14 @@ export default function RaiseReportScreen() {
   const C = useMemo(() => buildC(themeColors), [themeColors]);
   const styles = useMemo(() => getStyles(C), [C]);
   const [reporterRole, setReporterRole] = useState<ReporterRole>('buyer');
+  // Deep-linked prefill — e.g. the verification wizard's "Can't complete
+  // this?" recovery action (plan §Recovery path) opens this screen with a
+  // category/subject/description already filled in and the application
+  // linked as the ticket's entity, so support has full context immediately.
+  const params = useLocalSearchParams<{
+    prefillCategory?: TicketCategory; prefillSubject?: string; prefillDescription?: string;
+    entityType?: string; entityId?: string;
+  }>();
 
   React.useEffect(() => {
     // Auth store holds no user object; the cached /auth/me profile has the role
@@ -84,9 +93,9 @@ export default function RaiseReportScreen() {
       .catch(() => {});
   }, []);
 
-  const [category, setCategory] = useState<TicketCategory | null>(null);
-  const [subject, setSubject] = useState('');
-  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<TicketCategory | null>(params.prefillCategory || null);
+  const [subject, setSubject] = useState(params.prefillSubject || '');
+  const [description, setDescription] = useState(params.prefillDescription || '');
   const [referenceId, setReferenceId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -113,8 +122,8 @@ export default function RaiseReportScreen() {
         category,
         subject: subject.trim(),
         description: description.trim(),
-        entity_type: referenceId ? 'reference' : undefined,
-        entity_id: undefined,
+        entity_type: params.entityType || (referenceId ? 'reference' : undefined),
+        entity_id: params.entityId || undefined,
       });
       CustomInAppToast.show({
         type: 'success',

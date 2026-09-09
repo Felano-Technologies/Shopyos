@@ -101,11 +101,32 @@ const submitVerification = async (req, res, next) => {
  * @route   GET /api/deliveries/driver/profile
  * @access  Private (Driver)
  */
+// Same reasoning as businessController.js's _resolveSellerVerificationStatus:
+// driver_profiles.is_verified is a plain boolean with no 'rejected'/'pending'
+// distinction (useDriverGuard.ts's `driver.verification_status` was always
+// undefined as a result) — derive a real verification_status here from the
+// new verification_applications table, falling back to the boolean when no
+// application exists yet or on any lookup error.
+const DRIVER_STATUS_DISPLAY_MAP = { approved: 'verified', rejected: 'rejected', suspended: 'rejected' };
+const _resolveDriverVerificationStatus = async (profile) => {
+  try {
+    const application = await repositories.verification.getApplicationByEntityId(profile.id, 'driver');
+    if (!application) return { verification_status: profile.is_verified ? 'verified' : 'pending' };
+    return { verification_status: DRIVER_STATUS_DISPLAY_MAP[application.status] || 'pending', rejection_reason: application.rejection_reason || profile.rejection_reason || null };
+  } catch (error) {
+    logger.warn('Failed to resolve driver verification status from verification_applications, falling back to is_verified', {
+      error: error.message, driverProfileId: profile.id,
+    });
+    return { verification_status: profile.is_verified ? 'verified' : 'pending' };
+  }
+};
+
 const getDriverProfile = async (req, res, next) => {
     try {
         const profile = await repositories.drivers.findByUserId(req.user.id);
+        if (!profile) return ApiResponse.withEntity(res, 'profile', profile);
 
-        ApiResponse.withEntity(res, 'profile', profile);
+        ApiResponse.withEntity(res, 'profile', { ...profile, ...(await _resolveDriverVerificationStatus(profile)) });
 
     } catch (error) {
         next(error);

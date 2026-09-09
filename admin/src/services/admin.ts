@@ -33,6 +33,8 @@ export const getAdminVerificationDetail = async (id: string) => { const response
 export const approveVerification = async (id: string) => { const response = await api.put(`/admin/verifications/${id}/approve`); return response.data; };
 export const rejectVerification = async (id: string, reason: string) => { const response = await api.put(`/admin/verifications/${id}/reject`, { reason }); return response.data; };
 export const requestVerificationInformation = async (id: string, message: string, channel?: string) => { const response = await api.put(`/admin/verifications/${id}/request-information`, { message, channel }); return response.data; };
+export const logVerificationNote = async (id: string, message: string, channel: string = 'phone_call') => { const response = await api.post(`/admin/verifications/${id}/notes`, { message, channel }); return response.data; };
+export const assistedEditVerificationStep = async (id: string, stepKey: string, data: Record<string, any>, reason: string) => { const response = await api.patch(`/admin/verifications/${id}/steps/${stepKey}`, { data, reason }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
 export const getAdminOrderStats = async () => { const response = await api.get('/admin/orders/stats'); return response.data; };
 export const updateOrderStatus = async (orderId: string, status: string) => {

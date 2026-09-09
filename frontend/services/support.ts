@@ -2,7 +2,7 @@ import { api, extractErrorMessage } from './client';
 
 export type TicketCategory =
   | 'order_issue' | 'delivery_issue' | 'product_issue' | 'payment_issue'
-  | 'driver_issue' | 'parcel_partner_issue' | 'platform_issue' | 'other';
+  | 'driver_issue' | 'parcel_partner_issue' | 'platform_issue' | 'verification_issue' | 'other';
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type ReporterRole = 'buyer' | 'seller' | 'driver' | 'parcel_partner';

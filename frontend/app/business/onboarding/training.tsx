@@ -1,13 +1,15 @@
 // app/business/onboarding/training.tsx
-// Seller Academy checklist (PRD §16) — a static, versioned list of topics the
-// applicant scrolls through and checks off, rather than a full lesson/video
-// CMS (explicitly out of scope for MVP — see plan). Progress persists into
-// verification_steps.data as {version, acknowledged:[...]}, so it's just
-// another save/resumable step like every other one.
+// Seller Academy / Driver Training checklist (PRD §16/§26) — a static,
+// versioned list of topics the applicant scrolls through and checks off,
+// rather than a full lesson/video CMS (explicitly out of scope for MVP —
+// see plan). Progress persists into verification_steps.data as
+// {version, acknowledged:[...]}, so it's just another save/resumable step.
+// Shared by both wizards via the `role` param (see consent.tsx's header for
+// why this lives under business/onboarding).
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,17 +38,36 @@ const SELLER_TRAINING_TOPICS = [
   { id: 'marketplace_rules', title: 'Marketplace rules' },
 ];
 
+const DRIVER_TRAINING_TOPICS = [
+  { id: 'how_deliveries_work', title: 'How Shopyos deliveries work' },
+  { id: 'accepting_a_delivery', title: 'Accepting a delivery' },
+  { id: 'order_pickup', title: 'Order pickup' },
+  { id: 'package_verification', title: 'Package verification' },
+  { id: 'customer_handover', title: 'Customer handover' },
+  { id: 'proof_of_delivery', title: 'Proof of delivery' },
+  { id: 'failed_deliveries', title: 'Failed deliveries' },
+  { id: 'customer_safety', title: 'Customer safety' },
+  { id: 'fraud_prevention', title: 'Fraud prevention' },
+  { id: 'prohibited_behaviour', title: 'Prohibited behaviour' },
+  { id: 'driver_earnings', title: 'Driver earnings' },
+  { id: 'driver_payouts', title: 'Driver payouts' },
+  { id: 'dispute_handling', title: 'Dispute handling' },
+  { id: 'communication_standards', title: 'Communication standards' },
+];
+
 export default function SellerTrainingScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const { role } = useLocalSearchParams<{ role?: 'seller' | 'driver' }>();
+  const topics = role === 'driver' ? DRIVER_TRAINING_TOPICS : SELLER_TRAINING_TOPICS;
   const [application, setApplication] = useState<VerificationApplication | null>(null);
   const [acknowledged, setAcknowledged] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getOrCreateVerificationApplication('seller')
+    getOrCreateVerificationApplication(role || 'seller')
       .then((app) => {
         setApplication(app);
         const step = app.steps.find((s) => s.step_key === 'training');
@@ -54,7 +75,7 @@ export default function SellerTrainingScreen() {
       })
       .catch((err) => CustomInAppToast.show({ type: 'error', title: 'Failed to load', message: err.message }))
       .finally(() => setLoading(false));
-  }, []);
+  }, [role]);
 
   const toggle = (id: string) => {
     setAcknowledged((prev) => {
@@ -64,7 +85,7 @@ export default function SellerTrainingScreen() {
     });
   };
 
-  const allChecked = acknowledged.size === SELLER_TRAINING_TOPICS.length;
+  const allChecked = acknowledged.size === topics.length;
 
   const handleFinish = async () => {
     if (!application || !allChecked) return;
@@ -75,7 +96,7 @@ export default function SellerTrainingScreen() {
         acknowledged: Array.from(acknowledged),
         completedAt: new Date().toISOString(),
       }, 'complete');
-      CustomInAppToast.show({ type: 'success', title: 'Training complete', message: 'Thanks for completing Seller Academy.' });
+      CustomInAppToast.show({ type: 'success', title: 'Training complete', message: `Thanks for completing ${role === 'driver' ? 'Driver Training' : 'Seller Academy'}.` });
       router.back();
     } catch (err: any) {
       CustomInAppToast.show({ type: 'error', title: 'Could not save', message: err.message });
@@ -89,7 +110,7 @@ export default function SellerTrainingScreen() {
       <StatusBar style="dark" />
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color={colors.text} /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Seller Academy</Text>
+        <Text style={styles.headerTitle}>{role === 'driver' ? 'Driver Training' : 'Seller Academy'}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -99,7 +120,7 @@ export default function SellerTrainingScreen() {
         <>
           <ScrollView contentContainerStyle={styles.body}>
             <Text style={styles.intro}>Read through and check off each topic below before submitting your application.</Text>
-            {SELLER_TRAINING_TOPICS.map((topic, i) => {
+            {topics.map((topic, i) => {
               const checked = acknowledged.has(topic.id);
               return (
                 <TouchableOpacity key={topic.id} style={styles.topicRow} onPress={() => toggle(topic.id)} activeOpacity={0.8}>
@@ -115,7 +136,7 @@ export default function SellerTrainingScreen() {
               disabled={!allChecked || saving}
               onPress={handleFinish}
             >
-              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.finishBtnText}>I have read and understood ({acknowledged.size}/{SELLER_TRAINING_TOPICS.length})</Text>}
+              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.finishBtnText}>I have read and understood ({acknowledged.size}/{topics.length})</Text>}
             </TouchableOpacity>
           </View>
         </>

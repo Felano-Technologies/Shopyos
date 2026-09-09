@@ -3,6 +3,11 @@
 // backend also enforces this (saveStep/liveness both 403 without a recorded
 // consent row for the current CURRENT_CONSENT_VERSION), this screen is just
 // where that consent actually gets captured with the required copy.
+//
+// Shared by both the seller (frontend/app/business/onboarding) and driver
+// (frontend/app/driver/onboarding) wizards — despite living under the
+// business/onboarding path for historical reasons, `basePath` controls which
+// hub's step screen it returns to, so it's genuinely role-agnostic.
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
@@ -19,7 +24,7 @@ export default function VerificationConsentScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
-  const { applicationId, nextStep } = useLocalSearchParams<{ applicationId: string; nextStep: string }>();
+  const { applicationId, nextStep, basePath } = useLocalSearchParams<{ applicationId: string; nextStep: string; basePath?: string }>();
   const [busy, setBusy] = useState(false);
 
   const handleAgree = async () => {
@@ -27,7 +32,7 @@ export default function VerificationConsentScreen() {
     setBusy(true);
     try {
       await recordVerificationConsent(applicationId);
-      router.replace({ pathname: `/business/onboarding/${nextStep}` as any, params: { applicationId } });
+      router.replace({ pathname: `${basePath || '/business/onboarding'}/${nextStep}` as any, params: { applicationId } });
     } catch (err: any) {
       CustomInAppToast.show({ type: 'error', title: 'Could not continue', message: err.message });
     } finally {

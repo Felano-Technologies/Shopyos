@@ -18,6 +18,7 @@ const UNGUARDED_BUSINESS_ROUTES = [
   '/business/register',
   '/business/businessRegistration',
   '/business/onboarding',
+  '/verification',
   '/business/settings',
   '/business/updateProfile',
 ];

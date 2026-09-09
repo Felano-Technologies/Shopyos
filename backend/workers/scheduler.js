@@ -937,7 +937,25 @@ function initScheduler() {
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM) + document expiry (2:30 AM)');
+  // Every 30 min: retry failed verification SMS notifications.
+  cron.schedule('*/30 * * * *', async () => {
+    if (!await acquireLock('lock:verification_notification_retry', 1500)) return;
+    const { retryFailedVerificationCommunications } = require('../jobs/notificationRetry');
+    retryFailedVerificationCommunications().catch(err =>
+      logger.error('[Scheduler] Verification notification retry error:', err.message)
+    );
+  });
+
+  // Daily 03:15: reopen overdue legacy-migrated applications missing consent.
+  cron.schedule('15 3 * * *', async () => {
+    if (!await acquireLock(`lock:legacy_grace_period:${new Date().toISOString().slice(0, 10)}`, 3600)) return;
+    const { enforceLegacyGracePeriod } = require('../jobs/legacyGracePeriod');
+    enforceLegacyGracePeriod().catch(err =>
+      logger.error('[Scheduler] Legacy grace period enforcement error:', err.message)
+    );
+  });
+
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM) + document expiry (2:30 AM) + verification notification retry (30 min) + legacy grace period (3:15 AM)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts, processAccountDeletions };

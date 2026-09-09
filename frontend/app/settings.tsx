@@ -195,7 +195,7 @@ export default function SettingsScreen() {
       } catch {}
 
       CustomInAppToast.show({ type: 'success', title: 'Almost there!', message: 'Complete your driver verification to start earning.' });
-      setTimeout(() => router.replace('/driver/verification'), 800);
+      setTimeout(() => router.replace('/driver/onboarding' as any), 800);
     } catch (error: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: error?.message || 'Failed to become a driver.' });
     } finally {

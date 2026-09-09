@@ -15,11 +15,14 @@
 // steps through the prompts and a photo is taken. Swapping in a real
 // face-landmark + anti-spoof pipeline behind submitVerificationLivenessAttempt
 // requires no change to this screen's contract with the backend.
+//
+// Shared by both the seller and driver wizards via the `role` param (see
+// consent.tsx's file header for why this lives under business/onboarding).
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,6 +49,7 @@ export default function LivenessCaptureScreen() {
   const colors = useThemeColors();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
   const cameraRef = useRef<CameraView>(null);
+  const { role } = useLocalSearchParams<{ role?: 'seller' | 'driver' }>();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [challenges] = useState(pickChallenges);
@@ -95,10 +99,12 @@ export default function LivenessCaptureScreen() {
 
   const captureAndSubmit = async () => {
     setCapturing(true);
+    let applicationId: string | undefined;
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
       setSubmitting(true);
-      const application = await getOrCreateVerificationApplication('seller');
+      const application = await getOrCreateVerificationApplication(role || 'seller');
+      applicationId = application.id;
       await submitVerificationLivenessAttempt(application.id, {
         passed: true, // see scope note at top of file
         challengeSequence: challenges.map((c) => c.id).join(','),
@@ -110,13 +116,21 @@ export default function LivenessCaptureScreen() {
       router.back();
     } catch (err: any) {
       const isAttemptCapError = /maximum.*attempts/i.test(err.message || '');
-      CustomInAppToast.show({
-        type: 'error',
-        title: isAttemptCapError ? 'Too many attempts' : 'Liveness check failed',
-        message: isAttemptCapError
-          ? 'You have used all your liveness attempts. Please contact support for manual verification.'
-          : err.message,
-      });
+      if (isAttemptCapError && applicationId) {
+        CustomInAppToast.show({ type: 'error', title: 'Too many attempts', message: 'You have used all your liveness attempts — taking you to support for manual verification.' });
+        router.replace({
+          pathname: '/support' as any,
+          params: {
+            prefillCategory: 'verification_issue',
+            prefillSubject: 'Liveness verification attempts exhausted',
+            prefillDescription: `I've used all my liveness verification attempts for my ${role || 'seller'} application and need manual verification.`,
+            entityType: 'verification_application',
+            entityId: applicationId,
+          },
+        });
+        return;
+      }
+      CustomInAppToast.show({ type: 'error', title: 'Liveness check failed', message: err.message });
       router.back();
     } finally {
       setCapturing(false);
