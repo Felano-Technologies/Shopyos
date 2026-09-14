@@ -1,9 +1,9 @@
 // app/driver/onboarding/index.tsx
 // Driver verification wizard hub — mirrors app/business/onboarding/index.tsx
 // exactly (same requirement-engine-driven step list pattern), just with the
-// driver step set and labels. Consent/liveness/training are the same shared
-// screens the seller wizard uses, routed to with role='driver' + a
-// driver-specific basePath so "back" from consent lands here correctly.
+// driver step set and labels. Consent/liveness are the same shared screens
+// the seller wizard uses, routed to with role='driver' + a driver-specific
+// basePath so "back" from consent lands here correctly.
 
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
@@ -30,12 +30,10 @@ const STEP_LABELS: Record<string, string> = {
   vehicle_docs: 'Vehicle Documents',
   operating_location: 'Operating Location',
   emergency_contact: 'Emergency Contact',
-  training: 'Driver Training',
 };
 
 const STEP_ROUTES: Record<string, string> = {
   liveness: '/business/onboarding/liveness',
-  training: '/business/onboarding/training',
 };
 
 function statusMeta(status: string, colors: ThemeColors) {

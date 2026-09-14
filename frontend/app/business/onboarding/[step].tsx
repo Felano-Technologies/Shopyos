@@ -3,9 +3,9 @@
 // verification step (personal_info, identity, business, shop_location,
 // payout) — driven by STEP_SCHEMAS below rather than one file per step,
 // since the shape (a handful of fields + optionally document uploads)
-// repeats across all of them. liveness/training/consent get their own
-// dedicated screens since those flows are structurally different (camera,
-// checklist, legal copy). Field rendering itself lives in
+// repeats across all of them. liveness/consent get their own dedicated
+// screens since those flows are structurally different (camera, legal
+// copy). Field rendering itself lives in
 // components/onboarding/* (TextField/PillGroup/DocumentField/DateField/
 // LocationField), shared with the driver wizard's equivalent screen.
 

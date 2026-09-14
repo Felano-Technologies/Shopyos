@@ -1,24 +1,35 @@
 // app/business/onboarding/liveness.tsx
-// On-device challenge-response liveness capture (plan §Liveness). The device
-// walks the applicant through a short random sequence (blink/turn/smile),
-// capturing one frame BEFORE the sequence starts (baseline) and one frame
-// right after each challenge completes — that's what makes real comparative
-// analysis possible server-side (e.g. head-yaw delta between baseline and
-// the "turn left" frame, eye-aspect-ratio delta for blink). A single final
-// photo can't prove any of that actually happened, which is why this
-// captures a frame per step instead.
+// On-device challenge-response liveness capture (plan §Liveness). Captures
+// one frame BEFORE the sequence starts (baseline) and one frame once each
+// challenge is actually detected as complete — that's what makes real
+// comparative analysis possible server-side (e.g. head-yaw delta between
+// baseline and the "turn left" frame).
+//
+// Detection: uses @react-native-ml-kit/face-detection (Google ML Kit) to
+// read head rotation (rotationY = yaw) and smilingProbability from each
+// polled photo, comparing against the baseline reading. This is a
+// snap-and-analyze API, not a continuous video frame processor — so each
+// challenge polls a photo every POLL_INTERVAL_MS and analyzes it until the
+// gesture is detected or DETECTION_TIMEOUT_MS is reached, rather than
+// instantaneous live tracking. The oval flashes green and a checkmark shows
+// the instant a challenge is detected — never a blind fixed countdown.
+//
+// NOTE: rotationY's sign convention (which direction counts as "left" vs
+// "right" for a front-facing/mirrored preview) is per ML Kit's documented
+// behavior but has not been empirically verified on-device in this
+// environment (no camera/ML runtime available here). TURN_SIGN below is the
+// one place to flip if a real device test shows turn_left/turn_right are
+// swapped.
+//
+// 'blink' is intentionally not offered — 5-point/landmark-based analysis
+// can't reliably detect eyelid closure, and the server-side verifier
+// (challengeVerifier.js) never supported it either; only
+// turn_left/turn_right/smile are real, verifiable challenges today.
 //
 // All frames are sent to the backend as EVIDENCE only (liveness_verifications
-// row) — never an automatic pass. The backend enforces the 3-attempt cap and
-// requires an admin to actually look at the frames before the step can
-// become 'verified'.
-//
-// SCOPE NOTE: no ML/anti-spoof model runs anywhere yet — `passed` is
-// optimistically true once the applicant steps through the prompts and every
-// frame is captured. The multi-frame capture here is specifically so that
-// real face-landmark/anti-spoof analysis can be added later ENTIRELY
-// SERVER-SIDE (e.g. onnxruntime-node) with NO further changes to this screen
-// or any new native frontend dependency — see the plan discussion on this.
+// row) — never an automatic pass. The backend runs its own server-side
+// anti-spoof + challenge analysis and enforces the 3-attempt cap; an admin
+// still confirms the frames before the step can become 'verified'.
 //
 // Shared by both the seller and driver wizards via the `role` param (see
 // consent.tsx's file header for why this lives under business/onboarding).
@@ -30,29 +41,55 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import FaceDetection, { Face } from '@react-native-ml-kit/face-detection';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getOrCreateVerificationApplication, submitVerificationLivenessAttempt } from '@/services/api';
 
-const BLINK_CHALLENGE = { id: 'blink', label: 'Blink slowly' };
-const OTHER_CHALLENGES = [
+const CHALLENGES = [
   { id: 'turn_left', label: 'Turn your head left' },
   { id: 'turn_right', label: 'Turn your head right' },
   { id: 'smile', label: 'Smile' },
 ];
 
-// Blink is required on every attempt — it's the one challenge that produces
-// an eye-aspect-ratio delta server-side, so it can't be left to chance the
-// way the other challenges are randomized for variety.
+// Picks 2 of the 3 supported challenges, randomized for variety — matches
+// the previous total count (2-3) now that the unsupported 'blink' slot is gone.
 function pickChallenges() {
-  const shuffledOthers = [...OTHER_CHALLENGES].sort(() => Math.random() - 0.5);
-  const extras = shuffledOthers.slice(0, 1 + Math.round(Math.random())); // 1 or 2 more
-  return [BLINK_CHALLENGE, ...extras].sort(() => Math.random() - 0.5);
+  return [...CHALLENGES].sort(() => Math.random() - 0.5).slice(0, 2);
 }
 
+const YAW_DELTA_THRESHOLD_DEG = 15;
+const SMILE_PROBABILITY_THRESHOLD = 0.65;
+const TURN_SIGN = { turn_left: -1, turn_right: 1 } as const; // flip here if a device test shows these reversed
+const GET_READY_MS = 2500;
+const POLL_INTERVAL_MS = 550;
+const DETECTION_TIMEOUT_MS = 8000;
+
 type CapturedFrame = { label: string; uri: string };
+type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'verifying';
+
+async function detectFace(uri: string): Promise<Face | null> {
+  try {
+    const faces = await FaceDetection.detect(uri, { classificationMode: 'all', performanceMode: 'fast' });
+    return faces?.[0] || null;
+  } catch {
+    return null; // a missed detection just means another poll cycle, not a crash
+  }
+}
+
+function challengeSatisfied(challengeId: string, baseline: Face, current: Face): boolean {
+  if (challengeId === 'smile') {
+    return (current.smilingProbability ?? 0) >= SMILE_PROBABILITY_THRESHOLD;
+  }
+  if (challengeId === 'turn_left' || challengeId === 'turn_right') {
+    const delta = current.rotationY - baseline.rotationY;
+    const sign = TURN_SIGN[challengeId];
+    return delta * sign > YAW_DELTA_THRESHOLD_DEG;
+  }
+  return false;
+}
 
 export default function LivenessCaptureScreen() {
   const router = useRouter();
@@ -64,10 +101,12 @@ export default function LivenessCaptureScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [challenges] = useState(pickChallenges);
   const [stepIndex, setStepIndex] = useState(-1); // -1 = capturing baseline, before any challenge
-  const [countdown, setCountdown] = useState(3);
-  const [capturing, setCapturing] = useState(false);
+  const [phase, setPhase] = useState<Phase>('baseline');
+  const [readySeconds, setReadySeconds] = useState(Math.ceil(GET_READY_MS / 1000));
   const [submitting, setSubmitting] = useState(false);
   const framesRef = useRef<CapturedFrame[]>([]);
+  const baselineFaceRef = useRef<Face | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -82,55 +121,94 @@ export default function LivenessCaptureScreen() {
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
+    return () => { cancelledRef.current = true; };
   }, []);
 
-  const captureFrame = async (label: string) => {
+  const takePhoto = async (): Promise<string | null> => {
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6 });
-      if (photo?.uri) framesRef.current.push({ label, uri: photo.uri });
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.5 });
+      return photo?.uri || null;
     } catch {
-      // A missed frame just means one less data point server-side — never
-      // block the flow over a single failed capture.
+      return null;
     }
   };
 
-  // Baseline frame, captured once the camera is ready and before the first
-  // challenge countdown begins.
+  // Baseline: captured once the camera is ready, before the first challenge.
   useEffect(() => {
     if (hasPermission !== true || stepIndex !== -1) return;
     (async () => {
-      setCapturing(true);
-      await captureFrame('baseline');
-      setCapturing(false);
+      setPhase('baseline');
+      const uri = await takePhoto();
+      if (uri) {
+        framesRef.current.push({ label: 'baseline', uri });
+        baselineFaceRef.current = await detectFace(uri);
+      }
+      if (cancelledRef.current) return;
       setStepIndex(0);
     })();
   }, [hasPermission, stepIndex]);
 
+  // Per-challenge: a "get ready" countdown, then poll photos until the
+  // gesture is detected (or the timeout is hit) rather than a blind timer.
   useEffect(() => {
-    if (hasPermission !== true || capturing) return;
+    if (hasPermission !== true) return;
     if (stepIndex < 0 || stepIndex >= challenges.length) return;
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          clearInterval(interval);
-          (async () => {
-            setCapturing(true);
-            await captureFrame(challenges[stepIndex].id);
-            setCapturing(false);
-            setStepIndex((i) => i + 1);
-          })();
-          return 3;
-        }
-        return c - 1;
-      });
+
+    let stopped = false;
+    setPhase('ready');
+    setReadySeconds(Math.ceil(GET_READY_MS / 1000));
+
+    const readyTickId = setInterval(() => {
+      setReadySeconds((s) => Math.max(0, s - 1));
     }, 1000);
-    return () => clearInterval(interval);
+
+    const readyTimeoutId = setTimeout(async () => {
+      clearInterval(readyTickId);
+      if (stopped || cancelledRef.current) return;
+      setPhase('detecting');
+
+      const challenge = challenges[stepIndex];
+      const deadline = Date.now() + DETECTION_TIMEOUT_MS;
+      let detectedUri: string | null = null;
+
+      while (!stopped && !cancelledRef.current && Date.now() < deadline) {
+        const uri = await takePhoto();
+        if (!uri) { await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS)); continue; }
+        const face = await detectFace(uri);
+        if (face && baselineFaceRef.current && challengeSatisfied(challenge.id, baselineFaceRef.current, face)) {
+          detectedUri = uri;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      }
+
+      if (stopped || cancelledRef.current) return;
+
+      // Fall back to one last photo if detection timed out, so the flow
+      // never strands the applicant indefinitely — the server-side verifier
+      // will simply mark this challenge as not satisfied if it doesn't show
+      // the gesture, same as any other frame it deems insufficient.
+      const finalUri = detectedUri || (await takePhoto());
+      if (finalUri) framesRef.current.push({ label: challenge.id, uri: finalUri });
+
+      setPhase('success');
+      setTimeout(() => {
+        if (cancelledRef.current) return;
+        setStepIndex((i) => i + 1);
+      }, 700);
+    }, GET_READY_MS);
+
+    return () => {
+      stopped = true;
+      clearInterval(readyTickId);
+      clearTimeout(readyTimeoutId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex, hasPermission, capturing, challenges.length]);
+  }, [stepIndex, hasPermission, challenges.length]);
 
   useEffect(() => {
-    if (stepIndex === challenges.length && !capturing) {
+    if (stepIndex === challenges.length && phase !== 'verifying') {
+      setPhase('verifying');
       finalizeAndSubmit();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,10 +221,10 @@ export default function LivenessCaptureScreen() {
       const application = await getOrCreateVerificationApplication(role || 'seller');
       applicationId = application.id;
       await submitVerificationLivenessAttempt(application.id, {
-        passed: true, // see scope note at top of file
+        passed: true, // evidence only — the server computes the real verdict
         challengeSequence: challenges.map((c) => c.id).join(','),
         frames: framesRef.current,
-        methodVersion: 'multi_frame_v1_no_ml',
+        methodVersion: 'multi_frame_v2_ondevice_detection',
         deviceInfo: Platform.OS,
       });
       CustomInAppToast.show({ type: 'success', title: 'Liveness recorded', message: 'An admin will confirm this during review.' });
@@ -194,7 +272,33 @@ export default function LivenessCaptureScreen() {
     );
   }
 
-  const currentChallenge = stepIndex >= 0 ? challenges[stepIndex] : null;
+  const currentChallenge = stepIndex >= 0 && stepIndex < challenges.length ? challenges[stepIndex] : null;
+  const ovalColor = phase === 'success' ? '#22C55E' : 'rgba(255,255,255,0.8)';
+
+  let promptContent: React.ReactNode;
+  if (phase === 'baseline') {
+    promptContent = (<><ActivityIndicator color="#FFF" /><Text style={styles.promptText}>Hold still…</Text></>);
+  } else if (phase === 'success') {
+    promptContent = (<><Ionicons name="checkmark-circle" size={36} color="#22C55E" /><Text style={styles.promptText}>Captured!</Text></>);
+  } else if (currentChallenge && phase === 'ready') {
+    promptContent = (
+      <>
+        <Text style={styles.promptText}>{currentChallenge.label}</Text>
+        <Text style={styles.subPromptText}>Get ready…</Text>
+        <Text style={styles.countdownText}>{readySeconds}</Text>
+      </>
+    );
+  } else if (currentChallenge && phase === 'detecting') {
+    promptContent = (
+      <>
+        <Text style={styles.promptText}>{currentChallenge.label}</Text>
+        <Text style={styles.subPromptText}>Hold the pose — we'll capture automatically</Text>
+        <ActivityIndicator color="#FFF" style={{ marginTop: 8 }} />
+      </>
+    );
+  } else {
+    promptContent = (<><ActivityIndicator color="#FFF" /><Text style={styles.promptText}>Verifying…</Text></>);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -205,23 +309,8 @@ export default function LivenessCaptureScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
             <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
-          <View style={styles.faceOval} />
-          {stepIndex === -1 ? (
-            <View style={styles.promptBox}>
-              <ActivityIndicator color="#FFF" />
-              <Text style={styles.promptText}>Hold still…</Text>
-            </View>
-          ) : currentChallenge ? (
-            <View style={styles.promptBox}>
-              <Text style={styles.promptText}>{currentChallenge.label}</Text>
-              <Text style={styles.countdownText}>{countdown}</Text>
-            </View>
-          ) : (
-            <View style={styles.promptBox}>
-              <ActivityIndicator color="#FFF" />
-              <Text style={styles.promptText}>Verifying…</Text>
-            </View>
-          )}
+          <View style={[styles.faceOval, { borderColor: ovalColor }]} />
+          <View style={styles.promptBox}>{promptContent}</View>
         </View>
       </View>
     </SafeAreaView>
@@ -237,8 +326,9 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   camera: { flex: 1 },
   overlay: { justifyContent: 'center', alignItems: 'center' },
   closeBtn: { position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  faceOval: { width: 220, height: 280, borderRadius: 140, borderWidth: 3, borderColor: 'rgba(255,255,255,0.8)' },
-  promptBox: { position: 'absolute', bottom: 80, alignItems: 'center' },
-  promptText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold', marginBottom: 8 },
+  faceOval: { width: 220, height: 280, borderRadius: 140, borderWidth: 3 },
+  promptBox: { position: 'absolute', bottom: 80, alignItems: 'center', paddingHorizontal: 24 },
+  promptText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold', marginBottom: 4, textAlign: 'center' },
+  subPromptText: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Montserrat-Medium', marginBottom: 8, textAlign: 'center' },
   countdownText: { color: '#FFF', fontSize: 32, fontFamily: 'Montserrat-Bold' },
 });

@@ -270,7 +270,6 @@ function AppContent() {
               <Stack.Screen name="business/onboarding/index" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/onboarding/consent" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/onboarding/liveness" options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="business/onboarding/training" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/onboarding/[step]" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
 

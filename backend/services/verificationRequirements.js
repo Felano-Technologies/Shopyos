@@ -13,8 +13,8 @@
 
 const REQUIREMENTS = {
   1: {
-    seller: ['personal_info', 'identity', 'liveness', 'business', 'shop_location', 'payout', 'training'],
-    driver: ['personal_info', 'identity', 'liveness', 'driver_licence', 'vehicle', 'vehicle_docs', 'operating_location', 'emergency_contact', 'training'],
+    seller: ['personal_info', 'identity', 'liveness', 'business', 'shop_location', 'payout'],
+    driver: ['personal_info', 'identity', 'liveness', 'driver_licence', 'vehicle', 'vehicle_docs', 'operating_location', 'emergency_contact'],
   },
 };
 

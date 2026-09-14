@@ -29,14 +29,12 @@ const STEP_LABELS: Record<string, string> = {
   business: 'Business Information',
   shop_location: 'Shop Location',
   payout: 'Payout Information',
-  training: 'Seller Training',
 };
 
 // consent/liveness get their own dedicated screens (camera flow, legal copy);
 // every other step reuses the generic dynamic form at [step].tsx
 const STEP_ROUTES: Record<string, string> = {
   liveness: '/business/onboarding/liveness',
-  training: '/business/onboarding/training',
 };
 
 function statusMeta(status: string, colors: ThemeColors) {
