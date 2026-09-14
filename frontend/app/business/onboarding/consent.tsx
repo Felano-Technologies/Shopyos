@@ -28,6 +28,12 @@ export default function VerificationConsentScreen() {
   const { applicationId, nextStep, basePath } = useLocalSearchParams<{ applicationId: string; nextStep: string; basePath?: string }>();
   const [busy, setBusy] = useState(false);
 
+  const intro = nextStep === 'liveness'
+    ? "To verify your identity, Shopyos will ask you to complete a short face/liveness check (we'll ask you to blink, turn your head, or smile on camera)."
+    : nextStep === 'identity'
+      ? 'To verify your identity, Shopyos will ask you to provide a government-issued ID.'
+      : "To verify your identity, Shopyos will ask you to provide a government-issued ID and complete a short face/liveness check (we'll ask you to blink, turn your head, or smile on camera).";
+
   const handleAgree = async () => {
     if (!applicationId) return;
     setBusy(true);
@@ -55,10 +61,7 @@ export default function VerificationConsentScreen() {
       </LinearGradient>
       <ScrollView contentContainerStyle={styles.body}>
         <Ionicons name="shield-checkmark-outline" size={48} color={colors.primary} style={{ marginBottom: 16 }} />
-        <Text style={styles.paragraph}>
-          To verify your identity, Shopyos will ask you to provide a government-issued ID and complete a
-          short face/liveness check (we'll ask you to blink, turn your head, or smile on camera).
-        </Text>
+        <Text style={styles.paragraph}>{intro}</Text>
         <Text style={styles.paragraph}>Your information will be used for:</Text>
         <View style={styles.bulletList}>
           <Text style={styles.bullet}>• Identity verification</Text>

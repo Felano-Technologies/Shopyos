@@ -74,8 +74,10 @@ export default function SellerOnboardingHub() {
     if (!application) return;
     // Consent is enforced server-side (saveStep/liveness both reject without
     // it) — identity/liveness route through the consent screen first so the
-    // seller sees the legal copy before ever being blocked by a 403.
-    if (['identity', 'liveness'].includes(key)) {
+    // seller sees the legal copy before ever being blocked by a 403. Consent
+    // is recorded once per application though, not per step, so skip the
+    // screen again once it's already been given.
+    if (['identity', 'liveness'].includes(key) && !application.hasConsented) {
       router.push({ pathname: '/business/onboarding/consent' as any, params: { applicationId: application.id, nextStep: key, basePath: '/business/onboarding', role: 'seller' } });
       return;
     }

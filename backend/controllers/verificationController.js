@@ -53,10 +53,12 @@ async function _backfillStepsFromEntity(application, steps) {
         businessName: store.store_name, description: store.description,
         businessCategory: store.category, registrationNumber: store.registration_number,
         taxIdentificationNumber: store.tax_id,
+        website: store.website_url, instagram: store.social_instagram, facebook: store.social_facebook,
       },
       shop_location: {
-        shopName: store.store_name, addressLine1: store.address_line1, city: store.city,
-        region: store.state_province, country: store.country, shopDescription: store.description,
+        addressLine1: store.address_line1, city: store.city,
+        region: store.state_province, country: store.country,
+        latitude: store.latitude, longitude: store.longitude,
       },
       payout: {
         payoutMethod: store.payout_method, accountHolderName: store.account_name,
@@ -110,8 +112,18 @@ async function getOrCreateApplication(req, res) {
     steps = await _backfillStepsFromEntity(application, steps);
     const requiredSteps = getRequiredSteps(application.role, application.requirements_version);
     const progress = computeOverallProgress(requiredSteps, steps);
+    const hasConsented = await repositories.verification.hasConsent(application.id, CURRENT_CONSENT_VERSION);
+    // Never the storage_key itself (same rule as everywhere else) — just
+    // enough (step_key/document_type/id/uploaded_at) for the wizard to know
+    // a document already exists for a given slot and fetch its signed URL
+    // via the existing GET /verification/documents/:id/signed-url endpoint,
+    // so re-opening a step previews what's already on file instead of
+    // showing a blank uploader.
+    const documents = (await repositories.verification.getDocumentsForParent('application', application.id))
+      .filter(d => !d.deleted_at)
+      .map(d => ({ id: d.id, step_key: d.step_key, document_type: d.document_type, status: d.status, uploaded_at: d.uploaded_at }));
 
-    return ApiResponse.withEntity(res, 'application', { ...application, steps, requiredSteps, progress });
+    return ApiResponse.withEntity(res, 'application', { ...application, steps, requiredSteps, progress, hasConsented, documents });
   } catch (error) {
     logger.error('getOrCreateApplication failed', { error: error.message, userId: req.user?.id });
     return ApiResponse.error(res, 'Failed to load application', 500);
@@ -396,7 +408,7 @@ async function _createStoreFromApplication(application, steps, userId) {
     .filter(d => d.document_type === type && !d.deleted_at)
     .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at))[0];
 
-  const businessName = business.businessName || shop.shopName || 'My Store';
+  const businessName = business.businessName || 'My Store';
   const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
 
   // stores.description/phone/address_line1/city/country/category are all
@@ -408,7 +420,7 @@ async function _createStoreFromApplication(application, steps, userId) {
     owner_id: userId,
     store_name: businessName,
     slug,
-    description: business.description || shop.shopDescription || '',
+    description: business.description || '',
     category: business.businessCategory || 'general',
     phone: personal.phone || '',
     email: personal.email || null,
@@ -416,11 +428,18 @@ async function _createStoreFromApplication(application, steps, userId) {
     city: shop.city || '',
     state_province: shop.region || null,
     country: shop.country || personal.countryOfResidence || '',
+    latitude: shop.latitude ? Number(shop.latitude) : null,
+    longitude: shop.longitude ? Number(shop.longitude) : null,
     registration_number: business.registrationNumber || null,
     tax_id: business.taxIdentificationNumber || null,
     business_cert_url: latestDocOfType('business_cert')?.storage_key || null,
     ghana_card_url: latestDocOfType('identity')?.storage_key || null,
     proof_of_bank_url: latestDocOfType('proof_of_bank')?.storage_key || null,
+    logo_url: latestDocOfType('logo')?.storage_key || null,
+    banner_url: latestDocOfType('banner')?.storage_key || null,
+    website_url: business.website || null,
+    social_instagram: business.instagram || null,
+    social_facebook: business.facebook || null,
     payout_method: payout.payoutMethod || null,
     payout_details: {
       accountHolderName: payout.accountHolderName || null,

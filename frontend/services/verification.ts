@@ -17,6 +17,14 @@ export type VerificationStep = {
   completed_at: string | null;
 };
 
+export type VerificationDocumentMeta = {
+  id: string;
+  step_key: string;
+  document_type: string;
+  status: string;
+  uploaded_at: string;
+};
+
 export type VerificationApplication = {
   id: string;
   user_id: string;
@@ -29,6 +37,8 @@ export type VerificationApplication = {
   steps: VerificationStep[];
   requiredSteps: string[];
   progress: number;
+  hasConsented: boolean;
+  documents: VerificationDocumentMeta[];
 };
 
 export const getOrCreateVerificationApplication = async (role: VerificationRole): Promise<VerificationApplication> => {
@@ -93,6 +103,19 @@ export const uploadVerificationDocument = async (
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || 'Failed to upload document');
     throw new Error(error.message || 'Network error uploading document');
+  }
+};
+
+// The owner (or an admin) is the only one who can resolve a document id to a
+// viewable URL — never a raw storage key — and every successful call is
+// audit-logged server-side. Used to preview a document already on file
+// instead of showing a blank uploader on every re-visit of a step.
+export const getVerificationDocumentSignedUrl = async (documentId: string): Promise<string | null> => {
+  try {
+    const response = await api.get(`/verification/documents/${documentId}/signed-url`);
+    return response.data?.document?.signedUrl || null;
+  } catch {
+    return null; // best-effort preview — a failure here shouldn't block the step from rendering
   }
 };
 

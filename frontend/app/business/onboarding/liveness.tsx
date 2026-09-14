@@ -36,16 +36,20 @@ import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getOrCreateVerificationApplication, submitVerificationLivenessAttempt } from '@/services/api';
 
-const ALL_CHALLENGES = [
-  { id: 'blink', label: 'Blink slowly' },
+const BLINK_CHALLENGE = { id: 'blink', label: 'Blink slowly' };
+const OTHER_CHALLENGES = [
   { id: 'turn_left', label: 'Turn your head left' },
   { id: 'turn_right', label: 'Turn your head right' },
   { id: 'smile', label: 'Smile' },
 ];
 
+// Blink is required on every attempt — it's the one challenge that produces
+// an eye-aspect-ratio delta server-side, so it can't be left to chance the
+// way the other challenges are randomized for variety.
 function pickChallenges() {
-  const shuffled = [...ALL_CHALLENGES].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2 + Math.round(Math.random())); // 2 or 3
+  const shuffledOthers = [...OTHER_CHALLENGES].sort(() => Math.random() - 0.5);
+  const extras = shuffledOthers.slice(0, 1 + Math.round(Math.random())); // 1 or 2 more
+  return [BLINK_CHALLENGE, ...extras].sort(() => Math.random() - 0.5);
 }
 
 type CapturedFrame = { label: string; uri: string };

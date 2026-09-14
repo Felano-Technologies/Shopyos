@@ -71,7 +71,9 @@ export default function DriverOnboardingHub() {
 
   const openStep = (key: string) => {
     if (!application) return;
-    if (['identity', 'liveness'].includes(key)) {
+    // Consent is recorded once per application, not per step — skip the
+    // screen again once it's already been given (see business/onboarding/index.tsx).
+    if (['identity', 'liveness'].includes(key) && !application.hasConsented) {
       router.push({ pathname: '/business/onboarding/consent' as any, params: { applicationId: application.id, nextStep: key, basePath: '/driver/onboarding', role: 'driver' } });
       return;
     }

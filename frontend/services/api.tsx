@@ -15,10 +15,10 @@ export type { ThemePreference } from './auth';
 
 export {
   getOrCreateVerificationApplication, recordVerificationConsent, saveVerificationStep,
-  uploadVerificationDocument, submitVerificationLivenessAttempt, submitVerificationApplication,
+  uploadVerificationDocument, getVerificationDocumentSignedUrl, submitVerificationLivenessAttempt, submitVerificationApplication,
   requestShopLocationChange,
 } from './verification';
-export type { VerificationApplication, VerificationStep, VerificationRole } from './verification';
+export type { VerificationApplication, VerificationStep, VerificationRole, VerificationDocumentMeta } from './verification';
 
 export {
   uploadStoreLogo, businessRegister, getMyBusinesses, updateBusiness,
