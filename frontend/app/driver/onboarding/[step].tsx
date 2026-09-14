@@ -1,29 +1,36 @@
 // app/driver/onboarding/[step].tsx
 // Generic step-form screen for the driver wizard — mirrors
-// app/business/onboarding/[step].tsx's schema-driven pattern. Kept as its
+// app/business/onboarding/[step].tsx's schema-driven pattern, sharing the
+// same field-rendering components (components/onboarding/*). Kept as its
 // own file (rather than sharing the seller one) because vehicle_docs needs
 // multiple independent document uploads (registration/insurance/roadworthy)
-// in one step, whereas every seller step needs at most one.
+// in one step, and the step schemas otherwise differ enough (driver_licence,
+// vehicle, operating_location, emergency_contact) that one shared file would
+// need a lot of role-conditional branching.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
-import { requestMediaLibraryPermissionWithDisclosure } from '@/src/utils/permissions';
-import AppImage from '@/components/AppImage';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { TextField, PillGroup, DocumentField } from '@/components/onboarding/FormControls';
+import { DateField } from '@/components/onboarding/DateField';
+import { LocationField } from '@/components/onboarding/LocationField';
 import {
   getOrCreateVerificationApplication,
   saveVerificationStep,
   uploadVerificationDocument,
+  getVerificationDocumentSignedUrl,
   VerificationApplication,
 } from '@/services/api';
+
+type FeatherIconName = React.ComponentProps<typeof TextField>['icon'];
 
 type FieldSchema = {
   key: string;
@@ -31,6 +38,8 @@ type FieldSchema = {
   placeholder?: string;
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   multiline?: boolean;
+  icon?: FeatherIconName;
+  type?: 'text' | 'date' | 'location';
   options?: { value: string; label: string }[];
 };
 
@@ -42,13 +51,13 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   personal_info: {
     title: 'Personal Information',
     fields: [
-      { key: 'legalFirstName', label: 'Legal first name' },
-      { key: 'legalLastName', label: 'Legal last name' },
-      { key: 'dateOfBirth', label: 'Date of birth (YYYY-MM-DD)', keyboardType: 'numeric' },
-      { key: 'phone', label: 'Phone number', keyboardType: 'phone-pad' },
-      { key: 'email', label: 'Email address', keyboardType: 'email-address' },
-      { key: 'countryOfResidence', label: 'Country of residence' },
-      { key: 'residentialAddress', label: 'Residential address', multiline: true },
+      { key: 'legalFirstName', label: 'Legal first name', icon: 'user' },
+      { key: 'legalLastName', label: 'Legal last name', icon: 'user' },
+      { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+      { key: 'phone', label: 'Phone number', icon: 'phone', keyboardType: 'phone-pad' },
+      { key: 'email', label: 'Email address', icon: 'mail', keyboardType: 'email-address' },
+      { key: 'countryOfResidence', label: 'Country of residence', icon: 'flag' },
+      { key: 'residentialAddress', label: 'Residential address', icon: 'map-pin', multiline: true },
     ],
   },
   identity: {
@@ -68,10 +77,10 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   driver_licence: {
     title: "Driver's Licence",
     fields: [
-      { key: 'licenseNumber', label: 'Licence number' },
-      { key: 'licenseCategory', label: 'Licence category/class' },
-      { key: 'issueDate', label: 'Issue date (YYYY-MM-DD)', keyboardType: 'numeric' },
-      { key: 'expiryDate', label: 'Expiry date (YYYY-MM-DD)', keyboardType: 'numeric' },
+      { key: 'licenseNumber', label: 'Licence number', icon: 'hash' },
+      { key: 'licenseCategory', label: 'Licence category/class', icon: 'tag' },
+      { key: 'issueDate', label: 'Issue date', type: 'date' },
+      { key: 'expiryDate', label: 'Expiry date', type: 'date' },
     ],
     documents: [{ documentType: 'drivers_licence', label: "Upload your driver's licence" }],
   },
@@ -87,13 +96,13 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
           { value: 'truck', label: 'Truck' },
         ],
       },
-      { key: 'make', label: 'Make' },
-      { key: 'model', label: 'Model' },
-      { key: 'year', label: 'Year', keyboardType: 'numeric' },
-      { key: 'colour', label: 'Colour' },
-      { key: 'plateNumber', label: 'Registration/plate number' },
-      { key: 'insurancePolicyNumber', label: 'Insurance policy number' },
-      { key: 'insuranceExpiryDate', label: 'Insurance expiry date (YYYY-MM-DD)', keyboardType: 'numeric' },
+      { key: 'make', label: 'Make', icon: 'truck' },
+      { key: 'model', label: 'Model', icon: 'truck' },
+      { key: 'year', label: 'Year', icon: 'calendar', keyboardType: 'numeric' },
+      { key: 'colour', label: 'Colour', icon: 'droplet' },
+      { key: 'plateNumber', label: 'Registration/plate number', icon: 'hash' },
+      { key: 'insurancePolicyNumber', label: 'Insurance policy number', icon: 'shield' },
+      { key: 'insuranceExpiryDate', label: 'Insurance expiry date', type: 'date' },
       {
         key: 'relationship', label: 'Your relationship to this vehicle',
         options: [
@@ -116,17 +125,18 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   operating_location: {
     title: 'Operating Location',
     fields: [
-      { key: 'baseLocation', label: 'Residential/base location', multiline: true },
-      { key: 'operatingCity', label: 'Operating city' },
-      { key: 'operatingRegion', label: 'Operating region(s)' },
+      { key: 'location', label: 'Pin your base location on the map', type: 'location' },
+      { key: 'baseLocation', label: 'Residential/base address', icon: 'map-pin', multiline: true },
+      { key: 'operatingCity', label: 'Operating city', icon: 'map' },
+      { key: 'operatingRegion', label: 'Operating region(s)', icon: 'map' },
     ],
   },
   emergency_contact: {
     title: 'Emergency Contact',
     fields: [
-      { key: 'name', label: 'Contact name' },
-      { key: 'relationship', label: 'Relationship' },
-      { key: 'phone', label: 'Contact phone number', keyboardType: 'phone-pad' },
+      { key: 'name', label: 'Contact name', icon: 'user' },
+      { key: 'relationship', label: 'Relationship', icon: 'users' },
+      { key: 'phone', label: 'Contact phone number', icon: 'phone', keyboardType: 'phone-pad' },
     ],
   },
 };
@@ -138,19 +148,37 @@ export default function DriverVerificationStepScreen() {
   const params = useLocalSearchParams<{ step: string; applicationId?: string }>();
   const stepKey = params.step;
   const schema = STEP_SCHEMAS[stepKey];
+  const pickImage = useImagePickerSheet();
 
   const [application, setApplication] = useState<VerificationApplication | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [documentUris, setDocumentUris] = useState<Record<string, string>>({});
+  const [existingDocPreviews, setExistingDocPreviews] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getOrCreateVerificationApplication('driver')
-      .then((app) => {
+      .then(async (app) => {
         setApplication(app);
         const step = app.steps.find((s) => s.step_key === stepKey);
         if (step?.data) setValues(step.data);
+
+        const docTypesNeeded = STEP_SCHEMAS[stepKey]?.documents?.map((d) => d.documentType) || [];
+        const stepDocs = (app.documents || []).filter((d) => d.step_key === stepKey);
+        for (const type of docTypesNeeded) {
+          const latest = stepDocs
+            .filter((d) => d.document_type === type)
+            .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())[0];
+          if (latest) {
+            const url = await getVerificationDocumentSignedUrl(latest.id);
+            if (url) { setExistingDocPreviews((prev) => ({ ...prev, [type]: url })); continue; }
+          }
+          // Fall back to the same image already on the linked driver profile's
+          // own columns (uploaded pre-wizard, or by an admin).
+          const entityUrl = app.entityDocumentPreviews?.[type];
+          if (entityUrl) setExistingDocPreviews((prev) => ({ ...prev, [type]: entityUrl }));
+        }
       })
       .catch((err) => CustomInAppToast.show({ type: 'error', title: 'Failed to load', message: err.message }))
       .finally(() => setLoading(false));
@@ -165,12 +193,8 @@ export default function DriverVerificationStepScreen() {
   }
 
   const pickDocument = async (documentType: string) => {
-    const { status } = await requestMediaLibraryPermissionWithDisclosure();
-    if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
-    if (!result.canceled && result.assets?.[0]) {
-      setDocumentUris((prev) => ({ ...prev, [documentType]: result.assets[0].uri }));
-    }
+    const uri = await pickImage({ quality: 0.8 });
+    if (uri) setDocumentUris((prev) => ({ ...prev, [documentType]: uri }));
   };
 
   const handleSave = async () => {
@@ -208,52 +232,56 @@ export default function DriverVerificationStepScreen() {
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {schema.fields.map((field) => (
-            <View key={field.key} style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>{field.label}</Text>
-              {field.options ? (
-                <View style={styles.pillRow}>
-                  {field.options.map((opt) => {
-                    const active = values[field.key] === opt.value;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[styles.pill, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                        onPress={() => setValues((v) => ({ ...v, [field.key]: opt.value }))}
-                      >
-                        <Text style={[styles.pillText, active && { color: '#FFF' }]}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <TextInput
-                  style={[styles.input, field.multiline && styles.inputMultiline]}
-                  placeholder={field.placeholder}
-                  placeholderTextColor={colors.textMuted}
-                  value={values[field.key] || ''}
-                  onChangeText={(t) => setValues((v) => ({ ...v, [field.key]: t }))}
-                  keyboardType={field.keyboardType || 'default'}
-                  multiline={field.multiline}
+          {schema.fields.map((field) => {
+            if (field.type === 'location') {
+              return (
+                <LocationField
+                  key={field.key}
+                  label={field.label}
+                  latitude={values.latitude || ''}
+                  longitude={values.longitude || ''}
+                  onChange={(lat, lon) => setValues((v) => ({ ...v, latitude: lat, longitude: lon }))}
+                  confirmLabel="Set Base Location"
                 />
-              )}
-            </View>
-          ))}
+              );
+            }
+            if (field.type === 'date') {
+              const fallback = field.key.toLowerCase().includes('birth') ? -18 : 1;
+              return <DateField key={field.key} label={field.label} value={values[field.key] || ''} onChange={(v) => setValues((val) => ({ ...val, [field.key]: v }))} fallbackYearsFromNow={fallback} />;
+            }
+            if (field.options) {
+              return (
+                <PillGroup
+                  key={field.key}
+                  label={field.label}
+                  value={values[field.key] || ''}
+                  onChange={(v) => setValues((val) => ({ ...val, [field.key]: v }))}
+                  options={field.options}
+                />
+              );
+            }
+            return (
+              <TextField
+                key={field.key}
+                label={field.label}
+                icon={field.icon}
+                placeholder={field.placeholder}
+                multiline={field.multiline}
+                keyboardType={field.keyboardType}
+                value={values[field.key] || ''}
+                onChangeText={(t) => setValues((v) => ({ ...v, [field.key]: t }))}
+              />
+            );
+          })}
 
           {(schema.documents || []).map((doc) => (
-            <View key={doc.documentType} style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>{doc.label}</Text>
-              <TouchableOpacity style={styles.docPicker} onPress={() => pickDocument(doc.documentType)}>
-                {documentUris[doc.documentType] ? (
-                  <AppImage uri={documentUris[doc.documentType]} style={styles.docPreview} contentFit="cover" />
-                ) : (
-                  <>
-                    <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
-                    <Text style={styles.docPickerText}>Tap to upload</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+            <DocumentField
+              key={doc.documentType}
+              label={doc.label}
+              uri={documentUris[doc.documentType] || existingDocPreviews[doc.documentType]}
+              isExisting={!documentUris[doc.documentType] && !!existingDocPreviews[doc.documentType]}
+              onPress={() => pickDocument(doc.documentType)}
+            />
           ))}
 
           <TouchableOpacity style={[styles.saveBtn, { opacity: saving ? 0.7 : 1 }]} onPress={handleSave} disabled={saving}>
@@ -275,22 +303,9 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 20, paddingBottom: 60 },
-  fieldWrap: { marginBottom: 18 },
-  fieldLabel: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: c.textSecondary, marginBottom: 8 },
-  input: {
-    borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: c.text, backgroundColor: c.surface,
+  saveBtn: {
+    marginTop: 12, backgroundColor: c.primary, borderRadius: 16, paddingVertical: 17, alignItems: 'center',
+    shadowColor: c.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
-  inputMultiline: { minHeight: 80, textAlignVertical: 'top' },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
-  pillText: { fontSize: 13, color: c.text, fontFamily: 'Montserrat-SemiBold' },
-  docPicker: {
-    height: 140, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border,
-    backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
-  },
-  docPreview: { width: '100%', height: '100%' },
-  docPickerText: { fontSize: 13, color: c.textMuted, marginTop: 6 },
-  saveBtn: { marginTop: 12, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
 });

@@ -39,6 +39,11 @@ export type VerificationApplication = {
   progress: number;
   hasConsented: boolean;
   documents: VerificationDocumentMeta[];
+  // Fallback preview URLs for images that live directly on the linked
+  // store/driver_profile row (uploaded pre-wizard, or by an admin) rather
+  // than through a verification_documents row — keyed by the same
+  // document_type strings the step schemas use.
+  entityDocumentPreviews: Record<string, string>;
 };
 
 export const getOrCreateVerificationApplication = async (role: VerificationRole): Promise<VerificationApplication> => {

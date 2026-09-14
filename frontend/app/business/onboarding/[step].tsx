@@ -2,28 +2,27 @@
 // Generic step-form screen shared by every text-field-based seller
 // verification step (personal_info, identity, business, shop_location,
 // payout) — driven by STEP_SCHEMAS below rather than one file per step,
-// since the shape (a handful of text fields + optionally document uploads)
+// since the shape (a handful of fields + optionally document uploads)
 // repeats across all of them. liveness/training/consent get their own
 // dedicated screens since those flows are structurally different (camera,
-// checklist, legal copy).
+// checklist, legal copy). Field rendering itself lives in
+// components/onboarding/* (TextField/PillGroup/DocumentField/DateField/
+// LocationField), shared with the driver wizard's equivalent screen.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform, Modal, Keyboard } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassContainer } from 'expo-glass-effect';
-import { GlassSurface } from '@/components/ui/GlassSurface';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import MapView, { UrlTile } from '@/components/MapView';
-import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
-import AppImage from '@/components/AppImage';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { TextField, PillGroup, DocumentField } from '@/components/onboarding/FormControls';
+import { DateField } from '@/components/onboarding/DateField';
+import { LocationField } from '@/components/onboarding/LocationField';
 import {
   getOrCreateVerificationApplication,
   saveVerificationStep,
@@ -32,12 +31,15 @@ import {
   VerificationApplication,
 } from '@/services/api';
 
+type FeatherIconName = React.ComponentProps<typeof TextField>['icon'];
+
 type FieldSchema = {
   key: string;
   label: string;
   placeholder?: string;
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   multiline?: boolean;
+  icon?: FeatherIconName;
   type?: 'text' | 'date' | 'category' | 'location'; // 'location' opens the map picker and writes latitude/longitude
   options?: { value: string; label: string }[]; // renders as a pill selector instead of a text input
 };
@@ -46,12 +48,16 @@ type FieldSchema = {
 // existing store's category, so a seller sees identical choices whether
 // they're onboarding or editing later.
 const BUSINESS_CATEGORIES = [
-  'Fashion & Apparel', 'Electronics', 'Home & Living', 'Art & Crafts',
-  'Beauty & Personal Care', 'Food & Beverages', 'Jewelry & Accessories',
-  'Sports & Outdoors', 'Other',
+  { value: 'Fashion & Apparel', label: 'Fashion & Apparel' },
+  { value: 'Electronics', label: 'Electronics' },
+  { value: 'Home & Living', label: 'Home & Living' },
+  { value: 'Art & Crafts', label: 'Art & Crafts' },
+  { value: 'Beauty & Personal Care', label: 'Beauty & Personal Care' },
+  { value: 'Food & Beverages', label: 'Food & Beverages' },
+  { value: 'Jewelry & Accessories', label: 'Jewelry & Accessories' },
+  { value: 'Sports & Outdoors', label: 'Sports & Outdoors' },
+  { value: 'Other', label: 'Other' },
 ];
-
-const DEFAULT_MAP_COORDS = { latitude: 5.6037, longitude: -0.1870 }; // Accra
 
 type DocumentSchema = { documentType: string; label: string; aspect?: [number, number] };
 
@@ -61,13 +67,13 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   personal_info: {
     title: 'Personal Information',
     fields: [
-      { key: 'legalFirstName', label: 'Legal first name' },
-      { key: 'legalLastName', label: 'Legal last name' },
+      { key: 'legalFirstName', label: 'Legal first name', icon: 'user' },
+      { key: 'legalLastName', label: 'Legal last name', icon: 'user' },
       { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
-      { key: 'phone', label: 'Phone number', keyboardType: 'phone-pad' },
-      { key: 'email', label: 'Email address', keyboardType: 'email-address' },
-      { key: 'countryOfResidence', label: 'Country of residence' },
-      { key: 'residentialAddress', label: 'Residential address', multiline: true },
+      { key: 'phone', label: 'Phone number', icon: 'phone', keyboardType: 'phone-pad' },
+      { key: 'email', label: 'Email address', icon: 'mail', keyboardType: 'email-address' },
+      { key: 'countryOfResidence', label: 'Country of residence', icon: 'flag' },
+      { key: 'residentialAddress', label: 'Residential address', icon: 'map-pin', multiline: true },
     ],
   },
   identity: {
@@ -87,13 +93,13 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   business: {
     title: 'Business Information',
     fields: [
-      { key: 'businessName', label: 'Business name' },
-      { key: 'businessType', label: 'Business type', placeholder: 'e.g. Sole Proprietor, Ltd' },
+      { key: 'businessName', label: 'Business name', icon: 'briefcase' },
+      { key: 'businessType', label: 'Business type', icon: 'tag', placeholder: 'e.g. Sole Proprietor, Ltd' },
       { key: 'businessCategory', label: 'Business category', type: 'category' },
-      { key: 'description', label: 'Description of business', multiline: true },
-      { key: 'website', label: 'Website', placeholder: 'https://...', keyboardType: 'default' },
-      { key: 'instagram', label: 'Instagram', placeholder: '@handle' },
-      { key: 'facebook', label: 'Facebook', placeholder: 'Page name' },
+      { key: 'description', label: 'Description of business', icon: 'file-text', multiline: true },
+      { key: 'website', label: 'Website', icon: 'globe', placeholder: 'https://...' },
+      { key: 'instagram', label: 'Instagram', icon: 'instagram', placeholder: '@handle' },
+      { key: 'facebook', label: 'Facebook', icon: 'facebook', placeholder: 'Page name' },
       {
         key: 'registrationStatus', label: 'Business registration status',
         options: [
@@ -101,8 +107,8 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
           { value: 'informal', label: 'Not formally registered' },
         ],
       },
-      { key: 'registrationNumber', label: 'Registration number (if registered)' },
-      { key: 'taxIdentificationNumber', label: 'Tax Identification Number (TIN) (if registered)' },
+      { key: 'registrationNumber', label: 'Registration number (if registered)', icon: 'hash' },
+      { key: 'taxIdentificationNumber', label: 'Tax Identification Number (TIN) (if registered)', icon: 'credit-card' },
       {
         key: 'applicantRelationship', label: 'Your relationship to this business',
         options: [
@@ -125,10 +131,10 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
     title: 'Shop Location',
     fields: [
       { key: 'location', label: 'Pin your shop on the map', type: 'location' },
-      { key: 'addressLine1', label: 'Shop address', multiline: true },
-      { key: 'city', label: 'City' },
-      { key: 'region', label: 'Region' },
-      { key: 'country', label: 'Country' },
+      { key: 'addressLine1', label: 'Shop address', icon: 'map-pin', multiline: true },
+      { key: 'city', label: 'City', icon: 'map' },
+      { key: 'region', label: 'Region', icon: 'map' },
+      { key: 'country', label: 'Country', icon: 'flag' },
     ],
   },
   payout: {
@@ -141,24 +147,13 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
           { value: 'bank', label: 'Bank' },
         ],
       },
-      { key: 'accountHolderName', label: 'Account holder name' },
-      { key: 'accountNumber', label: 'Account / Mobile Money number', keyboardType: 'numeric' },
-      { key: 'providerOrBankName', label: 'Provider / Bank name' },
+      { key: 'accountHolderName', label: 'Account holder name', icon: 'user' },
+      { key: 'accountNumber', label: 'Account / Mobile Money number', icon: 'credit-card', keyboardType: 'numeric' },
+      { key: 'providerOrBankName', label: 'Provider / Bank name', icon: 'home' },
     ],
     document: { documentType: 'proof_of_bank', label: 'Upload proof of account (statement or MoMo screenshot)' },
   },
 };
-
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-function parseDate(value?: string): Date {
-  const parsed = value ? new Date(value) : null;
-  if (parsed && !Number.isNaN(parsed.getTime())) return parsed;
-  const fallback = new Date();
-  fallback.setFullYear(fallback.getFullYear() - 18); // sensible default landing spot for an adult applicant
-  return fallback;
-}
 
 export default function VerificationStepScreen() {
   const router = useRouter();
@@ -168,7 +163,6 @@ export default function VerificationStepScreen() {
   const stepKey = params.step;
   const schema = STEP_SCHEMAS[stepKey];
   const pickImage = useImagePickerSheet();
-  const mapRef = useRef<MapView>(null);
 
   const [application, setApplication] = useState<VerificationApplication | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -178,13 +172,8 @@ export default function VerificationStepScreen() {
   // separate from documentUri(s) above, which only ever holds a NEWLY picked
   // file for this session. A fresh pick always takes priority in rendering.
   const [existingDocPreviews, setExistingDocPreviews] = useState<Record<string, string>>({});
-  const [activeDatePicker, setActiveDatePicker] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [mapVisible, setMapVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tempCoords, setTempCoords] = useState(DEFAULT_MAP_COORDS);
 
   useEffect(() => {
     getOrCreateVerificationApplication('seller')
@@ -202,9 +191,16 @@ export default function VerificationStepScreen() {
           const latest = stepDocs
             .filter((d) => d.document_type === type)
             .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())[0];
-          if (!latest) continue;
-          const url = await getVerificationDocumentSignedUrl(latest.id);
-          if (url) setExistingDocPreviews((prev) => ({ ...prev, [type]: url }));
+          if (latest) {
+            const url = await getVerificationDocumentSignedUrl(latest.id);
+            if (url) { setExistingDocPreviews((prev) => ({ ...prev, [type]: url })); continue; }
+          }
+          // Fall back to the same image already on the linked store's own
+          // columns (uploaded pre-wizard, or by an admin) — otherwise a
+          // seller who already has a logo/banner/cert on file sees a blank
+          // uploader despite the image clearly existing (visible admin-side).
+          const entityUrl = app.entityDocumentPreviews?.[type];
+          if (entityUrl) setExistingDocPreviews((prev) => ({ ...prev, [type]: entityUrl }));
         }
       })
       .catch((err) => CustomInAppToast.show({ type: 'error', title: 'Failed to load', message: err.message }))
@@ -225,11 +221,7 @@ export default function VerificationStepScreen() {
   };
 
   const pickMultiDocument = async (doc: DocumentSchema) => {
-    const uri = await pickImage({
-      quality: 0.8,
-      allowsEditing: !!doc.aspect,
-      aspect: doc.aspect,
-    });
+    const uri = await pickImage({ quality: 0.8, allowsEditing: !!doc.aspect, aspect: doc.aspect });
     if (uri) setDocumentUris((prev) => ({ ...prev, [doc.documentType]: uri }));
   };
 
@@ -256,66 +248,6 @@ export default function VerificationStepScreen() {
     }
   };
 
-  const openMapPicker = () => {
-    const lat = Number.parseFloat(values.latitude);
-    const lon = Number.parseFloat(values.longitude);
-    setTempCoords(
-      Number.isFinite(lat) && Number.isFinite(lon) ? { latitude: lat, longitude: lon } : DEFAULT_MAP_COORDS
-    );
-    setMapVisible(true);
-  };
-
-  const confirmMapSelection = () => {
-    setValues((v) => ({ ...v, latitude: String(tempCoords.latitude), longitude: String(tempCoords.longitude) }));
-    setMapVisible(false);
-    CustomInAppToast.show({ type: 'success', title: 'Location Pinned', message: 'Your shop location has been saved.' });
-  };
-
-  const handleMapSearch = async () => {
-    const query = searchQuery.trim();
-    if (!query) return;
-    Keyboard.dismiss();
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'ShopyosApp/1.0' } }
-      );
-      const results = await res.json();
-      if (!results?.[0]) {
-        CustomInAppToast.show({ type: 'info', title: 'No Results', message: `Couldn't find "${query}". Try a more specific address.` });
-        return;
-      }
-      const { lat, lon } = results[0];
-      mapRef.current?.animateToRegion({
-        latitude: Number.parseFloat(lat),
-        longitude: Number.parseFloat(lon),
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      }, 1000);
-    } catch (error) {
-      console.warn('Map search failed:', error);
-      CustomInAppToast.show({ type: 'error', title: 'Search Failed', message: 'Could not reach the map search service. Please drag the pin manually.' });
-    }
-  };
-
-  const renderDocPicker = (doc: DocumentSchema, uri: string | undefined, onPress: () => void) => (
-    <View key={doc.documentType} style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{doc.label}</Text>
-      <TouchableOpacity style={styles.docPicker} onPress={onPress}>
-        {uri ? (
-          <AppImage uri={uri} style={styles.docPreview} contentFit="cover" />
-        ) : (
-          <>
-            <Ionicons name="camera-outline" size={28} color={colors.textMuted} />
-            <Text style={styles.docPickerText}>Tap to upload</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-
-  const hasLocation = !!values.latitude && !!values.longitude;
-
   return (
     <View style={styles.safeArea}>
       {/* Same gradient-header convention as the hub/favorites.tsx — a fixed
@@ -337,179 +269,82 @@ export default function VerificationStepScreen() {
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {schema.fields.map((field) => (
-            <View key={field.key} style={styles.fieldWrap}>
-              <Text style={styles.fieldLabel}>{field.label}</Text>
-              {field.type === 'location' ? (
-                <TouchableOpacity style={styles.locationPicker} onPress={openMapPicker}>
-                  <Ionicons name={hasLocation ? 'checkmark-circle' : 'map-outline'} size={20} color={hasLocation ? colors.success : colors.textMuted} />
-                  <Text style={[styles.locationPickerText, { color: hasLocation ? colors.success : colors.textMuted }]}>
-                    {hasLocation ? 'Location set — tap to change' : 'Tap to set location on map'}
-                  </Text>
-                </TouchableOpacity>
-              ) : field.type === 'date' ? (
-                <TouchableOpacity style={styles.input} onPress={() => setActiveDatePicker(field.key)}>
-                  <Text style={{ color: values[field.key] ? colors.text : colors.textMuted, fontSize: 14 }}>
-                    {values[field.key] || 'Select date'}
-                  </Text>
-                </TouchableOpacity>
-              ) : field.type === 'category' ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRowScroll}>
-                  {BUSINESS_CATEGORIES.map((cat) => {
-                    const active = values[field.key] === cat;
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.pill, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                        onPress={() => setValues((v) => ({ ...v, [field.key]: cat }))}
-                      >
-                        <Text style={[styles.pillText, active && { color: '#FFF' }]}>{cat}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              ) : field.options ? (
-                <View style={styles.pillRow}>
-                  {field.options.map((opt) => {
-                    const active = values[field.key] === opt.value;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[styles.pill, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                        onPress={() => setValues((v) => ({ ...v, [field.key]: opt.value }))}
-                      >
-                        <Text style={[styles.pillText, active && { color: '#FFF' }]}>{opt.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <TextInput
-                  style={[styles.input, field.multiline && styles.inputMultiline]}
-                  placeholder={field.placeholder}
-                  placeholderTextColor={colors.textMuted}
-                  value={values[field.key] || ''}
-                  onChangeText={(t) => setValues((v) => ({ ...v, [field.key]: t }))}
-                  keyboardType={field.keyboardType || 'default'}
-                  multiline={field.multiline}
+          {schema.fields.map((field) => {
+            if (field.type === 'location') {
+              return (
+                <LocationField
+                  key={field.key}
+                  label={field.label}
+                  latitude={values.latitude || ''}
+                  longitude={values.longitude || ''}
+                  onChange={(lat, lon) => setValues((v) => ({ ...v, latitude: lat, longitude: lon }))}
+                  confirmLabel="Set Shop Location"
                 />
-              )}
-            </View>
-          ))}
+              );
+            }
+            if (field.type === 'date') {
+              return <DateField key={field.key} label={field.label} value={values[field.key] || ''} onChange={(v) => setValues((val) => ({ ...val, [field.key]: v }))} />;
+            }
+            if (field.type === 'category') {
+              return (
+                <PillGroup
+                  key={field.key}
+                  label={field.label}
+                  value={values[field.key] || ''}
+                  onChange={(v) => setValues((val) => ({ ...val, [field.key]: v }))}
+                  options={BUSINESS_CATEGORIES}
+                  scroll
+                />
+              );
+            }
+            if (field.options) {
+              return (
+                <PillGroup
+                  key={field.key}
+                  label={field.label}
+                  value={values[field.key] || ''}
+                  onChange={(v) => setValues((val) => ({ ...val, [field.key]: v }))}
+                  options={field.options}
+                />
+              );
+            }
+            return (
+              <TextField
+                key={field.key}
+                label={field.label}
+                icon={field.icon}
+                placeholder={field.placeholder}
+                multiline={field.multiline}
+                keyboardType={field.keyboardType}
+                value={values[field.key] || ''}
+                onChangeText={(t) => setValues((v) => ({ ...v, [field.key]: t }))}
+              />
+            );
+          })}
 
-          {schema.document && renderDocPicker(schema.document, documentUri || existingDocPreviews[schema.document.documentType], pickSingleDocument)}
-          {schema.documents?.map((doc) =>
-            renderDocPicker(doc, documentUris[doc.documentType] || existingDocPreviews[doc.documentType], () => pickMultiDocument(doc))
+          {schema.document && (
+            <DocumentField
+              label={schema.document.label}
+              uri={documentUri || existingDocPreviews[schema.document.documentType]}
+              isExisting={!documentUri && !!existingDocPreviews[schema.document.documentType]}
+              onPress={pickSingleDocument}
+            />
           )}
+          {schema.documents?.map((doc) => (
+            <DocumentField
+              key={doc.documentType}
+              label={doc.label}
+              uri={documentUris[doc.documentType] || existingDocPreviews[doc.documentType]}
+              isExisting={!documentUris[doc.documentType] && !!existingDocPreviews[doc.documentType]}
+              onPress={() => pickMultiDocument(doc)}
+            />
+          ))}
 
           <TouchableOpacity style={[styles.saveBtn, { opacity: saving ? 0.7 : 1 }]} onPress={handleSave} disabled={saving}>
             {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save</Text>}
           </TouchableOpacity>
         </ScrollView>
       )}
-
-      {/* Android shows its own native dialog on open and fires onChange once
-          (with event.type 'set' or 'dismissed'); iOS renders a spinner
-          in-place, so it's wrapped in a small modal with an explicit Done
-          button to dismiss. */}
-      {activeDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={parseDate(values[activeDatePicker])}
-          mode="date"
-          display="default"
-          maximumDate={new Date()}
-          onChange={(event, date) => {
-            setActiveDatePicker(null);
-            if (event.type === 'set' && date) {
-              setValues((v) => ({ ...v, [activeDatePicker]: formatDate(date) }));
-            }
-          }}
-        />
-      )}
-      {activeDatePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="fade">
-          <View style={styles.dateModalOverlay}>
-            <View style={[styles.dateModalCard, { backgroundColor: colors.surface }]}>
-              <DateTimePicker
-                value={parseDate(values[activeDatePicker])}
-                mode="date"
-                display="spinner"
-                maximumDate={new Date()}
-                onChange={(_event, date) => {
-                  if (date) setValues((v) => ({ ...v, [activeDatePicker]: formatDate(date) }));
-                }}
-                textColor={colors.text}
-              />
-              <TouchableOpacity style={styles.dateModalDoneBtn} onPress={() => setActiveDatePicker(null)}>
-                <Text style={styles.dateModalDoneText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {/* Manual map picker — ported from the old businessRegistration.tsx
-          flow: a fixed center pin, drag-to-pan, and an OSM/Nominatim search
-          to jump to an address, so the seller can point at their actual
-          shop instead of only typing an address string. */}
-      <Modal visible={mapVisible} animationType="slide">
-        <View style={{ flex: 1 }}>
-          <MapView
-            ref={mapRef}
-            style={{ flex: 1 }}
-            initialRegion={{
-              latitude: tempCoords.latitude,
-              longitude: tempCoords.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            onRegionChangeComplete={(region: any) => setTempCoords({ latitude: region.latitude, longitude: region.longitude })}
-          >
-            <UrlTile urlTemplate={OSM_TILE_URL_TEMPLATE} maximumZ={19} flipY={false} zIndex={-1} />
-          </MapView>
-
-          <View style={styles.mapMarkerFixed} pointerEvents="none">
-            <View style={styles.markerCircle}><MaterialCommunityIcons name="store" size={26} color="#FFF" /></View>
-            <View style={styles.markerArrow} />
-          </View>
-
-          <SafeAreaView style={styles.mapOverlay} pointerEvents="box-none">
-            <GlassContainer style={styles.mapSearchContainer} spacing={0}>
-              <TouchableOpacity onPress={() => setMapVisible(false)}>
-                <GlassSurface style={styles.mapSearchClose} isInteractive>
-                  <Ionicons name="arrow-back" size={24} color={colors.primary} />
-                </GlassSurface>
-              </TouchableOpacity>
-              <GlassSurface style={styles.mapSearchWrapper}>
-                <Ionicons name="search" size={18} color={colors.textMuted} />
-                <TextInput
-                  style={styles.mapSearchInput}
-                  placeholder="Search street or landmark..."
-                  placeholderTextColor={colors.textMuted}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onSubmitEditing={handleMapSearch}
-                  returnKeyType="search"
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                )}
-              </GlassSurface>
-            </GlassContainer>
-
-            <TouchableOpacity onPress={confirmMapSelection}>
-              <GlassSurface style={styles.confirmBtn} tintColor={colors.primary} isInteractive>
-                <LinearGradient colors={colors.headerGradient} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  <Text style={styles.confirmText}>Set Shop Location</Text>
-                  <Feather name="check" size={20} color="#FFF" style={{ marginLeft: 10 }} />
-                </LinearGradient>
-              </GlassSurface>
-            </TouchableOpacity>
-          </SafeAreaView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -524,49 +359,9 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 20, paddingBottom: 60 },
-  fieldWrap: { marginBottom: 18 },
-  fieldLabel: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: c.textSecondary, marginBottom: 8 },
-  input: {
-    borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: c.text, backgroundColor: c.surface,
+  saveBtn: {
+    marginTop: 12, backgroundColor: c.primary, borderRadius: 16, paddingVertical: 17, alignItems: 'center',
+    shadowColor: c.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
-  inputMultiline: { minHeight: 80, textAlignVertical: 'top' },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pillRowScroll: { flexDirection: 'row', gap: 8, paddingRight: 8 },
-  pill: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface },
-  pillText: { fontSize: 13, color: c.text, fontFamily: 'Montserrat-SemiBold' },
-  docPicker: {
-    height: 140, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: c.border,
-    backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
-  },
-  docPreview: { width: '100%', height: '100%' },
-  docPickerText: { fontSize: 13, color: c.textMuted, marginTop: 6 },
-  locationPicker: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: c.border, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 14, backgroundColor: c.surface,
-  },
-  locationPickerText: { fontSize: 14, fontFamily: 'Montserrat-Medium' },
-  saveBtn: { marginTop: 12, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   saveBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
-  dateModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  dateModalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 20 },
-  dateModalDoneBtn: { alignItems: 'center', paddingVertical: 14 },
-  dateModalDoneText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: c.primary },
-  mapMarkerFixed: { position: 'absolute', top: '50%', left: '50%', marginLeft: -24, marginTop: -48, alignItems: 'center', zIndex: 1 },
-  markerCircle: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: c.primary, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: '#FFF', elevation: 6,
-  },
-  markerArrow: {
-    width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 12,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: c.primary, marginTop: -2,
-  },
-  mapOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'space-between', padding: 16 },
-  mapSearchContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16 },
-  mapSearchClose: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  mapSearchWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, paddingHorizontal: 14, height: 44 },
-  mapSearchInput: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: c.text },
-  confirmBtn: { borderRadius: 16, overflow: 'hidden' },
-  confirmGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16 },
-  confirmText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
 });

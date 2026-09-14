@@ -7,7 +7,7 @@
 
 const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
-const { uploadImage, getPresignedReadUrl } = require('../config/storage');
+const { uploadImage, getPresignedReadUrl, resolveImageUrl } = require('../config/storage');
 const notificationService = require('../services/notificationService');
 const { invalidateUserAuthCache } = require('../middleware/authMiddleware');
 const {
@@ -94,6 +94,48 @@ async function _backfillStepsFromEntity(application, steps) {
   return Array.from(stepMap.values());
 }
 
+// Some images (a legacy store's logo/banner/business cert, a legacy driver's
+// licence/insurance/vehicle photos) live directly on the stores/
+// driver_profiles row itself — uploaded through the old pre-wizard flow, or
+// by an admin directly — rather than through a verification_documents row.
+// The wizard's document pickers otherwise only know how to preview a
+// verification_documents entry, so without this a seller/driver who already
+// has these images on file would see a blank "tap to upload" box despite
+// the image clearly existing (visible on the admin side, which reads the
+// same store/profile columns directly). Resolves each present column to a
+// real viewable URL, keyed by the SAME document_type strings the wizard's
+// step schemas already use, so the frontend can slot them in as a fallback
+// preview source.
+async function _entityDocumentPreviews(application) {
+  if (!application.entity_id) return {};
+  const previews = {};
+
+  if (application.role === 'seller') {
+    const store = await repositories.stores.findById(application.entity_id);
+    if (!store) return {};
+    const columnByType = {
+      logo: store.logo_url, banner: store.banner_url, business_cert: store.business_cert_url,
+      identity: store.ghana_card_url, proof_of_bank: store.proof_of_bank_url,
+    };
+    for (const [type, key] of Object.entries(columnByType)) {
+      if (key) previews[type] = await resolveImageUrl(key);
+    }
+  } else if (application.role === 'driver') {
+    const profile = await repositories.drivers.findById(application.entity_id);
+    if (!profile) return {};
+    const columnByType = {
+      drivers_licence: profile.license_image_url, identity: profile.national_id_url,
+      insurance: profile.insurance_doc_url, vehicle_registration: profile.vehicle_reg_url,
+      roadworthy: profile.roadworthy_url,
+    };
+    for (const [type, key] of Object.entries(columnByType)) {
+      if (key) previews[type] = await resolveImageUrl(key);
+    }
+  }
+
+  return previews;
+}
+
 // GET /verification/:role — fetch or create the caller's application for
 // that role, along with its steps and computed progress. Resumes the latest
 // application regardless of status (including 'rejected') so a resubmit
@@ -127,8 +169,9 @@ async function getOrCreateApplication(req, res) {
     const documents = (await repositories.verification.getDocumentsForParent('application', application.id))
       .filter(d => !d.deleted_at)
       .map(d => ({ id: d.id, step_key: d.step_key, document_type: d.document_type, status: d.status, uploaded_at: d.uploaded_at }));
+    const entityDocumentPreviews = await _entityDocumentPreviews(application);
 
-    return ApiResponse.withEntity(res, 'application', { ...application, steps, requiredSteps, progress, hasConsented, documents });
+    return ApiResponse.withEntity(res, 'application', { ...application, steps, requiredSteps, progress, hasConsented, documents, entityDocumentPreviews });
   } catch (error) {
     logger.error('getOrCreateApplication failed', { error: error.message, userId: req.user?.id });
     return ApiResponse.error(res, 'Failed to load application', 500);
