@@ -117,9 +117,24 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       }
     };
 
+    // A verification decision (approve/reject) must take effect the instant
+    // it happens, not on whatever cadence useMyBusinesses/driver profile
+    // would otherwise refetch on (staleTime/app-refocus) — a rejected seller
+    // could otherwise keep using the app for a while after being rejected.
+    // This session's socket connection is already live for real-time
+    // notifications, so piggyback on the same event rather than adding a
+    // separate channel.
+    const VERIFICATION_NOTIFICATION_TYPES = ['business_approved', 'business_rejected', 'driver_approved', 'driver_rejected'];
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      if (VERIFICATION_NOTIFICATION_TYPES.includes(data?.type)) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+        // useDriverProfile (hooks/useDelivery.ts) uses the literal key
+        // ['driver_profile'], not queryKeys.driver.profile() — invalidate
+        // the key it actually registers under.
+        queryClient.invalidateQueries({ queryKey: ['driver_profile'] });
+      }
       // Skip the toast for whatever conversation the user is actively inside
       // (tracked globally by conversation.tsx while mounted) — they already
       // see the message live via the chat screen's own socket listener, so a

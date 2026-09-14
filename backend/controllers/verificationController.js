@@ -577,9 +577,9 @@ async function requestDriverVehicleChange(req, res) {
 // GET /admin/verifications
 async function listApplicationsAdmin(req, res) {
   try {
-    const { role, status, riskLevel, hasEntity, limit, offset } = req.query;
+    const { role, status, riskLevel, hasEntity, entityId, limit, offset } = req.query;
     const result = await repositories.verification.listApplicationsAdmin({
-      role, status, riskLevel,
+      role, status, riskLevel, entityId,
       hasEntity: hasEntity === 'true' ? true : hasEntity === 'false' ? false : undefined,
       limit: limit ? Number(limit) : 25,
       offset: offset ? Number(offset) : 0,
@@ -600,9 +600,17 @@ async function getApplicationDetailAdmin(req, res) {
     const documents = await repositories.verification.getDocumentsForParent('application', application.id);
     const livenessAttempts = await repositories.verification.getLivenessAttempts(application.id);
     const communications = await repositories.verification.getCommunications(application.id);
+    // Every step this role/version requires, not just the ones with a row —
+    // a step the applicant never touched has no verification_steps row at
+    // all, so without this the admin view would silently omit it instead of
+    // showing "not received".
+    const requiredSteps = getRequiredSteps(application.role, application.requirements_version);
+    const progress = computeOverallProgress(requiredSteps, application.steps);
 
     return ApiResponse.withEntity(res, 'application', {
       ...application,
+      requiredSteps,
+      progress,
       documents: documents.map(d => ({ ...d, storage_key: undefined })), // view individually via the signed-url endpoint
       // Storage keys never leave the backend directly — view individually
       // via getLivenessFrameSignedUrl, same "break glass" audit-on-view

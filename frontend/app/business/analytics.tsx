@@ -37,6 +37,9 @@ const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
+const STAT_GRID_GAP = rs(12);
+const STAT_CARD_W = (SW - rs(32) - STAT_GRID_GAP) / 2;
+
 type LegacyPalette = {
   bg: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
@@ -142,6 +145,7 @@ const Analytics = () => {
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [timeframe,  setTimeframe]  = useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -219,14 +223,14 @@ const Analytics = () => {
       description: 'Analyze your performance across different periods: Weekly, Monthly, or Yearly.',
     },
     {
-      targetLayout: layouts.trend,
-      title: 'Revenue Trends',
-      description: 'Visualize your store’s financial growth with this interactive chart.',
-    },
-    {
       targetLayout: layouts.stats,
       title: 'Key Metrics',
       description: 'Track your total revenue and order volume in real-time.',
+    },
+    {
+      targetLayout: layouts.trend,
+      title: 'Revenue Trends',
+      description: 'Visualize your store’s financial growth with this interactive chart.',
     },
     ...(layouts.products ? [{
       targetLayout: layouts.products,
@@ -274,7 +278,10 @@ const Analytics = () => {
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
+        <View
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}
+          onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        >
           <LinearGradient
             colors={colors.headerGradient}
             style={[S.header, { paddingTop: insets.top + rs(16) }]}
@@ -332,12 +339,12 @@ const Analytics = () => {
           contentContainerStyle={[
             S.scroll,
             {
-              paddingTop: Platform.OS === 'android' ? 240 : 0,
+              paddingTop: Platform.OS === 'android' ? (headerHeight || 240) : 0,
               paddingBottom: rs(120) + insets.bottom
             }
           ]}
-          contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }}
-          contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -240 : 0 }}
+          contentInset={{ top: Platform.OS === 'ios' ? (headerHeight || 240) : 0 }}
+          contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -(headerHeight || 240) : 0 }}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             { useNativeDriver: true }
@@ -349,7 +356,7 @@ const Analytics = () => {
               onRefresh={onRefresh}
               tintColor="#84cc16" // iOS fallback
               colors={['#1e3a8a', '#84cc16', '#111827']} // Android colors
-              progressViewOffset={250} // Android offset
+              progressViewOffset={(headerHeight || 240) + 10} // Android offset
             />
           }
         >
@@ -381,7 +388,7 @@ const Analytics = () => {
                         }
                       }}
                     >
-                      <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
+                      <Text style={[S.toggleTxt, on && S.toggleTxtOn]} numberOfLines={1} adjustsFontSizeToFit>
                         {getTimeframeLabel(p)}
                       </Text>
                     </TouchableOpacity>
@@ -443,35 +450,6 @@ const Analytics = () => {
                 </View>
               </Modal>
 
-              {/* Revenue chart */}
-              <Text style={S.secTitle}>Revenue Trend</Text>
-              <View style={S.card} ref={refTrend} onLayout={() => measureElement(refTrend, 'trend')}>
-                {hasChart ? (
-                  <LineChart
-                    data={{
-                      labels:   analytics.chart.labels,
-                      datasets: analytics.chart.datasets,
-                    }}
-                    width={SW - rs(48)}
-                    height={220}
-                    chartConfig={chartConfig}
-                    bezier
-                    style={{ borderRadius: rs(16) }}
-                    withInnerLines
-                    withOuterLines={false}
-                    withVerticalLines={false}
-                    yAxisLabel="₵"
-                    yAxisSuffix="k"
-                    yAxisInterval={1}
-                  />
-                ) : (
-                  <View style={S.emptyChart}>
-                    <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color={colors.textMuted} />
-                    <Text style={S.emptyTxt}>No revenue data for this period</Text>
-                  </View>
-                )}
-              </View>
-
               {/* Stats grid */}
               <View style={S.statsGrid} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
                 <View style={S.statCard}>
@@ -515,8 +493,37 @@ const Analytics = () => {
                   </View>
                   <Text style={S.statLbl}>Repeat Customers</Text>
                   <Text style={S.statVal}>{analytics.stats.repeat_customer_rate}%</Text>
-                  <Text style={S.statSubTxt}>Of total buyers</Text>
+                  <Text style={S.statSubTxt}>Of total customers</Text>
                 </View>
+              </View>
+
+              {/* Revenue chart */}
+              <Text style={S.secTitle}>Revenue Trend</Text>
+              <View style={S.card} ref={refTrend} onLayout={() => measureElement(refTrend, 'trend')}>
+                {hasChart ? (
+                  <LineChart
+                    data={{
+                      labels:   analytics.chart.labels,
+                      datasets: analytics.chart.datasets,
+                    }}
+                    width={SW - rs(48)}
+                    height={220}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={{ borderRadius: rs(16) }}
+                    withInnerLines
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    yAxisLabel="₵"
+                    yAxisSuffix="k"
+                    yAxisInterval={1}
+                  />
+                ) : (
+                  <View style={S.emptyChart}>
+                    <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color={colors.textMuted} />
+                    <Text style={S.emptyTxt}>No revenue data for this period</Text>
+                  </View>
+                )}
               </View>
 
               {/* Category breakdown */}
@@ -714,15 +721,16 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   body: { paddingHorizontal: rs(16), paddingTop: rs(8) },
 
   // Toggle
-  toggleRow: { flexDirection: 'row', gap: rs(10), marginTop: rs(4), marginBottom: rs(16) },
+  toggleRow: { flexDirection: 'row', gap: rs(8), marginTop: rs(4), marginBottom: rs(16) },
   toggleBtn: {
-    paddingVertical: rs(8), paddingHorizontal: rs(20), borderRadius: rs(20),
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: rs(8), paddingHorizontal: rs(4), borderRadius: rs(20),
     borderWidth: 0.5, borderColor: C.borderStrong, backgroundColor: C.card,
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
   toggleBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
-  toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted, textAlign: 'center' },
   toggleTxtOn: { color: C.textInverse },
 
   secTitle: {
@@ -742,9 +750,9 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   emptyTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(8) },
 
   // Stats
-  statsGrid: { flexDirection: 'row', gap: rs(12), marginBottom: rs(4) },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: STAT_GRID_GAP, marginBottom: rs(4) },
   statCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: rs(16), padding: rs(14),
+    width: STAT_CARD_W, backgroundColor: C.card, borderRadius: rs(16), padding: rs(14),
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },

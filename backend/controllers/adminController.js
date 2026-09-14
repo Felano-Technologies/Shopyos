@@ -309,6 +309,30 @@ const verifyStore = async (req, res, next) => {
             }
           }
         });
+      } else if (status === 'rejected') {
+        // Previously this branch sent nothing but an email — no push/in-app
+        // signal reached the device at all, so a seller already using the
+        // app kept full access until the next natural refetch (staleTime/
+        // refocus). data.status lets the foreground push listener react
+        // instantly (see usePushNotifications.ts) instead of waiting.
+        await notificationService.sendNotification({
+          userId: ownerId,
+          type: 'business_rejected',
+          title: 'Business Verification Rejected',
+          message: reason || `${store?.store_name || currentStore?.store_name || 'Your business'} verification was rejected.`,
+          relatedId: storeId,
+          relatedType: 'store',
+          data: {
+            storeId,
+            status: 'rejected'
+          },
+          push: {
+            data: {
+              screen: 'business/verification-status',
+              storeId
+            }
+          }
+        });
       }
 
       const ownerUser = await repositories.users.findById(ownerId);

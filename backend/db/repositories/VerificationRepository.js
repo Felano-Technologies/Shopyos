@@ -87,7 +87,7 @@ class VerificationRepository extends BaseRepository {
     return { ...application, steps: steps || [] };
   }
 
-  async listApplicationsAdmin({ role, status, riskLevel, hasEntity, limit = 25, offset = 0 } = {}) {
+  async listApplicationsAdmin({ role, status, riskLevel, hasEntity, entityId, limit = 25, offset = 0 } = {}) {
     let query = this.db
       .from('verification_applications')
       .select('*, applicant:user_id (id, email)', { count: 'exact' })
@@ -101,6 +101,9 @@ class VerificationRepository extends BaseRepository {
     // table, not verification_applications) until the applicant submits.
     if (hasEntity === false) query = query.is('entity_id', null);
     if (hasEntity === true) query = query.not('entity_id', 'is', null);
+    // entityId looks up "the application behind this store/driver_profile" —
+    // used by the Store/Rider detail pages to find their full KYC record.
+    if (entityId) query = query.eq('entity_id', entityId);
     if (limit) query = query.limit(limit);
     if (offset) query = query.range(offset, offset + limit - 1);
     const { data, error, count } = await query;
