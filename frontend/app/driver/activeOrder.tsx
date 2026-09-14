@@ -36,6 +36,8 @@ import { useThemeStore } from '@/store/themeStore';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -248,6 +250,37 @@ export default function ActiveOrderScreen() {
     }
   };
   const getButtonText = () => (BUTTON_LABELS[leg] || BUTTON_LABELS.local)[step] || 'Complete';
+
+  // --- Onboarding tour (mirrors business/analytics.tsx's pattern) ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refLocation = useRef<View>(null);
+  const refContacts = useRef<View>(null);
+  const refMainBtn = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (isLoading || !delivery) return;
+    const timer = setTimeout(() => {
+      measureTourElement(refLocation, 'location');
+      measureTourElement(refContacts, 'contacts');
+      measureTourElement(refMainBtn, 'mainBtn');
+      startTour('driver_active_order');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, delivery]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.location, title: 'Navigate', description: 'Tap the arrow to open turn-by-turn directions to this address.' },
+    { targetLayout: tourLayouts.contacts, title: 'Contacts', description: 'Chat or call the store or customer directly from here.' },
+    { targetLayout: tourLayouts.mainBtn, title: 'Delivery Steps', description: 'Tap here to move through each step — arrive, confirm pickup, mark in transit, then complete.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('driver_active_order');
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -351,7 +384,7 @@ export default function ActiveOrderScreen() {
             <Text style={styles.timeRemaining}>{etaDisplay}</Text>
           </View>
           {/* Address Info */}
-          <View style={styles.locationCard}>
+          <View style={styles.locationCard} ref={refLocation} onLayout={() => measureTourElement(refLocation, 'location')}>
             <View style={styles.iconCircle}>
               <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color={colors.primary} />
             </View>
@@ -385,6 +418,7 @@ export default function ActiveOrderScreen() {
             </TouchableOpacity>
           </View>
           {/* Contact Section - Showing both for convenience */}
+          <View ref={refContacts} onLayout={() => measureTourElement(refContacts, 'contacts')}>
           <Text style={styles.summaryTitle}>Contacts</Text>
 
           {/* Store contact — the pickup party for local & first-mile legs
@@ -479,6 +513,7 @@ export default function ActiveOrderScreen() {
               </View>
             </View>
           )}
+          </View>
           {step === 3 && leg !== 'first_mile' && (
             <View style={styles.pinCard}>
               <View style={styles.pinHeader}>
@@ -552,6 +587,7 @@ export default function ActiveOrderScreen() {
           </View>
         </ScrollView>
         {/* --- MAIN ACTION BUTTON --- */}
+        <View ref={refMainBtn} onLayout={() => measureTourElement(refMainBtn, 'mainBtn')}>
         <GlassSurface style={styles.footer}>
           <TouchableOpacity
             style={[
@@ -575,7 +611,14 @@ export default function ActiveOrderScreen() {
             )}
           </TouchableOpacity>
         </GlassSurface>
+        </View>
       </View>
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'driver_active_order'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

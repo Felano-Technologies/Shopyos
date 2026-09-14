@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, FlatList, RefreshControl, Alert, TextInput,
@@ -15,6 +15,8 @@ import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/servic
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 
 const STATUS_FILTERS = ['All', 'Completed', 'Pending', 'Failed'] as const;
 function statusColor(status: string) {
@@ -123,6 +125,34 @@ export default function DriverPayoutScreen() {
     }
   };
 
+  // --- Onboarding tour (mirrors business/analytics.tsx's pattern) ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refRequestBtn = useRef<View>(null);
+  const refMethodCard = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (loading) return;
+    const timer = setTimeout(() => {
+      measureTourElement(refRequestBtn, 'requestBtn');
+      measureTourElement(refMethodCard, 'methodCard');
+      startTour('driver_payout');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.methodCard, title: 'Payout Method', description: 'Set up Mobile Money or a bank account here so your earnings can be paid out.' },
+    { targetLayout: tourLayouts.requestBtn, title: 'Request Payout', description: 'Request an early payout of your wallet balance instead of waiting for the next automatic one.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('driver_payout');
+
   const renderHistoryItem = ({ item }: { item: any }) => (
     <View style={styles.historyItem}>
       <View style={styles.historyLeft}>
@@ -177,7 +207,7 @@ export default function DriverPayoutScreen() {
             <Text style={styles.balanceLabel}>Wallet Balance</Text>
             <Text style={styles.balanceValue}>{formatCurrency(walletBalance)}</Text>
             <Text style={styles.autoPayoutNote}>Paid out instantly after each delivery</Text>
-            <View style={styles.actionRow}>
+            <View style={styles.actionRow} ref={refRequestBtn} onLayout={() => measureTourElement(refRequestBtn, 'requestBtn')}>
               <TouchableOpacity
                 style={[styles.earlyPayoutBtn, isRequesting && { opacity: 0.6 }]}
                 onPress={handleRequestPayout}
@@ -203,6 +233,7 @@ export default function DriverPayoutScreen() {
       >
         {/* Payout Method Card */}
         <View style={styles.content}>
+          <View ref={refMethodCard} onLayout={() => measureTourElement(refMethodCard, 'methodCard')}>
           <TouchableOpacity
             style={styles.methodSummaryCard}
             onPress={() => router.push('/driver/payout-settings' as any)}
@@ -235,6 +266,7 @@ export default function DriverPayoutScreen() {
             </View>
             <Feather name="chevron-right" size={18} color={colors.textMuted} />
           </TouchableOpacity>
+          </View>
 
           {/* Amount Sheet (inline) */}
           {showAmountSheet && (
@@ -337,6 +369,12 @@ export default function DriverPayoutScreen() {
         visible={showTermsModal}
         onClose={() => setShowTermsModal(false)}
         onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+      />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'driver_payout'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
       />
     </View>
   );

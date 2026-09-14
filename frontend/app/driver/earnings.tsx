@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator, Dimensions } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,8 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -78,6 +80,40 @@ export default function DriverEarnings() {
   const hasChart = analytics?.chart?.labels?.length > 0 &&
     analytics?.chart?.data?.some((v: number) => v > 0);
 
+  // --- Onboarding tour (mirrors business/analytics.tsx's pattern) ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refToggle = useRef<View>(null);
+  const refChart = useRef<View>(null);
+  const refSummary = useRef<View>(null);
+  const refBreakdown = useRef<View>(null);
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (loading) return;
+    const timer = setTimeout(() => {
+      measureElement(refToggle, 'toggle');
+      measureElement(refChart, 'chart');
+      measureElement(refSummary, 'summary');
+      if (analytics?.breakdown) measureElement(refBreakdown, 'breakdown');
+      startTour('driver_earnings');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+  const onboardingSteps = [
+    { targetLayout: layouts.toggle, title: 'Timeframe', description: 'Switch between weekly and monthly earnings.' },
+    { targetLayout: layouts.chart, title: 'Earnings Trend', description: 'See how your earnings have moved over time.' },
+    { targetLayout: layouts.summary, title: 'Key Metrics', description: 'Track your delivery count and average earning per delivery.' },
+    { targetLayout: layouts.breakdown, title: 'Earnings Breakdown', description: 'See exactly where your earnings come from — base fees vs bonuses.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('driver_earnings');
+
   const renderTransaction = ({ item }: { item: any }) => (
     <View style={styles.transItem}>
       <View style={[styles.iconBox, item.type === 'debit' ? styles.debitBox : styles.creditBox]}>
@@ -139,7 +175,7 @@ export default function DriverEarnings() {
           <>
             {/* Summary Card */}
             {analytics?.summary && (
-              <View style={styles.summaryCard}>
+              <View style={styles.summaryCard} ref={refSummary} onLayout={() => measureElement(refSummary, 'summary')}>
                 <View style={styles.summaryRow}>
                   <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>Deliveries</Text>
@@ -157,10 +193,10 @@ export default function DriverEarnings() {
             )}
 
             {/* Chart Section */}
-            <View style={styles.chartCard}>
+            <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
               <View style={styles.chartHeader}>
                 <Text style={styles.chartTitle}>Earnings</Text>
-                <View style={styles.toggleRow}>
+                <View style={styles.toggleRow} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
                   <TouchableOpacity
                     style={[styles.toggleBtn, view === 'weekly' && styles.toggleBtnActive]}
                     onPress={() => setView('weekly')}
@@ -203,7 +239,7 @@ export default function DriverEarnings() {
 
             {/* Earnings Breakdown */}
             {analytics?.breakdown && (
-              <View style={styles.breakdownCard}>
+              <View style={styles.breakdownCard} ref={refBreakdown} onLayout={() => measureElement(refBreakdown, 'breakdown')}>
                 <Text style={styles.breakdownTitle}>Earnings Breakdown</Text>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Base delivery fees</Text>
@@ -249,6 +285,12 @@ export default function DriverEarnings() {
           </>
         )}
       </ScrollView>
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'driver_earnings'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }
