@@ -30,14 +30,73 @@ function assertValidRole(role) {
 
 // ── Applicant endpoints ──────────────────────────────────────────────────
 
-// GET /verification/:role — fetch or create the caller's open application for
-// that role, along with its steps and computed progress.
+// Backfills empty step `data` from the operational entity (stores row /
+// driver_profiles row) the application is already linked to via entity_id —
+// covers two real cases: (1) legacy applications backfilled straight from a
+// pre-existing store/driver profile, which were never taken through the
+// wizard so have zero verification_steps rows at all, and (2) a rejected
+// seller resubmitting, who should see what they already entered rather than
+// a blank form. Persists the backfill via upsertStep so it only ever
+// happens once per step (idempotent — only touches steps with no data yet).
+async function _backfillStepsFromEntity(application, steps) {
+  if (!application.entity_id) return steps;
+
+  const stepMap = new Map(steps.map((s) => [s.step_key, s]));
+  const isEmpty = (key) => !stepMap.get(key)?.data || Object.keys(stepMap.get(key).data).length === 0;
+
+  let fieldsByStep = {};
+  if (application.role === 'seller') {
+    const store = await repositories.stores.findById(application.entity_id);
+    if (!store) return steps;
+    fieldsByStep = {
+      business: {
+        businessName: store.store_name, description: store.description,
+        businessCategory: store.category, registrationNumber: store.registration_number,
+      },
+      shop_location: {
+        shopName: store.store_name, addressLine1: store.address_line1, city: store.city,
+        region: store.state_province, country: store.country, shopDescription: store.description,
+      },
+      payout: {
+        payoutMethod: store.payout_method, accountHolderName: store.account_name,
+        accountNumber: store.account_number, providerOrBankName: store.bank_name,
+      },
+    };
+  } else if (application.role === 'driver') {
+    const profile = await repositories.drivers.findById(application.entity_id);
+    if (!profile) return steps;
+    fieldsByStep = {
+      driver_licence: { licenseNumber: profile.drivers_license_number, expiryDate: profile.license_expiry_date },
+      vehicle: {
+        vehicleType: profile.vehicle_type, plateNumber: profile.license_plate,
+        make: profile.vehicle_make, model: profile.vehicle_model, year: profile.vehicle_year,
+        insurancePolicyNumber: profile.insurance_policy_number, insuranceExpiryDate: profile.insurance_expiry_date,
+      },
+    };
+  }
+
+  for (const [stepKey, fields] of Object.entries(fieldsByStep)) {
+    if (!isEmpty(stepKey)) continue;
+    const cleanFields = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== null && v !== undefined));
+    if (Object.keys(cleanFields).length === 0) continue;
+    const updated = await repositories.verification.upsertStep(application.id, stepKey, { data: cleanFields });
+    stepMap.set(stepKey, updated);
+  }
+
+  return Array.from(stepMap.values());
+}
+
+// GET /verification/:role — fetch or create the caller's application for
+// that role, along with its steps and computed progress. Resumes the latest
+// application regardless of status (including 'rejected') so a resubmit
+// never orphans the original entity link/rejection reason by silently
+// starting a brand new application from scratch.
 async function getOrCreateApplication(req, res) {
   try {
     const { role } = req.params;
     if (!assertValidRole(role)) return ApiResponse.error(res, 'Invalid role', 400);
 
-    let application = await repositories.verification.findOpenApplication(req.user.id, role);
+    let application = await repositories.verification.findLatestApplication(req.user.id, role);
     if (!application) {
       application = await repositories.verification.createApplication({
         userId: req.user.id,
@@ -46,7 +105,8 @@ async function getOrCreateApplication(req, res) {
       });
     }
 
-    const steps = await repositories.verification.getStepsForApplication(application.id);
+    let steps = await repositories.verification.getStepsForApplication(application.id);
+    steps = await _backfillStepsFromEntity(application, steps);
     const requiredSteps = getRequiredSteps(application.role, application.requirements_version);
     const progress = computeOverallProgress(requiredSteps, steps);
 
@@ -100,11 +160,12 @@ async function saveStep(req, res) {
 
     if (application.status === 'draft') {
       await repositories.verification.updateApplication(application.id, { status: 'in_progress' });
-    } else if (application.status === 'action_required') {
-      // The applicant has responded to an admin's request-information —
-      // resubmitted is its own status (not back to under_review directly)
-      // so an admin can see at a glance which applications are a fresh
-      // resubmission versus one they haven't looked at yet.
+    } else if (['action_required', 'rejected'].includes(application.status)) {
+      // The applicant has responded to an admin's request-information, or is
+      // editing after a rejection — resubmitted is its own status (not back
+      // to under_review directly) so an admin can see at a glance which
+      // applications are a fresh resubmission versus one they haven't
+      // looked at yet.
       await repositories.verification.updateApplication(application.id, { status: 'resubmitted' });
     }
 
@@ -516,9 +577,10 @@ async function requestDriverVehicleChange(req, res) {
 // GET /admin/verifications
 async function listApplicationsAdmin(req, res) {
   try {
-    const { role, status, riskLevel, limit, offset } = req.query;
+    const { role, status, riskLevel, hasEntity, limit, offset } = req.query;
     const result = await repositories.verification.listApplicationsAdmin({
       role, status, riskLevel,
+      hasEntity: hasEntity === 'true' ? true : hasEntity === 'false' ? false : undefined,
       limit: limit ? Number(limit) : 25,
       offset: offset ? Number(offset) : 0,
     });
@@ -880,6 +942,64 @@ async function assistedEditStep(req, res) {
   }
 }
 
+// PUT /admin/verifications/:id/steps/:stepKey/review — an admin has looked
+// at a step's data/documents and confirms or rejects it. This is the ONLY
+// place a step reaches 'verified' — a passing on-device/client claim (e.g.
+// liveness, or the applicant marking a step 'complete') is never enough on
+// its own (see isApplicationComplete, which gates approveApplication on
+// every required step being 'verified', not just 'complete').
+async function reviewStepAdmin(req, res) {
+  try {
+    const { status, reason } = req.body;
+    if (!['verified', 'rejected'].includes(status)) return ApiResponse.error(res, 'status must be verified or rejected', 400);
+    if (status === 'rejected' && !reason) return ApiResponse.error(res, 'A reason is required to reject a step', 400);
+
+    const { id, stepKey } = req.params;
+    const application = await repositories.verification.findById(id);
+    if (!application) return ApiResponse.error(res, 'Application not found', 404);
+
+    const previousStep = await repositories.verification.getStep(id, stepKey);
+    const updated = await repositories.verification.upsertStep(id, stepKey, {
+      status,
+      // verification_steps has no dedicated rejection_reason column — kept
+      // in `data` alongside the step's own fields, same JSONB the applicant
+      // wizard already writes to.
+      data: { ...(previousStep?.data || {}), rejectionReason: status === 'rejected' ? reason : null },
+    });
+
+    if (status === 'rejected') {
+      await repositories.verification.logCommunication({
+        applicationId: id,
+        adminId: req.user.id,
+        channel: 'in_app',
+        direction: 'outbound',
+        message: reason,
+      });
+      await notificationService.sendNotification({
+        userId: application.user_id,
+        type: 'verification_action_required',
+        title: 'A step needs your attention',
+        message: reason,
+        relatedId: id,
+        relatedType: 'verification_application',
+      });
+    }
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: `verification_step_${status}`,
+      entityType: 'verification_step',
+      entityId: updated.id,
+      changes: { stepKey, previousStatus: previousStep?.status || null, reason: reason || null },
+    });
+
+    return ApiResponse.withEntity(res, 'step', updated, `Step ${status}`);
+  } catch (error) {
+    logger.error('reviewStepAdmin failed', { error: error.message, id: req.params.id });
+    return ApiResponse.error(res, 'Failed to review step', 500);
+  }
+}
+
 module.exports = {
   getOrCreateApplication,
   saveStep,
@@ -898,6 +1018,7 @@ module.exports = {
   requestInformation,
   logInternalNote,
   assistedEditStep,
+  reviewStepAdmin,
   listShopLocationChangesAdmin,
   reviewShopLocationChangeAdmin,
   listDriverVehiclesAdmin,

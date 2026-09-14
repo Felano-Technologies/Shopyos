@@ -18,9 +18,23 @@
 // plausible-looking but wrong boxes.
 
 const path = require('path');
-const ort = require('onnxruntime-node');
 const sharp = require('sharp');
 const { logger } = require('../../config/logger');
+
+// onnxruntime-node's require can throw at load time — its native binding is
+// platform-specific (e.g. glibc-only prebuilds) and a bad build image or a
+// missing shared library crashes here. This module sits on the server's
+// startup require-chain (verificationController -> livenessAnalysis ->
+// here), so an unguarded require would take down the ENTIRE backend over a
+// liveness-only dependency. Load it defensively instead: if it fails,
+// detectFace() below always returns null (liveness analysis already treats
+// that as "face not detected" and degrades to admin-review, never crashes).
+let ort = null;
+try {
+  ort = require('onnxruntime-node');
+} catch (error) {
+  logger.error('onnxruntime-node failed to load — face detection disabled, liveness will fall back to manual admin review', { error: error.message });
+}
 
 const MODEL_PATH = path.join(__dirname, '..', '..', 'ml-models', 'yolov5s-face.onnx');
 const INPUT_SIZE = 640;
@@ -29,6 +43,7 @@ const IOU_THRESHOLD = 0.45;
 
 let sessionPromise = null;
 function getSession() {
+  if (!ort) return Promise.resolve(null);
   if (!sessionPromise) sessionPromise = ort.InferenceSession.create(MODEL_PATH);
   return sessionPromise;
 }
@@ -146,6 +161,7 @@ function unletterboxBox(box, meta) {
 async function detectFace(imageBuffer) {
   try {
     const session = await getSession();
+    if (!session) return null;
     const meta = await letterbox(imageBuffer);
     const chw = toChwTensor(meta.data, meta.width, meta.height);
     const tensor = new ort.Tensor('float32', chw, [1, 3, meta.height, meta.width]);

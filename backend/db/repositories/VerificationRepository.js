@@ -28,6 +28,23 @@ class VerificationRepository extends BaseRepository {
     return data || null;
   }
 
+  // Same as findOpenApplication but WITHOUT excluding rejected/suspended —
+  // used to resume/resubmit an existing application rather than silently
+  // starting a brand new one (which would orphan the rejection reason and
+  // the store/driver_profile it's already linked to via entity_id).
+  async findLatestApplication(userId, role) {
+    const { data, error } = await this.db
+      .from('verification_applications')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('role', role)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
   async createApplication({ userId, role, requirementsVersion }) {
     return this.create({
       user_id: userId,
@@ -70,7 +87,7 @@ class VerificationRepository extends BaseRepository {
     return { ...application, steps: steps || [] };
   }
 
-  async listApplicationsAdmin({ role, status, riskLevel, limit = 25, offset = 0 } = {}) {
+  async listApplicationsAdmin({ role, status, riskLevel, hasEntity, limit = 25, offset = 0 } = {}) {
     let query = this.db
       .from('verification_applications')
       .select('*, applicant:user_id (id, email)', { count: 'exact' })
@@ -78,6 +95,12 @@ class VerificationRepository extends BaseRepository {
     if (role) query = query.eq('role', role);
     if (status) query = query.eq('status', status);
     if (riskLevel) query = query.eq('risk_level', riskLevel);
+    // hasEntity=false surfaces applications still mid-onboarding — no
+    // stores/driver_profiles row exists yet, so they'd otherwise be
+    // invisible to the Stores/Riders admin tabs (those list the operational
+    // table, not verification_applications) until the applicant submits.
+    if (hasEntity === false) query = query.is('entity_id', null);
+    if (hasEntity === true) query = query.not('entity_id', 'is', null);
     if (limit) query = query.limit(limit);
     if (offset) query = query.range(offset, offset + limit - 1);
     const { data, error, count } = await query;

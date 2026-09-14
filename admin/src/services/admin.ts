@@ -27,7 +27,31 @@ export const adminDeleteStore = async (storeId: string) => {
   const response = await api.delete(`/admin/stores/${storeId}`);
   return response.data;
 };
+export const getStoreLivenessAdmin = async (storeId: string) => { const response = await api.get(`/admin/stores/${storeId}/liveness`); return response.data; };
+export const getDriverLivenessAdmin = async (driverProfileId: string) => { const response = await api.get(`/admin/driver-verifications/${driverProfileId}/liveness`); return response.data; };
+export const getLivenessFrameSignedUrl = async (attemptId: string, label: string) => { const response = await api.get(`/verification/liveness/${attemptId}/frames/${label}/signed-url`); return response.data; };
+export const getVerificationDocumentSignedUrl = async (documentId: string) => { const response = await api.get(`/verification/documents/${documentId}/signed-url`); return response.data; };
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
+
+// In-progress verification applications — sellers/drivers who've started the
+// onboarding wizard but have no stores/driver_profiles row yet (hasEntity:
+// false), so they wouldn't otherwise show up in the Stores/Riders tables.
+export const getVerificationApplications = async (params?: { role?: 'seller' | 'driver'; hasEntity?: boolean; status?: string }) => {
+  const response = await api.get('/admin/verifications', { params });
+  return response.data;
+};
+export const getVerificationApplicationDetail = async (id: string) => { const response = await api.get(`/admin/verifications/${id}`); return response.data; };
+export const approveVerificationApplication = async (id: string) => { const response = await api.put(`/admin/verifications/${id}/approve`); return response.data; };
+export const rejectVerificationApplication = async (id: string, reason: string) => { const response = await api.put(`/admin/verifications/${id}/reject`, { reason }); return response.data; };
+export const requestVerificationInformation = async (id: string, message: string) => { const response = await api.put(`/admin/verifications/${id}/request-information`, { message }); return response.data; };
+export const reviewVerificationStep = async (id: string, stepKey: string, status: 'verified' | 'rejected', reason?: string) => {
+  const response = await api.put(`/admin/verifications/${id}/steps/${stepKey}/review`, { status, reason });
+  return response.data;
+};
+export const assistedEditVerificationStep = async (id: string, stepKey: string, data: Record<string, any>, reason: string) => {
+  const response = await api.patch(`/admin/verifications/${id}/steps/${stepKey}`, { data, reason });
+  return response.data;
+};
 export const getAdminLocationChanges = async (params?: any) => { const response = await api.get('/admin/verifications/location-changes', { params }); return response.data; };
 export const reviewLocationChange = async (id: string, status: 'verified' | 'rejected', reason?: string) => { const response = await api.put(`/admin/verifications/location-changes/${id}/review`, { status, reason }); return response.data; };
 export const getAdminVehicleChanges = async (params?: any) => { const response = await api.get('/admin/verifications/vehicle-changes', { params }); return response.data; };

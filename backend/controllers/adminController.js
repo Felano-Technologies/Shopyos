@@ -348,6 +348,46 @@ const verifyStore = async (req, res, next) => {
   }
 };
 
+// Sanitizes a liveness_verifications row for admin display — never sends
+// captured_frame_key/frame storage keys directly, only frame labels; a
+// signed URL per frame is fetched separately (verificationController.js's
+// getLivenessFrameSignedUrl), same "break glass" audit-on-view pattern as
+// document viewing.
+function _sanitizeLivenessAttempt(attempt) {
+  return {
+    id: attempt.id,
+    attemptNumber: attempt.attempt_number,
+    passed: attempt.passed,
+    challengeSequence: attempt.challenge_sequence,
+    antiSpoofScore: attempt.anti_spoof_score,
+    methodVersion: attempt.method_version,
+    createdAt: attempt.created_at,
+    frames: (attempt.frames || []).map((f) => ({ label: f.label })),
+  };
+}
+
+/**
+ * Get a seller's liveness verification attempts (evidence for admin review
+ * — see verification_applications/liveness_verifications). The seller
+ * onboarding wizard writes these against a verification_applications row
+ * linked to this store via entity_id, independent of the store's own
+ * verification_status (which this endpoint's caller reviews separately).
+ * @route   GET /api/admin/stores/:storeId/liveness
+ * @access  Admin
+ */
+const getStoreLivenessAdmin = async (req, res, next) => {
+  try {
+    const { storeId } = req.params;
+    const application = await repositories.verification.getApplicationByEntityId(storeId, 'seller');
+    if (!application) return ApiResponse.withEntity(res, 'attempts', []);
+
+    const attempts = await repositories.verification.getLivenessAttempts(application.id);
+    ApiResponse.withEntity(res, 'attempts', attempts.map(_sanitizeLivenessAttempt));
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Update store status
  * @route   PUT /api/admin/stores/:storeId/status
@@ -994,6 +1034,26 @@ const getDriverVerificationDetails = async (req, res, next) => {
 };
 
 /**
+ * Get a driver's liveness verification attempts — same shape/reasoning as
+ * getStoreLivenessAdmin, keyed by driver_profiles.id (matches the id this
+ * whole /driver-verifications/:id family already uses).
+ * @route   GET /api/admin/driver-verifications/:id/liveness
+ * @access  Admin
+ */
+const getDriverLivenessAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const application = await repositories.verification.getApplicationByEntityId(id, 'driver');
+    if (!application) return ApiResponse.withEntity(res, 'attempts', []);
+
+    const attempts = await repositories.verification.getLivenessAttempts(application.id);
+    ApiResponse.withEntity(res, 'attempts', attempts.map(_sanitizeLivenessAttempt));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Approve driver verification
  * @route   PUT /api/admin/driver-verifications/:id/approve
  */
@@ -1561,6 +1621,7 @@ module.exports = {
   updateUserRole,
   getAllStores,
   verifyStore,
+  getStoreLivenessAdmin,
   getStoreStats,
   getTopStores,
   updateStoreStatus,
@@ -1581,6 +1642,7 @@ module.exports = {
   getRevenueBreakdown,
   getDriverVerifications,
   getDriverVerificationDetails,
+  getDriverLivenessAdmin,
   approveDriverVerification,
   rejectDriverVerification,
   getAllEscrows,

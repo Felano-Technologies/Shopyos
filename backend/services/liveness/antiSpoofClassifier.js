@@ -12,9 +12,19 @@
 // easy to get backwards silently.
 
 const path = require('path');
-const ort = require('onnxruntime-node');
 const sharp = require('sharp');
 const { logger } = require('../../config/logger');
+
+// See yoloFaceDetector.js's identical comment — onnxruntime-node's require
+// can throw on a bad native build (e.g. a musl/Alpine image without glibc);
+// this sits on the server's startup require-chain, so guard it here too so
+// that failure degrades liveness analysis instead of crashing the backend.
+let ort = null;
+try {
+  ort = require('onnxruntime-node');
+} catch (error) {
+  logger.error('onnxruntime-node failed to load — anti-spoof classification disabled, liveness will fall back to manual admin review', { error: error.message });
+}
 
 const MODEL_PATH = path.join(__dirname, '..', '..', 'ml-models', 'antispoof.onnx');
 const CROP_SIZE = 128;
@@ -22,6 +32,7 @@ const BBOX_INCREASE = 1.5;
 
 let sessionPromise = null;
 function getSession() {
+  if (!ort) return Promise.resolve(null);
   if (!sessionPromise) sessionPromise = ort.InferenceSession.create(MODEL_PATH);
   return sessionPromise;
 }
@@ -113,6 +124,7 @@ async function classify(imageBuffer, bbox, imgW, imgH) {
     if (!cropBuffer) return null;
 
     const session = await getSession();
+    if (!session) return null;
     const chw = await preprocess(cropBuffer);
     const tensor = new ort.Tensor('float32', chw, [1, 3, CROP_SIZE, CROP_SIZE]);
 

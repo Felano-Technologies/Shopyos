@@ -25,6 +25,7 @@ const {
   updateUserRole,
   getAllStores,
   verifyStore,
+  getStoreLivenessAdmin,
   getStoreStats,
   getTopStores,
   updateStoreStatus,
@@ -42,6 +43,7 @@ const {
   getRevenueBreakdown,
   getDriverVerifications,
   getDriverVerificationDetails,
+  getDriverLivenessAdmin,
   approveDriverVerification,
   rejectDriverVerification,
   getReportDetails,
@@ -623,6 +625,7 @@ router.get('/stores/top', getTopStores);
  *         description: Store not found
  */
 router.put('/stores/:storeId/verify', verifyStore);
+router.get('/stores/:storeId/liveness', getStoreLivenessAdmin);
 
 /**
  * @swagger
@@ -1214,6 +1217,7 @@ router.get('/driver-verifications', getDriverVerifications);
  *         description: Driver verification not found
  */
 router.get('/driver-verifications/:id', getDriverVerificationDetails);
+router.get('/driver-verifications/:id/liveness', getDriverLivenessAdmin);
 
 /**
  * @swagger

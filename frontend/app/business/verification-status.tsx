@@ -205,7 +205,7 @@ export default function VerificationStatus() {
 
                     <TouchableOpacity
                         style={styles.btn}
-                        onPress={() => router.push(`/business/verification?businessId=${business._id}` as any)}
+                        onPress={() => router.push('/business/onboarding' as any)}
                     >
                         <LinearGradient colors={[colors.primary, colors.primaryMid]} style={styles.btnGradient}>
                             <Ionicons name={updateBtnIconName} size={18} color={colors.textInverse} />

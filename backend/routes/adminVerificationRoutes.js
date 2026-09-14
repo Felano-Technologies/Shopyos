@@ -15,6 +15,7 @@ const {
   requestInformation,
   logInternalNote,
   assistedEditStep,
+  reviewStepAdmin,
   listShopLocationChangesAdmin,
   reviewShopLocationChangeAdmin,
   listDriverVehiclesAdmin,
@@ -42,5 +43,9 @@ router.post('/:id/notes', hasVerificationPermission('verification_admin', 'suppo
 // Assisted onboarding — only the full verification_admin tier may write
 // directly into an applicant's step data (see plan §Admin permission tiers).
 router.patch('/:id/steps/:stepKey', hasVerificationPermission('verification_admin'), assistedEditStep);
+// The only place a step reaches 'verified' — required before approveApplication
+// can ever succeed (isApplicationComplete checks every required step is
+// 'verified', not just 'complete').
+router.put('/:id/steps/:stepKey/review', hasVerificationPermission('verification_admin'), reviewStepAdmin);
 
 module.exports = router;

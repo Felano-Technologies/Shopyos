@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
-  FiCheckCircle, FiXCircle, FiClock, FiShoppingBag, FiX, FiExternalLink, FiSearch, FiTrash2,
+  FiCheckCircle, FiXCircle, FiClock, FiShoppingBag, FiX, FiExternalLink, FiSearch, FiTrash2, FiEye,
 } from 'react-icons/fi';
-import { getAdminStores, getAdminStoreStats, adminVerifyStore, adminDeleteStore } from '../services/admin';
+import {
+  getAdminStores, getAdminStoreStats, adminVerifyStore, adminDeleteStore,
+  getStoreLivenessAdmin, getLivenessFrameSignedUrl,
+} from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
+import { InProgressApplications } from '../components/admin/InProgressApplications';
 
 type StoreStats = { total: number; verified: number; pending: number; rejected: number };
 
@@ -69,6 +73,8 @@ export const StoreManagement: React.FC = () => {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [livenessAttempts, setLivenessAttempts] = useState<any[]>([]);
+  const [livenessLoading, setLivenessLoading] = useState(false);
 
   useEffect(() => {
     getAdminStoreStats()
@@ -104,6 +110,22 @@ export const StoreManagement: React.FC = () => {
     setShowRejectForm(false);
     setRejectReason('');
     setActionError(null);
+    setLivenessAttempts([]);
+    setLivenessLoading(true);
+    getStoreLivenessAdmin(store.id)
+      .then((res) => setLivenessAttempts(Array.isArray(res?.attempts) ? res.attempts : []))
+      .catch((err) => console.error('Failed to load liveness attempts', err))
+      .finally(() => setLivenessLoading(false));
+  };
+
+  const viewLivenessFrame = async (attemptId: string, label: string) => {
+    try {
+      const res = await getLivenessFrameSignedUrl(attemptId, label);
+      const url = res?.frame?.signedUrl;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      window.alert(extractErrorMessage(err));
+    }
   };
 
   const handleVerify = async (status: 'verified' | 'rejected' | 'pending', reason?: string) => {
@@ -168,6 +190,8 @@ export const StoreManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-body">Store Management</h1>
           <p className="text-sm text-secondary mt-1">Review, approve, and manage seller stores.</p>
         </div>
+
+        <InProgressApplications role="seller" />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -349,6 +373,42 @@ export const StoreManagement: React.FC = () => {
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {(livenessLoading || livenessAttempts.length > 0) && (
+              <div className="mb-4">
+                <p className="text-xs text-subtle uppercase font-semibold mb-2">Liveness Verification</p>
+                {livenessLoading ? (
+                  <p className="text-sm text-secondary">Loading...</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {livenessAttempts.map((attempt) => (
+                      <div key={attempt.id} className="border border-border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-body">Attempt #{attempt.attemptNumber}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${attempt.passed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            {attempt.passed ? 'Passed' : 'Failed'}
+                          </span>
+                        </div>
+                        {attempt.antiSpoofScore != null && (
+                          <p className="text-xs text-secondary mb-2">Anti-spoof score: {Number(attempt.antiSpoofScore).toFixed(3)}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {(attempt.frames || []).map((f: any) => (
+                            <button
+                              key={f.label}
+                              onClick={() => viewLivenessFrame(attempt.id, f.label)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-xs text-body hover:border-navy/30 hover:bg-surface-muted transition-colors"
+                            >
+                              <FiEye className="w-3.5 h-3.5 text-subtle" /> {f.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
