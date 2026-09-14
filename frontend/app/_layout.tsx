@@ -16,6 +16,7 @@ import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useSocketSetup } from '../hooks/useSocketSetup';
 import { useCallListener } from '../hooks/useCallListener';
 import { CallOverlay } from '@/components/calls/CallOverlay';
+import { initVoipCallKeep } from '@/services/voipCallKeepService';
 import { drainRecordingUploadQueue } from '@/services/recordingUploadQueue';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
@@ -143,6 +144,13 @@ function AppContent() {
 
   // In-app calling: global incoming/accepted/rejected/ended listener
   useCallListener();
+
+  // Native CallKit/ConnectionService ringing + VoIP push — lets a call ring
+  // even while the app is backgrounded/killed. Best-effort: a no-op with a
+  // console warning on a dev client built before these native deps existed.
+  useEffect(() => {
+    initVoipCallKeep();
+  }, []);
 
   // Retry any call recordings that failed to upload earlier — on launch and
   // whenever the app comes back to the foreground.

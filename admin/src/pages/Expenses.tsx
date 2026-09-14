@@ -6,7 +6,8 @@ import {
 } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
-import { parseExpenseCsv, ParsedExpenseRow, downloadExpenseCsvTemplate } from '../utils/expenseCsv';
+import { parseExpenseCsv, downloadExpenseCsvTemplate } from '../utils/expenseCsv';
+import type { ParsedExpenseRow } from '../utils/expenseCsv';
 
 interface ExpenseCategory { id: string; name: string; is_active: boolean }
 interface Expense {

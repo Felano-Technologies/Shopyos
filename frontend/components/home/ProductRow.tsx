@@ -50,6 +50,11 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
 
   const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
     const anim = animValsRef.current[index];
+    // Same stock field fallback chain as ProductGrid's ProductCard, so a
+    // product looks consistently out-of-stock everywhere it appears —
+    // home carousels included, not just the main grid.
+    const stock = item.stockQuantity ?? item.stock_quantity ?? item.quantity ?? null;
+    const isOutOfStock = stock !== null && stock === 0;
     return (
       <Animated.View style={{
         opacity: anim,
@@ -57,7 +62,14 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
         marginRight: 14,
       }}>
         <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
-          <AppImage uri={item.images?.[0] || ''} style={S.img} />
+          <View>
+            <AppImage uri={item.images?.[0] || ''} style={[S.img, isOutOfStock && S.imgDimmed]} />
+            {isOutOfStock && (
+              <View style={S.stockBadge}>
+                <Text style={S.stockBadgeTxt}>Sold Out</Text>
+              </View>
+            )}
+          </View>
           <View style={S.info}>
             <Text style={S.store} numberOfLines={1}>{storeName(item)}</Text>
             <Text style={S.name} numberOfLines={1}>{item.name}</Text>
@@ -116,6 +128,12 @@ const getS = (colors: ThemeColors) => StyleSheet.create({
     borderColor: colors.border,
   },
   img: { width: '100%', height: 116 },
+  imgDimmed: { opacity: 0.45 },
+  stockBadge: {
+    position: 'absolute', left: 6, bottom: 6, paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 6, backgroundColor: 'rgba(17,17,17,0.85)',
+  },
+  stockBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.3 },
   info: { padding: 10 },
   store: {
     fontSize: 9, fontFamily: 'Montserrat-Bold', color: colors.textMuted,
