@@ -119,7 +119,7 @@ async function handleNativeEnd(callUUID: string) {
 // displays the native ConnectionService incoming-call UI directly from the
 // high-priority FCM data message, without needing a live JS/React tree.
 TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
-  if (error || Platform.OS !== 'android') return;
+  if (error || Platform.OS !== 'android' || isExpoGo) return;
   const payload = (data as any)?.notification?.request?.content?.data;
   if (!payload?.callId) return;
   const RNCallKeep = getCallKeep();
@@ -129,6 +129,11 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => 
 export async function initVoipCallKeep() {
   if (initialized) return;
   initialized = true;
+
+  if (isExpoGo) {
+    console.log('[VoipCallKeep] Running in Expo Go — native calling/VoIP push needs a dev-client build, skipping.');
+    return;
+  }
 
   const RNCallKeep = getCallKeep();
   if (!RNCallKeep) {

@@ -62,7 +62,7 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
         marginRight: 14,
       }}>
         <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
-          <View>
+          <View style={S.imgWrap}>
             <AppImage uri={item.images?.[0] || ''} style={[S.img, isOutOfStock && S.imgDimmed]} />
             {isOutOfStock && (
               <View style={S.stockBadge}>
@@ -127,6 +127,7 @@ const getS = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  imgWrap: { width: '100%', height: 116, position: 'relative' },
   img: { width: '100%', height: 116 },
   imgDimmed: { opacity: 0.45 },
   stockBadge: {
