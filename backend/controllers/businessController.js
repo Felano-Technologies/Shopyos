@@ -6,34 +6,17 @@ const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
-const { getTrustBadges } = require('../services/trustBadges');
 
-// Derives the buyer-facing verification status/reason from the new unified
-// verification_applications table instead of stores.verification_status
-// directly, so the new seller wizard (Phase 2) and this legacy response
-// shape share one source of truth. Falls back to the store's own column if
-// no application exists yet (e.g. right after createBusiness, before the
-// seller has started the wizard) or on any lookup error — never let this
-// break the wider business dashboard response.
-const VERIFICATION_STATUS_DISPLAY_MAP = { approved: 'verified', rejected: 'rejected', suspended: 'rejected' };
+// The Stores admin tab is the single source of truth for a seller's
+// verification status — it writes directly to stores.verification_status /
+// stores.rejection_reason (see adminController.verifyStore), so this reads
+// that column directly rather than any parallel status source. (Previously
+// this deferred to the newer verification_applications table when one
+// existed, which silently hid whatever the Stores tab set — an application
+// left at 'under_review' forever overrode a real approve/reject done here,
+// which is what caused sellers to see "pending" no matter what an admin did.)
 const _resolveSellerVerificationStatus = async (store) => {
-  try {
-    const application = await repositories.verification.getApplicationByEntityId(store.id, 'seller');
-    if (!application) {
-      return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '', trustBadges: [] };
-    }
-    const steps = await repositories.verification.getStepsForApplication(application.id);
-    return {
-      verificationStatus: VERIFICATION_STATUS_DISPLAY_MAP[application.status] || 'pending',
-      rejectionReason: application.rejection_reason || store.rejection_reason || '',
-      trustBadges: getTrustBadges(application, steps),
-    };
-  } catch (error) {
-    logger.warn('Failed to resolve seller verification status from verification_applications, falling back to store column', {
-      error: error.message, storeId: store.id,
-    });
-    return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '', trustBadges: [] };
-  }
+  return { verificationStatus: store.verification_status, rejectionReason: store.rejection_reason || '', trustBadges: [] };
 };
 
 // --- Helpers for createBusiness ---
@@ -954,7 +937,11 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     const db = require('../config/postgres').getPool();
 
-    const [ordersResult, revenueStats, repeatResult, categoryResult] = await Promise.all([
+    // Previous period of equal length, immediately before the current one, for growth comparison
+    const periodLengthMs = endDate.getTime() - startDate.getTime();
+    const prevStartDate = new Date(startDate.getTime() - periodLengthMs);
+
+    const [ordersResult, revenueStats, repeatResult, categoryResult, periodRevenueResult] = await Promise.all([
       repositories.orders.findAll({
         where: { store_id: businessId },
         select: '*, order_items(product_title, quantity, price), payments(amount)',
@@ -990,6 +977,21 @@ const getBusinessAnalytics = async (req, res, next) => {
         GROUP BY p.category
         ORDER BY item_count DESC
       `, [businessId, startDate]),
+      db.query(`
+        SELECT
+          COALESCE(SUM(CASE
+            WHEN created_at >= $2 AND created_at < $3 AND status = 'refunded' THEN -total_amount
+            WHEN created_at >= $2 AND created_at < $3 AND status IN ('delivered', 'completed', 'paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit') THEN total_amount
+            ELSE 0
+          END), 0) AS current_revenue,
+          COALESCE(SUM(CASE
+            WHEN created_at >= $4 AND created_at < $2 AND status = 'refunded' THEN -total_amount
+            WHEN created_at >= $4 AND created_at < $2 AND status IN ('delivered', 'completed', 'paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit') THEN total_amount
+            ELSE 0
+          END), 0) AS previous_revenue
+        FROM orders
+        WHERE store_id = $1 AND created_at >= $4 AND created_at < $3
+      `, [businessId, startDate, endDate, prevStartDate]),
     ]);
 
     const orders = ordersResult?.data || [];
@@ -1153,6 +1155,13 @@ const getBusinessAnalytics = async (req, res, next) => {
     const repeatBuyers = parseInt(repeatRow.repeat_buyers, 10);
     const repeatCustomerRate = totalBuyers > 0 ? Math.round((repeatBuyers / totalBuyers) * 100) : 0;
 
+    const periodRevenueRow = periodRevenueResult.rows[0] || { current_revenue: 0, previous_revenue: 0 };
+    const currentPeriodRevenue = Number.parseFloat(periodRevenueRow.current_revenue || 0);
+    const previousPeriodRevenue = Number.parseFloat(periodRevenueRow.previous_revenue || 0);
+    const growth = previousPeriodRevenue > 0
+      ? Math.round(((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100)
+      : (currentPeriodRevenue > 0 ? 100 : 0);
+
     const categoryDistribution = (categoryResult.rows || []).map(r => ({
       name: r.category,
       sales: parseInt(r.item_count, 10),
@@ -1164,7 +1173,7 @@ const getBusinessAnalytics = async (req, res, next) => {
         revenue: totalRevenue,
         pending: pendingRevenue || 0,
         orders: totalOrders,
-        growth: 0,
+        growth,
         repeat_customer_rate: repeatCustomerRate,
       },
       chart: {

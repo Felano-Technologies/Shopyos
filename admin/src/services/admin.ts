@@ -28,17 +28,9 @@ export const adminDeleteStore = async (storeId: string) => {
   return response.data;
 };
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };
-export const getAdminVerifications = async (params?: any) => { const response = await api.get('/admin/verifications', { params }); return response.data; };
-export const getAdminVerificationDetail = async (id: string) => { const response = await api.get(`/admin/verifications/${id}`); return response.data; };
-export const approveVerification = async (id: string) => { const response = await api.put(`/admin/verifications/${id}/approve`); return response.data; };
-export const rejectVerification = async (id: string, reason: string) => { const response = await api.put(`/admin/verifications/${id}/reject`, { reason }); return response.data; };
-export const requestVerificationInformation = async (id: string, message: string, channel?: string) => { const response = await api.put(`/admin/verifications/${id}/request-information`, { message, channel }); return response.data; };
-export const logVerificationNote = async (id: string, message: string, channel: string = 'phone_call') => { const response = await api.post(`/admin/verifications/${id}/notes`, { message, channel }); return response.data; };
-export const assistedEditVerificationStep = async (id: string, stepKey: string, data: Record<string, any>, reason: string) => { const response = await api.patch(`/admin/verifications/${id}/steps/${stepKey}`, { data, reason }); return response.data; };
 export const getAdminLocationChanges = async (params?: any) => { const response = await api.get('/admin/verifications/location-changes', { params }); return response.data; };
 export const reviewLocationChange = async (id: string, status: 'verified' | 'rejected', reason?: string) => { const response = await api.put(`/admin/verifications/location-changes/${id}/review`, { status, reason }); return response.data; };
 export const getAdminVehicleChanges = async (params?: any) => { const response = await api.get('/admin/verifications/vehicle-changes', { params }); return response.data; };
-export const getLivenessFrameSignedUrl = async (attemptId: string, label: string) => { const response = await api.get(`/verification/liveness/${attemptId}/frames/${label}/signed-url`); return response.data; };
 export const reviewVehicleChange = async (id: string, status: 'verified' | 'rejected', reason?: string) => { const response = await api.put(`/admin/verifications/vehicle-changes/${id}/review`, { status, reason }); return response.data; };
 export const getAdminOrders = async (params?: any) => { const response = await api.get('/admin/orders', { params }); return response.data; };
 export const getAdminOrderStats = async () => { const response = await api.get('/admin/orders/stats'); return response.data; };

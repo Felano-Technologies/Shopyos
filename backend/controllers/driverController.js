@@ -4,7 +4,6 @@ const { logger } = require('../config/logger');
 const ApiResponse = require('../utils/apiResponse');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
-const { getTrustBadges } = require('../services/trustBadges');
 
 /**
  * Submit driver verification details
@@ -102,29 +101,19 @@ const submitVerification = async (req, res, next) => {
  * @route   GET /api/deliveries/driver/profile
  * @access  Private (Driver)
  */
-// Same reasoning as businessController.js's _resolveSellerVerificationStatus:
-// driver_profiles.is_verified is a plain boolean with no 'rejected'/'pending'
-// distinction (useDriverGuard.ts's `driver.verification_status` was always
-// undefined as a result) — derive a real verification_status here from the
-// new verification_applications table, falling back to the boolean when no
-// application exists yet or on any lookup error.
-const DRIVER_STATUS_DISPLAY_MAP = { approved: 'verified', rejected: 'rejected', suspended: 'rejected' };
-const _resolveDriverVerificationStatus = async (profile) => {
-  try {
-    const application = await repositories.verification.getApplicationByEntityId(profile.id, 'driver');
-    if (!application) return { verification_status: profile.is_verified ? 'verified' : 'pending', trust_badges: [] };
-    const steps = await repositories.verification.getStepsForApplication(application.id);
-    return {
-      verification_status: DRIVER_STATUS_DISPLAY_MAP[application.status] || 'pending',
-      rejection_reason: application.rejection_reason || profile.rejection_reason || null,
-      trust_badges: getTrustBadges(application, steps),
-    };
-  } catch (error) {
-    logger.warn('Failed to resolve driver verification status from verification_applications, falling back to is_verified', {
-      error: error.message, driverProfileId: profile.id,
-    });
-    return { verification_status: profile.is_verified ? 'verified' : 'pending', trust_badges: [] };
-  }
+// The Riders admin tab is the single source of truth for a driver's
+// verification status — approveDriver()/rejectDriver() (AdminRepository.js)
+// set is_verified/rejection_reason directly and are the only writers, so
+// derive the 3-state status from those same two columns instead of a
+// parallel status source: rejection_reason set (and not verified) means
+// rejected, is_verified true means verified, otherwise pending. (Previously
+// this deferred to the newer verification_applications table when one
+// existed, which silently hid whatever the Riders tab set.)
+const _resolveDriverVerificationStatus = (profile) => {
+  let verification_status = 'pending';
+  if (profile.is_verified) verification_status = 'verified';
+  else if (profile.rejection_reason) verification_status = 'rejected';
+  return { verification_status, rejection_reason: profile.rejection_reason || null, trust_badges: [] };
 };
 
 const getDriverProfile = async (req, res, next) => {

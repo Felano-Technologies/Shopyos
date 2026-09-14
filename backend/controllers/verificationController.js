@@ -19,6 +19,7 @@ const {
   MAX_LIVENESS_ATTEMPTS,
 } = require('../services/verificationRequirements');
 const { recomputeAndStoreRiskScore } = require('../services/riskScoring');
+const { analyzeLivenessAttempt } = require('../services/livenessAnalysis');
 const { logger } = require('../config/logger');
 
 const VALID_ROLES = ['seller', 'driver'];
@@ -260,34 +261,54 @@ async function submitLivenessAttempt(req, res) {
     // challenge step plus a 'baseline' frame; `frameLabels` is a JSON array
     // naming each in upload order so they can be paired back up (multer
     // doesn't otherwise preserve per-file metadata).
-    const { passed, challengeSequence, antiSpoofScore, methodVersion, deviceInfo, appVersion, frameLabels } = req.body;
+    const { passed: clientPassed, challengeSequence, methodVersion, deviceInfo, appVersion, frameLabels } = req.body;
 
     let labels = [];
     try { labels = frameLabels ? JSON.parse(frameLabels) : []; } catch { labels = []; }
 
     const frames = [];
     for (const [i, file] of (req.files || []).entries()) {
+      const label = labels[i] || `frame_${i}`;
       const uploaded = await uploadImage(file, `verification/${application.id}/liveness`);
-      frames.push({ label: labels[i] || `frame_${i}`, storageKey: uploaded.url });
+      frames.push({ label, storageKey: uploaded.url, buffer: file.buffer });
+    }
+
+    // The server computes the real verdict here — the client's own
+    // `passed:true` claim is no longer trusted, only recorded for
+    // comparison. See services/livenessAnalysis.js.
+    const challengeIds = (challengeSequence || '').split(',').filter(Boolean);
+    const analysis = await analyzeLivenessAttempt(frames, challengeIds);
+    if (analysis.reason) {
+      logger.info('liveness analysis result', {
+        applicationId: application.id,
+        reason: analysis.reason,
+        clientPassed,
+        serverPassed: analysis.passed,
+      });
     }
 
     const attempt = await repositories.verification.createLivenessAttempt(application.id, {
-      passed: passed === true || passed === 'true',
+      passed: analysis.passed,
       challengeSequence,
-      antiSpoofScore: antiSpoofScore !== undefined && antiSpoofScore !== '' ? Number(antiSpoofScore) : null,
-      frames,
+      antiSpoofScore: analysis.antiSpoofScore,
+      frames: frames.map(({ label, storageKey }) => ({ label, storageKey })),
       methodVersion: methodVersion || 'multi_frame_v1',
       deviceInfo,
       appVersion,
     });
 
-    // A passing on-device attempt only reaches 'complete' — evidence for
-    // admin review. It is the admin who moves this to 'verified'.
+    // A passing SERVER-COMPUTED attempt only reaches 'complete' — evidence
+    // for admin review. It is the admin who moves this to 'verified'.
     await repositories.verification.upsertStep(application.id, 'liveness', {
-      status: passed ? 'complete' : 'in_progress',
+      status: analysis.passed ? 'complete' : 'in_progress',
     });
 
-    return ApiResponse.created(res, attempt, 'Liveness attempt recorded');
+    return ApiResponse.created(res, { ...attempt, analysis: {
+      faceDetected: analysis.faceDetected,
+      isReal: analysis.isReal,
+      challengeResults: analysis.challengeResults,
+      reason: analysis.reason,
+    } }, 'Liveness attempt recorded');
   } catch (error) {
     logger.error('submitLivenessAttempt failed', { error: error.message, applicationId: req.params.applicationId });
     return ApiResponse.error(res, 'Failed to record liveness attempt', 500);
