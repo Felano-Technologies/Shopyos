@@ -10,6 +10,7 @@ const {
   toggleExpenseCategory,
   getExpenses,
   createExpense,
+  bulkCreateExpenses,
   updateExpense,
   deleteExpense,
 } = require('../controllers/expenseController');
@@ -1078,6 +1079,7 @@ router.put('/expense-categories/:id', auditLog('update_expense_category', 'expen
 router.patch('/expense-categories/:id/toggle', auditLog('toggle_expense_category', 'expense_category'), toggleExpenseCategory);
 router.get('/expenses', getExpenses);
 router.post('/expenses', auditLog('create_expense', 'expense'), createExpense);
+router.post('/expenses/bulk', auditLog('bulk_create_expenses', 'expense'), bulkCreateExpenses);
 router.put('/expenses/:id', auditLog('update_expense', 'expense'), updateExpense);
 router.delete('/expenses/:id', auditLog('delete_expense', 'expense'), deleteExpense);
 

@@ -9,6 +9,8 @@ import { endCall } from '@/services/calls';
 import { joinCall, leaveCall, muteLocalAudio, releaseEngine, setSpeakerphoneEnabled, startLocalRecording, stopLocalRecording } from '@/services/callRecordingService';
 import { enqueueRecordingUpload, drainRecordingUploadQueue } from '@/services/recordingUploadQueue';
 import { startRingtone, stopRingtone } from '@/services/callRingtone';
+import { requestCallMicrophonePermissionWithDisclosure } from '@/src/utils/permissions';
+import { CustomInAppToast } from '@/services/api';
 
 const C = {
   navy: '#0C1559',
@@ -52,17 +54,39 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
   }, [phase]);
 
   // Join the Agora channel + start local recording once the call is accepted.
+  // Microphone permission must be granted first — without it, joinChannel
+  // silently fails to capture audio (the call looks "connected" with no
+  // sound). Any join failure now ends the call with a visible toast instead
+  // of only a console.warn.
   useEffect(() => {
     if (phase !== 'active' || !call?.token || !call?.appId || joinedRef.current) return;
     joinedRef.current = true;
+    let cancelled = false;
 
-    joinCall(
-      { appId: call.appId, token: call.token, channelName: call.channelName, uid: deriveNumericUid(currentUserId) },
-      { onError: (err) => console.warn('[Call] Agora error:', err) }
-    );
-    startLocalRecording(call.callId);
+    (async () => {
+      const permission = await requestCallMicrophonePermissionWithDisclosure();
+      if (cancelled) return;
+      if (permission.status !== 'granted') {
+        CustomInAppToast.show({ type: 'error', title: 'Microphone required', message: 'Microphone access is required to make calls.' });
+        handleEnd();
+        return;
+      }
+
+      joinCall(
+        { appId: call.appId, token: call.token, channelName: call.channelName, uid: deriveNumericUid(currentUserId) },
+        {
+          onError: (err) => {
+            console.warn('[Call] Agora error:', err);
+            CustomInAppToast.show({ type: 'error', title: 'Call error', message: 'Something went wrong with the call connection.' });
+            handleEnd();
+          },
+        }
+      );
+      startLocalRecording(call.callId);
+    })();
 
     return () => {
+      cancelled = true;
       const path = stopLocalRecording();
       leaveCall();
       releaseEngine();

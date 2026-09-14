@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiPlus, FiTrendingDown, FiX, FiEdit2, FiTrash2, FiRepeat } from 'react-icons/fi';
+import { FiPlus, FiTrendingDown, FiX, FiEdit2, FiTrash2, FiRepeat, FiUpload, FiDownload, FiAlertTriangle } from 'react-icons/fi';
 import {
-  getExpenses, createExpense, updateExpense, deleteExpense, getExpenseCategories,
+  getExpenses, createExpense, updateExpense, deleteExpense, getExpenseCategories, bulkCreateExpenses,
 } from '../services/admin';
 import { extractErrorMessage } from '../services/client';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
+import { parseExpenseCsv, ParsedExpenseRow, downloadExpenseCsvTemplate } from '../utils/expenseCsv';
 
 interface ExpenseCategory { id: string; name: string; is_active: boolean }
 interface Expense {
@@ -41,6 +42,13 @@ export const Expenses: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [importRows, setImportRows] = useState<ParsedExpenseRow[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSubmitting, setImportSubmitting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -133,6 +141,39 @@ export const Expenses: React.FC = () => {
     }
   };
 
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file after fixing it
+    if (!file) return;
+    const text = await file.text();
+    const { rows, errors } = parseExpenseCsv(text);
+    setImportFileName(file.name);
+    setImportRows(rows);
+    setImportErrors(errors);
+    setIsImportModalOpen(true);
+  };
+
+  const handleConfirmImport = async () => {
+    if (importRows.length === 0 || importErrors.length > 0) return;
+    setImportSubmitting(true);
+    try {
+      const result = await bulkCreateExpenses(importRows);
+      const count = Array.isArray(result?.expenses) ? result.expenses.length : importRows.length;
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: 'success', title: 'Import complete', message: `${count} expense(s) imported.` } }));
+      setIsImportModalOpen(false);
+      setImportRows([]);
+      setImportErrors([]);
+      loadData();
+    } catch (error) {
+      // The server re-validates every row and returns line-by-line reasons
+      // in the message (see backend/controllers/expenseController.js) —
+      // show it as-is rather than a generic failure toast.
+      setImportErrors([extractErrorMessage(error)]);
+    } finally {
+      setImportSubmitting(false);
+    }
+  };
+
   const totalShown = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   return (
@@ -147,12 +188,28 @@ export const Expenses: React.FC = () => {
             <h1 className="text-2xl font-bold text-body">Expenses</h1>
             <p className="text-sm text-secondary mt-1">Log operational costs against configurable categories.</p>
           </div>
-          <button
-            onClick={openAddModal}
-            className="bg-navy hover:bg-navy-mid text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors shrink-0"
-          >
-            <FiPlus className="w-4 h-4" /> Log Expense
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={downloadExpenseCsvTemplate}
+              className="bg-card border border-border hover:border-border-strong text-secondary px-3.5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"
+              title="Download a CSV template"
+            >
+              <FiDownload className="w-4 h-4" /> Template
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-card border border-border hover:border-border-strong text-secondary px-3.5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"
+            >
+              <FiUpload className="w-4 h-4" /> Import CSV
+            </button>
+            <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleFileSelected} className="hidden" />
+            <button
+              onClick={openAddModal}
+              className="bg-navy hover:bg-navy-mid text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"
+            >
+              <FiPlus className="w-4 h-4" /> Log Expense
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -342,6 +399,81 @@ export const Expenses: React.FC = () => {
                 {submitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                 {submitting ? 'Saving...' : 'Save'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isImportModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-body">Import Expenses</h2>
+                <p className="text-xs text-secondary mt-0.5">{importFileName}</p>
+              </div>
+              <button onClick={() => setIsImportModalOpen(false)} className="text-subtle hover:text-secondary">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+              {importErrors.length > 0 ? (
+                <div className="bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-100">
+                  <div className="flex items-center gap-2 font-semibold mb-2">
+                    <FiAlertTriangle className="w-4 h-4" /> Nothing was imported — fix these and re-upload:
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {importErrors.map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-secondary">
+                    {importRows.length} row(s) ready to import, totalling{' '}
+                    <span className="font-semibold text-body">{formatCurrency(importRows.reduce((s, r) => s + r.amount, 0))}</span>.
+                  </p>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-surface-muted/50">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold text-secondary">Category</th>
+                          <th className="px-3 py-2 font-semibold text-secondary">Amount</th>
+                          <th className="px-3 py-2 font-semibold text-secondary">Date</th>
+                          <th className="px-3 py-2 font-semibold text-secondary">Recurring</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {importRows.slice(0, 20).map((r, i) => (
+                          <tr key={i}>
+                            <td className="px-3 py-2">{r.categoryName}</td>
+                            <td className="px-3 py-2">{formatCurrency(r.amount)}</td>
+                            <td className="px-3 py-2">{r.expenseDate}</td>
+                            <td className="px-3 py-2">{r.isRecurring ? r.recurrenceFrequency : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {importRows.length > 20 && (
+                      <div className="px-3 py-2 text-xs text-subtle bg-surface-muted/50">…and {importRows.length - 20} more row(s)</div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3 bg-surface-muted/50">
+              <button onClick={() => setIsImportModalOpen(false)} disabled={importSubmitting} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-secondary hover:bg-surface-muted transition-colors">
+                Cancel
+              </button>
+              {importErrors.length === 0 && (
+                <button
+                  onClick={handleConfirmImport}
+                  disabled={importSubmitting || importRows.length === 0}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-navy hover:bg-navy-mid transition-colors disabled:opacity-60 flex items-center gap-2"
+                >
+                  {importSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  {importSubmitting ? 'Importing...' : `Import ${importRows.length} Row(s)`}
+                </button>
+              )}
             </div>
           </div>
         </div>

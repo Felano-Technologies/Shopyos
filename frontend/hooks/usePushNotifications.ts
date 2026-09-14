@@ -227,6 +227,13 @@ async function registerForPushNotificationsAsync() {
             lightColor: '#2563EB',
             sound: 'default',
         });
+        await Notifications.setNotificationChannelAsync('calls', {
+            name: 'Calls',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#EF4444',
+            sound: 'default',
+        });
         await Notifications.setNotificationChannelAsync('default', {
             name: 'General',
             importance: Notifications.AndroidImportance.MAX,

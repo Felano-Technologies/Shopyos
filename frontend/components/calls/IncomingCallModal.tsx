@@ -7,6 +7,7 @@ import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { acceptCall, rejectCall } from '@/services/calls';
 import { startRingtone, stopRingtone } from '@/services/callRingtone';
+import { CustomInAppToast } from '@/services/api';
 
 const C = {
   navy: '#0C1559',
@@ -37,7 +38,8 @@ export function IncomingCallModal() {
     try {
       const accepted = await acceptCall(call.callId);
       setAccepted(accepted.startedAt || new Date().toISOString(), { token: accepted.token, appId: accepted.appId });
-    } catch {
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Could not answer', message: error.message || 'The call could not be answered.' });
       reset();
     } finally {
       setBusy(false);

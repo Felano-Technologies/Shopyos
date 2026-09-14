@@ -128,6 +128,41 @@ class NotificationRepository extends BaseRepository {
     return data?.length || 0;
   }
 
+  // --- VoIP Push Token Management ---
+  // Raw native tokens (APNs VoIP device token / FCM registration token),
+  // separate from expo_push_tokens — see migration 064.
+
+  async saveVoipPushToken(userId, platform, token, deviceName = null) {
+    const { data: existing } = await this.db.from('voip_push_tokens').select('id, user_id').eq('token', token).single();
+
+    if (existing) {
+      const updates = { last_used_at: new Date(), platform };
+      if (existing.user_id !== userId) {
+        updates.user_id = userId;
+      }
+      await this.db.from('voip_push_tokens').update(updates).eq('token', token);
+      return;
+    }
+
+    await this.db.from('voip_push_tokens').insert({
+      user_id: userId,
+      platform,
+      token,
+      device_name: deviceName,
+      last_used_at: new Date()
+    });
+  }
+
+  async getUserVoipPushTokens(userId) {
+    const { data, error } = await this.db.from('voip_push_tokens').select('token, platform').eq('user_id', userId);
+    if (error) return [];
+    return data;
+  }
+
+  async removeVoipPushTokenForUser(userId, token) {
+    await this.db.from('voip_push_tokens').delete().eq('token', token).eq('user_id', userId);
+  }
+
   /**
    * Get user notifications with pagination
    * @param {string} userId - User ID

@@ -237,6 +237,50 @@ const unregisterPushToken = async (req, res, next) => {
 };
 
 /**
+ * Register a raw native VoIP push token (APNs device token on iOS, FCM
+ * registration token on Android) — separate from the Expo push token above,
+ * used only for waking the app to ring an incoming call while backgrounded
+ * or killed. See services/voipPushService.js.
+ * @route   POST /api/notifications/voip-push-token
+ * @access  Private
+ */
+const registerVoipPushToken = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { token, platform, deviceName } = req.body;
+
+    if (!token) return ApiResponse.error(res, 'VoIP push token is required', 400);
+    if (!['ios', 'android'].includes(platform)) return ApiResponse.error(res, "platform must be 'ios' or 'android'", 400);
+
+    await repositories.notifications.saveVoipPushToken(userId, platform, token, deviceName);
+
+    ApiResponse.success(res, null, 'VoIP push token registered successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Unregister a device's VoIP push token (called on logout).
+ * @route   DELETE /api/notifications/voip-push-token
+ * @access  Private
+ */
+const unregisterVoipPushToken = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { token } = req.body;
+
+    if (!token) return ApiResponse.error(res, 'VoIP push token is required', 400);
+
+    await repositories.notifications.removeVoipPushTokenForUser(userId, token);
+
+    ApiResponse.success(res, null, 'VoIP push token unregistered successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Mark all message notifications read by conversation ID
  * @route   PUT /api/notifications/read-by-conversation/:conversationId
  * @access  Private
@@ -266,5 +310,7 @@ module.exports = {
   getNotificationsByType,
   registerPushToken,
   unregisterPushToken,
+  registerVoipPushToken,
+  unregisterVoipPushToken,
   markReadByConversation
 };

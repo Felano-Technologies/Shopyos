@@ -2,8 +2,9 @@
 // Thin wrappers over the Phase 1 verification API (backend/routes/verificationRoutes.js)
 // for the seller (and later driver) onboarding wizard.
 
-import { api } from './client';
-import { uriToBlob } from './uploadUtils';
+import { File, UploadType } from 'expo-file-system';
+import { api, API_URL, secureStorage } from './client';
+import { uploadMultipartViaNativeFile } from './uploadUtils';
 
 export type VerificationRole = 'seller' | 'driver';
 
@@ -93,23 +94,38 @@ export const uploadVerificationDocument = async (
     const match = /\.(\w+)$/.exec(filename);
     const ext = match ? match[1] : 'jpg';
     const mimeType = ext.toLowerCase() === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-    const blob = await uriToBlob(uri, mimeType);
-    console.log(`[uploadVerificationDocument] blob ready — size=${blob.size} type=${blob.type} filename=${filename}`);
 
-    const formData = new FormData();
-    formData.append('document', blob, filename);
-    formData.append('stepKey', stepKey);
-    formData.append('documentType', documentType);
-    if (previousDocumentId) formData.append('previousDocumentId', previousDocumentId);
+    // Confirmed via production logs: sending this as an axios/FormData Blob
+    // reaches the server with the right filename/mimetype but 0 actual file
+    // bytes — RN's Blob-native-store bridging isn't reliably attaching the
+    // real content to the outgoing multipart body on this app/architecture.
+    // expo-file-system's own File.upload() does a native multipart upload
+    // directly from the file on disk, bypassing RN's Blob/FormData path
+    // entirely, so it isn't subject to that bug.
+    const file = new File(uri);
+    if (!file.exists || !file.size) {
+      throw new Error('Could not read the selected file — it appears to be empty. Please try picking it again.');
+    }
 
-    const response = await api.post(`/verification/${applicationId}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const token = (await secureStorage.getItem('userToken')) || (await secureStorage.getItem('businessToken'));
+    const parameters: Record<string, string> = { stepKey, documentType };
+    if (previousDocumentId) parameters.previousDocumentId = previousDocumentId;
+
+    const result = await file.upload(`${API_URL}verification/${applicationId}/documents`, {
+      httpMethod: 'POST',
+      uploadType: UploadType.MULTIPART,
+      fieldName: 'document',
+      mimeType,
+      parameters,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    console.log(`[uploadVerificationDocument] server responded ${response.status}`);
-    return response.data?.data;
+
+    const body = result.body ? JSON.parse(result.body) : null;
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(body?.error || 'Failed to upload document');
+    }
+    return body?.data;
   } catch (error: any) {
-    console.log(`[uploadVerificationDocument] FAILED: ${error?.response?.status ?? ''} ${error?.response?.data?.error || error.message}`);
-    if (error.response) throw new Error(error.response.data?.error || 'Failed to upload document');
     throw new Error(error.message || 'Network error uploading document');
   }
 };
@@ -144,28 +160,30 @@ export const submitVerificationLivenessAttempt = async (
   }
 ) => {
   try {
-    const formData = new FormData();
-    formData.append('passed', String(payload.passed));
-    formData.append('challengeSequence', payload.challengeSequence);
-    if (payload.antiSpoofScore !== undefined) formData.append('antiSpoofScore', String(payload.antiSpoofScore));
-    formData.append('methodVersion', payload.methodVersion || 'multi_frame_v1');
-    if (payload.deviceInfo) formData.append('deviceInfo', payload.deviceInfo);
-    if (payload.appVersion) formData.append('appVersion', payload.appVersion);
+    const fields: Record<string, string> = {
+      passed: String(payload.passed),
+      challengeSequence: payload.challengeSequence,
+      methodVersion: payload.methodVersion || 'multi_frame_v1',
+    };
+    if (payload.antiSpoofScore !== undefined) fields.antiSpoofScore = String(payload.antiSpoofScore);
+    if (payload.deviceInfo) fields.deviceInfo = payload.deviceInfo;
+    if (payload.appVersion) fields.appVersion = payload.appVersion;
+    fields.frameLabels = JSON.stringify(payload.frames.map((f) => f.label));
 
-    const frameLabels: string[] = [];
-    for (const frame of payload.frames) {
-      const blob = await uriToBlob(frame.uri, 'image/jpeg');
-      formData.append('frames', blob, `${frame.label}.jpg`);
-      frameLabels.push(frame.label);
+    const token = (await secureStorage.getItem('userToken')) || (await secureStorage.getItem('businessToken'));
+    const { status, body } = await uploadMultipartViaNativeFile(
+      `${API_URL}verification/${applicationId}/liveness`,
+      fields,
+      payload.frames.map((frame) => ({ fieldName: 'frames', filename: `${frame.label}.jpg`, mimeType: 'image/jpeg', uri: frame.uri })),
+      token ? { Authorization: `Bearer ${token}` } : {}
+    );
+
+    const parsed = body ? JSON.parse(body) : null;
+    if (status < 200 || status >= 300) {
+      throw new Error(parsed?.error || 'Failed to submit liveness attempt');
     }
-    formData.append('frameLabels', JSON.stringify(frameLabels));
-
-    const response = await api.post(`/verification/${applicationId}/liveness`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data?.data;
+    return parsed?.data;
   } catch (error: any) {
-    if (error.response) throw new Error(error.response.data?.error || 'Failed to submit liveness attempt');
     throw new Error(error.message || 'Network error submitting liveness attempt');
   }
 };

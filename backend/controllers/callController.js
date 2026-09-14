@@ -27,6 +27,8 @@ const repositories = require('../db/repositories');
 const { generateRtcToken } = require('../utils/agora');
 const { uploadImage, resolveImageUrl, transformImageUrlsAsync } = require('../config/storage');
 const { publishRealtimeEvent } = require('../services/realtimePublisher');
+const notificationService = require('../services/notificationService');
+const { sendVoipPush } = require('../services/voipPushService');
 const { logger } = require('../config/logger');
 
 const CALL_DURATION_SECONDS = 30;
@@ -179,6 +181,18 @@ const initiateCall = async (req, res, next) => {
       channelName,
     });
 
+    // Best-effort — a socket-based ring only reaches a foregrounded/still-
+    // connected app; this is what wakes a backgrounded/killed one. Must
+    // never block/fail call initiation if VoIP push isn't configured yet or
+    // the send itself fails (see voipPushService.js).
+    sendVoipPush(receiverId, {
+      callId: call.id,
+      channelName,
+      callerId,
+      callerName: callerInfo?.name || 'Unknown caller',
+      callerAvatar: callerInfo?.avatarUrl || '',
+    }).catch((err) => logger.error('[Calls] VoIP push failed', { callId: call.id, error: err.message }));
+
     const timer = setTimeout(async () => {
       try {
         const current = await repositories.calls.findById(call.id);
@@ -189,6 +203,16 @@ const initiateCall = async (req, res, next) => {
             recording_status: 'not_recorded',
           });
           emitToUser(callerId, 'call:missed', { callId: call.id });
+          await notificationService.sendNotification({
+            userId: receiverId,
+            type: 'call_missed',
+            title: 'Missed Call',
+            message: `You missed a call from ${callerInfo?.name || 'someone'}.`,
+            data: { callId: call.id, callerId },
+            relatedId: call.id,
+            relatedType: 'call',
+            push: { data: { screen: 'calls', callId: call.id } },
+          });
         }
       } catch (err) {
         logger.error('[Calls] Ring timeout handling failed', { callId: call.id, error: err.message });

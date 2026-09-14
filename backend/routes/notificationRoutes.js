@@ -15,6 +15,8 @@ const {
   getNotificationsByType,
   registerPushToken,
   unregisterPushToken,
+  registerVoipPushToken,
+  unregisterVoipPushToken,
   markReadByConversation
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/authMiddleware');
@@ -422,6 +424,19 @@ router.post('/push-token', registerPushToken);
  *         description: Unauthorized — missing or invalid token
  */
 router.delete('/push-token', unregisterPushToken);
+
+// @route   POST /api/notifications/voip-push-token
+// @desc    Register a raw native VoIP push token (APNs device token / FCM
+//          registration token) — used only to wake the app to ring an
+//          incoming call while backgrounded/killed, separate from the Expo
+//          push token above.
+// @access  Private
+router.post('/voip-push-token', registerVoipPushToken);
+
+// @route   DELETE /api/notifications/voip-push-token
+// @desc    Unregister a device's VoIP push token (logout)
+// @access  Private
+router.delete('/voip-push-token', unregisterVoipPushToken);
 
 router.delete('/:notificationId', deleteNotification);
 

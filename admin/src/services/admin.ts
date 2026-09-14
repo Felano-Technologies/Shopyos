@@ -102,6 +102,10 @@ export const updateExpense = async (id: string, data: {
   isRecurring?: boolean; recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly'; recurrenceEndDate?: string;
 }) => { const response = await api.put(`/admin/expenses/${id}`, data); return response.data; };
 export const deleteExpense = async (id: string) => { const response = await api.delete(`/admin/expenses/${id}`); return response.data; };
+export const bulkCreateExpenses = async (rows: Array<{
+  categoryId?: string; categoryName?: string; amount: number; description?: string; expenseDate: string;
+  isRecurring?: boolean; recurrenceFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly'; recurrenceEndDate?: string;
+}>) => { const response = await api.post('/admin/expenses/bulk', { rows }); return response.data; };
 
 // Payouts — the real seller+driver payout pipeline (Paystack transfers, balance refunds).
 // Lives under /payouts, not /admin/payouts: that legacy admin route only flips a status

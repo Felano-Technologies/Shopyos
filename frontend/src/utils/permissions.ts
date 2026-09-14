@@ -69,6 +69,20 @@ export const requestMicrophonePermissionWithDisclosure = async (): Promise<{ sta
   return await requestRecordingPermissionsAsync();
 };
 
+export const requestCallMicrophonePermissionWithDisclosure = async (): Promise<{ status: string }> => {
+  const existing = await getRecordingPermissionsAsync();
+  if (existing.status === 'granted') return existing;
+
+  const consented = await requestPermissionDisclosure({
+    icon: 'mic',
+    title: 'Microphone Access',
+    description: 'Shopyos needs microphone access so the other person on a call can hear you.',
+  });
+  if (!consented) return { status: 'denied' };
+
+  return await requestRecordingPermissionsAsync();
+};
+
 export const requestNotificationPermissionWithDisclosure = async (): Promise<{ status: Notifications.PermissionStatus }> => {
   const existing = await Notifications.getPermissionsAsync();
   if (existing.status === 'granted') return existing;

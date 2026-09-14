@@ -5,6 +5,7 @@ const CHANNEL_RULES = [
   { prefix: 'order',       channel: 'orders'   },
   { prefix: 'delivery',    channel: 'orders'   },
   { prefix: 'new_message', channel: 'messages' },
+  { prefix: 'call',        channel: 'calls'    },
 ];
 
 const TTL_RULES = [
@@ -12,6 +13,7 @@ const TTL_RULES = [
   { prefix: 'delivery',    ttl: 86400  },  // 24 h
   { prefix: 'new_message', ttl: 3600   },  // 1 h  — chat messages lose value fast
   { prefix: 'promotion',   ttl: 604800 },  // 7 d  — promos can wait
+  { prefix: 'call',        ttl: 3600   },  // 1 h  — a missed-call notice is stale fast too
 ];
 
 const DEFAULT_CHANNEL = 'default';

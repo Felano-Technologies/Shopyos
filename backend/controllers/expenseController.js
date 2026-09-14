@@ -131,6 +131,66 @@ const createExpense = async (req, res, next) => {
   }
 };
 
+// Bulk import (CSV upload, parsed client-side into rows) — each row is
+// validated against the same rules as a single createExpense, plus a
+// categoryName lookup (friendlier for a hand-filled CSV than requiring raw
+// UUIDs). Nothing is written unless every row passes, so an admin fixing a
+// typo doesn't have to guess which rows already landed.
+const bulkCreateExpenses = async (req, res, next) => {
+  try {
+    const { rows } = req.body;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return ApiResponse.error(res, 'rows must be a non-empty array', 400);
+    }
+    if (rows.length > 1000) {
+      return ApiResponse.error(res, 'A single import is limited to 1000 rows — split larger files.', 400);
+    }
+
+    const categories = await repositories.expenses.getCategories({});
+    const byName = new Map(categories.map((c) => [c.name.trim().toLowerCase(), c.id]));
+    const byId = new Set(categories.map((c) => c.id));
+
+    const errors = [];
+    const prepared = [];
+    rows.forEach((row, index) => {
+      const rowNum = index + 1;
+      let categoryId = row.categoryId;
+      if (!categoryId && row.categoryName) {
+        categoryId = byName.get(String(row.categoryName).trim().toLowerCase());
+        if (!categoryId) {
+          errors.push(`Row ${rowNum}: category "${row.categoryName}" was not found`);
+          return;
+        }
+      } else if (categoryId && !byId.has(categoryId)) {
+        errors.push(`Row ${rowNum}: unknown categoryId`);
+        return;
+      }
+
+      const { error: validationError, data } = validateExpensePayload({ ...row, categoryId });
+      if (validationError) {
+        errors.push(`Row ${rowNum}: ${validationError}`);
+        return;
+      }
+      prepared.push(data);
+    });
+
+    if (errors.length > 0) {
+      // `details` is dropped outside development (ApiResponse.error), and
+      // these row errors are exactly what the admin needs to fix their CSV
+      // — so they go directly in `message`, not `details`.
+      return ApiResponse.error(res, `${errors.length} row(s) failed validation — nothing was imported:\n${errors.join('\n')}`, 400);
+    }
+
+    const created = [];
+    for (const data of prepared) {
+      created.push(await repositories.expenses.createExpense({ ...data, created_by: req.user.id }));
+    }
+    ApiResponse.withEntity(res, 'expenses', created, `${created.length} expense(s) imported`, null, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateExpense = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -161,6 +221,7 @@ module.exports = {
   toggleExpenseCategory,
   getExpenses,
   createExpense,
+  bulkCreateExpenses,
   updateExpense,
   deleteExpense,
 };

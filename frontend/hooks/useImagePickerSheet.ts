@@ -32,12 +32,8 @@ export function useImagePickerSheet() {
       ? await ImagePicker.launchCameraAsync(pickerOpts)
       : await ImagePicker.launchImageLibraryAsync(pickerOpts);
 
-    if (result.canceled) {
-      console.log('[imagePicker] cancelled');
-      return null;
-    }
+    if (result.canceled) return null;
     const asset = result.assets[0];
-    console.log(`[imagePicker] picked asset.uri=${asset.uri} fileSize=${asset.fileSize ?? 'unknown'} mimeType=${asset.mimeType ?? 'unknown'} base64Length=${asset.base64?.length ?? 0}`);
 
     // A gallery pick can point at an iCloud-optimized-storage photo that
     // hasn't actually been downloaded to the device yet — the returned
@@ -56,17 +52,10 @@ export function useImagePickerSheet() {
         const file = new File(Paths.cache, `picked-${Date.now()}-${Math.round(Math.random() * 1e6)}.jpg`);
         file.create({ overwrite: true });
         file.write(asset.base64, { encoding: 'base64' });
-        console.log(`[imagePicker] wrote base64 to ${file.uri} — exists=${file.exists} size=${file.size}`);
-        if (!file.exists || !file.size) {
-          console.log('[imagePicker] written file is empty/missing despite base64 write — falling back to asset.uri');
-        } else {
-          return file.uri;
-        }
-      } catch (err: any) {
-        console.log(`[imagePicker] base64 write FAILED: ${err?.message || err}`);
+        if (file.exists && file.size) return file.uri;
+      } catch {
+        // fall through to the raw asset uri below
       }
-    } else {
-      console.log('[imagePicker] no base64 returned by picker — using asset.uri directly');
     }
     return asset.uri;
   };
