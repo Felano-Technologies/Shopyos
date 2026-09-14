@@ -39,7 +39,7 @@
 // consent.tsx's file header for why this lives under business/onboarding).
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import Svg, { Circle } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -72,8 +72,14 @@ const GET_READY_MS = 2500;
 const POLL_INTERVAL_MS = 550;
 const DETECTION_TIMEOUT_MS = 8000;
 
-const RING_SIZE = 260;
-const RING_STROKE_WIDTH = 6;
+// Sized off the actual screen width so the guide fills most of it — the
+// user shouldn't have to physically step back from the camera to fit their
+// head inside a small fixed box.
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const OVAL_WIDTH = Math.round(SCREEN_WIDTH * 0.82);
+const OVAL_HEIGHT = Math.round(OVAL_WIDTH * 1.35);
+const RING_STROKE_WIDTH = 7;
+const RING_SIZE = OVAL_HEIGHT + 40; // comfortably encloses the oval guide
 const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -142,6 +148,7 @@ export default function LivenessCaptureScreen() {
   const [stepIndex, setStepIndex] = useState(-1); // -1 = capturing baseline, before any challenge
   const [phase, setPhase] = useState<Phase>('baseline');
   const [readySeconds, setReadySeconds] = useState(Math.ceil(GET_READY_MS / 1000));
+  const [progress, setProgress] = useState(0); // 0-1, driven only by computeChallengeProgress — see ProgressRing
   const [submitting, setSubmitting] = useState(false);
   const framesRef = useRef<CapturedFrame[]>([]);
   const baselineFaceRef = useRef<Face | null>(null);
@@ -205,6 +212,7 @@ export default function LivenessCaptureScreen() {
       clearInterval(readyTickId);
       if (stopped || cancelledRef.current) return;
       setPhase('detecting');
+      setProgress(0);
 
       const challenge = challenges[stepIndex];
       const deadline = Date.now() + DETECTION_TIMEOUT_MS;
@@ -214,9 +222,18 @@ export default function LivenessCaptureScreen() {
         const uri = await takePhoto();
         if (!uri) { await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS)); continue; }
         const face = await detectFace(uri);
-        if (face && baselineFaceRef.current && challengeSatisfied(challenge.id, baselineFaceRef.current, face)) {
-          detectedUri = uri;
-          break;
+        // Progress is recomputed from scratch on every poll and reported
+        // immediately — this is the actual detection result driving the
+        // ring, not a separate animation. No face this cycle just means no
+        // update (not a reset to 0), since a momentary missed detection
+        // shouldn't visibly punish someone mid-turn.
+        if (face && baselineFaceRef.current) {
+          const p = computeChallengeProgress(challenge.id, baselineFaceRef.current, face);
+          setProgress(p);
+          if (p >= 1) {
+            detectedUri = uri;
+            break;
+          }
         }
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       }
@@ -230,6 +247,10 @@ export default function LivenessCaptureScreen() {
       const finalUri = detectedUri || (await takePhoto());
       if (finalUri) framesRef.current.push({ label: challenge.id, uri: finalUri });
 
+      // Only snap the ring to full when the challenge was actually detected
+      // (detectedUri set) — a timeout fallback leaves the ring wherever real
+      // detection last put it, since that reading is the honest result.
+      if (detectedUri) setProgress(1);
       setPhase('success');
       setTimeout(() => {
         if (cancelledRef.current) return;
@@ -340,13 +361,14 @@ export default function LivenessCaptureScreen() {
     promptContent = (
       <>
         <Text style={styles.promptText}>{currentChallenge.label}</Text>
-        <Text style={styles.subPromptText}>Hold the pose — we'll capture automatically</Text>
-        <ActivityIndicator color="#FFF" style={{ marginTop: 8 }} />
+        <Text style={styles.subPromptText}>{progress > 0 ? `${Math.round(progress * 100)}% — keep going` : "We'll capture automatically"}</Text>
       </>
     );
   } else {
     promptContent = (<><ActivityIndicator color="#FFF" /><Text style={styles.promptText}>Verifying…</Text></>);
   }
+
+  const ringColor = phase === 'success' ? '#22C55E' : progress >= 1 ? '#22C55E' : colors.accent;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -357,6 +379,9 @@ export default function LivenessCaptureScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
             <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
+          {(phase === 'detecting' || phase === 'success') && (
+            <ProgressRing progress={phase === 'success' ? 1 : progress} color={ringColor} />
+          )}
           <View style={[styles.faceOval, { borderColor: ovalColor }]} />
           <View style={styles.promptBox}>{promptContent}</View>
         </View>
@@ -374,7 +399,7 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   camera: { flex: 1 },
   overlay: { justifyContent: 'center', alignItems: 'center' },
   closeBtn: { position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  faceOval: { width: 220, height: 280, borderRadius: 140, borderWidth: 3 },
+  faceOval: { width: OVAL_WIDTH, height: OVAL_HEIGHT, borderRadius: OVAL_HEIGHT / 2, borderWidth: 3 },
   promptBox: { position: 'absolute', bottom: 80, alignItems: 'center', paddingHorizontal: 24 },
   promptText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold', marginBottom: 4, textAlign: 'center' },
   subPromptText: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Montserrat-Medium', marginBottom: 8, textAlign: 'center' },
