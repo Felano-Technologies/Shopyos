@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { useDriverGuard } from '@/hooks/useDriverGuard';
 import { useAllUnreadCount } from '@/hooks/useChat';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
 import WelcomeCard from '@/components/WelcomeCard';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import {
 
   stopDriverLocationTracking,
@@ -280,6 +282,34 @@ export default function Dashboard() {
     }
   }, [refetchStats, refetchActive, refetchAvailable]);
 
+  // --- Onboarding tour (mirrors business/analytics.tsx's pattern) ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refToggle = useRef<View>(null);
+  const refStats = useRef<View>(null);
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (isChecking) return;
+    const timer = setTimeout(() => {
+      measureElement(refToggle, 'toggle');
+      measureElement(refStats, 'stats');
+      startTour('driver_dashboard');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChecking]);
+  const onboardingSteps = [
+    { targetLayout: layouts.toggle, title: 'Go Online', description: 'Toggle this to go online and start receiving delivery requests nearby.' },
+    { targetLayout: layouts.stats, title: 'Your Stats', description: "Track today's earnings, completed deliveries, and total rides at a glance." },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('driver_dashboard');
+
   // Track which specific card is being accepted so only its button spins
   // (assignDriverMutation.isPending is global and would light up every card).
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -354,7 +384,7 @@ export default function Dashboard() {
               </View>
             </View>
             {/* Online Toggle */}
-            <View style={styles.toggleContainer}>
+            <View style={styles.toggleContainer} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
               <Text style={[styles.toggleLabel, { color: isOnline ? colors.accent : colors.textMuted }]}>
                 {isOnline ? 'ON' : 'OFF'}
               </Text>
@@ -368,7 +398,7 @@ export default function Dashboard() {
             </View>
           </View>
           {/* Daily Stats */}
-          <View style={styles.statsContainer}>
+          <View style={styles.statsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Today&apos;s Earnings</Text>
               <Text style={styles.statValue}>{formatCurrency(stats.earnings)}</Text>
@@ -477,6 +507,12 @@ export default function Dashboard() {
         )}
       </TouchableOpacity>
       <WelcomeCard />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'driver_dashboard'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

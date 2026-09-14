@@ -665,7 +665,15 @@ async function listApplicationsAdmin(req, res) {
       limit: limit ? Number(limit) : 25,
       offset: offset ? Number(offset) : 0,
     });
-    return ApiResponse.paginated(res, result.applications, { total: result.total });
+    // Every other admin list endpoint in this app (getAllStores,
+    // getDriverVerifications, ...) returns its array under a named entity
+    // key, not the generic `data` key ApiResponse.paginated() uses — every
+    // frontend call site here (StoreDetail/RiderDetail/InProgressApplications)
+    // reads response.applications to match that convention. Using
+    // .paginated() silently broke every lookup: the key it actually wrote
+    // never matched what anything read, so this always looked like "no
+    // application found" regardless of what was really in the database.
+    return ApiResponse.withEntity(res, 'applications', result.applications, null, { total: result.total });
   } catch (error) {
     logger.error('listApplicationsAdmin failed', { error: error.message });
     return ApiResponse.error(res, 'Failed to list applications', 500);
