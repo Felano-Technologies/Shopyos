@@ -82,7 +82,12 @@ async function _backfillStepsFromEntity(application, steps) {
     if (!isEmpty(stepKey)) continue;
     const cleanFields = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== null && v !== undefined));
     if (Object.keys(cleanFields).length === 0) continue;
-    const updated = await repositories.verification.upsertStep(application.id, stepKey, { data: cleanFields });
+    // status defaults to 'not_started' (DB column default) if left unset,
+    // which computeOverallProgress() weighs as 0% — leaving the progress
+    // bar stuck at 0 even once real data has been backfilled in. Mark it
+    // 'in_progress' (not 'complete') since the applicant hasn't explicitly
+    // reviewed/saved this step themselves yet.
+    const updated = await repositories.verification.upsertStep(application.id, stepKey, { data: cleanFields, status: 'in_progress' });
     stepMap.set(stepKey, updated);
   }
 
