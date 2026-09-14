@@ -7,6 +7,7 @@ const AdminLayout = React.lazy(() => import('../components/admin/AdminLayout').t
 const DashboardOverview = React.lazy(() => import('../pages/DashboardOverview').then(m => ({ default: m.DashboardOverview })));
 const UserManagement = React.lazy(() => import('../pages/UserManagement').then(m => ({ default: m.UserManagement })));
 const StoreManagement = React.lazy(() => import('../pages/StoreManagement').then(m => ({ default: m.StoreManagement })));
+const StoreDetail = React.lazy(() => import('../pages/StoreDetail').then(m => ({ default: m.StoreDetail })));
 const AdminOrders = React.lazy(() => import('../pages/Orders').then(m => ({ default: m.Orders })));
 const AuditLogs = React.lazy(() => import('../pages/AuditLogs').then(m => ({ default: m.AuditLogs })));
 const VerificationChangeRequests = React.lazy(() => import('../pages/VerificationChangeRequests').then(m => ({ default: m.VerificationChangeRequests })));
@@ -20,6 +21,7 @@ const Disclaimers = React.lazy(() => import('../pages/Disclaimers').then(m => ({
 const Payouts = React.lazy(() => import('../pages/Payouts').then(m => ({ default: m.Payouts })));
 const Deliveries = React.lazy(() => import('../pages/Deliveries').then(m => ({ default: m.Deliveries })));
 const RiderManagement = React.lazy(() => import('../pages/RiderManagement').then(m => ({ default: m.RiderManagement })));
+const RiderDetail = React.lazy(() => import('../pages/RiderDetail').then(m => ({ default: m.RiderDetail })));
 const Hubs = React.lazy(() => import('../pages/Hubs').then(m => ({ default: m.Hubs })));
 const Ads = React.lazy(() => import('../pages/Ads').then(m => ({ default: m.Ads })));
 const Notifications = React.lazy(() => import('../pages/Notifications').then(m => ({ default: m.Notifications })));
@@ -67,6 +69,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<DashboardOverview />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="stores" element={<StoreManagement />} />
+          <Route path="stores/:id" element={<StoreDetail />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="categories" element={<Categories />} />
           <Route path="flash-sales" element={<FlashSales />} />
@@ -77,6 +80,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="payouts" element={<Payouts />} />
           <Route path="deliveries" element={<Deliveries />} />
           <Route path="riders" element={<RiderManagement />} />
+          <Route path="riders/:id" element={<RiderDetail />} />
           <Route path="hubs" element={<Hubs />} />
           <Route path="ads" element={<Ads />} />
           <Route path="notifications" element={<Notifications />} />

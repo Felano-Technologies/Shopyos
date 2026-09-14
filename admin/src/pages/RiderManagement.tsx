@@ -1,13 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import {
-  FiCheckCircle, FiXCircle, FiClock, FiTruck, FiX, FiUser, FiSearch, FiTrash2, FiEye,
-} from 'react-icons/fi';
-import {
-  getDriverVerifications, approveDriverVerification, rejectDriverVerification, adminDeleteUser,
-  getDriverLivenessAdmin, getLivenessFrameSignedUrl,
-} from '../services/admin';
-import { extractErrorMessage } from '../services/client';
+import { useNavigate } from 'react-router-dom';
+import { FiCheckCircle, FiXCircle, FiClock, FiTruck, FiSearch } from 'react-icons/fi';
+import { getDriverVerifications } from '../services/admin';
 import { TableRowsSkeleton } from '../components/common/TableRowsSkeleton';
 import { InProgressApplications } from '../components/admin/InProgressApplications';
 
@@ -49,20 +44,12 @@ const RiderAvatar: React.FC<{ url?: string; name?: string }> = ({ url, name }) =
 };
 
 export const RiderManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [riders, setRiders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [busyRiderId, setBusyRiderId] = useState<string | null>(null);
-
-  const [selectedRider, setSelectedRider] = useState<any | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [showRejectForm, setShowRejectForm] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [livenessAttempts, setLivenessAttempts] = useState<any[]>([]);
-  const [livenessLoading, setLivenessLoading] = useState(false);
 
   const fetchRiders = () => {
     setLoading(true);
@@ -89,86 +76,12 @@ export const RiderManagement: React.FC = () => {
     rejected: riders.filter((r) => r.verification_status === 'rejected').length,
   }), [riders]);
 
-  const handleDelete = async (rider: any) => {
-    if (!window.confirm(`Permanently delete rider ${rider.full_name || rider.email}? This will deactivate their account and cannot be undone from here.`)) {
-      return;
-    }
-    setBusyRiderId(rider.id);
-    try {
-      await adminDeleteUser(rider.user_id_val);
-      setRiders((prev) => prev.filter((r) => r.id !== rider.id));
-      setSelectedRider(null);
-    } catch (err) {
-      console.error('Failed to delete rider', err);
-      window.alert(extractErrorMessage(err));
-    } finally {
-      setBusyRiderId(null);
-    }
-  };
-
-  const openReview = (rider: any) => {
-    setSelectedRider(rider);
-    setShowRejectForm(false);
-    setRejectReason('');
-    setActionError(null);
-    setLivenessAttempts([]);
-    setLivenessLoading(true);
-    getDriverLivenessAdmin(rider.id)
-      .then((res) => setLivenessAttempts(Array.isArray(res?.attempts) ? res.attempts : []))
-      .catch((err) => console.error('Failed to load liveness attempts', err))
-      .finally(() => setLivenessLoading(false));
-  };
-
-  const viewLivenessFrame = async (attemptId: string, label: string) => {
-    try {
-      const res = await getLivenessFrameSignedUrl(attemptId, label);
-      const url = res?.frame?.signedUrl;
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      window.alert(extractErrorMessage(err));
-    }
-  };
-
-  const handleAction = async (action: 'approve' | 'reject', reason?: string) => {
-    if (!selectedRider) return;
-    setActionLoading(true);
-    setActionError(null);
-    try {
-      if (action === 'approve') {
-        await approveDriverVerification(selectedRider.id);
-        updateLocalStatus(selectedRider.id, 'verified');
-      } else {
-        await rejectDriverVerification(selectedRider.id, reason || '');
-        updateLocalStatus(selectedRider.id, 'rejected', reason);
-      }
-      setShowRejectForm(false);
-      setRejectReason('');
-    } catch (err) {
-      setActionError(extractErrorMessage(err));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const updateLocalStatus = (id: string, status: string, reason?: string) => {
-    setRiders((prev) => prev.map((r) => (r.id === id ? { ...r, status, verification_status: status, rejection_reason: reason || r.rejection_reason } : r)));
-    setSelectedRider((prev: any) => prev && { ...prev, status, verification_status: status, rejection_reason: reason || prev.rejection_reason });
-  };
-
   const statCards = [
     { label: 'Total Riders', value: stats.total, icon: <FiTruck className="w-4 h-4" />, iconBg: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
     { label: 'Verified', value: stats.verified, icon: <FiCheckCircle className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
     { label: 'Pending', value: stats.pending, icon: <FiClock className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
     { label: 'Rejected', value: stats.rejected, icon: <FiXCircle className="w-4 h-4" />, iconBg: 'bg-red-50 text-red-600', accent: 'bg-red-500' },
   ];
-
-  const documents = selectedRider ? [
-    { label: 'National ID', url: selectedRider.id_image },
-    { label: "Driver's License", url: selectedRider.license_image },
-    { label: 'Insurance', url: selectedRider.insurance_image },
-    { label: 'Vehicle Registration', url: selectedRider.vehicle_reg_image },
-    { label: 'Roadworthy Certificate', url: selectedRider.roadworthy_image },
-  ].filter((d) => d.url) : [];
 
   return (
     <>
@@ -273,19 +186,9 @@ export const RiderManagement: React.FC = () => {
                         {rider.created_at ? new Date(rider.created_at).toLocaleDateString() : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-3">
-                          <button onClick={() => openReview(rider)} className="text-navy hover:text-navy/70 transition-colors font-semibold">
-                            Review
-                          </button>
-                          <button
-                            onClick={() => handleDelete(rider)}
-                            disabled={busyRiderId === rider.id}
-                            title="Delete rider"
-                            className="p-1.5 rounded-lg border border-border text-subtle hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                          >
-                            <FiTrash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        <button onClick={() => navigate(`/riders/${rider.id}`)} className="text-navy hover:text-navy/70 transition-colors font-semibold">
+                          Review
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -295,145 +198,6 @@ export const RiderManagement: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Review modal */}
-      {selectedRider && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center font-bold text-secondary overflow-hidden shrink-0">
-                  <RiderAvatar url={selectedRider.avatar_url} name={selectedRider.full_name} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-body">{selectedRider.full_name || 'Unknown Rider'}</h2>
-                  <StatusPill status={selectedRider.verification_status} />
-                </div>
-              </div>
-              <button onClick={() => setSelectedRider(null)} className="text-subtle hover:text-secondary">
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-
-            {actionError && (
-              <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm font-medium border border-red-100">{actionError}</div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-              <div><p className="text-xs text-subtle uppercase font-semibold">Phone</p><p className="text-body">{selectedRider.phone || 'N/A'}</p></div>
-              <div><p className="text-xs text-subtle uppercase font-semibold">Email</p><p className="text-body">{selectedRider.email || 'N/A'}</p></div>
-              <div><p className="text-xs text-subtle uppercase font-semibold">Vehicle Type</p><p className="text-body capitalize">{selectedRider.vehicle_type || 'N/A'}</p></div>
-              <div><p className="text-xs text-subtle uppercase font-semibold">Make / Model</p><p className="text-body">{[selectedRider.vehicle_make, selectedRider.vehicle_model].filter(Boolean).join(' ') || 'N/A'}</p></div>
-              <div><p className="text-xs text-subtle uppercase font-semibold">Plate Number</p><p className="text-body">{selectedRider.vehicle_plate || 'N/A'}</p></div>
-            </div>
-
-            {documents.length > 0 ? (
-              <div className="mb-4">
-                <p className="text-xs text-subtle uppercase font-semibold mb-2">Documents</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {documents.map((doc) => (
-                    <a key={doc.label} href={doc.url} target="_blank" rel="noreferrer" className="block">
-                      <img src={doc.url} alt={doc.label} className="w-full h-24 object-cover rounded-lg bg-surface-muted border border-border" />
-                      <p className="text-xs text-secondary mt-1">{doc.label}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-subtle mb-4">
-                <FiUser className="w-4 h-4" /> No documents uploaded yet.
-              </div>
-            )}
-
-            {(livenessLoading || livenessAttempts.length > 0) && (
-              <div className="mb-4">
-                <p className="text-xs text-subtle uppercase font-semibold mb-2">Liveness Verification</p>
-                {livenessLoading ? (
-                  <p className="text-sm text-secondary">Loading...</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {livenessAttempts.map((attempt) => (
-                      <div key={attempt.id} className="border border-border rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-body">Attempt #{attempt.attemptNumber}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${attempt.passed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                            {attempt.passed ? 'Passed' : 'Failed'}
-                          </span>
-                        </div>
-                        {attempt.antiSpoofScore != null && (
-                          <p className="text-xs text-secondary mb-2">Anti-spoof score: {Number(attempt.antiSpoofScore).toFixed(3)}</p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {(attempt.frames || []).map((f: any) => (
-                            <button
-                              key={f.label}
-                              onClick={() => viewLivenessFrame(attempt.id, f.label)}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-xs text-body hover:border-navy/30 hover:bg-surface-muted transition-colors"
-                            >
-                              <FiEye className="w-3.5 h-3.5 text-subtle" /> {f.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selectedRider.verification_status === 'rejected' && selectedRider.rejection_reason && (
-              <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
-                <p className="text-xs text-red-500 uppercase font-semibold mb-1">Rejection Reason</p>
-                <p className="text-sm text-red-700">{selectedRider.rejection_reason}</p>
-              </div>
-            )}
-
-            {showRejectForm ? (
-              <div className="flex flex-col gap-2">
-                <textarea
-                  autoFocus
-                  placeholder="Reason for rejection..."
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-muted border border-border text-sm focus:outline-none focus:ring-1 focus:ring-navy focus:border-navy min-h-[80px]"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowRejectForm(false)}
-                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-border text-secondary hover:bg-surface-muted transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleAction('reject', rejectReason)}
-                    disabled={!rejectReason.trim() || actionLoading}
-                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {actionLoading ? '...' : 'Submit Rejection'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowRejectForm(true)}
-                  disabled={actionLoading || selectedRider.verification_status === 'rejected'}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => handleAction('approve')}
-                  disabled={actionLoading || selectedRider.verification_status === 'verified'}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-navy text-white hover:bg-navy/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {actionLoading ? '...' : 'Approve'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 };

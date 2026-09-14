@@ -27,8 +27,6 @@ export const adminDeleteStore = async (storeId: string) => {
   const response = await api.delete(`/admin/stores/${storeId}`);
   return response.data;
 };
-export const getStoreLivenessAdmin = async (storeId: string) => { const response = await api.get(`/admin/stores/${storeId}/liveness`); return response.data; };
-export const getDriverLivenessAdmin = async (driverProfileId: string) => { const response = await api.get(`/admin/driver-verifications/${driverProfileId}/liveness`); return response.data; };
 export const getLivenessFrameSignedUrl = async (attemptId: string, label: string) => { const response = await api.get(`/verification/liveness/${attemptId}/frames/${label}/signed-url`); return response.data; };
 export const getVerificationDocumentSignedUrl = async (documentId: string) => { const response = await api.get(`/verification/documents/${documentId}/signed-url`); return response.data; };
 export const getAdminAuditLogs = async (params?: any) => { const response = await api.get('/admin/audit-logs', { params }); return response.data; };

@@ -52,6 +52,7 @@ async function _backfillStepsFromEntity(application, steps) {
       business: {
         businessName: store.store_name, description: store.description,
         businessCategory: store.category, registrationNumber: store.registration_number,
+        taxIdentificationNumber: store.tax_id,
       },
       shop_location: {
         shopName: store.store_name, addressLine1: store.address_line1, city: store.city,
@@ -416,6 +417,7 @@ async function _createStoreFromApplication(application, steps, userId) {
     state_province: shop.region || null,
     country: shop.country || personal.countryOfResidence || '',
     registration_number: business.registrationNumber || null,
+    tax_id: business.taxIdentificationNumber || null,
     business_cert_url: latestDocOfType('business_cert')?.storage_key || null,
     ghana_card_url: latestDocOfType('identity')?.storage_key || null,
     proof_of_bank_url: latestDocOfType('proof_of_bank')?.storage_key || null,

@@ -82,6 +82,7 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
         ],
       },
       { key: 'registrationNumber', label: 'Registration number (if registered)' },
+      { key: 'taxIdentificationNumber', label: 'Tax Identification Number (TIN) (if registered)' },
       {
         key: 'applicantRelationship', label: 'Your relationship to this business',
         options: [
