@@ -19,7 +19,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { TextField, PillGroup, DocumentField } from '@/components/onboarding/FormControls';
+import { TextField, PillGroup, DocumentField, SectionHeader } from '@/components/onboarding/FormControls';
 import { DateField } from '@/components/onboarding/DateField';
 import { LocationField } from '@/components/onboarding/LocationField';
 import {
@@ -39,7 +39,7 @@ type FieldSchema = {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   multiline?: boolean;
   icon?: FeatherIconName;
-  type?: 'text' | 'date' | 'location';
+  type?: 'text' | 'date' | 'location' | 'section';
   options?: { value: string; label: string }[];
 };
 
@@ -51,11 +51,14 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   personal_info: {
     title: 'Personal Information',
     fields: [
+      { key: 'section-name', label: 'Legal Name', type: 'section' },
       { key: 'legalFirstName', label: 'Legal first name', icon: 'user' },
       { key: 'legalLastName', label: 'Legal last name', icon: 'user' },
       { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+      { key: 'section-contact', label: 'Contact Details', type: 'section' },
       { key: 'phone', label: 'Phone number', icon: 'phone', keyboardType: 'phone-pad' },
       { key: 'email', label: 'Email address', icon: 'mail', keyboardType: 'email-address' },
+      { key: 'section-address', label: 'Residential Address', type: 'section' },
       { key: 'countryOfResidence', label: 'Country of residence', icon: 'flag' },
       { key: 'residentialAddress', label: 'Residential address', icon: 'map-pin', multiline: true },
     ],
@@ -87,6 +90,7 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   vehicle: {
     title: 'Vehicle Information',
     fields: [
+      { key: 'section-details', label: 'Vehicle Details', type: 'section' },
       {
         key: 'vehicleType', label: 'Vehicle type',
         options: [
@@ -101,8 +105,10 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
       { key: 'year', label: 'Year', icon: 'calendar', keyboardType: 'numeric' },
       { key: 'colour', label: 'Colour', icon: 'droplet' },
       { key: 'plateNumber', label: 'Registration/plate number', icon: 'hash' },
+      { key: 'section-insurance', label: 'Insurance', type: 'section' },
       { key: 'insurancePolicyNumber', label: 'Insurance policy number', icon: 'shield' },
       { key: 'insuranceExpiryDate', label: 'Insurance expiry date', type: 'date' },
+      { key: 'section-ownership', label: 'Ownership', type: 'section' },
       {
         key: 'relationship', label: 'Your relationship to this vehicle',
         options: [
@@ -232,7 +238,10 @@ export default function DriverVerificationStepScreen() {
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {schema.fields.map((field) => {
+          {schema.fields.map((field, index) => {
+            if (field.type === 'section') {
+              return <SectionHeader key={field.key} label={field.label} first={index === 0} />;
+            }
             if (field.type === 'location') {
               return (
                 <LocationField
@@ -294,7 +303,7 @@ export default function DriverVerificationStepScreen() {
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: c.background },
+  safeArea: { flex: 1, backgroundColor: c.backgroundAlt },
   header: { paddingTop: 8, paddingBottom: 16, paddingHorizontal: 8 },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

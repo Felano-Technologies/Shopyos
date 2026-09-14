@@ -9,7 +9,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,18 @@ const STEP_LABELS: Record<string, string> = {
   business: 'Business Information',
   shop_location: 'Shop Location',
   payout: 'Payout Information',
+};
+
+// What each step is ABOUT, shown in a tinted badge — separate from the
+// status icon (checkmark/alert/etc.), which now lives in a small pill next
+// to the label instead of replacing the topic icon entirely.
+const STEP_ICONS: Record<string, React.ComponentProps<typeof Feather>['name']> = {
+  personal_info: 'user',
+  identity: 'credit-card',
+  liveness: 'camera',
+  business: 'briefcase',
+  shop_location: 'map-pin',
+  payout: 'dollar-sign',
 };
 
 // consent/liveness get their own dedicated screens (camera flow, legal copy);
@@ -145,7 +157,12 @@ export default function SellerOnboardingHub() {
           )}
 
           <View style={styles.progressWrap}>
-            <Text style={styles.progressLabel}>Overall Progress: {application.progress}%</Text>
+            <View style={styles.progressHeaderRow}>
+              <Text style={styles.progressLabel}>Overall Progress</Text>
+              <View style={styles.progressChip}>
+                <Text style={styles.progressChipText}>{application.progress}%</Text>
+              </View>
+            </View>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${application.progress}%`, backgroundColor: colors.accent }]} />
             </View>
@@ -156,10 +173,15 @@ export default function SellerOnboardingHub() {
             const meta = statusMeta(step?.status || 'not_started', colors);
             return (
               <TouchableOpacity key={key} style={styles.stepRow} onPress={() => openStep(key)} activeOpacity={0.8}>
-                <Ionicons name={meta.icon} size={22} color={meta.color} />
+                <View style={[styles.stepIconBadge, { backgroundColor: `${meta.color}1A` }]}>
+                  <Feather name={STEP_ICONS[key] || 'file'} size={18} color={meta.color} />
+                </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.stepTitle}>{STEP_LABELS[key] || key}</Text>
-                  <Text style={[styles.stepStatus, { color: meta.color }]}>{meta.label}</Text>
+                  <View style={[styles.statusPill, { backgroundColor: `${meta.color}1A` }]}>
+                    <Ionicons name={meta.icon} size={12} color={meta.color} />
+                    <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+                  </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
               </TouchableOpacity>
@@ -203,22 +225,34 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   header: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 20 },
   backBtn: { marginBottom: 8 },
   headerTitle: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4 },
+  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4, fontFamily: 'Montserrat-Medium' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   body: { padding: 20, paddingBottom: 60 },
   actionBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEF3C7', padding: 12, borderRadius: 12, marginBottom: 16 },
-  actionBannerText: { flex: 1, fontSize: 13, color: c.text },
+  actionBannerText: { flex: 1, fontSize: 13, color: c.text, fontFamily: 'Montserrat-Medium' },
   progressWrap: { marginBottom: 20 },
-  progressLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: c.text, marginBottom: 8 },
+  progressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  progressLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: c.text },
+  progressChip: { backgroundColor: c.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
+  progressChipText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: c.primary },
   progressTrack: { height: 8, borderRadius: 4, backgroundColor: c.border, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
   stepRow: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface,
-    borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border,
+    borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
-  stepTitle: { fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: c.text },
-  stepStatus: { fontSize: 12, marginTop: 2 },
-  submitBtn: { marginTop: 12, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  stepIconBadge: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  stepTitle: { fontSize: 15, fontFamily: 'Montserrat-SemiBold', color: c.text, marginBottom: 6 },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  statusPillText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
+  submitBtn: {
+    marginTop: 12, borderRadius: 16, paddingVertical: 17, alignItems: 'center',
+    shadowColor: c.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+  },
   submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
   supportLink: { marginTop: 20, alignItems: 'center', padding: 8 },
   supportLinkText: { color: c.textMuted, fontSize: 13, fontFamily: 'Montserrat-SemiBold', textDecorationLine: 'underline' },

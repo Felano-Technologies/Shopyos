@@ -253,7 +253,16 @@ class VerificationRepository extends BaseRepository {
         challenge_sequence: attemptData.challengeSequence,
         anti_spoof_score: attemptData.antiSpoofScore,
         captured_frame_key: frames.at(-1)?.storageKey || attemptData.capturedFrameKey || null,
-        frames,
+        // The pg-shim binds values straight through to node-pg with no
+        // column-type awareness — a raw JS array gets serialized as a
+        // Postgres ARRAY literal (each element JSON.stringify'd and then
+        // brace-wrapped), not a JSON array, which `frames JSONB` rejects
+        // outright ("invalid input syntax for type json") the moment it
+        // has more than zero real entries. Stringify explicitly so a plain
+        // JSON string gets bound instead, matching the convention already
+        // used elsewhere for jsonb columns (ParcelPartnerRepository,
+        // ProductVariantRepository).
+        frames: JSON.stringify(frames),
         method_version: attemptData.methodVersion,
         device_info: attemptData.deviceInfo,
         app_version: attemptData.appVersion,

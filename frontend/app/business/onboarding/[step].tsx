@@ -20,7 +20,7 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { TextField, PillGroup, DocumentField } from '@/components/onboarding/FormControls';
+import { TextField, PillGroup, DocumentField, SectionHeader } from '@/components/onboarding/FormControls';
 import { DateField } from '@/components/onboarding/DateField';
 import { LocationField } from '@/components/onboarding/LocationField';
 import {
@@ -40,7 +40,7 @@ type FieldSchema = {
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'numeric';
   multiline?: boolean;
   icon?: FeatherIconName;
-  type?: 'text' | 'date' | 'category' | 'location'; // 'location' opens the map picker and writes latitude/longitude
+  type?: 'text' | 'date' | 'category' | 'location' | 'section'; // 'section' renders a group heading, no input; 'location' opens the map picker and writes latitude/longitude
   options?: { value: string; label: string }[]; // renders as a pill selector instead of a text input
 };
 
@@ -67,11 +67,14 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   personal_info: {
     title: 'Personal Information',
     fields: [
+      { key: 'section-name', label: 'Legal Name', type: 'section' },
       { key: 'legalFirstName', label: 'Legal first name', icon: 'user' },
       { key: 'legalLastName', label: 'Legal last name', icon: 'user' },
       { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+      { key: 'section-contact', label: 'Contact Details', type: 'section' },
       { key: 'phone', label: 'Phone number', icon: 'phone', keyboardType: 'phone-pad' },
       { key: 'email', label: 'Email address', icon: 'mail', keyboardType: 'email-address' },
+      { key: 'section-address', label: 'Residential Address', type: 'section' },
       { key: 'countryOfResidence', label: 'Country of residence', icon: 'flag' },
       { key: 'residentialAddress', label: 'Residential address', icon: 'map-pin', multiline: true },
     ],
@@ -93,13 +96,16 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
   business: {
     title: 'Business Information',
     fields: [
+      { key: 'section-details', label: 'Business Details', type: 'section' },
       { key: 'businessName', label: 'Business name', icon: 'briefcase' },
       { key: 'businessType', label: 'Business type', icon: 'tag', placeholder: 'e.g. Sole Proprietor, Ltd' },
       { key: 'businessCategory', label: 'Business category', type: 'category' },
       { key: 'description', label: 'Description of business', icon: 'file-text', multiline: true },
+      { key: 'section-online', label: 'Online Presence', type: 'section' },
       { key: 'website', label: 'Website', icon: 'globe', placeholder: 'https://...' },
       { key: 'instagram', label: 'Instagram', icon: 'instagram', placeholder: '@handle' },
       { key: 'facebook', label: 'Facebook', icon: 'facebook', placeholder: 'Page name' },
+      { key: 'section-registration', label: 'Registration & Tax', type: 'section' },
       {
         key: 'registrationStatus', label: 'Business registration status',
         options: [
@@ -109,6 +115,7 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
       },
       { key: 'registrationNumber', label: 'Registration number (if registered)', icon: 'hash' },
       { key: 'taxIdentificationNumber', label: 'Tax Identification Number (TIN) (if registered)', icon: 'credit-card' },
+      { key: 'section-ownership', label: 'Ownership', type: 'section' },
       {
         key: 'applicantRelationship', label: 'Your relationship to this business',
         options: [
@@ -118,6 +125,7 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
           { value: 'authorized_representative', label: 'Authorized representative' },
         ],
       },
+      { key: 'section-media', label: 'Photos & Documents', type: 'section' },
     ],
     documents: [
       { documentType: 'logo', label: 'Business Logo', aspect: [1, 1] },
@@ -269,7 +277,10 @@ export default function VerificationStepScreen() {
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {schema.fields.map((field) => {
+          {schema.fields.map((field, index) => {
+            if (field.type === 'section') {
+              return <SectionHeader key={field.key} label={field.label} first={index === 0} />;
+            }
             if (field.type === 'location') {
               return (
                 <LocationField

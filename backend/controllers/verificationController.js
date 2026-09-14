@@ -395,6 +395,18 @@ async function submitLivenessAttempt(req, res) {
       frames.push({ label, storageKey: uploaded.url, buffer: file.buffer });
     }
 
+    // Diagnostic: a "missing_baseline_frame" analysis result means whatever
+    // the server received had no frame labeled 'baseline' — could be a
+    // client-side capture bug (nothing to send), or files/labels arriving
+    // mismatched/out of order. Logging the raw counts here (not just the
+    // final analysis reason) is what actually answers which one it is.
+    logger.info('submitLivenessAttempt received frames', {
+      applicationId: application.id,
+      filesReceived: (req.files || []).length,
+      labelsParsed: labels,
+      resolvedLabels: frames.map((f) => f.label),
+    });
+
     // The server computes the real verdict here — the client's own
     // `passed:true` claim is no longer trusted, only recorded for
     // comparison. See services/livenessAnalysis.js.
@@ -843,6 +855,10 @@ async function approveApplication(req, res) {
       changes: { status: 'approved' },
     });
 
+    // in-app/socket alone only reaches someone with the app open at this
+    // exact moment — push/email (like the equivalent fix already made for
+    // the old stores.verification_status flow) are what actually let an
+    // applicant learn their status changed later.
     await notificationService.sendNotification({
       userId: application.user_id,
       type: 'verification_approved',
@@ -850,6 +866,8 @@ async function approveApplication(req, res) {
       message: `Your ${application.role} verification has been approved.`,
       relatedId: application.id,
       relatedType: 'verification_application',
+      email: {},
+      push: { data: { screen: application.role === 'driver' ? 'driver/dashboard' : 'business/dashboard' } },
     });
 
     return ApiResponse.withEntity(res, 'application', updated, 'Application approved');
@@ -891,6 +909,8 @@ async function rejectApplication(req, res) {
       message: reason,
       relatedId: application.id,
       relatedType: 'verification_application',
+      email: {},
+      push: { data: { screen: application.role === 'driver' ? 'driver/onboarding' : 'business/onboarding' } },
     });
 
     return ApiResponse.withEntity(res, 'application', updated, 'Application rejected');
@@ -948,6 +968,8 @@ async function requestInformation(req, res) {
       message,
       relatedId: application.id,
       relatedType: 'verification_application',
+      email: {},
+      push: { data: { screen: application.role === 'driver' ? 'driver/onboarding' : 'business/onboarding' } },
     });
 
     return ApiResponse.withEntity(res, 'application', updated, 'Information requested');
@@ -1059,6 +1081,8 @@ async function reviewStepAdmin(req, res) {
         message: reason,
         relatedId: id,
         relatedType: 'verification_application',
+        email: {},
+        push: { data: { screen: application.role === 'driver' ? 'driver/onboarding' : 'business/onboarding' } },
       });
     }
 

@@ -8,11 +8,15 @@
 // Detection: uses @react-native-ml-kit/face-detection (Google ML Kit) to
 // read head rotation (rotationY = yaw) and smilingProbability from each
 // polled photo, comparing against the baseline reading. This is a
-// snap-and-analyze API, not a continuous video frame processor — so each
-// challenge polls a photo every POLL_INTERVAL_MS and analyzes it until the
-// gesture is detected or DETECTION_TIMEOUT_MS is reached, rather than
-// instantaneous live tracking. The oval flashes green and a checkmark shows
-// the instant a challenge is detected — never a blind fixed countdown.
+// snap-and-analyze API, not a continuous video frame processor, so there is
+// no live per-frame tracking — each challenge polls a photo every
+// POLL_INTERVAL_MS. What matters is that detection and the progress ring are
+// NOT independent: every poll recomputes a real 0-1 progress value from the
+// actual detected face (see computeChallengeProgress) and that value alone
+// drives the ring — there is no timer standing in for it anywhere. If the
+// user stops moving, moves the wrong way, or turns back, the ring reflects
+// that (it can go back down, not just up) because it's recomputed fresh from
+// the current vs. baseline reading on every poll, not accumulated.
 //
 // NOTE: rotationY's sign convention (which direction counts as "left" vs
 // "right" for a front-facing/mirrored preview) is per ML Kit's documented
@@ -37,6 +41,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
+import Svg, { Circle } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -67,6 +72,11 @@ const GET_READY_MS = 2500;
 const POLL_INTERVAL_MS = 550;
 const DETECTION_TIMEOUT_MS = 8000;
 
+const RING_SIZE = 260;
+const RING_STROKE_WIDTH = 6;
+const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
 type CapturedFrame = { label: string; uri: string };
 type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'verifying';
 
@@ -79,17 +89,46 @@ async function detectFace(uri: string): Promise<Face | null> {
   }
 }
 
-function challengeSatisfied(challengeId: string, baseline: Face, current: Face): boolean {
+function clamp01(n: number): number {
+  return Math.min(Math.max(n, 0), 1);
+}
+
+// The real progress calculation — how much of the required movement has
+// actually been completed, recomputed fresh from the current reading vs.
+// baseline every poll (not a monotonic accumulator, so it tracks backward
+// movement/wrong-direction turns too). 0 = no progress, 1 = challenge met.
+function computeChallengeProgress(challengeId: string, baseline: Face, current: Face): number {
   if (challengeId === 'smile') {
-    return (current.smilingProbability ?? 0) >= SMILE_PROBABILITY_THRESHOLD;
+    return clamp01((current.smilingProbability ?? 0) / SMILE_PROBABILITY_THRESHOLD);
   }
   if (challengeId === 'turn_left' || challengeId === 'turn_right') {
     const delta = current.rotationY - baseline.rotationY;
     const sign = TURN_SIGN[challengeId];
-    return delta * sign > YAW_DELTA_THRESHOLD_DEG;
+    return clamp01((delta * sign) / YAW_DELTA_THRESHOLD_DEG);
   }
-  return false;
+  return 0;
 }
+
+// The visualization layer only — draws what computeChallengeProgress
+// reports, it never decides progress itself. A ring around the face guide
+// that fills from empty (gray) to full (green) as `progress` (0-1) rises,
+// via the standard SVG strokeDasharray/strokeDashoffset technique; rotated
+// -90° so the fill starts at 12 o'clock instead of 3 o'clock.
+const ProgressRing: React.FC<{ progress: number; color: string }> = ({ progress, color }) => (
+  <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+    <Circle
+      cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
+      stroke="rgba(255,255,255,0.25)" strokeWidth={RING_STROKE_WIDTH} fill="none"
+    />
+    <Circle
+      cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
+      stroke={color} strokeWidth={RING_STROKE_WIDTH} fill="none"
+      strokeLinecap="round"
+      strokeDasharray={RING_CIRCUMFERENCE}
+      strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)}
+    />
+  </Svg>
+);
 
 export default function LivenessCaptureScreen() {
   const router = useRouter();
@@ -216,6 +255,15 @@ export default function LivenessCaptureScreen() {
 
   const finalizeAndSubmit = async () => {
     let applicationId: string | undefined;
+    // A baseline frame should always exist by this point (captured before
+    // any challenge runs) — if it doesn't, something failed silently during
+    // capture (e.g. the camera wasn't ready). Fail loudly here instead of
+    // POSTing a payload the server can only reject.
+    if (!framesRef.current.some((f) => f.label === 'baseline')) {
+      CustomInAppToast.show({ type: 'error', title: 'Capture failed', message: 'We couldn\'t capture your photos properly — please try again.' });
+      router.back();
+      return;
+    }
     try {
       setSubmitting(true);
       const application = await getOrCreateVerificationApplication(role || 'seller');
@@ -258,7 +306,7 @@ export default function LivenessCaptureScreen() {
         <View style={styles.centered}>
           <Ionicons name="videocam-off-outline" size={40} color={colors.textMuted} />
           <Text style={styles.permissionText}>Camera access is required to complete liveness verification.</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backLink}><Text style={{ color: colors.primary }}>Go back</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backLink}><Text style={{ color: colors.accent, fontFamily: 'Montserrat-SemiBold' }}>Go back</Text></TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -320,7 +368,7 @@ export default function LivenessCaptureScreen() {
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#000' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  permissionText: { color: c.text, fontSize: 14, textAlign: 'center', marginTop: 12 },
+  permissionText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 12 },
   backLink: { marginTop: 16, padding: 8 },
   cameraWrap: { flex: 1 },
   camera: { flex: 1 },

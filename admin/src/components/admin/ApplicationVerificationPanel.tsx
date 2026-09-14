@@ -29,10 +29,99 @@ const STEP_STATUS_COLOR: Record<string, string> = {
   verified: 'bg-green-50 text-green-700', action_required: 'bg-amber-50 text-amber-700', rejected: 'bg-red-50 text-red-700',
 };
 
+// Mirrors the field keys/labels defined in the mobile wizard's own step
+// schemas (frontend/app/business/onboarding/[step].tsx and
+// frontend/app/driver/onboarding/[step].tsx) — kept here (not shared code,
+// the two apps don't share a build) so the admin view can show every
+// possible field for a step, blank or not, instead of only whatever keys
+// happen to already exist in the saved JSONB (which silently hides fields
+// the applicant hasn't reached yet, and gives no way to fill them in for
+// someone struggling with the app). step_keys not listed here (e.g.
+// 'training') fall back to showing whatever raw keys exist in the data.
+const STEP_FIELD_DEFINITIONS: Record<string, { key: string; label: string }[]> = {
+  personal_info: [
+    { key: 'legalFirstName', label: 'Legal first name' },
+    { key: 'legalLastName', label: 'Legal last name' },
+    { key: 'dateOfBirth', label: 'Date of birth' },
+    { key: 'phone', label: 'Phone number' },
+    { key: 'email', label: 'Email address' },
+    { key: 'countryOfResidence', label: 'Country of residence' },
+    { key: 'residentialAddress', label: 'Residential address' },
+  ],
+  identity: [
+    { key: 'documentType', label: 'Document type' },
+  ],
+  business: [
+    { key: 'businessName', label: 'Business name' },
+    { key: 'businessType', label: 'Business type' },
+    { key: 'businessCategory', label: 'Business category' },
+    { key: 'description', label: 'Description' },
+    { key: 'website', label: 'Website' },
+    { key: 'instagram', label: 'Instagram' },
+    { key: 'facebook', label: 'Facebook' },
+    { key: 'registrationStatus', label: 'Registration status' },
+    { key: 'registrationNumber', label: 'Registration number' },
+    { key: 'taxIdentificationNumber', label: 'Tax ID (TIN)' },
+    { key: 'applicantRelationship', label: 'Relationship to business' },
+  ],
+  shop_location: [
+    { key: 'addressLine1', label: 'Shop address' },
+    { key: 'city', label: 'City' },
+    { key: 'region', label: 'Region' },
+    { key: 'country', label: 'Country' },
+    { key: 'latitude', label: 'Latitude' },
+    { key: 'longitude', label: 'Longitude' },
+  ],
+  payout: [
+    { key: 'payoutMethod', label: 'Payout method' },
+    { key: 'accountHolderName', label: 'Account holder name' },
+    { key: 'accountNumber', label: 'Account / MoMo number' },
+    { key: 'providerOrBankName', label: 'Provider / Bank name' },
+  ],
+  driver_licence: [
+    { key: 'licenseNumber', label: 'Licence number' },
+    { key: 'licenseCategory', label: 'Licence category/class' },
+    { key: 'issueDate', label: 'Issue date' },
+    { key: 'expiryDate', label: 'Expiry date' },
+  ],
+  vehicle: [
+    { key: 'vehicleType', label: 'Vehicle type' },
+    { key: 'make', label: 'Make' },
+    { key: 'model', label: 'Model' },
+    { key: 'year', label: 'Year' },
+    { key: 'colour', label: 'Colour' },
+    { key: 'plateNumber', label: 'Plate number' },
+    { key: 'insurancePolicyNumber', label: 'Insurance policy number' },
+    { key: 'insuranceExpiryDate', label: 'Insurance expiry date' },
+    { key: 'relationship', label: 'Relationship to vehicle' },
+  ],
+  operating_location: [
+    { key: 'baseLocation', label: 'Residential/base address' },
+    { key: 'operatingCity', label: 'Operating city' },
+    { key: 'operatingRegion', label: 'Operating region(s)' },
+    { key: 'latitude', label: 'Latitude' },
+    { key: 'longitude', label: 'Longitude' },
+  ],
+  emergency_contact: [
+    { key: 'name', label: 'Contact name' },
+    { key: 'relationship', label: 'Relationship' },
+    { key: 'phone', label: 'Contact phone number' },
+  ],
+};
+
 const StepEditor: React.FC<{ applicationId: string; step: any; onSaved: () => void }> = ({ applicationId, step, onSaved }) => {
+  const data = step.data || {};
+  // The full known field list for this step_key, plus any extra keys
+  // already present in the saved data that aren't in that list (a legacy
+  // value, or one the mobile schema has since renamed) — so nothing already
+  // saved is ever silently dropped from view.
+  const knownFields = STEP_FIELD_DEFINITIONS[step.step_key] || [];
+  const extraKeys = Object.keys(data).filter((k) => !knownFields.some((f) => f.key === k));
+  const displayFields = [...knownFields, ...extraKeys.map((k) => ({ key: k, label: k }))];
+
   const [editing, setEditing] = useState(false);
   const [fields, setFields] = useState<Record<string, string>>(() =>
-    Object.fromEntries(Object.entries(step.data || {}).map(([k, v]) => [k, String(v ?? '')]))
+    Object.fromEntries(displayFields.map((f) => [f.key, String(data[f.key] ?? '')]))
   );
   const [newKey, setNewKey] = useState('');
   const [reason, setReason] = useState('');
@@ -86,10 +175,12 @@ const StepEditor: React.FC<{ applicationId: string; step: any; onSaved: () => vo
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
       {!editing ? (
         <>
-          {Object.keys(step.data || {}).length > 0 && (
+          {displayFields.length > 0 && (
             <div className="text-xs text-secondary mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
-              {Object.entries(step.data).map(([k, v]) => (
-                <div key={k}><span className="text-subtle">{k}:</span> {String(v ?? '') || '—'}</div>
+              {displayFields.map(({ key, label }) => (
+                <div key={key}>
+                  <span className="text-subtle">{label}:</span> {String(data[key] ?? '').trim() || <span className="italic text-subtle">Not provided</span>}
+                </div>
               ))}
             </div>
           )}
@@ -121,7 +212,9 @@ const StepEditor: React.FC<{ applicationId: string; step: any; onSaved: () => vo
         <div className="flex flex-col gap-2">
           {Object.keys(fields).map((k) => (
             <div key={k} className="flex items-center gap-2">
-              <span className="text-xs text-subtle w-28 shrink-0 truncate">{k}</span>
+              <span className="text-xs text-subtle w-32 shrink-0 truncate" title={k}>
+                {displayFields.find((f) => f.key === k)?.label || k}
+              </span>
               <input
                 value={fields[k]}
                 onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))}

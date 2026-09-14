@@ -81,7 +81,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const startTour = async (screen: string) => {
-    return; // Onboarding tours disabled for now
+    if (isCompleted(screen)) return;
+    setActiveScreen(screen);
+    setIsTourActive(true);
   };
 
   const stopTour = () => {

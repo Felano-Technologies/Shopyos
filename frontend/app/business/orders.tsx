@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness, useStoreOrders } from '@/hooks/useBusiness';
@@ -550,7 +550,7 @@ export default function OrdersScreen() {
           </View>
         </Modal>
 
-        <SpotlightTour
+        <CoachMarkSequence
           visible={isTourActive && activeScreen === 'business_orders'}
           steps={onboardingSteps}
           onComplete={handleOnboardingComplete}

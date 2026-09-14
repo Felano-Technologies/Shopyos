@@ -5,7 +5,7 @@
 // its own plain bordered TextInput. This matches the icon-in-a-bordered-row
 // pattern already used by app/business/updateProfile.tsx so onboarding looks
 // consistent with the rest of the app rather than introducing a third style.
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardTypeOptions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
@@ -24,6 +24,33 @@ export const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({ la
   );
 };
 
+// Visually groups a run of related fields under a small-caps heading with a
+// divider above it — e.g. "Business Details" / "Online Presence" /
+// "Registration & Tax" within the Business Information step — instead of
+// one long undifferentiated list of boxes.
+export const SectionHeader: React.FC<{ label: string; first?: boolean }> = ({ label, first }) => {
+  const colors = useThemeColors();
+  return (
+    <Text
+      style={[
+        sectionHeaderStyles.text,
+        { color: colors.textSecondary, borderTopColor: colors.border },
+        first && sectionHeaderStyles.first,
+      ]}
+    >
+      {label}
+    </Text>
+  );
+};
+
+const sectionHeaderStyles = StyleSheet.create({
+  text: {
+    fontSize: 12, fontFamily: 'Montserrat-Bold', textTransform: 'uppercase', letterSpacing: 0.6,
+    marginBottom: 14, marginTop: 8, paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  first: { marginTop: 0, paddingTop: 0, borderTopWidth: 0 },
+});
+
 export const TextField: React.FC<{
   label: string;
   value: string;
@@ -35,11 +62,15 @@ export const TextField: React.FC<{
 }> = ({ label, value, onChangeText, icon, placeholder, multiline, keyboardType }) => {
   const colors = useThemeColors();
   const styles = getSharedStyles(colors);
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.fieldWrap}>
       <FieldLabel label={label} />
-      <View style={[styles.inputWrapper, multiline && styles.inputWrapperMultiline]}>
-        {icon && <Feather name={icon} size={18} color={colors.textSecondary} style={[styles.inputIcon, multiline && { marginTop: 12 }]} />}
+      <View style={[
+        styles.inputWrapper, multiline && styles.inputWrapperMultiline,
+        focused && { borderColor: colors.primary, borderWidth: 1.5 },
+      ]}>
+        {icon && <Feather name={icon} size={18} color={focused ? colors.primary : colors.textSecondary} style={[styles.inputIcon, multiline && { marginTop: 12 }]} />}
         <TextInput
           style={[styles.input, multiline && styles.inputMultiline]}
           value={value}
@@ -49,6 +80,8 @@ export const TextField: React.FC<{
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : 'center'}
           keyboardType={keyboardType}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
       </View>
     </View>
@@ -132,6 +165,7 @@ export const getSharedStyles = (c: ThemeColors) => StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 14,
     paddingHorizontal: 14, borderWidth: 1, borderColor: c.border, height: 52,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   inputWrapperMultiline: { height: 100, alignItems: 'flex-start', paddingVertical: 12 },
   inputIcon: { marginRight: 10 },
@@ -140,13 +174,14 @@ export const getSharedStyles = (c: ThemeColors) => StyleSheet.create({
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pillRowScroll: { flexDirection: 'row', gap: 8, paddingRight: 8 },
   pill: {
-    paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5,
+    paddingHorizontal: 16, paddingVertical: 11, borderRadius: 20, borderWidth: 1.5,
     borderColor: c.border, backgroundColor: c.surface,
   },
   pillText: { fontSize: 13, color: c.textSecondary, fontFamily: 'Montserrat-SemiBold' },
   docPicker: {
     height: 150, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.border,
     backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   docPreview: { width: '100%', height: '100%' },
   docPickerText: { fontSize: 13, color: c.textMuted, marginTop: 6, fontFamily: 'Montserrat-Medium' },

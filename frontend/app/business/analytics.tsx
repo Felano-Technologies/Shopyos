@@ -12,7 +12,7 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
 import { useBusinessAnalytics, useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
@@ -660,7 +660,7 @@ const Analytics = () => {
           </View>
         </Modal>
 
-        <SpotlightTour
+        <CoachMarkSequence
           visible={isTourActive && activeScreen === 'business_analytics'}
           steps={onboardingSteps}
           onComplete={handleOnboardingComplete}
