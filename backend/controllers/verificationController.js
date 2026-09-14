@@ -257,11 +257,16 @@ async function uploadDocument(req, res) {
     const application = await _loadOwnedApplication(req, res);
     if (!application) return;
     if (!req.file) return ApiResponse.error(res, 'No file provided', 400);
+    // A React Native fetch(uri).blob() read can silently resolve to a 0-byte
+    // body — reject it here rather than storing an empty "document" that
+    // looks uploaded everywhere but is unopenable.
+    if (!req.file.size) return ApiResponse.error(res, 'Uploaded file is empty — please try again', 400);
 
     const { stepKey, documentType, expiresAt, previousDocumentId } = req.body;
     if (!stepKey || !documentType) return ApiResponse.error(res, 'stepKey and documentType are required', 400);
 
     const uploaded = await uploadImage(req.file, `verification/${application.id}`);
+    if (!uploaded.bytes) return ApiResponse.error(res, 'Uploaded file is empty — please try again', 400);
     const documentData = {
       parentType: 'application',
       parentId: application.id,
