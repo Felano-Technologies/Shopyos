@@ -34,7 +34,7 @@ export const getAdminAuditLogs = async (params?: any) => { const response = awai
 // In-progress verification applications — sellers/drivers who've started the
 // onboarding wizard but have no stores/driver_profiles row yet (hasEntity:
 // false), so they wouldn't otherwise show up in the Stores/Riders tables.
-export const getVerificationApplications = async (params?: { role?: 'seller' | 'driver'; hasEntity?: boolean; status?: string }) => {
+export const getVerificationApplications = async (params?: { role?: 'seller' | 'driver'; hasEntity?: boolean; status?: string; entityId?: string }) => {
   const response = await api.get('/admin/verifications', { params });
   return response.data;
 };
