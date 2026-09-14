@@ -54,6 +54,7 @@ async function _backfillStepsFromEntity(application, steps) {
         businessCategory: store.category, registrationNumber: store.registration_number,
         taxIdentificationNumber: store.tax_id,
         website: store.website_url, instagram: store.social_instagram, facebook: store.social_facebook,
+        snapchat: store.social_snapchat, x: store.social_x,
       },
       shop_location: {
         addressLine1: store.address_line1, city: store.city,
@@ -500,6 +501,8 @@ async function _createStoreFromApplication(application, steps, userId) {
     website_url: business.website || null,
     social_instagram: business.instagram || null,
     social_facebook: business.facebook || null,
+    social_snapchat: business.snapchat || null,
+    social_x: business.x || null,
     payout_method: payout.payoutMethod || null,
     payout_details: {
       accountHolderName: payout.accountHolderName || null,

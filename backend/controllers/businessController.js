@@ -120,6 +120,8 @@ const createBusiness = async (req, res, next) => {
       website,
       instagram,
       facebook,
+      snapchat,
+      x,
       logo,
       coverImage,
       email,
@@ -203,6 +205,8 @@ const createBusiness = async (req, res, next) => {
       website_url: website || null,
       social_instagram: instagram || null,
       social_facebook: facebook || null,
+      social_snapchat: snapchat || null,
+      social_x: x || null,
       logo_url: fileUrls.logo,
       banner_url: fileUrls.coverImage,
       business_cert_url: fileUrls.businessCert,
@@ -254,7 +258,9 @@ const createBusiness = async (req, res, next) => {
       website: store.website_url || '',
       socialMedia: {
         instagram: store.social_instagram || '',
-        facebook: store.social_facebook || ''
+        facebook: store.social_facebook || '',
+        snapchat: store.social_snapchat || '',
+        x: store.social_x || ''
       },
       logo: await resolveImageUrl(store.logo_url) || '',
       logo_url: await resolveImageUrl(store.logo_url) || '',
@@ -315,7 +321,9 @@ const getMyBusinesses = async (req, res, next) => {
       website: store.website_url || '',
       socialMedia: {
         instagram: store.social_instagram || '',
-        facebook: store.social_facebook || ''
+        facebook: store.social_facebook || '',
+        snapchat: store.social_snapchat || '',
+        x: store.social_x || ''
       },
       logo: await resolveImageUrl(store.logo_url) || '',
       logo_url: await resolveImageUrl(store.logo_url) || '',
@@ -386,7 +394,9 @@ const getBusinessById = async (req, res, next) => {
       website: store.website_url || '',
       socialMedia: {
         instagram: store.social_instagram || '',
-        facebook: store.social_facebook || ''
+        facebook: store.social_facebook || '',
+        snapchat: store.social_snapchat || '',
+        x: store.social_x || ''
       },
       logo: await resolveImageUrl(store.logo_url) || '',
       coverImage: await resolveImageUrl(store.banner_url) || '',
@@ -470,6 +480,8 @@ const _mapUpdateFields = (updateData, mappedData) => {
   if (updateData.website) mappedData.website_url = updateData.website;
   if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
   if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
+  if (updateData.snapchat) mappedData.social_snapchat = updateData.snapchat;
+  if (updateData.x) mappedData.social_x = updateData.x;
 
   // Support direct URL updates if provided in body (fallback if no file was uploaded)
   const isRemoteUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
@@ -602,7 +614,9 @@ const updateBusiness = async (req, res, next) => {
       website: updatedStore.website_url || '',
       socialMedia: {
         instagram: updatedStore.social_instagram || '',
-        facebook: updatedStore.social_facebook || ''
+        facebook: updatedStore.social_facebook || '',
+        snapchat: updatedStore.social_snapchat || '',
+        x: updatedStore.social_x || ''
       },
       logo: await resolveImageUrl(updatedStore.logo_url) || '',
       coverImage: await resolveImageUrl(updatedStore.banner_url) || '',

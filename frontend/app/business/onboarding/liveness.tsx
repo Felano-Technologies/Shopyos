@@ -39,9 +39,9 @@
 // consent.tsx's file header for why this lives under business/onboarding).
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions, ScrollView } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Ellipse } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -54,9 +54,9 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getOrCreateVerificationApplication, submitVerificationLivenessAttempt } from '@/services/api';
 
 const CHALLENGES = [
-  { id: 'turn_left', label: 'Turn your head left' },
-  { id: 'turn_right', label: 'Turn your head right' },
-  { id: 'smile', label: 'Smile' },
+  { id: 'turn_left', title: 'Turn Left', instruction: 'Slowly turn your head to the left' },
+  { id: 'turn_right', title: 'Turn Right', instruction: 'Slowly turn your head to the right' },
+  { id: 'smile', title: 'Smile', instruction: 'Show us a natural smile' },
 ];
 
 // Picks 2 of the 3 supported challenges, randomized for variety — matches
@@ -78,20 +78,34 @@ const DETECTION_TIMEOUT_MS = 8000;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const OVAL_WIDTH = Math.round(SCREEN_WIDTH * 0.82);
 const OVAL_HEIGHT = Math.round(OVAL_WIDTH * 1.35);
-const RING_STROKE_WIDTH = 7;
-const RING_SIZE = OVAL_HEIGHT + 40; // comfortably encloses the oval guide
-const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const OVAL_STROKE_WIDTH = 6;
+// The progress indicator traces the SAME oval as the face guide (not a
+// separate circle drawn around it) — a circle overlaid on an oval guide
+// left visible gaps top/bottom and looked mismatched. An ellipse has no
+// simple closed-form circumference, so this uses Ramanujan's well-known
+// approximation (accurate to a fraction of a percent for any real-world
+// aspect ratio), which is standard practice for exactly this SVG
+// strokeDasharray/strokeDashoffset progress-fill technique.
+const OVAL_RX = OVAL_WIDTH / 2 - OVAL_STROKE_WIDTH / 2;
+const OVAL_RY = OVAL_HEIGHT / 2 - OVAL_STROKE_WIDTH / 2;
+const OVAL_PERIMETER = (() => {
+  const h = ((OVAL_RX - OVAL_RY) / (OVAL_RX + OVAL_RY)) ** 2;
+  return Math.PI * (OVAL_RX + OVAL_RY) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+})();
 
 type CapturedFrame = { label: string; uri: string };
 type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'verifying';
 
-async function detectFace(uri: string): Promise<Face | null> {
+// Returns the detection result AND whatever went wrong, if anything — the
+// caller logs the error to the on-screen debug panel instead of it being
+// silently swallowed, since "detection never does anything" is impossible
+// to diagnose without seeing why every call is failing.
+async function detectFace(uri: string): Promise<{ face: Face | null; error: string | null }> {
   try {
     const faces = await FaceDetection.detect(uri, { classificationMode: 'all', performanceMode: 'fast' });
-    return faces?.[0] || null;
-  } catch {
-    return null; // a missed detection just means another poll cycle, not a crash
+    return { face: faces?.[0] || null, error: null };
+  } catch (err: any) {
+    return { face: null, error: err?.message || String(err) };
   }
 }
 
@@ -116,22 +130,22 @@ function computeChallengeProgress(challengeId: string, baseline: Face, current: 
 }
 
 // The visualization layer only — draws what computeChallengeProgress
-// reports, it never decides progress itself. A ring around the face guide
-// that fills from empty (gray) to full (green) as `progress` (0-1) rises,
-// via the standard SVG strokeDasharray/strokeDashoffset technique; rotated
-// -90° so the fill starts at 12 o'clock instead of 3 o'clock.
-const ProgressRing: React.FC<{ progress: number; color: string }> = ({ progress, color }) => (
-  <Svg width={RING_SIZE} height={RING_SIZE} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
-    <Circle
-      cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
-      stroke="rgba(255,255,255,0.25)" strokeWidth={RING_STROKE_WIDTH} fill="none"
+// reports, it never decides progress itself. This IS the face guide (a
+// faint outline, always visible) plus a green progress trace over the exact
+// same oval, filling via the standard SVG strokeDasharray/strokeDashoffset
+// technique; rotated -90° so the fill starts at 12 o'clock instead of 3.
+const FaceGuideOval: React.FC<{ progress: number; highlighted: boolean }> = ({ progress, highlighted }) => (
+  <Svg width={OVAL_WIDTH} height={OVAL_HEIGHT} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+    <Ellipse
+      cx={OVAL_WIDTH / 2} cy={OVAL_HEIGHT / 2} rx={OVAL_RX} ry={OVAL_RY}
+      stroke={highlighted ? '#22C55E' : 'rgba(255,255,255,0.5)'} strokeWidth={OVAL_STROKE_WIDTH} fill="none"
     />
-    <Circle
-      cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS}
-      stroke={color} strokeWidth={RING_STROKE_WIDTH} fill="none"
+    <Ellipse
+      cx={OVAL_WIDTH / 2} cy={OVAL_HEIGHT / 2} rx={OVAL_RX} ry={OVAL_RY}
+      stroke="#22C55E" strokeWidth={OVAL_STROKE_WIDTH} fill="none"
       strokeLinecap="round"
-      strokeDasharray={RING_CIRCUMFERENCE}
-      strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)}
+      strokeDasharray={OVAL_PERIMETER}
+      strokeDashoffset={OVAL_PERIMETER * (1 - progress)}
     />
   </Svg>
 );
@@ -150,22 +164,33 @@ export default function LivenessCaptureScreen() {
   const [readySeconds, setReadySeconds] = useState(Math.ceil(GET_READY_MS / 1000));
   const [progress, setProgress] = useState(0); // 0-1, driven only by computeChallengeProgress — see ProgressRing
   const [submitting, setSubmitting] = useState(false);
+  const [debugLines, setDebugLines] = useState<string[]>([]);
   const framesRef = useRef<CapturedFrame[]>([]);
   const baselineFaceRef = useRef<Face | null>(null);
   const cancelledRef = useRef(false);
 
+  // On-screen log — requested explicitly so what's actually happening on
+  // the device is visible without a separate debugger attached. Keeps the
+  // last N lines only so it doesn't grow unbounded during the poll loop.
+  const log = (msg: string) => {
+    const line = `${new Date().toTimeString().slice(0, 8)}  ${msg}`;
+    console.log('[liveness]', line);
+    setDebugLines((prev) => [...prev.slice(-17), line]);
+  };
+
   useEffect(() => {
     (async () => {
       const existing = await Camera.getCameraPermissionsAsync();
-      if (existing.status === 'granted') { setHasPermission(true); return; }
+      if (existing.status === 'granted') { setHasPermission(true); log('camera permission: already granted'); return; }
       const consented = await requestPermissionDisclosure({
         icon: 'camera',
         title: 'Camera Access',
         description: 'Shopyos needs camera access to verify you\'re a real person as part of seller verification.',
       });
-      if (!consented) { setHasPermission(false); return; }
+      if (!consented) { setHasPermission(false); log('camera permission: disclosure declined'); return; }
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
+      log(`camera permission: OS request result = ${status}`);
     })();
     return () => { cancelledRef.current = true; };
   }, []);
@@ -173,8 +198,10 @@ export default function LivenessCaptureScreen() {
   const takePhoto = async (): Promise<string | null> => {
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.5 });
+      if (!photo?.uri) log('takePhoto: camera returned no photo (cameraRef possibly not ready)');
       return photo?.uri || null;
-    } catch {
+    } catch (err: any) {
+      log(`takePhoto FAILED: ${err?.message || err}`);
       return null;
     }
   };
@@ -184,10 +211,18 @@ export default function LivenessCaptureScreen() {
     if (hasPermission !== true || stepIndex !== -1) return;
     (async () => {
       setPhase('baseline');
+      log('capturing baseline photo…');
       const uri = await takePhoto();
       if (uri) {
+        log('baseline photo captured OK');
         framesRef.current.push({ label: 'baseline', uri });
-        baselineFaceRef.current = await detectFace(uri);
+        const { face, error } = await detectFace(uri);
+        baselineFaceRef.current = face;
+        if (error) log(`baseline face detection FAILED: ${error}`);
+        else if (!face) log('baseline: no face detected in photo');
+        else log(`baseline face detected — rotationY=${face.rotationY.toFixed(1)}° smiling=${(face.smilingProbability ?? -1).toFixed(2)}`);
+      } else {
+        log('baseline photo capture returned nothing');
       }
       if (cancelledRef.current) return;
       setStepIndex(0);
@@ -215,30 +250,42 @@ export default function LivenessCaptureScreen() {
       setProgress(0);
 
       const challenge = challenges[stepIndex];
+      log(`--- starting "${challenge.id}" — baseline available: ${!!baselineFaceRef.current} ---`);
       const deadline = Date.now() + DETECTION_TIMEOUT_MS;
       let detectedUri: string | null = null;
+      let pollCount = 0;
 
       while (!stopped && !cancelledRef.current && Date.now() < deadline) {
+        pollCount += 1;
         const uri = await takePhoto();
         if (!uri) { await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS)); continue; }
-        const face = await detectFace(uri);
-        // Progress is recomputed from scratch on every poll and reported
-        // immediately — this is the actual detection result driving the
-        // ring, not a separate animation. No face this cycle just means no
-        // update (not a reset to 0), since a momentary missed detection
-        // shouldn't visibly punish someone mid-turn.
-        if (face && baselineFaceRef.current) {
+        const { face, error } = await detectFace(uri);
+        if (error) {
+          log(`poll #${pollCount}: detectFace FAILED — ${error}`);
+        } else if (!face) {
+          log(`poll #${pollCount}: no face detected in frame`);
+        } else if (!baselineFaceRef.current) {
+          log(`poll #${pollCount}: face detected but no baseline reading to compare against`);
+        } else {
           const p = computeChallengeProgress(challenge.id, baselineFaceRef.current, face);
+          log(`poll #${pollCount}: rotationY=${face.rotationY.toFixed(1)}° smiling=${(face.smilingProbability ?? -1).toFixed(2)} → progress=${Math.round(p * 100)}%`);
           setProgress(p);
           if (p >= 1) {
             detectedUri = uri;
             break;
           }
         }
+        // Progress is recomputed from scratch on every poll and reported
+        // immediately — this is the actual detection result driving the
+        // ring, not a separate animation. No face this cycle just means no
+        // update (not a reset to 0), since a momentary missed detection
+        // shouldn't visibly punish someone mid-turn.
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       }
 
       if (stopped || cancelledRef.current) return;
+
+      if (!detectedUri) log(`"${challenge.id}" timed out after ${pollCount} polls without reaching 100% — capturing fallback frame`);
 
       // Fall back to one last photo if detection timed out, so the flow
       // never strands the applicant indefinitely — the server-side verifier
@@ -342,33 +389,28 @@ export default function LivenessCaptureScreen() {
   }
 
   const currentChallenge = stepIndex >= 0 && stepIndex < challenges.length ? challenges[stepIndex] : null;
-  const ovalColor = phase === 'success' ? '#22C55E' : 'rgba(255,255,255,0.8)';
+  const displayProgress = phase === 'success' ? 1 : phase === 'detecting' ? progress : 0;
+  const highlighted = phase === 'success' || progress >= 1;
+  const percentLabel = Math.round(displayProgress * 100);
 
-  let promptContent: React.ReactNode;
+  // Top: what to do. Bottom: how it's going. Kept as two separate blocks
+  // (rather than one prompt box) so the instruction stays visible the whole
+  // time while the live percentage/status updates independently below the
+  // face guide, closer to the actual visual feedback.
+  let topTitle = 'Verifying…';
+  let topSubtitle = '';
   if (phase === 'baseline') {
-    promptContent = (<><ActivityIndicator color="#FFF" /><Text style={styles.promptText}>Hold still…</Text></>);
-  } else if (phase === 'success') {
-    promptContent = (<><Ionicons name="checkmark-circle" size={36} color="#22C55E" /><Text style={styles.promptText}>Captured!</Text></>);
-  } else if (currentChallenge && phase === 'ready') {
-    promptContent = (
-      <>
-        <Text style={styles.promptText}>{currentChallenge.label}</Text>
-        <Text style={styles.subPromptText}>Get ready…</Text>
-        <Text style={styles.countdownText}>{readySeconds}</Text>
-      </>
-    );
-  } else if (currentChallenge && phase === 'detecting') {
-    promptContent = (
-      <>
-        <Text style={styles.promptText}>{currentChallenge.label}</Text>
-        <Text style={styles.subPromptText}>{progress > 0 ? `${Math.round(progress * 100)}% — keep going` : "We'll capture automatically"}</Text>
-      </>
-    );
-  } else {
-    promptContent = (<><ActivityIndicator color="#FFF" /><Text style={styles.promptText}>Verifying…</Text></>);
+    topTitle = 'Get Ready';
+    topSubtitle = 'Position your face in the frame';
+  } else if (currentChallenge) {
+    topTitle = currentChallenge.title;
+    topSubtitle = currentChallenge.instruction;
   }
 
-  const ringColor = phase === 'success' ? '#22C55E' : progress >= 1 ? '#22C55E' : colors.accent;
+  let bottomStatus = '';
+  if (phase === 'detecting') bottomStatus = progress > 0.05 ? 'Keep moving slowly' : "We'll capture automatically";
+  else if (phase === 'success') bottomStatus = 'Captured!';
+  else if (phase === 'baseline') bottomStatus = 'Hold still…';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -379,11 +421,35 @@ export default function LivenessCaptureScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
             <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
-          {(phase === 'detecting' || phase === 'success') && (
-            <ProgressRing progress={phase === 'success' ? 1 : progress} color={ringColor} />
+
+          {__DEV__ && debugLines.length > 0 && (
+            <ScrollView style={styles.debugPanel} contentContainerStyle={{ padding: 6 }}>
+              {debugLines.map((line, i) => (
+                <Text key={i} style={styles.debugText}>{line}</Text>
+              ))}
+            </ScrollView>
           )}
-          <View style={[styles.faceOval, { borderColor: ovalColor }]} />
-          <View style={styles.promptBox}>{promptContent}</View>
+
+          <View style={styles.topSection}>
+            <Text style={styles.titleText}>{topTitle}</Text>
+            {!!topSubtitle && <Text style={styles.subtitleText}>{topSubtitle}</Text>}
+          </View>
+
+          <View style={styles.ovalSection}>
+            <FaceGuideOval progress={displayProgress} highlighted={highlighted} />
+          </View>
+
+          <View style={styles.bottomSection}>
+            {phase === 'ready' && <Text style={styles.countdownText}>{readySeconds}</Text>}
+            {(phase === 'detecting' || phase === 'success') && (
+              <View style={styles.percentRow}>
+                <Ionicons name={phase === 'success' ? 'checkmark-circle' : 'ellipse'} size={18} color={highlighted ? '#22C55E' : '#FFF'} />
+                <Text style={[styles.percentText, highlighted && { color: '#22C55E' }]}>{percentLabel}% complete</Text>
+              </View>
+            )}
+            {(phase === 'baseline' || phase === 'verifying') && <ActivityIndicator color="#FFF" style={{ marginBottom: 8 }} />}
+            {!!bottomStatus && <Text style={styles.statusText}>{bottomStatus}</Text>}
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -392,16 +458,22 @@ export default function LivenessCaptureScreen() {
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#000' },
+  debugPanel: { position: 'absolute', top: 60, left: 12, right: 12, maxHeight: 160, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 8, zIndex: 50 },
+  debugText: { color: '#22C55E', fontSize: 10, fontFamily: 'monospace' as any, marginBottom: 2 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permissionText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 12 },
   backLink: { marginTop: 16, padding: 8 },
   cameraWrap: { flex: 1 },
   camera: { flex: 1 },
-  overlay: { justifyContent: 'center', alignItems: 'center' },
-  closeBtn: { position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  faceOval: { width: OVAL_WIDTH, height: OVAL_HEIGHT, borderRadius: OVAL_HEIGHT / 2, borderWidth: 3 },
-  promptBox: { position: 'absolute', bottom: 80, alignItems: 'center', paddingHorizontal: 24 },
-  promptText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold', marginBottom: 4, textAlign: 'center' },
-  subPromptText: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Montserrat-Medium', marginBottom: 8, textAlign: 'center' },
-  countdownText: { color: '#FFF', fontSize: 32, fontFamily: 'Montserrat-Bold' },
+  overlay: { justifyContent: 'space-between', alignItems: 'center', paddingTop: 90, paddingBottom: 48 },
+  closeBtn: { position: 'absolute', top: 16, left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  topSection: { alignItems: 'center', paddingHorizontal: 32 },
+  titleText: { color: '#FFF', fontSize: 24, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
+  subtitleText: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  ovalSection: { width: OVAL_WIDTH, height: OVAL_HEIGHT, justifyContent: 'center', alignItems: 'center' },
+  bottomSection: { alignItems: 'center', paddingHorizontal: 24, minHeight: 70 },
+  percentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  percentText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  statusText: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 8 },
+  countdownText: { color: '#FFF', fontSize: 36, fontFamily: 'Montserrat-Bold', marginBottom: 4 },
 });

@@ -11,14 +11,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassContainer } from 'expo-glass-effect';
 import { GlassSurface } from '@/components/ui/GlassSurface';
+import * as Location from 'expo-location';
 import MapView, { UrlTile } from '@/components/MapView';
 import { OSM_TILE_URL_TEMPLATE } from '@/constants/mapTiles';
+import { requestLocationPermissionWithDisclosure } from '@/src/utils/permissions';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { FieldLabel, getSharedStyles } from './FormControls';
 
-const DEFAULT_COORDS = { latitude: 5.6037, longitude: -0.1870 }; // Accra
+const DEFAULT_COORDS = { latitude: 5.6037, longitude: -0.1870 }; // Accra — last-resort fallback only, when GPS is unavailable/denied
 
 export const LocationField: React.FC<{
   label: string;
@@ -36,11 +38,35 @@ export const LocationField: React.FC<{
 
   const hasLocation = !!latitude && !!longitude;
 
-  const open = () => {
+  const open = async () => {
     const lat = Number.parseFloat(latitude);
     const lon = Number.parseFloat(longitude);
-    setTempCoords(Number.isFinite(lat) && Number.isFinite(lon) ? { latitude: lat, longitude: lon } : DEFAULT_COORDS);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      // Already has a saved pin — reopen centered on that, don't override
+      // it with the device's current position.
+      setTempCoords({ latitude: lat, longitude: lon });
+      setVisible(true);
+      return;
+    }
+
+    // No pin yet — open centered on the device's actual current location
+    // instead of a fixed Accra default, so someone in Kumasi (or anywhere
+    // else) doesn't have to manually drag the map across the country to
+    // find themselves. Show the modal immediately with the fallback so
+    // there's no blocking wait for GPS to resolve, then animate to the
+    // real position once it's available.
+    setTempCoords(DEFAULT_COORDS);
     setVisible(true);
+    try {
+      const { status } = await requestLocationPermissionWithDisclosure();
+      if (status !== Location.PermissionStatus.GRANTED) return;
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const current = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      setTempCoords(current);
+      mapRef.current?.animateToRegion({ ...current, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 800);
+    } catch {
+      // Keep the Accra fallback — the user can still search or drag manually.
+    }
   };
 
   const confirm = () => {

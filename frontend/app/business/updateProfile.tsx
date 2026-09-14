@@ -77,7 +77,9 @@ const BusinessUpdateScreen = () => {
     phone: '',
     website: '',
     instagram: '',
-    facebook: ''
+    facebook: '',
+    snapchat: '',
+    x: ''
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -102,7 +104,9 @@ const BusinessUpdateScreen = () => {
         phone: biz.phone || '',
         website: biz.website || '',
         instagram: biz.socialMedia?.instagram || '',
-        facebook: biz.socialMedia?.facebook || ''
+        facebook: biz.socialMedia?.facebook || '',
+        snapchat: biz.socialMedia?.snapchat || '',
+        x: biz.socialMedia?.x || ''
       });
 
       setLogo(biz.logo_url || biz.logo || null);
@@ -146,7 +150,9 @@ const BusinessUpdateScreen = () => {
         coverImage: coverImageInput,
         socialMedia: {
           instagram: formData.instagram,
-          facebook: formData.facebook
+          facebook: formData.facebook,
+          snapchat: formData.snapchat,
+          x: formData.x
         }
       };
       if (!businessId) throw new Error("Business ID missing");
@@ -323,6 +329,14 @@ const BusinessUpdateScreen = () => {
                 </View>
                 <View style={{ flex: 1 }}>
                 <InputField label="Facebook" value={formData.facebook} field="facebook" placeholder="Page Name" icon="facebook" onChange={handleInputChange} />
+                </View>
+            </View>
+            <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                <InputField label="Snapchat" value={formData.snapchat} field="snapchat" placeholder="@handle" icon="camera" onChange={handleInputChange} />
+                </View>
+                <View style={{ flex: 1 }}>
+                <InputField label="X (Twitter)" value={formData.x} field="x" placeholder="@handle" icon="twitter" onChange={handleInputChange} />
                 </View>
             </View>
             {/* Save Button */}

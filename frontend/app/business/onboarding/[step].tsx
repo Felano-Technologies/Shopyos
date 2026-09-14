@@ -98,13 +98,25 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
     fields: [
       { key: 'section-details', label: 'Business Details', type: 'section' },
       { key: 'businessName', label: 'Business name', icon: 'briefcase' },
-      { key: 'businessType', label: 'Business type', icon: 'tag', placeholder: 'e.g. Sole Proprietor, Ltd' },
+      {
+        key: 'businessType', label: 'Business type',
+        options: [
+          { value: 'sole_proprietorship', label: 'Sole Proprietorship' },
+          { value: 'partnership', label: 'Partnership' },
+          { value: 'limited_liability', label: 'Limited Liability Company (Ltd)' },
+          { value: 'cooperative', label: 'Cooperative' },
+          { value: 'ngo_nonprofit', label: 'NGO / Non-profit' },
+          { value: 'other', label: 'Other' },
+        ],
+      },
       { key: 'businessCategory', label: 'Business category', type: 'category' },
       { key: 'description', label: 'Description of business', icon: 'file-text', multiline: true },
-      { key: 'section-online', label: 'Online Presence', type: 'section' },
+      { key: 'section-online', label: 'Online Presence (Optional)', type: 'section' },
       { key: 'website', label: 'Website', icon: 'globe', placeholder: 'https://...' },
       { key: 'instagram', label: 'Instagram', icon: 'instagram', placeholder: '@handle' },
       { key: 'facebook', label: 'Facebook', icon: 'facebook', placeholder: 'Page name' },
+      { key: 'snapchat', label: 'Snapchat', icon: 'camera', placeholder: '@handle' },
+      { key: 'x', label: 'X (Twitter)', icon: 'twitter', placeholder: '@handle' },
       { key: 'section-registration', label: 'Registration & Tax', type: 'section' },
       {
         key: 'registrationStatus', label: 'Business registration status',

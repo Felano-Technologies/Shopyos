@@ -10,6 +10,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 
 export const requestCameraPermissionWithDisclosure = async (): Promise<{ status: ImagePicker.PermissionStatus }> => {
@@ -38,6 +39,20 @@ export const requestMediaLibraryPermissionWithDisclosure = async (): Promise<{ s
   if (!consented) return { status: ImagePicker.PermissionStatus.DENIED };
 
   return await ImagePicker.requestMediaLibraryPermissionsAsync();
+};
+
+export const requestLocationPermissionWithDisclosure = async (): Promise<{ status: Location.PermissionStatus }> => {
+  const existing = await Location.getForegroundPermissionsAsync();
+  if (existing.status === Location.PermissionStatus.GRANTED) return existing;
+
+  const consented = await requestPermissionDisclosure({
+    icon: 'location',
+    title: 'Location Access',
+    description: 'Shopyos uses your location to center the map on where you actually are, so you can pin your shop location without having to search for it manually.',
+  });
+  if (!consented) return { status: Location.PermissionStatus.DENIED };
+
+  return await Location.requestForegroundPermissionsAsync();
 };
 
 export const requestMicrophonePermissionWithDisclosure = async (): Promise<{ status: string }> => {
