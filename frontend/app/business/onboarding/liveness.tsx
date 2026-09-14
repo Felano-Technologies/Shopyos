@@ -133,9 +133,14 @@ function computeChallengeProgress(challengeId: string, baseline: Face, current: 
 // reports, it never decides progress itself. This IS the face guide (a
 // faint outline, always visible) plus a green progress trace over the exact
 // same oval, filling via the standard SVG strokeDasharray/strokeDashoffset
-// technique; rotated -90° so the fill starts at 12 o'clock instead of 3.
+// technique. NOTE: a circle can be rotated 90° to move where the fill
+// starts without changing how it looks, but an ellipse can't — rotating a
+// shape whose rx != ry swaps its visual aspect ratio, which is what
+// produced a squashed, clipped near-circle here. So there is deliberately
+// no rotation at all: the fill starts at the ellipse's natural start point
+// (3 o'clock) and sweeps around from there.
 const FaceGuideOval: React.FC<{ progress: number; highlighted: boolean }> = ({ progress, highlighted }) => (
-  <Svg width={OVAL_WIDTH} height={OVAL_HEIGHT} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+  <Svg width={OVAL_WIDTH} height={OVAL_HEIGHT} style={{ position: 'absolute' }}>
     <Ellipse
       cx={OVAL_WIDTH / 2} cy={OVAL_HEIGHT / 2} rx={OVAL_RX} ry={OVAL_RY}
       stroke={highlighted ? '#22C55E' : 'rgba(255,255,255,0.5)'} strokeWidth={OVAL_STROKE_WIDTH} fill="none"
@@ -212,7 +217,19 @@ export default function LivenessCaptureScreen() {
     (async () => {
       setPhase('baseline');
       log('capturing baseline photo…');
-      const uri = await takePhoto();
+      // The camera view can still be settling right after mount, which makes
+      // the very first takePictureAsync() call fail (CameraImageCaptureException).
+      // Retry a couple of times with a short delay rather than silently
+      // proceeding with no baseline — without one, progress can never be
+      // computed for any challenge afterward.
+      let uri: string | null = null;
+      for (let attempt = 1; attempt <= 3 && !uri && !cancelledRef.current; attempt++) {
+        if (attempt > 1) {
+          log(`retrying baseline photo capture (attempt ${attempt}/3)…`);
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        uri = await takePhoto();
+      }
       if (uri) {
         log('baseline photo captured OK');
         framesRef.current.push({ label: 'baseline', uri });
