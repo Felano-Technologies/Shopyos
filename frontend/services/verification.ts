@@ -94,6 +94,7 @@ export const uploadVerificationDocument = async (
     const ext = match ? match[1] : 'jpg';
     const mimeType = ext.toLowerCase() === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
     const blob = await uriToBlob(uri, mimeType);
+    console.log(`[uploadVerificationDocument] blob ready — size=${blob.size} type=${blob.type} filename=${filename}`);
 
     const formData = new FormData();
     formData.append('document', blob, filename);
@@ -104,8 +105,10 @@ export const uploadVerificationDocument = async (
     const response = await api.post(`/verification/${applicationId}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    console.log(`[uploadVerificationDocument] server responded ${response.status}`);
     return response.data?.data;
   } catch (error: any) {
+    console.log(`[uploadVerificationDocument] FAILED: ${error?.response?.status ?? ''} ${error?.response?.data?.error || error.message}`);
     if (error.response) throw new Error(error.response.data?.error || 'Failed to upload document');
     throw new Error(error.message || 'Network error uploading document');
   }

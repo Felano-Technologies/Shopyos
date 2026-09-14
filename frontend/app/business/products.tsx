@@ -1,5 +1,5 @@
 // app/business/products.tsx
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ScrollView,
@@ -18,6 +18,8 @@ import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { getStoreProducts, deleteProduct } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -128,6 +130,37 @@ export default function ProductsScreen() {
   const portfolioValue = products.reduce((s, p) => s + (Number.parseFloat(p.price) || 0) * (Number.parseInt(p.stock) || 0), 0);
   const activeCount = products.filter((p) => p.isActive).length;
   const inactiveCount = products.filter((p) => !p.isActive).length;
+
+  // --- Onboarding tour (mirrors business/analytics.tsx's pattern) ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refStats = useRef<View>(null);
+  const refAddBtn = useRef<View>(null);
+  const refFilters = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (loading || isChecking || !isVerified) return;
+    const timer = setTimeout(() => {
+      measureTourElement(refStats, 'stats');
+      measureTourElement(refAddBtn, 'addBtn');
+      measureTourElement(refFilters, 'filters');
+      startTour('business_products');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isChecking, isVerified]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.stats, title: 'Product Stats', description: 'See your total, active, and inactive product counts at a glance.' },
+    { targetLayout: tourLayouts.addBtn, title: 'Add a Product', description: 'Tap here to list a new product for sale.' },
+    { targetLayout: tourLayouts.filters, title: 'Filter Products', description: 'Quickly narrow the list down to just active or inactive products.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('business_products');
 
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
@@ -283,7 +316,7 @@ export default function ProductsScreen() {
               )}
 
               {/* ── Stat pills ────────────────────────────────────────────── */}
-              <View style={S.statRow}>
+              <View style={S.statRow} ref={refStats} onLayout={() => measureTourElement(refStats, 'stats')}>
                 {[
                   { label: 'Total', value: totalProducts, color: C.navy },
                   { label: 'Active', value: activeCount, color: colors.accent },
@@ -315,22 +348,26 @@ export default function ProductsScreen() {
                   <Ionicons name="search" size={rs(18)} color={C.subtle} />
                   <TextInput accessibilityLabel="Search products" accessibilityRole="none" placeholder="Search products…" placeholderTextColor={C.subtle} value={searchQuery} onChangeText={setSearchQuery} style={S.searchInput} />
                 </View>
-                <TouchableOpacity accessibilityLabel="Add product" accessibilityRole="button" style={S.addBtnSmall} onPress={() => router.push('/business/products/addproducts')} disabled={isBlocked}>
-                  <Ionicons name="add" size={rs(16)} color={C.limeText} />
-                  <Text style={S.addBtnSmallTxt}>Add Product</Text>
-                </TouchableOpacity>
+                <View ref={refAddBtn} onLayout={() => measureTourElement(refAddBtn, 'addBtn')}>
+                  <TouchableOpacity accessibilityLabel="Add product" accessibilityRole="button" style={S.addBtnSmall} onPress={() => router.push('/business/products/addproducts')} disabled={isBlocked}>
+                    <Ionicons name="add" size={rs(16)} color={C.limeText} />
+                    <Text style={S.addBtnSmallTxt}>Add Product</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.chipScrollView} contentContainerStyle={S.chipStrip}>
-                {FILTERS.map((f) => {
-                  const on = filter === f;
-                  return (
-                    <TouchableOpacity accessibilityLabel={`Filter by ${f}`} accessibilityRole="button" key={f} style={[S.chip, on && S.chipOn]} onPress={() => setFilter(f)} activeOpacity={0.75}>
-                      <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <View ref={refFilters} onLayout={() => measureTourElement(refFilters, 'filters')}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={S.chipScrollView} contentContainerStyle={S.chipStrip}>
+                  {FILTERS.map((f) => {
+                    const on = filter === f;
+                    return (
+                      <TouchableOpacity accessibilityLabel={`Filter by ${f}`} accessibilityRole="button" key={f} style={[S.chip, on && S.chipOn]} onPress={() => setFilter(f)} activeOpacity={0.75}>
+                        <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
               <View style={{ height: rs(12) }} />
 
               {/* ── Product list ────────────────────────────────────────────── */}
@@ -430,6 +467,12 @@ export default function ProductsScreen() {
             { label: 'Cancel', onPress: () => setDeleteTargetId(null), variant: 'cancel' },
             { label: 'Delete', onPress: handleDeleteProduct, variant: 'destructive' },
           ]}
+        />
+
+        <CoachMarkSequence
+          visible={isTourActive && activeScreen === 'business_products'}
+          steps={onboardingSteps}
+          onComplete={handleOnboardingComplete}
         />
       </SafeAreaView>
     </View>

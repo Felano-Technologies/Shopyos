@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
 import WelcomeCard from '@/components/WelcomeCard';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { useActiveBusiness, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
@@ -64,7 +66,7 @@ const BusinessDashboard = () => {
     const headerBg = selectedBusiness?.banner_url || selectedBusiness?.coverImage;
 
     return (
-      <View style={styles.headerContainer} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
+      <View style={styles.headerContainer} ref={refTop} onLayout={() => measureTourElement(refTop, 'top')}>
         {headerBg ? (
           <AppImage uri={headerBg} style={StyleSheet.absoluteFill} />
         ) : (
@@ -159,6 +161,41 @@ const BusinessDashboard = () => {
     checkAuthAndShowModal();
   }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
 
+  // --- Onboarding tour ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refTop = useRef<View>(null);
+  const refStats = useRef<View>(null);
+  const refActions = useRef<View>(null);
+  const refChart = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (!loading && selectedBusiness && isVerified) {
+      const timer = setTimeout(() => {
+        measureTourElement(refTop, 'top');
+        measureTourElement(refStats, 'stats');
+        measureTourElement(refActions, 'actions');
+        measureTourElement(refChart, 'chart');
+        startTour('business_dashboard');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isVerified, selectedBusiness]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.top, title: 'Store Settings', description: 'Quickly access your notifications and store-wide settings here.' },
+    { targetLayout: tourLayouts.stats, title: 'Store Pulse', description: 'Keep an eye on your balance, orders, pending deliveries, and products.' },
+    { targetLayout: tourLayouts.actions, title: 'Quick Shortcuts', description: 'Rapidly add new products, manage orders, or promote your store.' },
+    { targetLayout: tourLayouts.chart, title: 'Sales Tracking', description: 'Visualize your store’s performance over various time periods.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('business_dashboard');
+
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
   };
@@ -239,7 +276,7 @@ const BusinessDashboard = () => {
                 </View>
 
                 {/* --- FLOATING STATS --- */}
-                <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+                <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureTourElement(refStats, 'stats')}>
                   <View style={styles.statItem}>
                     <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
                     <Text style={styles.statLabel}>Balance</Text>
@@ -262,7 +299,7 @@ const BusinessDashboard = () => {
                 </View>
 
                 {/* --- QUICK ACTIONS --- */}
-                <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
+                <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureTourElement(refActions, 'actions')}>
                   <Text style={styles.sectionTitle}>Quick Actions</Text>
                   <View style={styles.actionsGrid}>
                     {[
@@ -300,7 +337,7 @@ const BusinessDashboard = () => {
                 {(() => {
                   const chartTotal = (chartData?.datasets?.[0]?.data || []).reduce((a: number, b: number) => a + b, 0);
                   return (
-                    <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
+                    <View style={styles.chartCard} ref={refChart} onLayout={() => measureTourElement(refChart, 'chart')}>
                       <View style={styles.chartHeader}>
                         <View>
                           <Text style={styles.cardSubtitle}>Total Revenue</Text>
@@ -511,8 +548,13 @@ const BusinessDashboard = () => {
       </Modal>
 
       <BusinessBottomNav />
-      {/* One-time role-aware welcome card (replaces the old spotlight tour) */}
       <WelcomeCard />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'business_dashboard'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 };
@@ -556,7 +598,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
   floatingStatsContainer: { flexDirection: 'row', backgroundColor: colors.surface, marginHorizontal: 20, marginTop: -5, borderRadius: 16, padding: 20, elevation: 10, shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
-  statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
   statItem: { alignItems: 'center', flex: 1, zIndex: 1 },
   statNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.primary, textAlign: 'center' },
   statLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: colors.textSecondary, marginTop: 2, textAlign: 'center' },

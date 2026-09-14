@@ -100,7 +100,7 @@ export const CoachMarkSequence: React.FC<CoachMarkSequenceProps> = ({ steps, vis
   const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, styles.root]} pointerEvents="box-none">
       <Animated.View
         pointerEvents="none"
         style={[
@@ -128,6 +128,13 @@ export const CoachMarkSequence: React.FC<CoachMarkSequenceProps> = ({ steps, vis
 };
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
+  // Screens routinely have their own sticky headers/scroll content at
+  // zIndex 10-100 (e.g. business/orders.tsx, business/analytics.tsx) — this
+  // has to out-rank all of that to actually render on top rather than
+  // behind the content it's supposed to be highlighting. elevation is set
+  // too since Android's stacking can otherwise ignore zIndex between
+  // siblings that don't share a stacking context.
+  root: { zIndex: 9999, elevation: 9999 },
   ring: {
     position: 'absolute',
     borderWidth: 2,

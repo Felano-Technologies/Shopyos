@@ -142,6 +142,7 @@ export default function OrdersScreen() {
 
   const [filter, setFilter] = useState<FilterType>('All');
   const [showSwitcher, setShowSwitcher] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -328,7 +329,10 @@ export default function OrdersScreen() {
         ) : (
           <>
             {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
+            <View
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}
+              onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+            >
               <LinearGradient
                 colors={colors.headerGradient}
                 style={[S.header, { paddingTop: insets.top + rs(16) }]}
@@ -400,18 +404,21 @@ export default function OrdersScreen() {
             <ScrollView
               showsVerticalScrollIndicator={false}
               style={{ zIndex: 10 }}
-              // Android uses padding to push content down; iOS uses contentInset
-              contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? 240 : 0, paddingBottom: rs(120) }}
+              // Android uses padding to push content down; iOS uses contentInset.
+              // Both are driven by the header's real measured height (not a
+              // guessed constant) so content starts exactly where the header
+              // ends regardless of device/safe-area size — see analytics.tsx.
+              contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? (headerHeight || 240) : 0, paddingBottom: rs(120) }}
               // iOS pushes the content down AND moves the refresh spinner into this empty space!
-              contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }}
-              contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -10 : 0 }}
+              contentInset={{ top: Platform.OS === 'ios' ? (headerHeight || 240) : 0 }}
+              contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -(headerHeight || 240) : 0 }}
               refreshControl={
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   tintColor="#84cc16" // iOS single color (Apple strict rule)
                   colors={['#1e3a8a', '#84cc16', '#111827']} // Android 3-color ring
-                  progressViewOffset={260} // Android offset
+                  progressViewOffset={(headerHeight || 240) + 20} // Android offset
                 />
               }
             >
