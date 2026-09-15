@@ -835,6 +835,35 @@ async function reviewDriverVehicleAdmin(req, res) {
   }
 }
 
+// Keeps the entity created at submit time (stores.verification_status for a
+// seller, driver_profiles.is_verified for a driver) in lockstep with this
+// application's approve/reject decision. businessController.js deliberately
+// reads stores.verification_status directly as the seller's real-facing
+// source of truth (see its own header comment — a past fix, after the
+// opposite bug), and the legacy admin verifyStore/approveDriver/rejectDriver
+// flows already write these same columns for their own approval path.
+// Without this, approving/rejecting an application here never reaches the
+// field the applicant's own status screen actually checks — it just stays
+// at whatever the entity had when it was first created (typically
+// 'pending'/unverified), which is exactly why an applicant could see "under
+// review" forever despite an admin having approved them.
+async function _syncEntityVerificationStatus(application, { approved, rejectionReason }) {
+  if (!application.entity_id) return;
+  if (application.role === 'seller') {
+    await repositories.stores.update(application.entity_id, {
+      verification_status: approved ? 'verified' : 'rejected',
+      is_verified: approved,
+      verified_at: approved ? new Date().toISOString() : null,
+      rejection_reason: approved ? null : rejectionReason,
+    });
+  } else if (application.role === 'driver') {
+    await repositories.drivers.update(application.entity_id, {
+      is_verified: approved,
+      rejection_reason: approved ? null : rejectionReason,
+    });
+  }
+}
+
 // PUT /admin/verifications/:id/approve — only possible once every required
 // step is 'verified' (an admin must have explicitly confirmed identity/
 // liveness/documents first; a passing on-device liveness claim alone is not
@@ -862,6 +891,7 @@ async function approveApplication(req, res) {
     if (role) await repositories.roles.assignRoleToUser(application.user_id, role.id);
     await invalidateUserAuthCache(application.user_id);
     await recomputeAndStoreRiskScore(application.id);
+    await _syncEntityVerificationStatus(application, { approved: true });
 
     await repositories.auditLogs.createLog({
       userId: req.user.id,
@@ -909,6 +939,7 @@ async function rejectApplication(req, res) {
       reviewed_by: req.user.id,
     });
     await recomputeAndStoreRiskScore(application.id);
+    await _syncEntityVerificationStatus(application, { approved: false, rejectionReason: reason });
 
     await repositories.auditLogs.createLog({
       userId: req.user.id,

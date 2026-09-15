@@ -18,12 +18,9 @@
 // that (it can go back down, not just up) because it's recomputed fresh from
 // the current vs. baseline reading on every poll, not accumulated.
 //
-// NOTE: rotationY's sign convention (which direction counts as "left" vs
-// "right" for a front-facing/mirrored preview) is per ML Kit's documented
-// behavior but has not been empirically verified on-device in this
-// environment (no camera/ML runtime available here). TURN_SIGN below is the
-// one place to flip if a real device test shows turn_left/turn_right are
-// swapped.
+// NOTE: rotationY's sign convention for a front-facing/mirrored preview was
+// empirically verified on-device — turning left measurably increases
+// rotationY — see TURN_SIGN below.
 //
 // 'blink' is intentionally not offered — 5-point/landmark-based analysis
 // can't reliably detect eyelid closure, and the server-side verifier
@@ -39,7 +36,7 @@
 // consent.tsx's file header for why this lives under business/onboarding).
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import Svg, { Ellipse } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -47,6 +44,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FaceDetection, { Face } from '@react-native-ml-kit/face-detection';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { requestPermissionDisclosure } from '@/components/PermissionDisclosureHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -67,7 +65,10 @@ function pickChallenges() {
 
 const YAW_DELTA_THRESHOLD_DEG = 15;
 const SMILE_PROBABILITY_THRESHOLD = 0.65;
-const TURN_SIGN = { turn_left: -1, turn_right: 1 } as const; // flip here if a device test shows these reversed
+// Confirmed backwards on a real device: turning left measurably increased
+// rotationY (baseline ~-4° → ~22-29° while turning left), so turn_left
+// needs a POSITIVE sign, not negative — flipped from the original guess.
+const TURN_SIGN = { turn_left: 1, turn_right: -1 } as const;
 const GET_READY_MS = 2500;
 const POLL_INTERVAL_MS = 550;
 const DETECTION_TIMEOUT_MS = 8000;
@@ -97,9 +98,17 @@ type CapturedFrame = { label: string; uri: string };
 type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'verifying';
 
 // Returns the detection result AND whatever went wrong, if anything — the
-// caller logs the error to the on-screen debug panel instead of it being
+// caller logs the error (see log()) instead of it being
 // silently swallowed, since "detection never does anything" is impossible
 // to diagnose without seeing why every call is failing.
+// `uri` is expected to already be orientation-normalized (see takePhoto) —
+// @react-native-ml-kit/face-detection's iOS native code (FaceDetection.m)
+// builds MLKVisionImage straight from a UIImage and never sets
+// MLKVisionImage.orientation, so ML Kit assumes the pixel buffer is already
+// upright regardless of the photo's actual EXIF orientation. A raw
+// front-camera capture's buffer is typically sideways until that EXIF tag
+// is applied for display, so ML Kit reliably finds zero faces even with a
+// clearly visible, well-framed one — hence normalizing before this is ever called.
 async function detectFace(uri: string): Promise<{ face: Face | null; error: string | null }> {
   try {
     const faces = await FaceDetection.detect(uri, { classificationMode: 'all', performanceMode: 'fast' });
@@ -163,24 +172,20 @@ export default function LivenessCaptureScreen() {
   const { role } = useLocalSearchParams<{ role?: 'seller' | 'driver' }>();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
   const [challenges] = useState(pickChallenges);
   const [stepIndex, setStepIndex] = useState(-1); // -1 = capturing baseline, before any challenge
   const [phase, setPhase] = useState<Phase>('baseline');
   const [readySeconds, setReadySeconds] = useState(Math.ceil(GET_READY_MS / 1000));
   const [progress, setProgress] = useState(0); // 0-1, driven only by computeChallengeProgress — see ProgressRing
   const [submitting, setSubmitting] = useState(false);
-  const [debugLines, setDebugLines] = useState<string[]>([]);
   const framesRef = useRef<CapturedFrame[]>([]);
   const baselineFaceRef = useRef<Face | null>(null);
   const cancelledRef = useRef(false);
 
-  // On-screen log — requested explicitly so what's actually happening on
-  // the device is visible without a separate debugger attached. Keeps the
-  // last N lines only so it doesn't grow unbounded during the poll loop.
   const log = (msg: string) => {
     const line = `${new Date().toTimeString().slice(0, 8)}  ${msg}`;
     console.log('[liveness]', line);
-    setDebugLines((prev) => [...prev.slice(-17), line]);
   };
 
   useEffect(() => {
@@ -201,10 +206,30 @@ export default function LivenessCaptureScreen() {
   }, []);
 
   const takePhoto = async (): Promise<string | null> => {
+    // AVFoundation throws a native (not JS-catchable) exception — "No
+    // active and enabled video connection" — if takePictureAsync is called
+    // before the capture session's video connection is actually live, which
+    // crashes the whole app rather than rejecting the promise. onCameraReady
+    // firing is the only reliable signal for that; a short settle-time delay
+    // isn't, since it crashed even with retries/delays already in place.
+    if (!cameraReady) {
+      log('takePhoto: skipped — camera not ready yet');
+      return null;
+    }
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.5 });
-      if (!photo?.uri) log('takePhoto: camera returned no photo (cameraRef possibly not ready)');
-      return photo?.uri || null;
+      if (!photo?.uri) { log('takePhoto: camera returned no photo (cameraRef possibly not ready)'); return null; }
+
+      // Re-encode immediately so EVERY downstream use of this photo — both
+      // detectFace below and the frame actually uploaded for the server's
+      // own (separate, ONNX-based) liveness analysis — gets the same
+      // orientation-normalized file. Normalizing only for on-device
+      // detection and uploading the original raw/rotated capture meant the
+      // server's own face detection could independently fail on the exact
+      // same baseline photo the client had already scored as a real face.
+      const rendered = await ImageManipulator.manipulate(photo.uri).renderAsync();
+      const normalized = await rendered.saveAsync({ compress: 0.9, format: SaveFormat.JPEG });
+      return normalized.uri;
     } catch (err: any) {
       log(`takePhoto FAILED: ${err?.message || err}`);
       return null;
@@ -213,30 +238,38 @@ export default function LivenessCaptureScreen() {
 
   // Baseline: captured once the camera is ready, before the first challenge.
   useEffect(() => {
-    if (hasPermission !== true || stepIndex !== -1) return;
+    if (hasPermission !== true || !cameraReady || stepIndex !== -1) return;
     (async () => {
       setPhase('baseline');
       log('capturing baseline photo…');
-      // The camera view can still be settling right after mount, which makes
-      // the very first takePictureAsync() call fail (CameraImageCaptureException).
-      // Retry a couple of times with a short delay rather than silently
-      // proceeding with no baseline — without one, progress can never be
-      // computed for any challenge afterward.
+      // onCameraReady firing doesn't mean the sensor's auto-exposure/
+      // auto-focus have actually converged yet — challenge polls never hit
+      // this because they only start ~2.5s (GET_READY_MS) after baseline,
+      // by which point the camera's been streaming long enough to settle.
+      // Baseline has no such head start, so give it one explicitly.
+      await new Promise((r) => setTimeout(r, 600));
+
+      // Retries the FULL capture+detect cycle, not just a failed capture —
+      // a photo can come back fine (non-null uri) from a frame grabbed
+      // mid-focus/exposure adjustment and still have no detectable face.
       let uri: string | null = null;
-      for (let attempt = 1; attempt <= 3 && !uri && !cancelledRef.current; attempt++) {
+      let face: Face | null = null;
+      for (let attempt = 1; attempt <= 3 && !face && !cancelledRef.current; attempt++) {
         if (attempt > 1) {
-          log(`retrying baseline photo capture (attempt ${attempt}/3)…`);
-          await new Promise((r) => setTimeout(r, 400));
+          log(`retrying baseline capture — no face found yet (attempt ${attempt}/3)…`);
+          await new Promise((r) => setTimeout(r, 500));
         }
         uri = await takePhoto();
+        if (!uri) continue;
+        const result = await detectFace(uri);
+        face = result.face;
+        if (result.error) log(`baseline face detection FAILED: ${result.error}`);
       }
       if (uri) {
         log('baseline photo captured OK');
         framesRef.current.push({ label: 'baseline', uri });
-        const { face, error } = await detectFace(uri);
         baselineFaceRef.current = face;
-        if (error) log(`baseline face detection FAILED: ${error}`);
-        else if (!face) log('baseline: no face detected in photo');
+        if (!face) log('baseline: no face detected in photo');
         else log(`baseline face detected — rotationY=${face.rotationY.toFixed(1)}° smiling=${(face.smilingProbability ?? -1).toFixed(2)}`);
       } else {
         log('baseline photo capture returned nothing');
@@ -244,7 +277,7 @@ export default function LivenessCaptureScreen() {
       if (cancelledRef.current) return;
       setStepIndex(0);
     })();
-  }, [hasPermission, stepIndex]);
+  }, [hasPermission, cameraReady, stepIndex]);
 
   // Per-challenge: a "get ready" countdown, then poll photos until the
   // gesture is detected (or the timeout is hit) rather than a blind timer.
@@ -357,7 +390,10 @@ export default function LivenessCaptureScreen() {
         passed: true, // evidence only — the server computes the real verdict
         challengeSequence: challenges.map((c) => c.id).join(','),
         frames: framesRef.current,
-        methodVersion: 'multi_frame_v2_ondevice_detection',
+        // liveness_verifications.method_version is VARCHAR(20) — must stay
+        // short (the old 'multi_frame_v2_ondevice_detection' was 33 chars
+        // and failed every submission with a Postgres "value too long" error).
+        methodVersion: 'multi_frame_v2',
         deviceInfo: Platform.OS,
       });
       CustomInAppToast.show({ type: 'success', title: 'Liveness recorded', message: 'An admin will confirm this during review.' });
@@ -400,7 +436,12 @@ export default function LivenessCaptureScreen() {
   if (hasPermission === null || submitting) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          {submitting && (
+            <Text style={styles.permissionText}>Uploading and verifying your photos…{"\n"}This can take a few seconds.</Text>
+          )}
+        </View>
       </SafeAreaView>
     );
   }
@@ -433,19 +474,16 @@ export default function LivenessCaptureScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
       <View style={styles.cameraWrap}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="front" />
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="front"
+          onCameraReady={() => { setCameraReady(true); log('camera reported ready'); }}
+        />
         <View style={[StyleSheet.absoluteFill, styles.overlay]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
             <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
-
-          {__DEV__ && debugLines.length > 0 && (
-            <ScrollView style={styles.debugPanel} contentContainerStyle={{ padding: 6 }}>
-              {debugLines.map((line, i) => (
-                <Text key={i} style={styles.debugText}>{line}</Text>
-              ))}
-            </ScrollView>
-          )}
 
           <View style={styles.topSection}>
             <Text style={styles.titleText}>{topTitle}</Text>
@@ -475,8 +513,6 @@ export default function LivenessCaptureScreen() {
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#000' },
-  debugPanel: { position: 'absolute', top: 60, left: 12, right: 12, maxHeight: 160, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 8, zIndex: 50 },
-  debugText: { color: '#22C55E', fontSize: 10, fontFamily: 'monospace' as any, marginBottom: 2 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   permissionText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 12 },
   backLink: { marginTop: 16, padding: 8 },
