@@ -1,5 +1,5 @@
 // app/business/products/addproducts.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Pressable, Alert, Dimensions} from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -9,7 +9,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProductImage, updateProduct, getAllCategories } from '@/services/api';
+import { createProduct, uploadProductImages, deleteProductImage, setPrimaryProductImage, setProductImageColorTag, updateProduct, getAllCategories } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -47,6 +47,7 @@ type ProductImage = {
   uri: string;       // local file uri (new) or remote url (existing)
   isPrimary: boolean;
   isNew: boolean;    // picked this session, not yet uploaded
+  colorTag?: string | null; // which entered color value this photo represents, if any
 };
 
 const isFashionCategory = (cat: string) => String(cat || '').toLowerCase().match(/fashion|footwear|sneaker|accessory|clothing/);
@@ -118,6 +119,14 @@ export default function ManageProductScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryModal, setCategoryModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // What each existing image's colorTag was when this screen loaded — lets
+  // handleSave only PATCH the images whose tag actually changed, instead of
+  // re-sending every photo's tag on every save.
+  const initialColorTagsRef = useRef<Record<string, string | null>>({});
+  const availableColors = useMemo(
+    () => attrColor.split(',').map((c) => c.trim()).filter(Boolean),
+    [attrColor]
+  );
 
   useEffect(() => {
     getAllCategories().then(res => { if (res.success) setCategories(res.categories); });
@@ -135,7 +144,11 @@ export default function ManageProductScreen() {
           uri: img.url,
           isPrimary: !!img.isPrimary,
           isNew: false,
+          colorTag: img.colorTag || null,
         })));
+        initialColorTagsRef.current = Object.fromEntries(
+          existingImages.filter((img) => img.id).map((img) => [img.id, img.colorTag || null])
+        );
         setOriginalPrimaryId(existingImages.find((img) => img.isPrimary)?.id);
         setIsActive(item.isActive); setCategory(item.category);
         setGender(item.gender || 'Unisex'); setAttrColor(item.attrColor || '');
@@ -209,6 +222,24 @@ export default function ManageProductScreen() {
         }
       }
 
+      // Reconcile per-photo color tags — only for images whose tag actually
+      // changed (new images with a tag, or existing ones that differ from
+      // what they were when this screen loaded), so tagging is a no-op cost
+      // for sellers who never use it.
+      if (productId) {
+        const colorTagUpdates = images
+          .map((img) => {
+            const resolvedId = img.isNew ? uploadedRecords[newImages.indexOf(img)]?.id : img.id;
+            if (!resolvedId) return null;
+            const initial = img.isNew ? null : (initialColorTagsRef.current[img.id || ''] ?? null);
+            const current = img.colorTag ?? null;
+            if (current === initial) return null;
+            return setProductImageColorTag(productId!, resolvedId, current).catch(() => {});
+          })
+          .filter((p): p is Promise<any> => p !== null);
+        if (colorTagUpdates.length) await Promise.all(colorTagUpdates);
+      }
+
       router.back();
     } catch (e: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Operation failed' });
@@ -241,6 +272,22 @@ export default function ManageProductScreen() {
 
   const handleSetPrimaryImage = (index: number) => {
     setImages((prev) => prev.map((img, i) => ({ ...img, isPrimary: i === index })));
+  };
+
+  const handleTagImageColor = (index: number) => {
+    if (!availableColors.length) return;
+    Alert.alert(
+      'Tag this photo',
+      'Which color does this photo show? The buyer will jump straight to it when they pick that color.',
+      [
+        ...availableColors.map((c) => ({
+          text: c,
+          onPress: () => setImages((prev) => prev.map((img, i) => (i === index ? { ...img, colorTag: c } : img))),
+        })),
+        { text: 'No color', onPress: () => setImages((prev) => prev.map((img, i) => (i === index ? { ...img, colorTag: null } : img))) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
 return (
@@ -281,30 +328,50 @@ return (
             <Text style={S.sectionLabel}>Product Media</Text>
             <Text style={S.mediaHint}>Add up to {MAX_PRODUCT_IMAGES} photos. Tap the star to choose which one shows on your product card.</Text>
             {images.length === 1 && (
-              <Text style={S.mediaHint}>Tip: add a few more angles — listings with multiple photos build more buyer trust.</Text>
+              <View style={S.mediaTipCallout}>
+                <Ionicons name="bulb-outline" size={rs(15)} color={C.navy} />
+                <Text style={S.mediaTipCalloutTxt}>Add a few more angles — listings with multiple photos build more buyer trust.</Text>
+              </View>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.mediaRow}>
               {images.map((img, index) => (
-                <View key={img.id || img.uri} style={S.mediaTile}>
-                  <AppImage uri={img.uri} style={S.mediaTileImg} />
-                  <TouchableOpacity
-                    accessibilityLabel={img.isPrimary ? 'Primary photo' : 'Set as primary photo'}
-                    style={[S.mediaStarBadge, img.isPrimary && S.mediaStarBadgeOn]}
-                    onPress={() => handleSetPrimaryImage(index)}
-                    disabled={isSubmitting || img.isPrimary}
-                  >
-                    <Ionicons name={img.isPrimary ? 'star' : 'star-outline'} size={rs(13)} color={img.isPrimary ? colors.textInverse : colors.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    accessibilityLabel="Remove photo"
-                    style={S.mediaRemoveBadge}
-                    onPress={() => handleRemoveImage(index)}
-                    disabled={isSubmitting}
-                  >
-                    <Ionicons name="close" size={rs(13)} color="#FFF" />
-                  </TouchableOpacity>
-                  {img.isPrimary && (
-                    <View style={S.mediaPrimaryTag}><Text style={S.mediaPrimaryTagTxt}>Card photo</Text></View>
+                <View key={img.id || img.uri} style={S.mediaTileWrap}>
+                  <View style={S.mediaTile}>
+                    <AppImage uri={img.uri} style={S.mediaTileImg} />
+                    <TouchableOpacity
+                      accessibilityLabel={img.isPrimary ? 'Primary photo' : 'Set as primary photo'}
+                      style={[S.mediaStarBadge, img.isPrimary && S.mediaStarBadgeOn]}
+                      onPress={() => handleSetPrimaryImage(index)}
+                      disabled={isSubmitting || img.isPrimary}
+                    >
+                      <Ionicons name={img.isPrimary ? 'star' : 'star-outline'} size={rs(13)} color={img.isPrimary ? colors.textInverse : colors.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel="Remove photo"
+                      style={S.mediaRemoveBadge}
+                      onPress={() => handleRemoveImage(index)}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons name="close" size={rs(13)} color="#FFF" />
+                    </TouchableOpacity>
+                    {img.isPrimary && (
+                      <View style={S.mediaPrimaryTag}><Text style={S.mediaPrimaryTagTxt}>Card photo</Text></View>
+                    )}
+                  </View>
+                  {/* Ties this exact photo to one of the colors entered below, so the
+                      buyer's gallery can jump straight to it when they pick that color —
+                      only shown once the seller has actually typed color options. */}
+                  {availableColors.length > 0 && (
+                    <TouchableOpacity
+                      style={[S.mediaColorTagBtn, !!img.colorTag && S.mediaColorTagBtnOn]}
+                      onPress={() => handleTagImageColor(index)}
+                      disabled={isSubmitting}
+                    >
+                      <Ionicons name="color-palette-outline" size={rs(11)} color={img.colorTag ? colors.textInverse : C.navy} />
+                      <Text style={[S.mediaColorTagTxt, !!img.colorTag && S.mediaColorTagTxtOn]} numberOfLines={1}>
+                        {img.colorTag || 'Tag color'}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               ))}
@@ -620,9 +687,22 @@ header: {
   iconBg: { width: rs(36), height: rs(36), borderRadius: rs(10), backgroundColor: C.border, justifyContent: 'center', alignItems: 'center' },
 
   mediaHint: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: rs(12) },
+  mediaTipCallout: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: rs(8), backgroundColor: 'rgba(12,21,89,0.06)',
+    borderRadius: rs(10), paddingVertical: rs(8), paddingHorizontal: rs(10), marginTop: -rs(4), marginBottom: rs(12),
+  },
+  mediaTipCalloutTxt: { flex: 1, fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.navy, lineHeight: rf(15) },
   mediaRow: { gap: rs(10), paddingRight: rs(4) },
+  mediaTileWrap: { width: rs(84) },
   mediaTile: { width: rs(84), height: rs(84), borderRadius: rs(14), overflow: 'hidden', backgroundColor: C.border },
   mediaTileImg: { width: '100%', height: '100%' },
+  mediaColorTagBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(3), marginTop: rs(5),
+    borderRadius: rs(8), borderWidth: 1, borderColor: C.borderStrong, paddingVertical: rs(4), paddingHorizontal: rs(4),
+  },
+  mediaColorTagBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
+  mediaColorTagTxt: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.navy, flexShrink: 1 },
+  mediaColorTagTxtOn: { color: '#FFF' },
   mediaStarBadge: {
     position: 'absolute', top: rs(4), left: rs(4), width: rs(22), height: rs(22), borderRadius: rs(11),
     backgroundColor: 'rgba(255,255,255,0.92)', justifyContent: 'center', alignItems: 'center',

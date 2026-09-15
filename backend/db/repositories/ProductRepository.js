@@ -328,7 +328,8 @@ class ProductRepository extends BaseRepository {
           id,
           image_url,
           display_order,
-          is_primary
+          is_primary,
+          color_tag
         ),
         inventory (
           quantity,

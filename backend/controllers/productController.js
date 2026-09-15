@@ -156,7 +156,7 @@ const getStoreProducts = async (req, res, next) => {
       limit: limitNum,
       offset: offsetNum,
       includeInactive: includeInactive === 'true',
-      select: '*, inventory(quantity), product_images(id, image_url, is_primary, display_order)'
+      select: '*, inventory(quantity), product_images(id, image_url, is_primary, display_order, color_tag)'
     });
 
     // Format for backward compatibility with batch image resolution
@@ -172,7 +172,7 @@ const getStoreProducts = async (req, res, next) => {
       images: resolvedUrls,
       // Per-image id + primary flag, for the seller's own edit screen only
       // (public product listings only need the plain `images` array above).
-      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedUrls[i], isPrimary: !!img.is_primary })),
+      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedUrls[i], isPrimary: !!img.is_primary, colorTag: img.color_tag || null })),
       category: p.category,
       gender: p.gender,
       sku: p.sku,
@@ -257,7 +257,7 @@ const getProductById = async (req, res, next) => {
       description: product.description,
       price: product.price,
       images: resolvedImageUrls,
-      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedImageUrls[i], isPrimary: !!img.is_primary })),
+      productImages: sortedImages.map((img, i) => ({ id: img.id, url: resolvedImageUrls[i], isPrimary: !!img.is_primary, colorTag: img.color_tag || null })),
       category: product.category,
       gender: product.gender,
       brand: product.brand,
@@ -641,6 +641,52 @@ const setPrimaryProductImage = async (req, res, next) => {
   }
 };
 
+// @desc    Tag one of a product's images as representing a specific
+//          color/variant value, so the buyer's gallery can jump straight
+//          to it when that color is picked. Pass colorTag: null to clear it.
+// @route   PATCH /api/products/:id/images/:imageId/color-tag
+// @access  Private (Seller)
+const setProductImageColorTag = async (req, res, next) => {
+  try {
+    const { id, imageId } = req.params;
+    const { colorTag } = req.body;
+    const userId = req.user.id;
+
+    const product = await repositories.products.findById(id);
+    if (!product) {
+      return ApiResponse.error(res, 'Product not found', 404);
+    }
+
+    const store = await repositories.stores.findById(product.store_id);
+    if (store.owner_id !== userId) {
+      return ApiResponse.error(res, 'Not authorized', 403);
+    }
+
+    const { data: image } = await repositories.products.db
+      .from('product_images')
+      .select('*')
+      .eq('id', imageId)
+      .eq('product_id', id)
+      .single();
+
+    if (!image) {
+      return ApiResponse.error(res, 'Image not found', 404);
+    }
+
+    const trimmedTag = typeof colorTag === 'string' ? colorTag.trim() : null;
+    await repositories.products.db
+      .from('product_images')
+      .update({ color_tag: trimmedTag || null })
+      .eq('id', imageId);
+
+    await invalidateProduct(id, product.store_id);
+
+    ApiResponse.success(res, null, 'Image color tag updated');
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Delete product image
 // @route   DELETE /api/products/:id/images/:imageId
 // @access  Private (Seller)
@@ -847,6 +893,7 @@ module.exports = {
   uploadProductImages,
   deleteProductImage,
   setPrimaryProductImage,
+  setProductImageColorTag,
   getFilterOptions,
   searchProducts,
   getCategories

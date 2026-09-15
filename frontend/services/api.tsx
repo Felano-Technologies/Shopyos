@@ -30,7 +30,7 @@ export {
 export {
   getStoreProducts, searchProducts, getProductFilterOptions, getAllCategories, createCategory, updateCategory,
   deleteCategory, getProductById, createProduct, deleteProduct, updateProduct,
-  uploadProductImages, deleteProductImage, setPrimaryProductImage, getPromotedProducts,
+  uploadProductImages, deleteProductImage, setPrimaryProductImage, setProductImageColorTag, getPromotedProducts,
 } from './products';
 
 export {

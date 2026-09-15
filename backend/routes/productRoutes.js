@@ -6,7 +6,7 @@ const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
   createProduct, getStoreProducts, getProductById,
   updateProduct, deleteProduct, uploadProductImages,
-  deleteProductImage, setPrimaryProductImage, searchProducts, getFilterOptions
+  deleteProductImage, setPrimaryProductImage, setProductImageColorTag, searchProducts, getFilterOptions
 } = require('../controllers/productController');
 const { getSimilar } = require('../controllers/recommendationController');
 const { validateSearch, validateCreateProduct } = require('../middleware/validators');
@@ -477,5 +477,6 @@ router.delete('/:id/images/:imageId', protect, hasAnyRole('seller', 'admin'), de
  *         description: Product or image not found
  */
 router.patch('/:id/images/:imageId/primary', protect, hasAnyRole('seller', 'admin'), setPrimaryProductImage);
+router.patch('/:id/images/:imageId/color-tag', protect, hasAnyRole('seller', 'admin'), setProductImageColorTag);
 
 module.exports = router;

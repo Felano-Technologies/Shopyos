@@ -184,6 +184,16 @@ export const setPrimaryProductImage = async (productId: string, imageId: string)
   }
 };
 
+export const setProductImageColorTag = async (productId: string, imageId: string, colorTag: string | null) => {
+  try {
+    const response = await api.patch(`/products/${productId}/images/${imageId}/color-tag`, { colorTag });
+    queryClient.invalidateQueries({ queryKey: ['products', 'detail', productId] });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getPromotedProducts = async (category?: string) => {
   try {
     const response = await api.get('/advertising/promoted', { params: { category } });

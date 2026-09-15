@@ -14,6 +14,7 @@ import {
     RefreshControl,
     NativeSyntheticEvent,
     NativeScrollEvent,
+    Animated,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -166,6 +167,11 @@ export default function ProductDetails() {
     const [commentSubmitting, setCommentSubmitting] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    // Brief "swipe for more photos" hint — shown once per visit on a
+    // multi-image product (the dots alone are easy to miss), then fades
+    // out on its own or the moment the customer actually swipes.
+    const swipeHintOpacity = useRef(new Animated.Value(0)).current;
+    const swipeHintDismissedRef = useRef(false);
     const [product, setProduct] = useState({
         id: params.id as string,
         title: params.title as string,
@@ -192,6 +198,12 @@ export default function ProductDetails() {
     const [variantOptions, setVariantOptions] = useState<any[]>([]);
     const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
     const [selectedVariant, setSelectedVariant] = useState<any>(null);
+    // Which color (if any) each entry in product.images represents — lets
+    // picking a color jump the gallery straight to that photo, independent
+    // of the separate (and currently always-empty, since no seller flow
+    // creates variant rows) product_variants matching used for price/stock.
+    const [imageColorTags, setImageColorTags] = useState<(string | null)[]>([]);
+    const imageListRef = useRef<FlatList>(null);
     const fetchProductDetails = useCallback(async () => {
         try {
             const res = await getProductById(params.id as string);
@@ -218,6 +230,10 @@ export default function ProductDetails() {
                 }));
                 if (res.product.variantOptions?.length) setVariantOptions(res.product.variantOptions);
                 if (res.product.variants?.length) setVariants(res.product.variants);
+                // productImages is ordered identically to the plain `images` array
+                // above (both built from the same sorted rows server-side), so
+                // index-matching them here is safe.
+                setImageColorTags((res.product.productImages || []).map((img: any) => img.colorTag || null));
             }
         } catch (err) { console.log("Error loading product details", err); }
     }, [params.id]);
@@ -254,6 +270,23 @@ export default function ProductDetails() {
             checkFavoriteStatus();
         }
     }, [checkFavoriteStatus, fetchProductDetails, fetchReviews, params.id]);
+    // Show the "swipe for more photos" hint once the product's images have
+    // loaded, only when there's actually more than one to swipe to, and
+    // only once per visit to this screen.
+    useEffect(() => {
+        if (product.images.length > 1 && !swipeHintDismissedRef.current) {
+            swipeHintDismissedRef.current = true;
+            Animated.sequence([
+                Animated.timing(swipeHintOpacity, { toValue: 1, duration: 300, delay: 400, useNativeDriver: true }),
+                Animated.timing(swipeHintOpacity, { toValue: 0, duration: 400, delay: 2500, useNativeDriver: true }),
+            ]).start();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [product.images.length]);
+    const dismissSwipeHint = useCallback(() => {
+        Animated.timing(swipeHintOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     // --- Review Handlers ---
     const handleLikeReview = async (reviewId: string) => {
         try {
@@ -331,6 +364,18 @@ export default function ProductDetails() {
         const next = { ...selectedAttributes, [optionName]: value };
         setSelectedAttributes(next);
         setSelectedVariant(resolveVariant(variants, next));
+        // Jump the gallery to whichever photo the seller tagged for this
+        // color — independent of selectedVariant/resolveVariant above,
+        // since that requires an actual product_variants row to exist
+        // (image tagging works even for sellers who never set those up).
+        if (optionName === 'color') {
+            const idx = imageColorTags.findIndex((tag) => tag?.toLowerCase() === value.toLowerCase());
+            if (idx !== -1 && idx !== activeImageIndex) {
+                setActiveImageIndex(idx);
+                imageListRef.current?.scrollToIndex({ index: idx, animated: true });
+                dismissSwipeHint();
+            }
+        }
     };
 
     const effectivePrice = selectedVariant?.price ?? product.price;
@@ -442,15 +487,18 @@ export default function ProductDetails() {
                 {/* Product image carousel — scrolls away as user pulls up */}
                 <View style={styles.imageHeaderContainer}>
                     <FlatList
+                        ref={imageListRef}
                         data={product.images.length ? product.images : [product.image]}
                         keyExtractor={(_, i) => String(i)}
                         horizontal
                         pagingEnabled
                         showsHorizontalScrollIndicator={false}
                         bounces={false}
+                        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
                         onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
                             const idx = Math.round(e.nativeEvent.contentOffset.x / width);
                             setActiveImageIndex(idx);
+                            dismissSwipeHint();
                         }}
                         scrollEventThrottle={16}
                         renderItem={({ item }) => (
@@ -482,6 +530,13 @@ export default function ProductDetails() {
                         <View style={styles.imageCounter} pointerEvents="none">
                             <Text style={styles.imageCounterText}>{activeImageIndex + 1} / {product.images.length}</Text>
                         </View>
+                    )}
+                    {/* Swipe hint — fades in briefly then out, or dismisses instantly on first swipe */}
+                    {product.images.length > 1 && (
+                        <Animated.View style={[styles.swipeHint, { opacity: swipeHintOpacity }]} pointerEvents="none">
+                            <Text style={styles.swipeHintText}>Swipe for more photos</Text>
+                            <Ionicons name="chevron-forward" size={14} color="#FFF" />
+                        </Animated.View>
                     )}
                 </View>
 
@@ -687,11 +742,16 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     imageHeaderContainer: { height: height * 0.46, width: '100%', backgroundColor: C.surfaceElevated },
     productImage: { width, height: height * 0.46, resizeMode: 'cover' },
     imageFade: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
-    dotRow: { position: 'absolute', bottom: 48, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
-    dotActive: { width: 20, backgroundColor: '#FFF' },
+    dotRow: { position: 'absolute', bottom: 48, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 7 },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
+    dotActive: { width: 24, backgroundColor: '#FFF' },
     imageCounter: { position: 'absolute', bottom: 44, right: 16, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
     imageCounterText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold' },
+    swipeHint: {
+        position: 'absolute', top: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
+    },
+    swipeHintText: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-SemiBold' },
     headerOverlay: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
     iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
     detailsCard: { backgroundColor: C.card, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.65, marginTop: -30 },
