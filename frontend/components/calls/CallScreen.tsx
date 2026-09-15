@@ -36,7 +36,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
   const reset = useCallStore((s) => s.reset);
   const [muted, setMuted] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
   const joinedRef = useRef(false);
 
   const visible = (phase === 'ringing_outgoing' || phase === 'active') && !!call;
@@ -97,8 +97,9 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
     };
   }, [phase, call?.token, call?.appId]);
 
-  // Countdown synced to the server-stamped startedAt, not a local timer that
-  // could drift — matches the server-side 30s force-end.
+  // Elapsed time counting up from 0, like a normal call timer — synced to
+  // the server-stamped startedAt (not a local timer that could drift) and
+  // clamped to the cap, since the server force-ends the call there anyway.
   useEffect(() => {
     if (phase !== 'active' || !call?.startedAt) return;
     const cap = call.durationCapSeconds || 30;
@@ -106,7 +107,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
 
     const tick = () => {
       const elapsed = Math.floor((Date.now() - startMs) / 1000);
-      setRemainingSeconds(Math.max(0, cap - elapsed));
+      setElapsedSeconds(Math.min(cap, Math.max(0, elapsed)));
     };
     tick();
     const interval = setInterval(tick, 250);
@@ -138,7 +139,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
           </View>
           <MarqueeText text={call.otherUserName} style={styles.name} containerStyle={styles.nameMarqueeContainer} />
           <Text style={styles.status}>
-            {phase === 'ringing_outgoing' ? 'Calling…' : remainingSeconds != null ? `00:${String(remainingSeconds).padStart(2, '0')}` : 'Connected'}
+            {phase === 'ringing_outgoing' ? 'Calling…' : elapsedSeconds != null ? `00:${String(elapsedSeconds).padStart(2, '0')}` : 'Connected'}
           </Text>
         </View>
 

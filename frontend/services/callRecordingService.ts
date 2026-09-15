@@ -48,6 +48,14 @@ function ensureEngine(appId: string): IRtcEngine {
   engine = createAgoraRtcEngine();
   engine.initialize({ appId, channelProfile: ChannelProfileType.ChannelProfileCommunication });
   engine.enableAudio();
+  // Agora's documented default for a voice call (this profile, no video
+  // enabled) is the earpiece — but that default isn't reliably honored in
+  // practice, so force it explicitly rather than trust it. Without this,
+  // calls have been coming up on speaker by default, which routes through
+  // the media volume stream instead of the in-call volume stream — on a
+  // device with media volume low/muted that reads as "can't hear the other
+  // person" even though audio is actually flowing.
+  engine.setDefaultAudioRouteToSpeakerphone(false);
   return engine;
 }
 
@@ -74,6 +82,11 @@ export function joinCall(params: { appId: string; token: string; channelName: st
     clientRoleType: ClientRoleType.ClientRoleBroadcaster,
     channelProfile: ChannelProfileType.ChannelProfileCommunication,
   });
+  // Belt-and-suspenders alongside setDefaultAudioRouteToSpeakerphone above —
+  // this is the per-call override and matches CallScreen's own initial
+  // `speakerOn = false` UI state, so the native audio route and the on-screen
+  // speaker toggle start in agreement.
+  eng.setEnableSpeakerphone(false);
 }
 
 export function muteLocalAudio(mute: boolean) {
