@@ -44,6 +44,16 @@ jest.mock('../../utils/uploadHelpers', () => ({
   extractPublicId: jest.fn().mockReturnValue('public-id'),
 }));
 
+// Default to a comfortably-above-minimum resolution so existing tests using
+// placeholder (non-image) buffers still pass; the low-resolution-rejection
+// test below overrides this per-call with mockResolvedValueOnce. `metadata`
+// is a single shared mock (not recreated per `sharp(...)` call) so tests can
+// reconfigure it directly via `sharp().metadata.mockResolvedValueOnce(...)`.
+jest.mock('sharp', () => {
+  const metadata = jest.fn().mockResolvedValue({ width: 1200, height: 1200 });
+  return jest.fn(() => ({ metadata }));
+});
+
 const mockDbChain = {
   from: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
@@ -669,6 +679,7 @@ describe('ProductController Unit Tests', () => {
   // ── uploadProductImages ────────────────────────────────────────────
   describe('uploadProductImages', () => {
     const uploadHelpers = require('../../utils/uploadHelpers');
+    const sharp = require('sharp');
 
     test('test_uploadProductImages_noFilesUploaded_returns400BadRequest', async () => {
       // Arrange
@@ -726,6 +737,25 @@ describe('ProductController Unit Tests', () => {
       // Assert
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Maximum 5 images allowed per product' });
+    });
+
+    test('test_uploadProductImages_belowMinResolution_returns400BadRequest', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      sharp().metadata.mockResolvedValueOnce({ width: 600, height: 600 });
+      const req = mockReq({ params: { id: 'prod-1' }, files: [{ buffer: Buffer.from('img') }] });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(uploadHelpers.uploadMultipleFilesToCloudinary).not.toHaveBeenCalled();
+      const [body] = res.json.mock.calls[res.json.mock.calls.length - 1];
+      expect(body.success).toBe(false);
+      expect(body.error).toMatch(/600x600/);
     });
 
     test('test_uploadProductImages_validInput_uploadsAndReturns200Success', async () => {

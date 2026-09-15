@@ -23,7 +23,7 @@ export const queryKeys = {
   orders: {
     all: ['orders'] as const,
     lists: () => ['orders', 'list'] as const,
-    list: (status?: string) => ['orders', 'list', status] as const,
+    list: (status?: string, page?: number) => ['orders', 'list', status, page] as const,
     detail: (id: string) => ['orders', 'detail', id] as const,
   },
 

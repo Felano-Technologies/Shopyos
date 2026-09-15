@@ -302,6 +302,13 @@ const OrdersScreen = () => {
           }
           router.push(`/order/${item.id}` as any);
         }}
+        onLongPress={() => {
+          // Already selecting — a long-press on a card doesn't need to do
+          // anything extra beyond what a normal tap already does (toggle).
+          if (selectMode) return;
+          setSelectMode(true);
+          if (isEligible) toggleSelected(item.id);
+        }}
         ref={filteredOrders[0]?.id === item.id ? refFirstOrder : undefined}
         onLayout={filteredOrders[0]?.id === item.id ? () => measureElement(refFirstOrder, 'order') : undefined}
       >
@@ -438,9 +445,13 @@ const OrdersScreen = () => {
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={S.hdrInner}>
             <View style={S.hdrTop}>
-              <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
-                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" /* translucent white on the fixed navy header */ />
-              </TouchableOpacity>
+              {/* Orders is a bottom-tab root screen (see components/BottomNav.tsx),
+                  never pushed onto a stack from elsewhere, so there is nothing to
+                  go back to — a back button here just threw a "GO_BACK not handled"
+                  warning. This spacer keeps the title centered without one, matching
+                  every other tab-root screen (Home/Search/Stores/Settings), none of
+                  which have a back button either. */}
+              <View style={{ width: rs(38) }} />
 
               <View style={S.hdrCenter}>
                 <Text style={S.hdrEye}>Track your</Text>

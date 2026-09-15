@@ -142,7 +142,13 @@ router.post('/create', requireDisclaimer('refund_policy'), validateCreateOrder, 
 // @route   GET /api/orders/my-orders
 // @desc    Get user's orders
 // @access  Private
-router.get('/my-orders', cacheMiddleware((req) => `shopyos:orders:user:${req.user?.id}:${req.query.page || 1}`, 30), getMyOrders);
+// Cache key must include every query param the controller actually filters
+// on (status/limit/offset) — it previously only keyed on `page`, a param
+// getMyOrders never even reads, so every filter tab collapsed onto the same
+// Redis entry and served back whichever tab's response was cached first
+// (e.g. a just-paid order appearing under "In Transit"/"Delivered"/
+// "Cancelled" within the 30s TTL window).
+router.get('/my-orders', cacheMiddleware((req) => `shopyos:orders:user:${req.user?.id}:${req.query.status || 'all'}:${req.query.limit || 20}:${req.query.offset || 0}`, 30), getMyOrders);
 
 /**
  * @swagger

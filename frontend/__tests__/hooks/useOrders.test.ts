@@ -73,7 +73,7 @@ describe('useOrders Hooks Unit Tests', () => {
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: queryKeys.orders.list(undefined),
+        queryKey: queryKeys.orders.list(undefined, 1),
         refetchOnMount: true,
         staleTime: 30 * 1000,
         gcTime: 10 * 60 * 1000,
@@ -92,13 +92,13 @@ describe('useOrders Hooks Unit Tests', () => {
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: queryKeys.orders.list('pending'),
+        queryKey: queryKeys.orders.list('pending', 1),
       })
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(ordersApi.getAll).toHaveBeenCalledWith('pending');
+    expect(ordersApi.getAll).toHaveBeenCalledWith('pending', 10, 0);
   });
 
   // ── useOrderDetail ───────────────────────────────────────────────────

@@ -22,10 +22,13 @@ import {
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
-export const useOrders = (status?: string, page?: number, PAGE_SIZE?: number) => {
+export const useOrders = (status?: string, page = 1, PAGE_SIZE = 10) => {
+  const offset = (page - 1) * PAGE_SIZE;
   return useQuery({
-    queryKey: queryKeys.orders.list(status),
-    queryFn: () => ordersApi.getAll(status),
+    // page must be part of the key — otherwise switching pages for the same
+    // status reuses the page-1 cache entry instead of fetching the next one.
+    queryKey: queryKeys.orders.list(status, page),
+    queryFn: () => ordersApi.getAll(status, PAGE_SIZE, offset),
     // Orders change frequently — always fetch fresh on screen mount
     refetchOnMount: true,
     // Keep stale data visible while fetching (no loading flash)

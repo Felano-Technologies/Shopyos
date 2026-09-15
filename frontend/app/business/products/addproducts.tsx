@@ -1,7 +1,7 @@
 // app/business/products/addproducts.tsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Pressable, Alert, Dimensions} from 'react-native';
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Pressable, Alert, Dimensions, Image} from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,10 @@ const buildC = (colors: ThemeColors): LegacyPalette => ({
 });
 
 const MAX_PRODUCT_IMAGES = 5;
+// Mirrors the server-side check in backend/controllers/productController.js
+// (MIN_PRODUCT_IMAGE_DIMENSION) — catching it here just avoids a wasted
+// upload round-trip; the server enforces it regardless.
+const MIN_PRODUCT_IMAGE_DIMENSION = 800;
 
 type ProductImage = {
   id?: string;      // present once uploaded/persisted server-side
@@ -255,6 +259,24 @@ export default function ManageProductScreen() {
     }
     const uri = await showImagePicker({ allowsEditing: true, quality: 0.9 });
     if (!uri) return;
+
+    try {
+      const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
+      });
+      if (Math.min(width, height) < MIN_PRODUCT_IMAGE_DIMENSION) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Photo Too Small',
+          message: `This photo is ${width}x${height} — it'll look blurry on the product page. Please use one at least ${MIN_PRODUCT_IMAGE_DIMENSION}px on its shorter side.`,
+        });
+        return;
+      }
+    } catch {
+      // Couldn't read dimensions client-side — don't block the seller over
+      // it, the server enforces the same minimum and will reject it there.
+    }
+
     setImages((prev) => [...prev, { uri, isPrimary: prev.length === 0, isNew: true }]);
   };
 
