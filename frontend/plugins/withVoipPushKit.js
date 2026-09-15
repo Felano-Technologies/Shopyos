@@ -154,7 +154,14 @@ const SWIFT_DELEGATE_EXTENSION = `
 // ===== regenerated on every prebuild. See that file for why this exists. =====
 extension AppDelegate: PKPushRegistryDelegate {
   func pushRegistry(_ registry: PKPushRegistry, didUpdate credentials: PKPushCredentials, for type: PKPushType) {
-    RNVoipPushNotificationManager.didUpdatePushCredentials(credentials, forType: type.rawValue)
+    // Swift's ObjC importer applies "omit needless words" to
+    // RNVoipPushNotificationManager's ObjC selector
+    // \`didUpdatePushCredentials:forType:\` (its label textually contains the
+    // param type name \`PushCredentials\`), so the Swift-visible name is
+    // \`didUpdate(_:forType:)\`, not the naive selector-shaped spelling.
+    // Confirmed via a real Xcode build error: "'didUpdatePushCredentials(_:forType:)'
+    // has been renamed to 'didUpdate(_:forType:)'".
+    RNVoipPushNotificationManager.didUpdate(credentials, forType: type.rawValue)
   }
 
   func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
