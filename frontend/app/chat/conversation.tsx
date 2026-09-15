@@ -438,38 +438,65 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (!conversationId || !currentUserId) return;
     let alive = true;
-    (async () => {
-      try {
-        await socketService.joinConversation(conversationId);
-        socketService.onNewMessage(({ message, conversationId: cid }: any) => {
-          if (!alive || cid !== conversationId) return;
-          appendMessage(message);
-          // The bot's reply IS the end of "typing" — don't wait for a
-          // separate stop event (the backend only emits one on errors)
-          if (message?.sender_id === '00000000-0000-0000-0000-000000000001') {
-            setIsBotTyping(false);
-          }
-          markAsReadCombined().catch(() => {});
-        });
-        const sock = socketService.getSocket();
-        if (sock) {
-          sock.on('connect', () => {
-            if (alive) { refetchMessages(); socketService.joinConversation(conversationId); }
-          });
-          sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
-            if (cid === conversationId && alive) setIsBotTyping(false);
-          });
-        }
-      } catch (e) {
-        if (__DEV__) console.error('Socket setup error:', e);
+
+    const handleNewMessage = ({ message, conversationId: cid }: any) => {
+      if (!alive || cid !== conversationId) return;
+      appendMessage(message);
+      // The bot's reply IS the end of "typing" — don't wait for a
+      // separate stop event (the backend only emits one on errors)
+      if (message?.sender_id === '00000000-0000-0000-0000-000000000001') {
+        setIsBotTyping(false);
       }
-    })();
+      markAsReadCombined().catch(() => {});
+    };
+
+    // Attached unconditionally, NOT inside the join's try block: joining the
+    // room can time out or fail (reconnect race, slow ack — see
+    // withAckTimeout) and previously that silently left this screen with no
+    // message:new listener at all for the rest of its mount — the exact bug
+    // where a new message shows up in the conversations list (updated by a
+    // separate, unconditional listener in useSocketSetup.ts) but never in
+    // the open thread until it's torn down and refetched from scratch.
+    socketService.onNewMessage(handleNewMessage);
+
+    const joinWithRetry = (attempt = 1) => {
+      socketService.joinConversation(conversationId).catch((e) => {
+        if (!alive) return;
+        if (__DEV__) console.error(`Failed to join conversation (attempt ${attempt}):`, e);
+        if (attempt < 3) setTimeout(() => joinWithRetry(attempt + 1), 1500 * attempt);
+      });
+    };
+    joinWithRetry();
+
+    const sock = socketService.getSocket();
+    const handleReconnect = () => {
+      if (alive) { refetchMessages(); joinWithRetry(); }
+    };
+    const handleBotStopTyping = ({ conversationId: cid }: any) => {
+      if (cid === conversationId && alive) setIsBotTyping(false);
+    };
+    if (sock) {
+      sock.on('connect', handleReconnect);
+      sock.on('bot:stop_typing', handleBotStopTyping);
+    }
+
     return () => {
       alive = false;
       socketService.leaveConversation(conversationId).catch(() => {});
-      socketService.offNewMessage();
-      const sock = socketService.getSocket();
-      if (sock) sock.off('bot:stop_typing');
+      // Passing the specific handler matters here — offNewMessage() with no
+      // argument wipes EVERY message:new listener on the socket, including
+      // useSocketSetup.ts's unrelated, global conversations-list listener.
+      socketService.offNewMessage(handleNewMessage);
+      // Same reasoning for 'connect'/'bot:stop_typing' — without passing the
+      // specific handler, re-visiting a different conversation would leave
+      // this conversation's stale reconnect handler attached forever
+      // (Socket.IO listeners persist across event-name-only .off() calls
+      // targeting a DIFFERENT handler; here we just need to remove OUR own).
+      const sock2 = socketService.getSocket();
+      if (sock2) {
+        sock2.off('connect', handleReconnect);
+        sock2.off('bot:stop_typing', handleBotStopTyping);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, currentUserId]);

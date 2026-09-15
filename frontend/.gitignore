@@ -37,6 +37,7 @@ yarn-error.*
 
 
 android/
+ios/
 
 .env
 coverage/

@@ -16,7 +16,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { useStores } from '@/hooks/useStores';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
@@ -486,8 +486,8 @@ export default function StoresScreen() {
           </View>
         </Modal>
       </View>
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'stores'} 
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'stores'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />

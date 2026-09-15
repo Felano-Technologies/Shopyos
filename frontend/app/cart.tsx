@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/store/cartStore';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { getActiveBanners, recordAdClick } from '@/services/api';
@@ -323,7 +323,7 @@ export default function CartScreen() {
         </View>
       )}
 
-      <SpotlightTour
+      <CoachMarkSequence
         visible={isTourActive && activeScreen === 'cart'}
         steps={onboardingSteps}
         onComplete={() => markCompleted('cart')}

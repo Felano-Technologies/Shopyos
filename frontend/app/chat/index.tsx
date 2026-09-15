@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, FlatList, SectionList, StyleSheet, TouchableOpacity,
   Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
@@ -17,6 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 
 // ─── Shopyos design tokens (theme-aware) ──────────────────────────────────────
 type LegacyPalette = {
@@ -62,6 +64,36 @@ export default function ChatInbox() {
   );
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  // --- Onboarding tour ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refSearch = useRef<View>(null);
+  const refFilters = useRef<View>(null);
+  const refNewChat = useRef<any>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureTourElement(refSearch, 'search');
+      measureTourElement(refFilters, 'filters');
+      measureTourElement(refNewChat, 'newChat');
+      startTour('chat_inbox');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.search, title: 'Search Conversations', description: 'Quickly find a conversation with a seller, driver, or support.' },
+    { targetLayout: tourLayouts.filters, title: 'Filter Chats', description: 'Switch between all, unread, or read conversations.' },
+    { targetLayout: tourLayouts.newChat, title: 'Start a New Chat', description: 'Tap here to message a seller directly.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('chat_inbox');
 
   const filtered = buyerConversations.filter((chat: any) => {
     // Hide the real Shopyos bot conversation if it exists so we don't duplicate it
@@ -281,7 +313,7 @@ export default function ChatInbox() {
           </View>
 
           {/* Search — same style as home's navy search bar */}
-          <View style={styles.search}>
+          <View style={styles.search} ref={refSearch} onLayout={() => measureTourElement(refSearch, 'search')}>
             <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
             <TextInput
               style={styles.searchInput}
@@ -300,7 +332,7 @@ export default function ChatInbox() {
       </LinearGradient>
 
       {/* ── Filter chips — same pill style as home category chips ────────────── */}
-      <View style={styles.filterRow}>
+      <View style={styles.filterRow} ref={refFilters} onLayout={() => measureTourElement(refFilters, 'filters')}>
         {filters.map((f) => (
           <TouchableOpacity
             key={f}
@@ -332,6 +364,8 @@ export default function ChatInbox() {
 
       {/* Floating Action Button (FAB) for Choose Merchant */}
       <TouchableOpacity
+        ref={refNewChat}
+        onLayout={() => measureTourElement(refNewChat, 'newChat')}
         style={styles.chatFab}
         activeOpacity={0.88}
         onPress={openNewChat}
@@ -419,6 +453,12 @@ export default function ChatInbox() {
           { label: 'Cancel', onPress: () => setDeleteTarget(null), variant: 'cancel' },
           { label: 'Delete', onPress: confirmDeleteChat, variant: 'destructive' },
         ]}
+      />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'chat_inbox'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
       />
     </View>
   );

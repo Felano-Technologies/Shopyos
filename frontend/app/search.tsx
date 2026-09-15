@@ -25,7 +25,7 @@ import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavo
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -713,7 +713,7 @@ export default function SearchScreen() {
         )}
         <BottomNav />
       </View>
-      <SpotlightTour
+      <CoachMarkSequence
         visible={isTourActive && activeScreen === 'search'}
         steps={onboardingSteps}
         onComplete={() => markCompleted('search')}

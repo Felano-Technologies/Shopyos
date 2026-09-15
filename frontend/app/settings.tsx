@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import {  Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -475,8 +475,8 @@ export default function SettingsScreen() {
         {/* Bottom Padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'settings'} 
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'settings'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />

@@ -81,7 +81,16 @@ const STEP_SCHEMAS: Record<string, StepSchema> = {
     title: "Driver's Licence",
     fields: [
       { key: 'licenseNumber', label: 'Licence number', icon: 'hash' },
-      { key: 'licenseCategory', label: 'Licence category/class', icon: 'tag' },
+      {
+        key: 'licenseCategory', label: 'Licence category/class',
+        options: [
+          { value: 'A', label: 'Class A (Motorcycle)' },
+          { value: 'B', label: 'Class B (Car)' },
+          { value: 'C', label: 'Class C (Van/Minibus)' },
+          { value: 'D', label: 'Class D (Truck)' },
+          { value: 'E', label: 'Class E (Articulated/Trailer)' },
+        ],
+      },
       { key: 'issueDate', label: 'Issue date', type: 'date' },
       { key: 'expiryDate', label: 'Expiry date', type: 'date' },
     ],
@@ -193,7 +202,7 @@ export default function DriverVerificationStepScreen() {
   if (!schema) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingWrap}><Text style={{ color: colors.text }}>Unknown step.</Text></View>
+        <View style={styles.loadingWrap}><Text style={{ color: colors.text, fontFamily: 'Montserrat-Medium' }}>Unknown step.</Text></View>
       </SafeAreaView>
     );
   }
@@ -303,7 +312,7 @@ export default function DriverVerificationStepScreen() {
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: c.backgroundAlt },
+  safeArea: { flex: 1, backgroundColor: c.background },
   header: { paddingTop: 8, paddingBottom: 16, paddingHorizontal: 8 },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
 import { useOrders, useDeleteOrders } from '@/hooks/useOrders';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getActiveBanners, recordAdClick } from '@/services/api';
@@ -597,7 +597,7 @@ const OrdersScreen = () => {
         />
       )}
 
-      <SpotlightTour
+      <CoachMarkSequence
         visible={isTourActive && activeScreen === 'orders'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}

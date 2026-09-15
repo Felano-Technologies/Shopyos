@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -24,6 +24,8 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
+import { useOnboarding } from '@/context/OnboardingContext';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 
 type LegacyPalette = {
   navy: string; navyMid: string; lime: string; bg: string; card: string;
@@ -121,6 +123,40 @@ export default function CheckoutScreen() {
   const [refundPolicy, setRefundPolicy] = useState<Disclaimer | null>(null);
   const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
+  // --- Onboarding tour ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refDelivery = useRef<View>(null);
+  const refPromo = useRef<View>(null);
+  const refPayment = useRef<View>(null);
+  const refPlaceOrder = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (isLoading) return;
+    const timer = setTimeout(() => {
+      measureTourElement(refDelivery, 'delivery');
+      measureTourElement(refPromo, 'promo');
+      measureTourElement(refPayment, 'payment');
+      measureTourElement(refPlaceOrder, 'placeOrder');
+      startTour('checkout');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.delivery, title: 'Delivery Details', description: 'Confirm where your order should be delivered.' },
+    { targetLayout: tourLayouts.promo, title: 'Promo Code', description: 'Have a discount code? Apply it here before placing your order.' },
+    { targetLayout: tourLayouts.payment, title: 'Payment Method', description: 'Choose Mobile Money or a bank card to pay.' },
+    { targetLayout: tourLayouts.placeOrder, title: 'Place Your Order', description: 'Review the total, then tap here to complete your purchase.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('checkout');
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
@@ -756,7 +792,7 @@ export default function CheckoutScreen() {
 
             {/* Promo Code */}
             <Text style={S.sectionTitle}>Promo Code</Text>
-            <View style={S.card}>
+            <View style={S.card} ref={refPromo} onLayout={() => measureTourElement(refPromo, 'promo')}>
               {appliedPromo ? (
                 <View style={S.promoApplied}>
                   <Ionicons name="checkmark-circle" size={20} color={C.success} />
@@ -854,7 +890,7 @@ export default function CheckoutScreen() {
                 from the coordinates/hub-routing actually used to price and
                 route the order. */}
             <Text style={S.sectionTitle}>Delivery Information</Text>
-            <View style={S.card}>
+            <View style={S.card} ref={refDelivery} onLayout={() => measureTourElement(refDelivery, 'delivery')}>
               <View style={S.deliverySummaryRow}>
                 <Ionicons name="location" size={18} color={C.navy} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
@@ -933,16 +969,18 @@ export default function CheckoutScreen() {
 
             {/* Payment Method */}
             <Text style={S.sectionTitle}>Payment Method</Text>
-            <PaymentOption
-              type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money"
-              paymentMethodType={paymentMethodType} savedMethods={savedMethods}
-              selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
-            />
-            <PaymentOption
-              type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX"
-              paymentMethodType={paymentMethodType} savedMethods={savedMethods}
-              selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
-            />
+            <View ref={refPayment} onLayout={() => measureTourElement(refPayment, 'payment')}>
+              <PaymentOption
+                type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money"
+                paymentMethodType={paymentMethodType} savedMethods={savedMethods}
+                selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
+              />
+              <PaymentOption
+                type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX"
+                paymentMethodType={paymentMethodType} savedMethods={savedMethods}
+                selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
+              />
+            </View>
 
             {/* Status Messages for User */}
             {!isFetchingFee && quoteFetchError && (
@@ -1009,6 +1047,7 @@ export default function CheckoutScreen() {
             )}
 
             {/* Place Order */}
+            <View ref={refPlaceOrder} onLayout={() => measureTourElement(refPlaceOrder, 'placeOrder')}>
             <TouchableOpacity
               accessibilityLabel="Place order"
               accessibilityRole="button"
@@ -1023,6 +1062,7 @@ export default function CheckoutScreen() {
                 }
               </LinearGradient>
             </TouchableOpacity>
+            </View>
 
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -1043,6 +1083,12 @@ export default function CheckoutScreen() {
       )}
 
       <LocationPickerModal visible={showLocationPicker} onClose={() => setShowLocationPicker(false)} />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'checkout'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

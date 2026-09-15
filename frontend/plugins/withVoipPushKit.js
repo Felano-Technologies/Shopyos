@@ -14,28 +14,40 @@
 // fresh each build), so this can't be a one-time manual AppDelegate edit —
 // it has to be a config plugin that re-applies on every prebuild.
 //
-// CAVEAT: this targets an Objective-C/Objective-C++ AppDelegate (SDK 57's
-// common default: AppDelegate.mm). It has NOT been verified against a real
-// `expo prebuild`/EAS build output in this environment (no native build
-// tooling available here) — if your project generates a Swift AppDelegate
-// instead, `modResults.language` below will be 'swift', this plugin will
-// warn and skip modification rather than risk corrupting a file it can't
-// correctly patch, and someone will need to add the Swift equivalent (a
-// `PKPushRegistryDelegate` extension on AppDelegate). Verify by running a
-// build and checking the build log for the warning below, or by opening
-// the generated ios/<name>/AppDelegate.* file after `expo prebuild`.
+// Handles BOTH AppDelegate flavors Expo can generate (SDK 57 can produce
+// either depending on template/version) so a prebuild never crashes no
+// matter which one comes out: 'objc'/'objcpp' (AppDelegate.m/.mm) and
+// 'swift' (AppDelegate.swift). Neither branch has been verified against a
+// real `expo prebuild`/EAS build output in this environment — iOS prebuild
+// refuses to run at all on Windows ("Run npx expo prebuild again from
+// macOS or Linux"), so there was no way to inspect the actual generated
+// file here. The Swift branch additionally assumes RNVoipPushNotification/
+// RNCallKeep are exposed to Swift as modules (`import RNVoipPushNotification`
+// / `import RNCallKeep`), which holds when CocoaPods generates modular
+// headers/frameworks for them (the common default for a New Architecture
+// RN project) — if a build fails on those two import lines specifically,
+// the fix is switching them for `#import` lines in the project's
+// `<Name>-Bridging-Header.h` instead. Any other failure: run the build,
+// share the exact compiler error, and this file gets corrected precisely.
+// For either language, if this plugin can't find its expected insertion
+// points it logs a warning and leaves the file untouched rather than
+// guessing further — a missed injection point never blocks anything (build
+// still succeeds), it just quietly means calls won't ring while the app is
+// backgrounded/killed until this is fixed.
 
 const { withAppDelegate } = require('expo/config-plugins');
 
-const IMPORTS = `#import <PushKit/PushKit.h>
+const MARKER = 'withVoipPushKit';
+
+const OBJC_IMPORTS = `#import <PushKit/PushKit.h>
 #import "RNVoipPushNotificationManager.h"
 #import <RNCallKeep/RNCallKeep.h>
 `;
 
-const VOIP_REGISTRATION_CALL = '  [RNVoipPushNotificationManager voipRegistration];\n';
+const OBJC_VOIP_REGISTRATION_CALL = '  [RNVoipPushNotificationManager voipRegistration];\n';
 
-const DELEGATE_METHODS = `
-// ===== Injected by plugins/withVoipPushKit.js — do not hand-edit, it is =====
+const OBJC_DELEGATE_METHODS = `
+// ===== Injected by plugins/${MARKER}.js — do not hand-edit, it is =====
 // ===== regenerated on every prebuild. See that file for why this exists. =====
 - (void)pushRegistry:(PKPushRegistry *)registry didUpdatePushCredentials:(PKPushCredentials *)credentials forType:(PKPushType)type {
   [RNVoipPushNotificationManager didUpdatePushCredentials:credentials forType:(NSString *)type];
@@ -70,45 +82,123 @@ const DELEGATE_METHODS = `
 // ===== End injected block =====
 `;
 
+function injectObjc(contents) {
+  let next = contents;
+
+  // Imports: right after the first #import line, whatever it is.
+  next = next.replace(/#import .*\n/, (match) => match + OBJC_IMPORTS);
+
+  // voipRegistration(): first line inside didFinishLaunchingWithOptions's body.
+  const hadRegistrationTarget = /didFinishLaunchingWithOptions:\([^)]*\)[^{]*\{\n/.test(next);
+  next = next.replace(
+    /(didFinishLaunchingWithOptions:\([^)]*\)[^{]*\{\n)/,
+    (match) => match + OBJC_VOIP_REGISTRATION_CALL
+  );
+
+  // Delegate methods: just before the final @end of the file.
+  const lastEnd = next.lastIndexOf('@end');
+  if (lastEnd === -1) {
+    console.warn(`[${MARKER}] Could not find "@end" in AppDelegate.m(m) — native VoIP wiring not injected.`);
+    return contents;
+  }
+  if (!hadRegistrationTarget) {
+    console.warn(`[${MARKER}] Could not find didFinishLaunchingWithOptions: in AppDelegate.m(m) — voipRegistration() not called; PushKit registration won't happen.`);
+  }
+  next = next.slice(0, lastEnd) + OBJC_DELEGATE_METHODS + '\n' + next.slice(lastEnd);
+  return next;
+}
+
+const SWIFT_IMPORTS = `import PushKit
+import RNVoipPushNotification
+import RNCallKeep
+`;
+
+const SWIFT_VOIP_REGISTRATION_CALL = '    RNVoipPushNotificationManager.voipRegistration()\n';
+
+const SWIFT_DELEGATE_EXTENSION = `
+// ===== Injected by plugins/${MARKER}.js — do not hand-edit, it is =====
+// ===== regenerated on every prebuild. See that file for why this exists. =====
+extension AppDelegate: PKPushRegistryDelegate {
+  func pushRegistry(_ registry: PKPushRegistry, didUpdate credentials: PKPushCredentials, for type: PKPushType) {
+    RNVoipPushNotificationManager.didUpdatePushCredentials(credentials, forType: type.rawValue)
+  }
+
+  func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
+  }
+
+  func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType, completion: @escaping () -> Void) {
+    let info = payload.dictionaryPayload
+    let uuid = (info["callId"] as? String) ?? UUID().uuidString
+    let callerName = (info["callerName"] as? String) ?? "Unknown caller"
+
+    RNVoipPushNotificationManager.addCompletionHandler(uuid, completionHandler: completion)
+    RNVoipPushNotificationManager.didReceiveIncomingPush(with: payload, forType: type.rawValue)
+
+    RNCallKeep.reportNewIncomingCall(
+      uuid,
+      handle: uuid,
+      handleType: "generic",
+      hasVideo: false,
+      localizedCallerName: callerName,
+      supportsHolding: false,
+      supportsDTMF: false,
+      supportsGrouping: false,
+      supportsUngrouping: false,
+      fromPushKit: true,
+      payload: info,
+      withCompletionHandler: {}
+    )
+
+    completion()
+  }
+}
+// ===== End injected block =====
+`;
+
+function injectSwift(contents) {
+  let next = contents;
+
+  // Imports: right after the first import line, whatever it is.
+  next = next.replace(/import .*\n/, (match) => match + SWIFT_IMPORTS);
+
+  // voipRegistration(): first line inside didFinishLaunchingWithOptions's body.
+  // Matches Expo's standard Swift AppDelegate signature:
+  //   func application(_ application: UIApplication, didFinishLaunchingWithOptions ...) -> Bool {
+  const hadRegistrationTarget = /didFinishLaunchingWithOptions[^{]*\{\n/.test(next);
+  next = next.replace(
+    /(didFinishLaunchingWithOptions[^{]*\{\n)/,
+    (match) => match + SWIFT_VOIP_REGISTRATION_CALL
+  );
+  if (!hadRegistrationTarget) {
+    console.warn(`[${MARKER}] Could not find didFinishLaunchingWithOptions in AppDelegate.swift — voipRegistration() not called; PushKit registration won't happen.`);
+  }
+
+  // Delegate conformance: a plain top-level extension appended at file end —
+  // Swift files have no closing "@end" marker to insert before.
+  return next + '\n' + SWIFT_DELEGATE_EXTENSION;
+}
+
 module.exports = function withVoipPushKit(config) {
   return withAppDelegate(config, (config) => {
     const { language, contents } = config.modResults;
 
-    if (language !== 'objc' && language !== 'objcpp') {
-      console.warn(
-        `[withVoipPushKit] AppDelegate is '${language}', not objc/objcpp — this plugin only ` +
-        'knows how to patch Objective-C(++). Skipping VoIP push/CallKeep native wiring; ' +
-        'incoming calls will not ring while the app is backgrounded/killed on iOS until a ' +
-        'Swift equivalent is added. See the comment at the top of plugins/withVoipPushKit.js.'
-      );
-      return config;
-    }
-
-    if (contents.includes('withVoipPushKit')) {
+    if (contents.includes(MARKER)) {
       // Already injected (re-running prebuild without a clean) — don't duplicate.
       return config;
     }
 
-    let next = contents;
-
-    // Imports: right after the first #import line, whatever it is.
-    next = next.replace(/#import .*\n/, (match) => match + IMPORTS);
-
-    // voipRegistration(): first line inside didFinishLaunchingWithOptions's body.
-    next = next.replace(
-      /(didFinishLaunchingWithOptions:\([^)]*\)[^\{]*\{\n)/,
-      (match) => match + VOIP_REGISTRATION_CALL
-    );
-
-    // Delegate methods: just before the final @end of the file.
-    const lastEnd = next.lastIndexOf('@end');
-    if (lastEnd !== -1) {
-      next = next.slice(0, lastEnd) + DELEGATE_METHODS + '\n' + next.slice(lastEnd);
+    if (language === 'objc' || language === 'objcpp') {
+      config.modResults.contents = injectObjc(contents);
+    } else if (language === 'swift') {
+      config.modResults.contents = injectSwift(contents);
     } else {
-      console.warn('[withVoipPushKit] Could not find "@end" in AppDelegate — native VoIP wiring not injected.');
+      console.warn(
+        `[${MARKER}] AppDelegate language '${language}' is not objc/objcpp/swift — this plugin ` +
+        "doesn't know how to patch it. Skipping VoIP push/CallKeep native wiring; incoming calls " +
+        'will not ring while the app is backgrounded/killed on iOS until this is handled.'
+      );
     }
 
-    config.modResults.contents = next;
     return config;
   });
 };

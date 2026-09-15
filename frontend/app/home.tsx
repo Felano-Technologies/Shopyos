@@ -25,6 +25,7 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useOnboarding } from '@/context/OnboardingContext';
 import WelcomeCard from '@/components/WelcomeCard';
+import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
 import { SnapsRow } from '@/components/SnapsRow';
 // Home section components
@@ -154,10 +155,9 @@ const { data: notifData } = useUnreadNotificationCount(false);
   const isManyAds = activeCampaigns.length > AD_THRESHOLD;
   const sponsoredCampaigns = activeCampaigns.slice(0, 8);
 
-  // Old spotlight tour removed — the once-ever <WelcomeCard /> replaces it
   const scrollY = useRef(new Animated.Value(0)).current;
   const exploreListRef = useRef<Animated.FlatList<any>>(null);
-  const { user } = useOnboarding();
+  const { user, startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
 
   // Nudge for stale cached data: once the buyer has scrolled well past the
   // top (easy to forget the pull-to-refresh gesture exists), show a small
@@ -342,6 +342,36 @@ const { data: notifData } = useUnreadNotificationCount(false);
     return () => clearTimeout(t);
   }, []);
 
+  // --- Onboarding tour ---
+  const [tourLayouts, setTourLayouts] = useState<any>({});
+  const refLocation = useRef<View>(null);
+  const refHeaderActions = useRef<View>(null);
+  const refQuickActions = useRef<View>(null);
+  const measureTourElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setTourLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+  useEffect(() => {
+    if (showStartupSkeleton || loading) return;
+    const timer = setTimeout(() => {
+      measureTourElement(refLocation, 'location');
+      measureTourElement(refHeaderActions, 'headerActions');
+      measureTourElement(refQuickActions, 'quickActions');
+      startTour('home');
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showStartupSkeleton, loading]);
+  const onboardingSteps = [
+    { targetLayout: tourLayouts.location, title: 'Delivery Location', description: 'Tap here anytime to change where you want your orders delivered.' },
+    { targetLayout: tourLayouts.headerActions, title: 'Cart & Notifications', description: 'Keep track of what you’re buying and any updates on your orders.' },
+    { targetLayout: tourLayouts.quickActions, title: 'Quick Actions', description: 'Jump straight to categories, your orders, wishlist, or nearby stores.' },
+  ].filter((s) => !!s.targetLayout);
+  const handleOnboardingComplete = () => markCompleted('home');
+
   const isInitialLoading =
     loading &&
     recentProducts.length === 0 && dealsProducts.length === 0 &&
@@ -373,7 +403,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
           </View>
 
           <View style={S.headerInner}>
-            <View style={S.locationRowWrap}>
+            <View style={S.locationRowWrap} ref={refLocation} onLayout={() => measureTourElement(refLocation, 'location')}>
               <View style={S.locationRow}>
                 <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
                 <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
@@ -391,7 +421,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
                   : null}
                 {' 👋'}
               </Text>
-              <View style={S.headerActions}>
+              <View style={S.headerActions} ref={refHeaderActions} onLayout={() => measureTourElement(refHeaderActions, 'headerActions')}>
                 <TouchableOpacity accessibilityLabel="Open cart" accessibilityRole="button" style={S.headerBtn} onPress={() => safePush('/cart')}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {cartCount > 0 && (
@@ -468,7 +498,9 @@ const { data: notifData } = useUnreadNotificationCount(false);
           )}
 
           {/* Quick actions: Categories / Orders / Wishlist / Stores */}
-          <QuickActions actions={quickActions} />
+          <View ref={refQuickActions} onLayout={() => measureTourElement(refQuickActions, 'quickActions')}>
+            <QuickActions actions={quickActions} />
+          </View>
 
           {/* Flash sales — admin-curated, real countdown from ends_at.
               No fallback to regular deals ("Deals for You" and the "Deals"
@@ -644,6 +676,12 @@ const { data: notifData } = useUnreadNotificationCount(false);
       <WelcomeCard />
 
       <LocationPickerModal visible={showLocationPicker} onClose={() => setShowLocationPicker(false)} />
+
+      <CoachMarkSequence
+        visible={isTourActive && activeScreen === 'home'}
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }
