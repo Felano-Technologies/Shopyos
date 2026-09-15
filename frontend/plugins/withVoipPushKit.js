@@ -17,27 +17,51 @@
 // Handles BOTH AppDelegate flavors Expo can generate (SDK 57 can produce
 // either depending on template/version) so a prebuild never crashes no
 // matter which one comes out: 'objc'/'objcpp' (AppDelegate.m/.mm) and
-// 'swift' (AppDelegate.swift). Neither branch has been verified against a
-// real `expo prebuild`/EAS build output in this environment — iOS prebuild
-// refuses to run at all on Windows ("Run npx expo prebuild again from
-// macOS or Linux"), so there was no way to inspect the actual generated
-// file here. The Swift branch additionally assumes RNVoipPushNotification/
-// RNCallKeep are exposed to Swift as modules (`import RNVoipPushNotification`
-// / `import RNCallKeep`), which holds when CocoaPods generates modular
-// headers/frameworks for them (the common default for a New Architecture
-// RN project) — if a build fails on those two import lines specifically,
-// the fix is switching them for `#import` lines in the project's
-// `<Name>-Bridging-Header.h` instead. Any other failure: run the build,
-// share the exact compiler error, and this file gets corrected precisely.
-// For either language, if this plugin can't find its expected insertion
-// points it logs a warning and leaves the file untouched rather than
-// guessing further — a missed injection point never blocks anything (build
-// still succeeds), it just quietly means calls won't ring while the app is
-// backgrounded/killed until this is fixed.
+// 'swift' (AppDelegate.swift). CONFIRMED against a real EAS build: this
+// project generates AppDelegate.swift, and the import/voipRegistration()/
+// delegate-extension injection below all landed exactly where intended.
+// The one thing that failed on that build: `import RNVoipPushNotification`
+// / `import RNCallKeep` from Swift need each pod built with CocoaPods'
+// modular headers, which isn't the default — without it there's no
+// Swift-importable module and the build fails with "no such module
+// 'RNVoipPushNotification'". Fixed via the Podfile mod below (marking just
+// these two pods `:modular_headers => true`) rather than rewriting the
+// AppDelegate injection to use a bridging header instead — modular headers
+// needed no changes to the AppDelegate logic itself, which was already
+// correct. If a future build still fails on these imports, the fallback is
+// a bridging header (`<Name>-Bridging-Header.h` with
+// `#import "RNVoipPushNotificationManager.h"` / `#import <RNCallKeep/RNCallKeep.h>`,
+// wired via the `SWIFT_OBJC_BRIDGING_HEADER` build setting) instead.
+// For either AppDelegate language, if this plugin can't find its expected
+// insertion points it logs a warning and leaves the file untouched rather
+// than guessing further — a missed injection point never blocks anything
+// (build still succeeds), it just quietly means calls won't ring while the
+// app is backgrounded/killed until this is fixed.
 
-const { withAppDelegate } = require('expo/config-plugins');
+const { withAppDelegate, withPodfile } = require('expo/config-plugins');
 
 const MARKER = 'withVoipPushKit';
+
+// Gives react-native-callkeep / react-native-voip-push-notification a
+// proper Clang module map so Swift's `import RNCallKeep` / `import
+// RNVoipPushNotification` (used by the AppDelegate.swift injection below)
+// actually resolves — CocoaPods doesn't generate one for a pod by default.
+// Scoped to just these two pods (not a project-wide `use_modular_headers!`)
+// to avoid any side effects on other pods' own build settings.
+const PODFILE_MODULAR_HEADERS = `  pod 'RNCallKeep', :modular_headers => true
+  pod 'RNVoipPushNotification', :modular_headers => true
+`;
+
+function injectPodfileModularHeaders(contents) {
+  if (contents.includes(MARKER)) return contents; // already injected
+  const targetLineMatch = contents.match(/^target ['"][^'"]+['"] do[ \t]*\n/m);
+  if (!targetLineMatch) {
+    console.warn(`[${MARKER}] Could not find "target '<name>' do" in the Podfile — modular_headers not injected for RNCallKeep/RNVoipPushNotification.`);
+    return contents;
+  }
+  const marker = `  # ===== Injected by plugins/${MARKER}.js — do not hand-edit =====\n`;
+  return contents.replace(targetLineMatch[0], targetLineMatch[0] + marker + PODFILE_MODULAR_HEADERS);
+}
 
 const OBJC_IMPORTS = `#import <PushKit/PushKit.h>
 #import "RNVoipPushNotificationManager.h"
@@ -178,7 +202,7 @@ function injectSwift(contents) {
   return next + '\n' + SWIFT_DELEGATE_EXTENSION;
 }
 
-module.exports = function withVoipPushKit(config) {
+function withVoipAppDelegate(config) {
   return withAppDelegate(config, (config) => {
     const { language, contents } = config.modResults;
 
@@ -201,4 +225,17 @@ module.exports = function withVoipPushKit(config) {
 
     return config;
   });
+}
+
+function withVoipPodfile(config) {
+  return withPodfile(config, (config) => {
+    config.modResults.contents = injectPodfileModularHeaders(config.modResults.contents);
+    return config;
+  });
+}
+
+module.exports = function withVoipPushKit(config) {
+  config = withVoipAppDelegate(config);
+  config = withVoipPodfile(config);
+  return config;
 };
