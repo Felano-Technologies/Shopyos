@@ -48,8 +48,18 @@ const MARKER = 'withVoipPushKit';
 // actually resolves — CocoaPods doesn't generate one for a pod by default.
 // Scoped to just these two pods (not a project-wide `use_modular_headers!`)
 // to avoid any side effects on other pods' own build settings.
-const PODFILE_MODULAR_HEADERS = `  pod 'RNCallKeep', :modular_headers => true
-  pod 'RNVoipPushNotification', :modular_headers => true
+//
+// MUST include an explicit :path to the same node_modules podspec autolinking
+// already uses — confirmed via a real EAS build log that autolinking resolves
+// these to ../node_modules/react-native-callkeep (podspec name `RNCallKeep`)
+// and ../node_modules/react-native-voip-push-notification (podspec name
+// `RNVoipPushNotification`). Without :path, this line reads as a second,
+// unrelated dependency on the *same pod name* to be fetched from the CocoaPods
+// trunk spec repo — which fails immediately with "Unable to find a
+// specification for `RNCallKeep`" since neither pod is published there; it's
+// a local-only, autolinked pod.
+const PODFILE_MODULAR_HEADERS = `  pod 'RNCallKeep', :path => '../node_modules/react-native-callkeep', :modular_headers => true
+  pod 'RNVoipPushNotification', :path => '../node_modules/react-native-voip-push-notification', :modular_headers => true
 `;
 
 function injectPodfileModularHeaders(contents) {
