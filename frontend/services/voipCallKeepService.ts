@@ -26,6 +26,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { api } from './client';
 import { useCallStore } from '@/store/callStore';
 import { acceptCall, rejectCall, endCall } from './calls';
@@ -60,6 +61,25 @@ function getVoipPush(): any {
   }
 }
 
+// Clears the native CallKit/ConnectionService UI for a call this app just
+// ended/rejected ITSELF (in-app hangup button, in-app reject button) — the
+// reverse direction (native UI → app, e.g. answering/hanging up from the
+// lock screen) is handled by handleNativeAnswer/handleNativeEnd below.
+// Without this, ending a call in-app leaves the OS's own "on a call"
+// indicator/CallKit session running, since only RNCallKeep.endCall (never
+// the REST accept/reject/end calls) actually clears it. A call that was
+// never routed through CallKit (e.g. no VoIP push arrived, or Android)
+// simply has nothing registered — this is a harmless no-op in that case.
+export function endNativeCallSession(callId: string) {
+  if (isExpoGo) return;
+  const RNCallKeep = getCallKeep();
+  try {
+    RNCallKeep?.endCall(callId);
+  } catch {
+    // best-effort — nothing to clear if the native module isn't linked
+  }
+}
+
 async function registerVoipTokenWithBackend(token: string, platform: 'ios' | 'android') {
   try {
     await api.post('/notifications/voip-push-token', { token, platform, deviceName: 'Mobile App' });
@@ -91,6 +111,22 @@ function handleIncomingPayload(payload: any) {
 // UI (native lock-screen or in-app modal) the user actually answered from.
 async function handleNativeAnswer(callUUID: string, RNCallKeep: any) {
   try {
+    // Deliberately no custom disclosure card here (unlike
+    // IncomingCallModal.handleAccept) — this can fire while the app is
+    // still backgrounded/locked, before the RN UI tree is guaranteed to be
+    // up, so a JS-rendered Modal isn't reliable here. Falls back to the bare
+    // OS permission request, which still shows the native dialog (including
+    // Info.plist's usage description) and resolves immediately with no
+    // prompt at all once granted from an earlier call.
+    const existing = await getRecordingPermissionsAsync();
+    const permission = existing.status === 'granted' ? existing : await requestRecordingPermissionsAsync();
+    if (permission.status !== 'granted') {
+      await rejectCall(callUUID).catch(() => {});
+      RNCallKeep?.endCall(callUUID);
+      useCallStore.getState().reset();
+      return;
+    }
+
     const accepted = await acceptCall(callUUID);
     useCallStore.getState().setAccepted(accepted.startedAt || new Date().toISOString(), { token: accepted.token, appId: accepted.appId });
   } catch (err: any) {

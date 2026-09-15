@@ -3,6 +3,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { useCallStore } from '@/store/callStore';
 import { initiateCall } from '@/services/calls';
 import { CustomInAppToast } from '@/services/api';
+import { requestCallMicrophonePermissionWithDisclosure } from '@/src/utils/permissions';
 
 export function CallDisclaimerModal() {
   const phase = useCallStore((s) => s.phase);
@@ -17,6 +18,19 @@ export function CallDisclaimerModal() {
     if (!pendingTarget || placing) return;
     setPlacing(true);
     try {
+      // Requested here, before CallScreen's own full-screen Modal ever
+      // mounts (it becomes visible the instant setOutgoing() below fires) —
+      // asking for it later, inside CallScreen's join effect, means showing
+      // this disclosure's own Modal ON TOP of an already-visible Modal,
+      // which is exactly what caused the OS permission prompt to appear
+      // without the in-app "Continue" step ever properly registering.
+      const permission = await requestCallMicrophonePermissionWithDisclosure();
+      if (permission.status !== 'granted') {
+        CustomInAppToast.show({ type: 'error', title: 'Microphone required', message: 'Microphone access is required to make calls.' });
+        cancelPrompt();
+        return;
+      }
+
       const call = await initiateCall(pendingTarget.receiverId, pendingTarget.orderId);
       setOutgoing({
         callId: call.id,

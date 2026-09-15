@@ -140,8 +140,19 @@ async function endCallInternal(call, { endedBy, endReason }) {
 
   const updated = await repositories.calls.updateCall(call.id, updates);
 
-  const otherUserId = endedBy === call.caller_id ? call.receiver_id : call.caller_id;
-  emitToUser(otherUserId, 'call:ended', { callId: call.id, reason: endReason });
+  if (endedBy) {
+    // A user hung up — only the OTHER party needs telling; the one who
+    // ended it already knows (this call came from their own request).
+    const otherUserId = endedBy === call.caller_id ? call.receiver_id : call.caller_id;
+    emitToUser(otherUserId, 'call:ended', { callId: call.id, reason: endReason });
+  } else {
+    // System-initiated (the 30s cap timeout) — neither side already knows,
+    // so both must be told. Missing this meant only the caller's side ever
+    // left the Agora channel/reset its call screen; the receiver's screen
+    // and audio session just hung there with no one left to talk to.
+    emitToUser(call.caller_id, 'call:ended', { callId: call.id, reason: endReason });
+    emitToUser(call.receiver_id, 'call:ended', { callId: call.id, reason: endReason });
+  }
 
   // A call the receiver never picked up (started_at never got stamped) is a
   // cancel, not a completed call, even though it comes through this same

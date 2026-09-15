@@ -6,6 +6,7 @@ import { MarqueeText } from '@/components/MarqueeText';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { endCall } from '@/services/calls';
+import { endNativeCallSession } from '@/services/voipCallKeepService';
 import { joinCall, leaveCall, muteLocalAudio, releaseEngine, setSpeakerphoneEnabled, startLocalRecording, stopLocalRecording } from '@/services/callRecordingService';
 import { enqueueRecordingUpload, drainRecordingUploadQueue } from '@/services/recordingUploadQueue';
 import { startRingtone, stopRingtone } from '@/services/callRingtone';
@@ -121,6 +122,7 @@ export function CallScreen({ currentUserId }: { currentUserId: string }) {
     } catch {
       // best-effort — reset locally regardless
     } finally {
+      endNativeCallSession(call.callId);
       reset();
     }
   };

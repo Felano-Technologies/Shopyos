@@ -6,8 +6,10 @@ import { MarqueeText } from '@/components/MarqueeText';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useCallStore } from '@/store/callStore';
 import { acceptCall, rejectCall } from '@/services/calls';
+import { endNativeCallSession } from '@/services/voipCallKeepService';
 import { startRingtone, stopRingtone } from '@/services/callRingtone';
 import { CustomInAppToast } from '@/services/api';
+import { requestCallMicrophonePermissionWithDisclosure } from '@/src/utils/permissions';
 
 const C = {
   navy: '#0C1559',
@@ -36,6 +38,21 @@ export function IncomingCallModal() {
     if (!call || busy) return;
     setBusy(true);
     try {
+      // Requested here, before CallScreen's own full-screen Modal mounts —
+      // asking inside CallScreen's join effect meant showing this
+      // disclosure's Modal ON TOP of one that's already open, which is what
+      // let the OS permission prompt appear without the in-app step
+      // properly registering. If already granted (the common case after the
+      // first call), this resolves immediately with no UI at all.
+      const permission = await requestCallMicrophonePermissionWithDisclosure();
+      if (permission.status !== 'granted') {
+        CustomInAppToast.show({ type: 'error', title: 'Microphone required', message: 'Microphone access is required to answer calls.' });
+        await rejectCall(call.callId).catch(() => {});
+        endNativeCallSession(call.callId);
+        reset();
+        return;
+      }
+
       const accepted = await acceptCall(call.callId);
       setAccepted(accepted.startedAt || new Date().toISOString(), { token: accepted.token, appId: accepted.appId });
     } catch (error: any) {
@@ -54,6 +71,7 @@ export function IncomingCallModal() {
     } catch {
       // best-effort — reset locally regardless
     } finally {
+      endNativeCallSession(call.callId);
       setBusy(false);
       reset();
     }

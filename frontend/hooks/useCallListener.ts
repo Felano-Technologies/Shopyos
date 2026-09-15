@@ -4,30 +4,9 @@
 // regardless of which screen the user is currently on.
 
 import { useEffect } from 'react';
-import Constants from 'expo-constants';
 import { socketService } from '../services/socket';
 import { useCallStore } from '../store/callStore';
-
-const isExpoGo = Constants.appOwnership === 'expo';
-
-// Clears the native CallKit/ConnectionService UI when a call ends via a
-// socket event (e.g. the app reconnected after being backgrounded) —
-// otherwise a call the native UI is still showing as "ringing"/"active"
-// could outlive the actual call state in callStore. Lazily required so
-// this file works on a dev client built before react-native-callkeep
-// existed (see services/voipCallKeepService.ts for the same pattern) — and
-// Expo Go can never run it at all, so skip before even touching the
-// native module (see voipCallKeepService.ts's isExpoGo comment).
-function endNativeCall(callId: string) {
-  if (isExpoGo) return;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const RNCallKeep = require('react-native-callkeep').default;
-    RNCallKeep.endCall(callId);
-  } catch {
-    // native module not linked yet — nothing to clear
-  }
-}
+import { endNativeCallSession as endNativeCall } from '../services/voipCallKeepService';
 
 export const useCallListener = () => {
   const setIncoming = useCallStore((s) => s.setIncoming);

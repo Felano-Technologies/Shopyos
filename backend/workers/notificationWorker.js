@@ -326,8 +326,6 @@ async function handlePush(msg) {
             tickets.push(...ticketChunk);
         }
 
-        logger.info(`[Push] Sent ${messages.length} push notification(s) to user ${userId} for ${eventType}. Tickets: ${tickets.length}`);
-
         // Process tickets — update activity, queue receipts, clean up stale tokens
         await _processTickets(tickets, messages, userId, eventType, target, refId, notificationId);
         return true;
@@ -346,7 +344,6 @@ async function _processTickets(tickets, messages, userId, eventType, target, ref
         const ticket = tickets[i];
         if (ticket.status === 'ok') {
             anyOk = true;
-            logger.info(`[Push] ✅ Accepted by Expo for token: ${messages[i].to}`);
             await repositories.notifications.updateTokenLastUsed(messages[i].to);
             if (ticket.id) receiptQueue.push({ receiptId: ticket.id, token: messages[i].to });
         } else if (ticket.status === 'error') {
