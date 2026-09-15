@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Platform } from 'react-native';
-import { createAudioPlayer, setAudioModeAsync, preload, clearPreloadedSource, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { setActiveVoicePlayer, clearActiveVoicePlayer } from '@/services/voiceAudioSession';
 
@@ -13,20 +13,23 @@ interface VoiceMessageProps {
 const NUM_BARS = 24;
 
 export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<VoiceMessageProps>) {
-  const [sound, setSound] = useState<AudioPlayer | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(durationMs);
-  const [loading, setLoading] = useState(false);
+  // Creates the player immediately and starts loading the source right away
+  // (per expo-audio's own docs) — the message bubble renders well before
+  // anyone taps play, so this buffering happens invisibly in the background
+  // instead of after the tap. useAudioPlayerStatus is expo-audio's own
+  // recommended way to get reliable, continuously-ticking playback status —
+  // the previous hand-rolled `addListener('playbackStatusUpdate', ...)`
+  // approach never reliably delivered ongoing position/finished updates,
+  // which is why the time stayed frozen and the icon never reverted to
+  // "play" once a track finished.
+  const player = useAudioPlayer(url);
+  const status = useAudioPlayerStatus(player);
 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const soundRef = useRef<AudioPlayer | null>(null);
-  // `loading` state isn't committed synchronously, so a fast double-tap can
-  // read stale closures where `sound` is still null on both calls, creating
-  // two players back-to-back — the second's load cancels the first's
-  // in-flight one, surfacing as a native "Operation Stopped" error.
-  const isHandlingRef = useRef(false);
-  const stopSelfRef = useRef<(() => void) | null>(null);
+  // Stable across the player's lifetime — voiceAudioSession compares this
+  // by reference to know which voice message currently owns the shared
+  // audio session.
+  const stopSelfRef = useRef(() => player.pause());
 
   // Generate a stable pseudo-random waveform shape from the URL
   const waveHeights = useMemo(() => {
@@ -54,135 +57,42 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
     }).start();
   }, [scaleAnim]);
 
-  // Start buffering as soon as this bubble renders — NOT on tap. The ~7s
-  // delay a user hits on tap is the network fetch of the remote file; a
-  // loading spinner just makes that wait visible, it doesn't remove it.
-  // Starting the fetch the moment the message is on screen means by the
-  // time someone actually taps play (they have to read/notice the bubble
-  // first), most or all of that transfer has already happened in the
-  // background, so createAudioPlayer below picks up the same cached source
-  // and starts close to instantly instead of starting the fetch from zero.
+  // Playback mode only needs setting once, ahead of any actual play() call —
+  // the player already starts loading on mount, well before that.
   useEffect(() => {
-    preload(url).catch(() => { /* best-effort — falls back to the normal on-tap load */ });
-    return () => {
-      // Only release it if it was never actually played — once tapped,
-      // soundRef.current owns the real player/source and this preload was
-      // already consumed. Android/web don't self-clear an unconsumed
-      // preload the way iOS does, so leaving this out would leak buffered
-      // audio for every voice note scrolled past but never played.
-      if (!soundRef.current) clearPreloadedSource(url).catch(() => {});
-    };
-  }, [url]);
+    setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+  }, []);
+
+  // Keeps the "only one voice message plays at a time" coordinator in sync
+  // with the player's REAL state (not a manually-tracked isPlaying flag) —
+  // registers this player as the active one whenever it's actually playing,
+  // and releases that claim the moment it stops for any reason (paused,
+  // finished, or force-stopped by another voice message/a recording start).
+  useEffect(() => {
+    if (status.playing) {
+      setActiveVoicePlayer(stopSelfRef.current);
+    } else {
+      clearActiveVoicePlayer(stopSelfRef.current);
+    }
+  }, [status.playing]);
+
+  // Reset to the start once finished so the NEXT tap replays from 0 instead
+  // of immediately re-triggering "finished" at the end of the track.
+  useEffect(() => {
+    if (status.didJustFinish) {
+      player.seekTo(0).catch(() => {});
+    }
+  }, [status.didJustFinish, player]);
 
   useEffect(() => {
-    return () => {
-      // Read soundRef.current (not the `sound` closure) so this doesn't try
-      // to remove an already-disposed player — e.g. one force-stopped via
-      // stopSelf() right before this cleanup runs.
-      if (soundRef.current) {
-        if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
-        try { soundRef.current.remove(); } catch { /* already released */ }
-        soundRef.current = null;
-      }
-    };
-  }, [sound]);
+    return () => clearActiveVoicePlayer(stopSelfRef.current);
+  }, []);
 
-  const onPlaybackStatusUpdate = (status: AudioStatus) => {
-    if (status.error) {
-      // The player reports failures here rather than throwing — without this
-      // check, a load/playback error leaves isPlaying stuck true (set
-      // synchronously right after calling .play()) forever, showing a pause
-      // icon over silence with no indication anything went wrong.
-      console.error('Voice message playback error:', status.error);
-      setIsPlaying(false);
-      setPosition(0);
-      if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
-      return;
-    }
-    if (status.isLoaded) {
-      setPosition(status.currentTime * 1000);
-      if (status.duration) setDuration(status.duration * 1000);
-      // Don't derive isPlaying from status — it flickers false during buffering
-      // and causes the timer to snap back to showing the static duration
-      if (status.didJustFinish) {
-        setIsPlaying(false);
-        setPosition(0);
-        if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
-        if (soundRef.current) soundRef.current.seekTo(0).catch(() => {});
-      }
-    }
-  };
-
-  const handlePlayPause = async () => {
-    if (isHandlingRef.current) return;
-    isHandlingRef.current = true;
-    setLoading(true);
-    try {
-      if (sound) {
-        if (isPlaying) {
-          sound.pause();
-          setIsPlaying(false);
-          if (stopSelfRef.current) clearActiveVoicePlayer(stopSelfRef.current);
-        } else {
-          sound.play();
-          setIsPlaying(true);
-          if (stopSelfRef.current) setActiveVoicePlayer(stopSelfRef.current);
-        }
-      } else {
-        await setAudioModeAsync({
-          allowsRecording: false,
-          playsInSilentMode: true,
-        });
-        const newSound = createAudioPlayer({ uri: url });
-        soundRef.current = newSound;
-
-        // Full teardown, not just pause() — a paused player still holds the
-        // native AVAudioSession, which then makes the recorder's session
-        // activation fail ("Session activation failed") when this is force-
-        // stopped to make room for a recording (or another voice message).
-        const stopSelf = () => {
-          try { newSound.remove(); } catch { /* already released */ }
-          if (soundRef.current === newSound) soundRef.current = null;
-          setSound(null);
-          setIsPlaying(false);
-          setPosition(0);
-        };
-        stopSelfRef.current = stopSelf;
-
-        // One persistent listener for the player's whole lifetime (position
-        // updates, didJustFinish, errors) — but ALSO used below to wait for
-        // the first loaded/error report before this function returns.
-        // `loading`/isHandlingRef otherwise release right after this
-        // synchronous setup, not after the real (multi-second, remote-
-        // streamed) buffering completes, leaving the button tappable again
-        // mid-buffer. A second tap in that window used to read a stale
-        // `sound === null` closure and create a SECOND player for the same
-        // message, cancelling the first's in-flight load — which is why
-        // repeated taps never actually produced sound, and could leave a
-        // half-cancelled player behind that silently refused to play again
-        // until the screen remounted.
-        let resolveReady: () => void;
-        const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
-        (newSound as any).addListener('playbackStatusUpdate', (status: AudioStatus) => {
-          onPlaybackStatusUpdate(status);
-          if (status.isLoaded || status.error) resolveReady();
-        });
-
-        // Race against a timeout so a player that never reports any status
-        // at all (dead network, malformed URL) can't disable the button
-        // forever — well above the ~7s buffering this was written for.
-        await Promise.race([ready, new Promise<void>((resolve) => setTimeout(resolve, 15000))]);
-
-        newSound.play();
-        setSound(newSound);
-        setIsPlaying(true);
-        setActiveVoicePlayer(stopSelf);
-      }
-    } catch (err) {
-      console.error('Failed to play sound', err);
-    } finally {
-      setLoading(false);
-      isHandlingRef.current = false;
+  const handlePlayPause = () => {
+    if (status.playing) {
+      player.pause();
+    } else {
+      player.play();
     }
   };
 
@@ -193,7 +103,12 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const progressFraction = duration > 0 ? position / duration : 0;
+  // Falls back to the server-reported duration until the player's own
+  // duration is known (right after mount, before loading completes).
+  const displayDurationMs = status.duration > 0 ? status.duration * 1000 : durationMs;
+  const positionMs = status.currentTime * 1000;
+  const progressFraction = displayDurationMs > 0 ? positionMs / displayDurationMs : 0;
+  const isLoading = !status.isLoaded && !status.error;
 
   const meActive = isMe ? '#fff' : '#84cc16';
   const meInactive = isMe ? 'rgba(255,255,255,0.25)' : 'rgba(12,21,89,0.15)';
@@ -206,18 +121,18 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
       {/* Play button */}
       <TouchableOpacity
         onPress={handlePlayPause}
-        disabled={loading}
+        disabled={isLoading}
         style={[styles.playBtn, { backgroundColor: mePlayBtnBg }]}
         activeOpacity={0.7}
       >
-        {loading ? (
+        {isLoading ? (
           <ActivityIndicator size="small" color={mePlayIcon} />
         ) : (
           <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
+            name={status.playing ? 'pause' : 'play'}
             size={18}
             color={mePlayIcon}
-            style={isPlaying ? undefined : { marginLeft: 2 }}
+            style={status.playing ? undefined : { marginLeft: 2 }}
           />
         )}
       </TouchableOpacity>
@@ -245,7 +160,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
         {/* Time */}
         <View style={styles.timeRow}>
           <Text style={[styles.timeText, { color: meTimeColor }]}>
-            {isPlaying ? formatTime(position) : formatTime(duration)}
+            {status.playing ? formatTime(positionMs) : formatTime(displayDurationMs)}
           </Text>
           <Ionicons name="mic" size={10} color={meTimeColor} />
         </View>

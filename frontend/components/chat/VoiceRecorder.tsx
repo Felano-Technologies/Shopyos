@@ -156,7 +156,10 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
         }
       }, 1000);
 
-      // Metering — reads dB levels and animates bars
+      // Metering — reads dB levels and animates bars. Sampled every 100ms
+      // (was 1000ms) with a matching ~100ms tween — at 1 sample/sec the
+      // bars sat frozen for ~920ms between each abrupt jump, which read as
+      // static rather than a live waveform; this makes it actually flow.
       meteringRef.current = setInterval(() => {
         try {
           const status = recorder.getStatus();
@@ -176,7 +179,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
             for (let i = 0; i < NUM_BARS; i++) {
               Animated.timing(barAnims[i], {
                 toValue: meterLevels[i],
-                duration: 80,
+                duration: 100,
                 useNativeDriver: false,
               }).start();
             }
@@ -184,7 +187,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
         } catch (e) {
           if (__DEV__) console.error('Failed to read meter level:', e);
         }
-      }, 1000);
+      }, 100);
     } catch (err) {
       if (__DEV__) console.error('Failed to start recording', err);
       CustomInAppToast.show({
