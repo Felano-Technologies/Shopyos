@@ -5,6 +5,7 @@ import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
 import { usePathname } from 'expo-router';
 import { createAudioPlayer } from 'expo-audio';
+import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 
@@ -179,7 +180,7 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       pendingToastsRef.current = [];
     };
   }, [enableRealtime, pathname, queryClient]);
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
       const token = await ApiService.secureStorage.getItem('userToken') ||
@@ -193,6 +194,20 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
     staleTime: 1 * 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000,
   });
+
+  // Android's launcher badge/dot is driven by the OS itself from posted
+  // notifications — nothing needed here. iOS has no equivalent automatic
+  // behavior; the icon badge only ever reflects a number explicitly set via
+  // setBadgeCountAsync. The backend also sets this on every push payload
+  // (see workers/notificationWorker.js), which covers the app being
+  // backgrounded/killed, but that alone can't clear the badge back down
+  // when the user reads notifications IN-APP (no new push fires then) —
+  // this keeps it synced any time this app-wide count changes while open.
+  useEffect(() => {
+    Notifications.setBadgeCountAsync(query.data?.unreadCount || 0).catch(() => {});
+  }, [query.data?.unreadCount]);
+
+  return query;
 };
 export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient();

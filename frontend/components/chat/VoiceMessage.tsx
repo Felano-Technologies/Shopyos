@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Platform } from 'react-native';
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, preload, clearPreloadedSource, type AudioPlayer, type AudioStatus } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { setActiveVoicePlayer, clearActiveVoicePlayer } from '@/services/voiceAudioSession';
 
@@ -53,6 +53,26 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
       friction: 10,
     }).start();
   }, [scaleAnim]);
+
+  // Start buffering as soon as this bubble renders — NOT on tap. The ~7s
+  // delay a user hits on tap is the network fetch of the remote file; a
+  // loading spinner just makes that wait visible, it doesn't remove it.
+  // Starting the fetch the moment the message is on screen means by the
+  // time someone actually taps play (they have to read/notice the bubble
+  // first), most or all of that transfer has already happened in the
+  // background, so createAudioPlayer below picks up the same cached source
+  // and starts close to instantly instead of starting the fetch from zero.
+  useEffect(() => {
+    preload(url).catch(() => { /* best-effort — falls back to the normal on-tap load */ });
+    return () => {
+      // Only release it if it was never actually played — once tapped,
+      // soundRef.current owns the real player/source and this preload was
+      // already consumed. Android/web don't self-clear an unconsumed
+      // preload the way iOS does, so leaving this out would leak buffered
+      // audio for every voice note scrolled past but never played.
+      if (!soundRef.current) clearPreloadedSource(url).catch(() => {});
+    };
+  }, [url]);
 
   useEffect(() => {
     return () => {
@@ -114,11 +134,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
           playsInSilentMode: true,
         });
         const newSound = createAudioPlayer({ uri: url });
-        (newSound as any).addListener('playbackStatusUpdate', onPlaybackStatusUpdate);
-        newSound.play();
         soundRef.current = newSound;
-        setSound(newSound);
-        setIsPlaying(true);
 
         // Full teardown, not just pause() — a paused player still holds the
         // native AVAudioSession, which then makes the recorder's session
@@ -132,6 +148,34 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
           setPosition(0);
         };
         stopSelfRef.current = stopSelf;
+
+        // One persistent listener for the player's whole lifetime (position
+        // updates, didJustFinish, errors) — but ALSO used below to wait for
+        // the first loaded/error report before this function returns.
+        // `loading`/isHandlingRef otherwise release right after this
+        // synchronous setup, not after the real (multi-second, remote-
+        // streamed) buffering completes, leaving the button tappable again
+        // mid-buffer. A second tap in that window used to read a stale
+        // `sound === null` closure and create a SECOND player for the same
+        // message, cancelling the first's in-flight load — which is why
+        // repeated taps never actually produced sound, and could leave a
+        // half-cancelled player behind that silently refused to play again
+        // until the screen remounted.
+        let resolveReady: () => void;
+        const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
+        (newSound as any).addListener('playbackStatusUpdate', (status: AudioStatus) => {
+          onPlaybackStatusUpdate(status);
+          if (status.isLoaded || status.error) resolveReady();
+        });
+
+        // Race against a timeout so a player that never reports any status
+        // at all (dead network, malformed URL) can't disable the button
+        // forever — well above the ~7s buffering this was written for.
+        await Promise.race([ready, new Promise<void>((resolve) => setTimeout(resolve, 15000))]);
+
+        newSound.play();
+        setSound(newSound);
+        setIsPlaying(true);
         setActiveVoicePlayer(stopSelf);
       }
     } catch (err) {

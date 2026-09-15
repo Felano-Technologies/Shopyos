@@ -294,6 +294,16 @@ async function handlePush(msg) {
 
         const messages = [];
 
+        // Android's launcher badge/dot is driven by the OS itself from the
+        // number of currently-posted notifications in the tray — the app
+        // never had to do anything for it. iOS has no such automatic
+        // behavior: the icon badge only ever reflects whatever number is
+        // explicitly set, either via a client-side setBadgeCountAsync() call
+        // or (as here) a `badge` field on the push payload itself — the
+        // latter is what actually works while the app is backgrounded/
+        // killed, which is most of the time a push is delivered.
+        const badgeCount = await repositories.notifications.getUnreadCount(userId);
+
         for (const pushToken of tokens) {
             if (!Expo.isExpoPushToken(pushToken)) {
                 logger.warn(`[Push] Invalid Expo token for user ${userId}: ${pushToken}`);
@@ -302,6 +312,7 @@ async function handlePush(msg) {
             }
             messages.push({
                 to: pushToken,
+                badge: badgeCount,
                 sound: 'default',
                 priority: 'high',
                 channelId: getChannelId(eventType),
