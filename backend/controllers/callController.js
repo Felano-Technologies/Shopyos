@@ -29,6 +29,7 @@ const { uploadImage, resolveImageUrl, transformImageUrlsAsync } = require('../co
 const { publishRealtimeEvent } = require('../services/realtimePublisher');
 const notificationService = require('../services/notificationService');
 const { sendVoipPush } = require('../services/voipPushService');
+const { recordCallMessage } = require('../services/callMessageService');
 const { logger } = require('../config/logger');
 
 const CALL_DURATION_SECONDS = 30;
@@ -142,6 +143,17 @@ async function endCallInternal(call, { endedBy, endReason }) {
   const otherUserId = endedBy === call.caller_id ? call.receiver_id : call.caller_id;
   emitToUser(otherUserId, 'call:ended', { callId: call.id, reason: endReason });
 
+  // A call the receiver never picked up (started_at never got stamped) is a
+  // cancel, not a completed call, even though it comes through this same
+  // "end" path — distinct from the ring-timeout's own 'missed' outcome.
+  recordCallMessage({
+    callId: call.id,
+    callerId: call.caller_id,
+    receiverId: call.receiver_id,
+    outcome: startedAt ? 'completed' : 'cancelled',
+    durationSeconds,
+  });
+
   return updated;
 }
 
@@ -203,6 +215,7 @@ const initiateCall = async (req, res, next) => {
             recording_status: 'not_recorded',
           });
           emitToUser(callerId, 'call:missed', { callId: call.id });
+          recordCallMessage({ callId: call.id, callerId, receiverId, outcome: 'missed', durationSeconds: 0 });
           await notificationService.sendNotification({
             userId: receiverId,
             type: 'call_missed',
@@ -273,6 +286,7 @@ const rejectCall = async (req, res, next) => {
     clearPendingTimer(call.id);
     await repositories.calls.updateCall(call.id, { status: 'rejected', end_reason: 'rejected', recording_status: 'not_recorded' });
     emitToUser(call.caller_id, 'call:rejected', { callId: call.id });
+    recordCallMessage({ callId: call.id, callerId: call.caller_id, receiverId: call.receiver_id, outcome: 'rejected', durationSeconds: 0 });
 
     ApiResponse.success(res, null, 'Call rejected');
   } catch (error) {

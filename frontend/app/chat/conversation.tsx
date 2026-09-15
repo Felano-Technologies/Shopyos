@@ -202,6 +202,9 @@ type MessageItem = {
     mimeType?: string;
     durationMs?: number;
     thumbnailUrl?: string;
+    // message_type === 'call' only — set by backend/services/callMessageService.js
+    outcome?: 'completed' | 'missed' | 'rejected' | 'cancelled';
+    durationSeconds?: number;
   };
   is_read?: boolean;
   pending?: boolean;
@@ -834,6 +837,30 @@ export default function ConversationScreen() {
     </>
   );
 
+  const renderCallBubble = (item: MessageItem, index: number) => {
+    const outcome = item.attachment_meta?.outcome;
+    const isMissedOrRejected = outcome === 'missed' || outcome === 'rejected';
+    return (
+      <>
+        {showDate(index) && (
+          <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
+        )}
+        <View style={styles.callNoticeRow}>
+          <View style={styles.callNoticePill}>
+            <Ionicons
+              name="call"
+              size={14}
+              color={isMissedOrRejected ? C.alertRed : C.mutedText}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.callNoticeText, isMissedOrRejected && { color: C.alertRed }]}>{item.content}</Text>
+            <Text style={styles.callNoticeTime}>{fmtTime(item)}</Text>
+          </View>
+        </View>
+      </>
+    );
+  };
+
   const renderStickerBubble = (item: MessageItem, index: number, isMe: boolean) => {
     const iconProps: StickerIconProps = { pending: item.pending, is_read: item.is_read, failed: item.failed };
     const stickerName = stickerIconName(iconProps);
@@ -870,8 +897,10 @@ export default function ConversationScreen() {
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
     const isSticker = item.message_type === 'sticker';
+    const isCall = item.message_type === 'call';
 
     if (item.is_moderated) { return renderModeratedBubble(item, index); }
+    if (isCall) { return renderCallBubble(item, index); }
     if (isSticker) { return renderStickerBubble(item, index, isMe); }
 
     const hasMedia = item.message_type === 'image' || item.message_type === 'video' || item.message_type === 'voice';
@@ -1493,6 +1522,10 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   systemNoticeRow: { alignItems: 'center', marginVertical: 6 },
   systemNoticePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF1F2', borderWidth: 1, borderColor: '#FCA5A5', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
   systemNoticeText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#DC2626' },
+  callNoticeRow: { alignItems: 'center', marginVertical: 6 },
+  callNoticePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.borderLight, borderWidth: 1, borderColor: C.borderCard, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
+  callNoticeText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.mutedText, marginRight: 8 },
+  callNoticeTime: { fontSize: 10, fontFamily: 'Montserrat-Regular', color: C.mutedText, opacity: 0.7 },
 
   // Input bar
   inputBar: { paddingHorizontal: 12, paddingTop: 10, backgroundColor: C.surfaceElevated, borderTopWidth: 1, borderTopColor: C.borderLight },
