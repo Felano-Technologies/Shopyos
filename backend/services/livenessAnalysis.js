@@ -19,7 +19,7 @@ const { verify, SUPPORTED_CHALLENGES } = require('./liveness/challengeVerifier')
 const { logger } = require('../config/logger');
 
 const MIN_FACE_CONFIDENCE = 0.5;
-const MIN_REAL_SCORE = 0.5;
+const MIN_REAL_SCORE = 0.2;
 
 // frames: [{ label: string, buffer: Buffer }], baseline frame must have
 // label === 'baseline'. challengeSequence: string[] of challenge ids in the
