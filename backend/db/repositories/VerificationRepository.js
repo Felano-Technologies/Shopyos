@@ -90,7 +90,7 @@ class VerificationRepository extends BaseRepository {
   async listApplicationsAdmin({ role, status, riskLevel, hasEntity, entityId, limit = 25, offset = 0 } = {}) {
     let query = this.db
       .from('verification_applications')
-      .select('*, applicant:user_id (id, email)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
     if (role) query = query.eq('role', role);
     if (status) query = query.eq('status', status);
@@ -108,7 +108,32 @@ class VerificationRepository extends BaseRepository {
     if (offset) query = query.range(offset, offset + limit - 1);
     const { data, error, count } = await query;
     if (error) throw error;
-    return { applications: data || [], total: count || 0 };
+
+    // The `applicant:user_id (id, email)` embed above was silently
+    // discarded — the shared pg-shim query builder flattens any complex/
+    // embedded select to a bare `*` for every table except a short hardcoded
+    // list in supabaseLikePgClient.js's _shim* methods, and
+    // verification_applications isn't one of them. So `applicant` never
+    // actually came back, and every admin list reading `app.applicant.email`
+    // (InProgressApplications.tsx, etc.) showed "Unknown" for every row
+    // regardless of who the application belonged to. Attach it manually via
+    // a plain (non-embedded) follow-up query instead.
+    const applications = data || [];
+    const userIds = [...new Set(applications.map(a => a.user_id).filter(Boolean))];
+    let applicantById = {};
+    if (userIds.length > 0) {
+      const { data: users, error: usersError } = await this.db
+        .from('users')
+        .select('id, email')
+        .in('id', userIds);
+      if (usersError) throw usersError;
+      (users || []).forEach(u => { applicantById[u.id] = { id: u.id, email: u.email }; });
+    }
+
+    return {
+      applications: applications.map(a => ({ ...a, applicant: applicantById[a.user_id] || null })),
+      total: count || 0,
+    };
   }
 
   // ── Steps ──────────────────────────────────────────────────────────────

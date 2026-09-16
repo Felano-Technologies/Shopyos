@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Keyboard } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapView, { UrlTile } from '@/components/MapView';
@@ -32,6 +32,7 @@ type Props = {
  */
 export default function LocationPickerModal({ visible, onClose, onConfirmed }: Props) {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const coords = useLocationStore((s) => s.coords);
   const setLocation = useLocationStore((s) => s.setLocation);
 
@@ -165,14 +166,19 @@ export default function LocationPickerModal({ visible, onClose, onConfirmed }: P
           <View style={S.markerCircle}><Ionicons name="location" size={26} color="#FFF" /></View>
           <View style={S.markerArrow} />
         </View>
-        <SafeAreaView style={S.mapOverlay} pointerEvents="box-none">
-          <GlassContainer style={S.mapSearchContainer} spacing={0}>
+        {/* 'top' excluded — handled explicitly via insets.top on the search
+            GlassContainer below instead, since GlassContainer (grouped
+            Liquid Glass surfaces) doesn't reliably inherit a plain
+            SafeAreaView's top padding the way the ungrouped confirm button
+            does; letting both apply would double the top offset. */}
+        <SafeAreaView style={S.mapOverlay} edges={['left', 'right', 'bottom']} pointerEvents="box-none">
+          <GlassContainer style={[S.mapSearchContainer, { marginTop: insets.top + 10 }]} spacing={0}>
             <TouchableOpacity accessibilityLabel="Close location picker" accessibilityRole="button" onPress={onClose}>
               <GlassSurface style={S.mapSearchClose} isInteractive>
                 <Ionicons name="arrow-back" size={24} color="#0C1559" />
               </GlassSurface>
             </TouchableOpacity>
-            <GlassSurface style={S.mapSearchWrapper}>
+            <GlassSurface style={S.mapSearchWrapper} isInteractive>
               <Ionicons name="search" size={18} color="#94A3B8" />
               <TextInput
                 accessibilityLabel="Search street or landmark"

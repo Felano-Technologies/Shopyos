@@ -31,8 +31,20 @@ type Props = ViewProps & {
  * uses. On iOS <26 / Android it renders as a plain View with that style
  * unchanged (today's look, verbatim). On iOS 26+ it strips the chrome props
  * and renders Apple's native Liquid Glass material instead.
+ *
+ * isInteractive defaults to true (Apple's own GlassView defaults it to
+ * false). On a real Liquid Glass device, a non-interactive glass surface
+ * doesn't forward touches to its children at all — since most call sites
+ * across this app wrap a button/TextInput/tappable row in a GlassSurface,
+ * the previous default silently broke taps on iOS 26+ in several places
+ * (a search box, a confirm-dialog's buttons, the call-disclaimer flow) each
+ * discovered independently as a real production bug before this default was
+ * flipped. A genuinely decorative, non-tappable surface can still opt out
+ * explicitly with isInteractive={false}; the only visible effect there is a
+ * slightly different touch-response shimmer on a material nothing reacts to
+ * anyway.
  */
-export function GlassSurface({ glassStyle = 'regular', tintColor, isInteractive, style, children, ...rest }: Props) {
+export function GlassSurface({ glassStyle = 'regular', tintColor, isInteractive = true, style, children, ...rest }: Props) {
   if (!GLASS_OK) {
     return <View style={style} {...rest}>{children}</View>;
   }

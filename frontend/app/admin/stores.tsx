@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminColors, adminShadow, useAdminBreakpoint, AdminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { adminVerifyStore, getAdminStores } from '@/services/api';
+import { adminVerifyStore, getAdminStores, approveVerificationApplication, rejectVerificationApplication } from '@/services/api';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 
 type Store = {
@@ -51,6 +51,15 @@ type Store = {
   business_license_url?: string;
   proof_of_bank_url?: string;
   created_at?: string;
+  // Set only on a synthesized "virtual store" for a seller application that
+  // hasn't created a real store yet (still mid-wizard, or submitted but not
+  // every step verified) — see AdminRepository._getApplicantPlaceholders.
+  is_placeholder?: boolean;
+  application_id?: string;
+  application_status?: string;
+  verification_progress?: number;
+  verification_ready_for_decision?: boolean;
+  verification_steps?: { step_key: string; status: string }[];
 };
 
 const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
@@ -137,6 +146,12 @@ export default function AdminStores() {
         const res = await getAdminStores({
           ...(storeIdParam ? { id: storeIdParam } : {}),
           ...(searchQuery.trim() ? { search: searchQuery.trim() } : {}),
+          // Merges in seller applications with no real store yet (see
+          // AdminRepository.getAllStores) — a direct storeIdParam lookup
+          // (deep link from elsewhere) skips this on the backend regardless,
+          // but a `id=app:...` lookup (a placeholder's own synthetic id,
+          // from tapping one in this same search) still resolves correctly.
+          includeApplicants: true,
           limit: 100,
         });
 
@@ -197,7 +212,19 @@ export default function AdminStores() {
 
     try {
       setActionLoading(true);
-      await adminVerifyStore(storeId, status, rejectReason);
+      if (currentStore.is_placeholder && currentStore.application_id) {
+        // No real store to verify yet — act on the application itself.
+        // approveVerificationApplication 400s if any required step isn't
+        // 'verified' yet (surfaced below as the usual error toast); the
+        // approve button is hidden for that case anyway (see actionFooter).
+        if (status === 'rejected') {
+          await rejectVerificationApplication(currentStore.application_id, rejectReason);
+        } else {
+          await approveVerificationApplication(currentStore.application_id);
+        }
+      } else {
+        await adminVerifyStore(storeId, status, rejectReason);
+      }
       let toastTitle: string;
       if (status === 'verified') {
         toastTitle = 'Approved';
@@ -244,10 +271,17 @@ export default function AdminStores() {
   } else if (currentStore?.verification_status === 'rejected') {
     actionLabel = 'Re-approve';
     actionStatus = 'verified';
+  } else if (currentStore?.is_placeholder) {
+    actionLabel = 'Approve Application';
+    actionStatus = 'verified';
   } else {
     actionLabel = 'Approve Store';
     actionStatus = 'verified';
   }
+  // Still mid-wizard, or submitted but not every step verified — nothing to
+  // approve yet (approveVerificationApplication would 400). Reject stays
+  // available since rejectApplication has no completeness requirement.
+  const hideApprove = !!currentStore?.is_placeholder && !currentStore?.verification_ready_for_decision;
 
   return (
     <>

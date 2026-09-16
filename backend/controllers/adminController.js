@@ -197,14 +197,21 @@ const updateUserRole = async (req, res, next) => {
  */
 const getAllStores = async (req, res, next) => {
   try {
-    const { limit, offset, verificationStatus, search, id } = req.query;
+    const { limit, offset, verificationStatus, verification_status, search, id, includeApplicants } = req.query;
 
     const stores = await repositories.admin.getAllStores({
       limit: Number.parseInt(limit) || 50,
       offset: Number.parseInt(offset) || 0,
-      verificationStatus,
+      // app/admin/approvals.tsx sends the snake_case form; this previously
+      // only read the camelCase one, so that screen's "pending" filter
+      // silently never applied and it just listed every store.
+      verificationStatus: verificationStatus || verification_status,
       search,
-      id
+      id,
+      // app/admin/stores.tsx opts into merging in-progress applicants
+      // (verification_applications with no store yet) into this same list —
+      // see AdminRepository.getAllStores's placeholder synthesis below.
+      includeApplicants: includeApplicants === 'true' || includeApplicants === '1',
     });
 
     ApiResponse.withEntity(res, 'stores', stores, null, {

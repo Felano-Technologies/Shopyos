@@ -70,6 +70,44 @@ export const adminVerifyStore = async (
   }
 };
 
+// Wraps controllers/verificationController.js's admin endpoints (mounted at
+// /admin/verifications — see server.js) — the unified KYC/verification
+// system (verification_applications/steps/documents/liveness), separate
+// from the older stores.verification_status flow adminVerifyStore drives.
+// Used for the placeholder "in-progress applicant" entries admin/stores.tsx
+// synthesizes from applications that don't have a real store yet.
+export const reviewVerificationStep = async (
+  applicationId: string,
+  stepKey: string,
+  status: 'verified' | 'rejected',
+  reason?: string
+) => {
+  try {
+    const response = await api.put(`/admin/verifications/${applicationId}/steps/${stepKey}/review`, { status, reason });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const approveVerificationApplication = async (applicationId: string) => {
+  try {
+    const response = await api.put(`/admin/verifications/${applicationId}/approve`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const rejectVerificationApplication = async (applicationId: string, reason: string) => {
+  try {
+    const response = await api.put(`/admin/verifications/${applicationId}/reject`, { reason });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getAdminAuditLogs = async (
   params: { limit?: number; offset?: number; action?: string; entityType?: string } = {}
 ) => {

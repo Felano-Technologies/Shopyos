@@ -13,7 +13,23 @@ export function getRouteFromNotification(notification: any, role: string): Route
   const relatedId: string = notification?.related_id || '';
   const r = (role || '').toLowerCase();
 
+  // Role-agnostic — any account, of any role, can request deletion.
+  if (type === 'account_deletion_requested') {
+    return { pathname: '/settings/Account' };
+  }
+
   if (r === 'seller') {
+    // verification_approved/rejected/submitted/action_required replaced the
+    // older business_verification/business_approved/business_rejected type
+    // strings (see migration 067 — none of these were even valid enum
+    // values until then, so tapping one had nothing to route to anyway).
+    if (
+      type === 'business_approved' || type === 'business_rejected' ||
+      type === 'verification_approved' || type === 'verification_rejected' ||
+      type === 'verification_submitted' || type === 'verification_action_required'
+    ) {
+      return { pathname: '/business/verification-status' };
+    }
     if (type === 'new_order' || type.startsWith('order_')) {
       const id = data.orderId || relatedId;
       if (id) return { pathname: '/business/orderDetails', params: { id } };
@@ -63,7 +79,11 @@ export function getRouteFromNotification(notification: any, role: string): Route
     if (type === 'payment_received' || type.startsWith('payment')) {
       return { pathname: '/driver/earnings' };
     }
-    if (type === 'driver_verification') {
+    if (
+      type === 'driver_verification' || type === 'driver_approved' || type === 'driver_rejected' ||
+      type === 'verification_approved' || type === 'verification_rejected' ||
+      type === 'verification_submitted' || type === 'verification_action_required'
+    ) {
       return { pathname: '/driver/verification' };
     }
     return null;
@@ -139,10 +159,17 @@ export function getRouteFromPushData(data: Record<string, any>, role: string): R
     if (screen === 'inventory') return { pathname: '/business/inventory' };
     if (screen === 'verification') return { pathname: '/business/verification-status' };
     if (screen === 'returns') return { pathname: '/business/orders' };
+    // approveApplication/rejectApplication (controllers/verificationController.js)
+    // send these exact screen values — approved means the dashboard is now
+    // actually usable, rejected sends them back into the wizard to fix it.
+    if (screen === 'business/dashboard') return { pathname: '/business/dashboard' };
+    if (screen === 'business/onboarding') return { pathname: '/business/onboarding' };
     return null;
   }
 
   if (r === 'driver') {
+    if (screen === 'driver/dashboard') return { pathname: '/driver/dashboard' };
+    if (screen === 'driver/onboarding') return { pathname: '/driver/onboarding' };
     if (screen === 'delivery' || screen === 'activeOrder') {
       const deliveryId = data.deliveryId || data.relatedId || '';
       if (deliveryId) return { pathname: '/driver/activeOrder', params: { deliveryId } };

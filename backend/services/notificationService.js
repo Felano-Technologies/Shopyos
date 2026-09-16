@@ -167,7 +167,19 @@ class NotificationService {
 
       return true;
     } catch (error) {
-      logger.error('Notification service error:', error);
+      // notification_type is a real Postgres ENUM (see migrations) — a
+      // `type` value that was never added to it fails right here with this
+      // exact message, silently, with no notification row/push/socket emit
+      // ever created for that call. This happened to `type` values added in
+      // application code but never migrated (see migration 067) with no
+      // visible symptom anywhere except "the user never got notified" — so
+      // this specific case gets a loud, actionable log instead of blending
+      // into the generic one below.
+      if (/invalid input value for enum notification_type/i.test(error.message || '')) {
+        logger.error(`[NotificationService] type "${params.type}" is not a valid notification_type enum value — add it via a migration (ALTER TYPE notification_type ADD VALUE). This notification was silently never created.`, { type: params.type, userId: params.userId });
+      } else {
+        logger.error('Notification service error:', error);
+      }
       // Don't throw - notification failures shouldn't break the main flow
       return false;
     }

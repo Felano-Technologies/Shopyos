@@ -78,6 +78,7 @@ export {
   getExpenseCategories, createExpenseCategory, updateExpenseCategory, toggleExpenseCategory,
   getExpenses, createExpense, updateExpense, deleteExpense, getFinancialSummary,
   getAdminCalls, getAdminCallDetails,
+  reviewVerificationStep, approveVerificationApplication, rejectVerificationApplication,
 } from './admin';
 export type { AdminExpenseCategory, AdminExpense, AdminExpensePayload } from './admin';
 

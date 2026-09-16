@@ -8,6 +8,7 @@ import { createAudioPlayer } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { dismissMatchingNotifications, dismissAllNativeNotifications } from '@/services/nativeNotifications';
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
@@ -237,6 +238,11 @@ export const useMarkNotificationRead = () => {
       // Keep server state authoritative
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      // Marking read in our own DB never removes the matching entry from
+      // the OS notification tray — every push payload carries this same
+      // notificationId (see backend/services/notificationService.js), so
+      // match on that to dismiss just this one.
+      dismissMatchingNotifications((data) => data?.notificationId === notificationId);
     },
   });
 };
@@ -262,6 +268,8 @@ export const useMarkAllNotificationsRead = () => {
       // Invalidate notifications list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      // Same gap as useMarkNotificationRead, but for everything at once.
+      dismissAllNativeNotifications();
     },
   });
 };

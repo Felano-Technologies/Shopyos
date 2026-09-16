@@ -36,7 +36,7 @@
 // consent.tsx's file header for why this lives under business/onboarding).
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions, Image } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import Svg, { Ellipse } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -95,7 +95,7 @@ const OVAL_PERIMETER = (() => {
 })();
 
 type CapturedFrame = { label: string; uri: string };
-type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'verifying';
+type Phase = 'baseline' | 'ready' | 'detecting' | 'success' | 'preview';
 
 // Returns the detection result AND whatever went wrong, if anything — the
 // caller logs the error (see log()) instead of it being
@@ -363,13 +363,30 @@ export default function LivenessCaptureScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex, hasPermission, challenges.length]);
 
+  // Stop and let the applicant see what was captured instead of silently
+  // auto-submitting — they can retake if a photo looks off, rather than
+  // finding out only after a server-side rejection.
   useEffect(() => {
-    if (stepIndex === challenges.length && phase !== 'verifying') {
-      setPhase('verifying');
-      finalizeAndSubmit();
+    if (stepIndex === challenges.length && phase !== 'preview') {
+      setPhase('preview');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex]);
+
+  const handleRetake = () => {
+    framesRef.current = [];
+    baselineFaceRef.current = null;
+    setProgress(0);
+    // The CameraView instance below unmounts while phase === 'preview' (its
+    // own dedicated render branch never renders it), so a fresh one mounts
+    // on retake — cameraReady must go back to false so the baseline capture
+    // effect waits for ITS onCameraReady rather than firing immediately on
+    // the stale true from the previous camera instance (which is exactly
+    // the native crash the onCameraReady gating was added to prevent).
+    setCameraReady(false);
+    setPhase('baseline');
+    setStepIndex(-1);
+  };
 
   const finalizeAndSubmit = async () => {
     let applicationId: string | undefined;
@@ -446,6 +463,38 @@ export default function LivenessCaptureScreen() {
     );
   }
 
+  if (phase === 'preview') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>Review your capture</Text>
+          <Text style={styles.previewSubtitle}>Make sure your face is clearly visible in each photo before submitting.</Text>
+          <View style={styles.previewThumbRow}>
+            {framesRef.current.map((f) => (
+              <View key={f.label} style={styles.previewThumbWrap}>
+                <Image source={{ uri: f.uri }} style={styles.previewThumb} />
+                <Text style={styles.previewThumbLabel} numberOfLines={1}>
+                  {f.label === 'baseline' ? 'Baseline' : (challenges.find((c) => c.id === f.label)?.title ?? f.label)}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.previewActions}>
+            <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake} activeOpacity={0.8}>
+              <Ionicons name="refresh" size={18} color="#FFF" />
+              <Text style={styles.retakeText}>Retake</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={finalizeAndSubmit} activeOpacity={0.8}>
+              <Ionicons name="checkmark-circle" size={18} color="#0C1559" />
+              <Text style={styles.submitText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const currentChallenge = stepIndex >= 0 && stepIndex < challenges.length ? challenges[stepIndex] : null;
   const displayProgress = phase === 'success' ? 1 : phase === 'detecting' ? progress : 0;
   const highlighted = phase === 'success' || progress >= 1;
@@ -502,7 +551,7 @@ export default function LivenessCaptureScreen() {
                 <Text style={[styles.percentText, highlighted && { color: '#22C55E' }]}>{percentLabel}% complete</Text>
               </View>
             )}
-            {(phase === 'baseline' || phase === 'verifying') && <ActivityIndicator color="#FFF" style={{ marginBottom: 8 }} />}
+            {phase === 'baseline' && <ActivityIndicator color="#FFF" style={{ marginBottom: 8 }} />}
             {!!bottomStatus && <Text style={styles.statusText}>{bottomStatus}</Text>}
           </View>
         </View>
@@ -529,4 +578,17 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
   percentText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   statusText: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Montserrat-Medium', textAlign: 'center', marginTop: 8 },
   countdownText: { color: '#FFF', fontSize: 36, fontFamily: 'Montserrat-Bold', marginBottom: 4 },
+
+  previewContainer: { flex: 1, paddingHorizontal: 24, paddingTop: 24, alignItems: 'center' },
+  previewTitle: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold', textAlign: 'center', marginBottom: 8 },
+  previewSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Montserrat-Medium', textAlign: 'center', lineHeight: 19, marginBottom: 28 },
+  previewThumbRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
+  previewThumbWrap: { alignItems: 'center', width: 96 },
+  previewThumb: { width: 96, height: 128, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)' },
+  previewThumbLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginTop: 6, textAlign: 'center' },
+  previewActions: { flexDirection: 'row', gap: 16, marginTop: 'auto', marginBottom: 32, width: '100%' },
+  retakeBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  retakeText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  submitBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 24, backgroundColor: '#FFF' },
+  submitText: { color: '#0C1559', fontSize: 15, fontFamily: 'Montserrat-Bold' },
 });

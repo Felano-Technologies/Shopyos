@@ -664,17 +664,26 @@ class QueryBuilder {
 
     let senderMap = {};
     if (senderIds.length > 0) {
+      // stores must be joined here — messagingController.js's
+      // resolveSenderName() reads sender.stores to prefer a seller's store
+      // name over their personal profile name (matches the priority
+      // _shimConversations already uses for the conversation header, and
+      // resolveSenderName's own documented intent). Without it, sender.stores
+      // is always undefined, so every message notification/push shows the
+      // sender's personal name even when they're messaging as their store.
       const { rows: senders } = await db.query(
-        `SELECT u.id, up.full_name, up.avatar_url
+        `SELECT u.id, up.full_name, up.avatar_url, s.id AS store_id, s.store_name, s.logo_url
          FROM users u
          LEFT JOIN user_profiles up ON u.id = up.user_id
+         LEFT JOIN stores s ON u.id = s.owner_id
          WHERE u.id = ANY($1)`,
         [senderIds]
       );
       senders.forEach(s => {
         senderMap[s.id] = {
           id: s.id,
-          user_profiles: { full_name: s.full_name, avatar_url: s.avatar_url }
+          user_profiles: { full_name: s.full_name, avatar_url: s.avatar_url },
+          stores: s.store_id ? { store_name: s.store_name, logo_url: s.logo_url } : null
         };
       });
     }

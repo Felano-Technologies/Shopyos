@@ -195,7 +195,17 @@ class AdminRepository extends BaseRepository {
    * Get all stores with verification status
    */
   async getAllStores(options = {}) {
-    const { limit = 50, offset = 0, verificationStatus, search, id } = options;
+    const { limit = 50, offset = 0, verificationStatus, search, id, includeApplicants } = options;
+
+    // A placeholder's synthetic id (see _getApplicantPlaceholders) — never a
+    // real stores.id, so looking it up against the stores table would just
+    // return nothing. Resolve it directly instead of running the SQL below.
+    if (id && String(id).startsWith('app:')) {
+      const applicationId = String(id).slice(4);
+      const placeholders = await this._getApplicantPlaceholders({ applicationId });
+      return placeholders;
+    }
+
     const db = getPool();
     const params = [];
 
@@ -237,7 +247,7 @@ class AdminRepository extends BaseRepository {
 
     const { rows } = await db.query(sql, params);
 
-    return Promise.all(rows.map(async store => ({
+    const stores = await Promise.all(rows.map(async store => ({
       ...store,
       logo_url:              await resolveImageUrl(store.logo_url),
       banner_url:            await resolveImageUrl(store.banner_url),
@@ -252,6 +262,94 @@ class AdminRepository extends BaseRepository {
       },
       products: [{ count: store.product_count }],
     })));
+
+    if (!includeApplicants || id) return stores;
+
+    // Merge in seller applications with no store yet (still mid-wizard, or
+    // submitted but not yet activated) so an admin has something to review
+    // instead of that applicant being invisible until they finish onboarding
+    // — see _getApplicantPlaceholders for why/how. Re-sorted so applicants
+    // interleave by recency with real stores rather than always trailing.
+    const placeholders = await this._getApplicantPlaceholders({ search });
+    return [...stores, ...placeholders]
+      .filter(s => !verificationStatus || s.verification_status === verificationStatus)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, limit);
+  }
+
+  // Synthesizes a "virtual store" entry for each seller application that
+  // hasn't created a real store yet (submitApplication only creates one at
+  // actual submit time — see verificationController.js's submitApplication),
+  // so admins can see and review an applicant's progress from the same
+  // stores screen instead of them being completely invisible until they
+  // finish the wizard. Shaped to match the real store object above closely
+  // enough that admin/stores.tsx's existing list/detail rendering can handle
+  // both with minimal branching (is_placeholder marks which is which).
+  async _getApplicantPlaceholders({ search, applicationId } = {}) {
+    const db = getPool();
+    const params = [];
+    let sql = `
+      SELECT
+        va.id AS application_id, va.status AS application_status, va.role,
+        va.requirements_version, va.created_at,
+        u.id AS owner_user_id, u.email AS owner_email, up.full_name AS owner_full_name
+      FROM verification_applications va
+      JOIN users u ON u.id = va.user_id
+      LEFT JOIN user_profiles up ON up.user_id = va.user_id
+      WHERE va.role = 'seller' AND va.entity_id IS NULL AND va.status != 'rejected'
+    `;
+    if (applicationId) {
+      params.push(applicationId);
+      sql += ` AND va.id = $${params.length}`;
+    }
+    sql += ` ORDER BY va.created_at DESC`;
+
+    const { rows: apps } = await db.query(sql, params);
+    if (!apps.length) return [];
+
+    const appIds = apps.map(a => a.application_id);
+    const { rows: steps } = await db.query(
+      `SELECT application_id, step_key, status, data FROM verification_steps WHERE application_id = ANY($1)`,
+      [appIds]
+    );
+    const stepsByApp = {};
+    steps.forEach(s => {
+      if (!stepsByApp[s.application_id]) stepsByApp[s.application_id] = [];
+      stepsByApp[s.application_id].push(s);
+    });
+
+    const { getRequiredSteps, computeOverallProgress, isApplicationComplete } = require('../../services/verificationRequirements');
+
+    return apps
+      .map(app => {
+        const appSteps = stepsByApp[app.application_id] || [];
+        const requiredSteps = getRequiredSteps(app.role, app.requirements_version);
+        const businessStep = appSteps.find(s => s.step_key === 'business');
+        const storeName = businessStep?.data?.businessName || `${app.owner_full_name || 'Applicant'}'s store (draft)`;
+        if (search && !storeName.toLowerCase().includes(String(search).toLowerCase())) return null;
+
+        const appForCheck = { role: app.role, requirements_version: app.requirements_version };
+        return {
+          id: `app:${app.application_id}`,
+          is_placeholder: true,
+          application_id: app.application_id,
+          application_status: app.application_status,
+          store_name: storeName,
+          verification_status: 'pending',
+          verification_progress: computeOverallProgress(requiredSteps, appSteps),
+          verification_ready_for_decision:
+            ['submitted', 'under_review'].includes(app.application_status) &&
+            isApplicationComplete(appForCheck, appSteps),
+          verification_steps: requiredSteps.map(key => ({
+            step_key: key,
+            status: appSteps.find(s => s.step_key === key)?.status || 'not_started',
+          })),
+          created_at: app.created_at,
+          product_count: 0,
+          owner: { id: app.owner_user_id, email: app.owner_email, full_name: app.owner_full_name },
+        };
+      })
+      .filter(Boolean);
   }
 
   /**

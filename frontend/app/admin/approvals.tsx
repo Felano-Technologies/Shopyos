@@ -27,6 +27,8 @@ import {
   adminVerifyStore,
   approveDriverVerification,
   rejectDriverVerification,
+  approveVerificationApplication,
+  rejectVerificationApplication,
 } from '@/services/admin';
 
 const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
@@ -50,7 +52,11 @@ export default function AdminApprovals() {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       const [storesRes, driversRes] = await Promise.all([
-        getAdminStores({ verification_status: 'pending' }),
+        // includeApplicants merges in seller applications that don't have a
+        // real store yet (still mid-wizard) — see AdminRepository.getAllStores
+        // — so an applicant is visible here from the moment they start, not
+        // only after they finish onboarding and a store gets created.
+        getAdminStores({ verification_status: 'pending', includeApplicants: true }),
         getPendingDriverVerifications(),
       ]);
       const stores = Array.isArray(storesRes?.stores)
@@ -79,7 +85,16 @@ export default function AdminApprovals() {
     try {
       setActionLoading(true);
       if (type === 'store') {
-        await adminVerifyStore(id, 'verified');
+        // A placeholder (in-progress applicant, no real store yet) has no
+        // stores.id to approve — approve the underlying application instead.
+        // The backend rejects this if not every required step is verified
+        // yet, surfacing as the catch below's error toast.
+        const target = pendingStores.find((s) => (s.id || s._id) === id);
+        if (target?.is_placeholder) {
+          await approveVerificationApplication(target.application_id);
+        } else {
+          await adminVerifyStore(id, 'verified');
+        }
         setPendingStores((prev) => prev.filter((s) => (s.id || s._id) !== id));
       } else {
         await approveDriverVerification(id);
@@ -104,7 +119,12 @@ export default function AdminApprovals() {
     try {
       setActionLoading(true);
       if (rejectTarget.type === 'store') {
-        await adminVerifyStore(rejectTarget.id, 'rejected', rejectReason);
+        const target = pendingStores.find((s) => (s.id || s._id) === rejectTarget.id);
+        if (target?.is_placeholder) {
+          await rejectVerificationApplication(target.application_id, rejectReason);
+        } else {
+          await adminVerifyStore(rejectTarget.id, 'rejected', rejectReason);
+        }
         setPendingStores((prev) => prev.filter((s) => (s.id || s._id) !== rejectTarget.id));
       } else {
         await rejectDriverVerification(rejectTarget.id, rejectReason);
@@ -129,6 +149,11 @@ export default function AdminApprovals() {
     const name = isStore ? (item.store_name || 'Unnamed Store') : (item.user?.full_name || item.full_name || 'Unknown Driver');
     const email = isStore ? (item.owner?.email || item.email || '') : (item.user?.email || item.email || '');
     const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A';
+    // Still mid-wizard (or submitted but not every step verified yet) — no
+    // real store exists, and approveApplication would reject the call
+    // anyway, so there's nothing to approve yet. Reject stays available
+    // (rejectApplication has no completeness requirement).
+    const isIncompletePlaceholder = item.is_placeholder && !item.verification_ready_for_decision;
 
     return (
       <View style={styles.card}>
@@ -139,6 +164,11 @@ export default function AdminApprovals() {
           <View style={{ flex: 1 }}>
             <Text style={styles.cardName}>{name}</Text>
             <Text style={styles.cardEmail}>{email ? `${email} · ` : ''}{date}</Text>
+            {item.is_placeholder && (
+              <Text style={styles.cardEmail}>
+                {item.application_status === 'in_progress' ? 'Still filling out the wizard' : 'Submitted'} · {item.verification_progress ?? 0}% of steps verified
+              </Text>
+            )}
           </View>
         </View>
         <View style={styles.cardActions}>
@@ -149,13 +179,15 @@ export default function AdminApprovals() {
           >
             <Text style={styles.rejectBtnText}>Reject</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.approveBtn}
-            onPress={() => handleApprove(id, activeTab === 'stores' ? 'store' : 'driver')}
-            disabled={actionLoading}
-          >
-            <Text style={styles.approveBtnText}>Approve</Text>
-          </TouchableOpacity>
+          {!isIncompletePlaceholder && (
+            <TouchableOpacity
+              style={styles.approveBtn}
+              onPress={() => handleApprove(id, activeTab === 'stores' ? 'store' : 'driver')}
+              disabled={actionLoading}
+            >
+              <Text style={styles.approveBtnText}>Approve</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );

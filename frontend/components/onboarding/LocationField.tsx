@@ -7,7 +7,7 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, Keyboard, StyleSheet } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassContainer } from 'expo-glass-effect';
 import { GlassSurface } from '@/components/ui/GlassSurface';
@@ -30,6 +30,7 @@ export const LocationField: React.FC<{
   confirmLabel?: string;
 }> = ({ label, latitude, longitude, onChange, confirmLabel = 'Set Location' }) => {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const styles = getSharedStyles(colors);
   const mapRef = useRef<MapView>(null);
   const [visible, setVisible] = useState(false);
@@ -130,14 +131,19 @@ export const LocationField: React.FC<{
             <View style={[mapFieldStyles.markerArrow, { borderTopColor: colors.primary }]} />
           </View>
 
-          <SafeAreaView style={mapFieldStyles.overlay} pointerEvents="box-none">
-            <GlassContainer style={mapFieldStyles.searchContainer} spacing={0}>
+          {/* 'top' excluded — handled explicitly via insets.top on the
+              search GlassContainer below instead, since GlassContainer
+              (grouped Liquid Glass surfaces) doesn't reliably inherit a
+              plain SafeAreaView's top padding the way the ungrouped confirm
+              button does; letting both apply would double the top offset. */}
+          <SafeAreaView style={mapFieldStyles.overlay} edges={['left', 'right', 'bottom']} pointerEvents="box-none">
+            <GlassContainer style={[mapFieldStyles.searchContainer, { marginTop: insets.top + 10 }]} spacing={0}>
               <TouchableOpacity onPress={() => setVisible(false)}>
                 <GlassSurface style={mapFieldStyles.closeBtn} isInteractive>
                   <Ionicons name="arrow-back" size={24} color={colors.primary} />
                 </GlassSurface>
               </TouchableOpacity>
-              <GlassSurface style={mapFieldStyles.searchWrapper}>
+              <GlassSurface style={mapFieldStyles.searchWrapper} isInteractive>
                 <Ionicons name="search" size={18} color={colors.textMuted} />
                 <TextInput
                   style={[mapFieldStyles.searchInput, { color: colors.text }]}

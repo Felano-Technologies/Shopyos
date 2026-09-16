@@ -419,11 +419,20 @@ async function submitLivenessAttempt(req, res) {
     const challengeIds = (challengeSequence || '').split(',').filter(Boolean);
     const analysis = await analyzeLivenessAttempt(frames, challengeIds);
     if (analysis.reason) {
+      // challengeResults included specifically to empirically verify
+      // challengeVerifier.js's turn_left/turn_right expectedSign — that was
+      // guessed (like the frontend's now-corrected TURN_SIGN) without
+      // real-device confirmation, and uses a different signal (nose-vs-
+      // eye-line position, not ML Kit's rotationY) so the frontend's fix
+      // doesn't tell us anything about whether THIS sign is right.
       logger.info('liveness analysis result', {
         applicationId: application.id,
         reason: analysis.reason,
         clientPassed,
         serverPassed: analysis.passed,
+        antiSpoofScore: analysis.antiSpoofScore,
+        isReal: analysis.isReal,
+        challengeResults: analysis.challengeResults,
       });
     }
 

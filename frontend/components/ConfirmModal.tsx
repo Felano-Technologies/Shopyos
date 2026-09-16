@@ -36,7 +36,7 @@ export function ConfirmModal({ visible, onClose, title, message, icon, actions }
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <GlassSurface style={styles.card}>
+        <GlassSurface style={styles.card} isInteractive>
           {icon ? (
             <View style={styles.iconWrap}>
               <Text style={styles.icon}>{icon}</Text>

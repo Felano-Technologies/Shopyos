@@ -37,6 +37,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 import { useStartCall } from '@/hooks/useStartCall';
+import { dismissMatchingNotifications } from '@/services/nativeNotifications';
 import Animated, { FadeInDown, FadeOutDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
@@ -335,8 +336,16 @@ export default function ConversationScreen() {
         const profile = Array.isArray(profiles) ? profiles[0] : profiles;
         const stores = other?.stores;
         const store = Array.isArray(stores) ? stores[0] : stores;
-        const fullName = profile?.full_name || store?.store_name || null;
-        if (fullName) setFetchedParticipant({ name: fullName, avatar: profile?.avatar_url || store?.logo_url || null });
+        // Store name wins when the other participant owns one — matches
+        // resolveSenderName's priority on the backend (services/
+        // messagingController.js) and hooks/useChat.ts's conversation list.
+        // This was backwards (profile name first), so a seller who owns a
+        // store — which is nearly always true, since every user has SOME
+        // personal full_name regardless — showed as their own personal name
+        // instead of their store whenever a chat was opened via a
+        // notification tap (the only path that reaches this fallback).
+        const fullName = store?.store_name || profile?.full_name || null;
+        if (fullName) setFetchedParticipant({ name: fullName, avatar: store?.logo_url || profile?.avatar_url || null });
       })
       .catch((e: any) => console.warn('Failed to fetch conversation details for header:', e));
     return () => { alive = false; };
@@ -356,6 +365,10 @@ export default function ConversationScreen() {
       await Promise.all([
         markConversationRead(conversationId).catch(() => {}),
         markNotificationsReadByConversation(conversationId).catch(() => {}),
+        // Marking read in our own DB never removes the OS's own tray entry
+        // for this conversation's message notification(s) — that's a
+        // separate, explicit dismissal.
+        dismissMatchingNotifications((data) => data?.conversationId === conversationId),
       ]);
     } catch (e) {
       console.error('Failed to mark conversation as read:', e);
