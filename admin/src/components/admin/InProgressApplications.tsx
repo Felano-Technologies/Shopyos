@@ -40,7 +40,7 @@ export const InProgressApplications: React.FC<{ role: 'seller' | 'driver' }> = (
             Applications In Progress {apps.length > 0 && `(${apps.length})`}
           </p>
           <p className="text-xs text-secondary mt-0.5">
-            {role === 'seller' ? 'Sellers' : 'Drivers'} mid-onboarding — no store record yet.
+            {role === 'seller' ? 'Sellers mid-onboarding — no store record yet.' : 'Drivers mid-onboarding — no driver profile yet.'}
           </p>
         </div>
         {expanded ? <FiChevronUp className="w-4 h-4 text-subtle" /> : <FiChevronDown className="w-4 h-4 text-subtle" />}

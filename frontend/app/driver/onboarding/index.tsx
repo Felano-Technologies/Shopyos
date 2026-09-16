@@ -15,9 +15,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import {
   getOrCreateVerificationApplication,
   submitVerificationApplication,
+  logoutUser,
   VerificationApplication,
 } from '@/services/api';
 
@@ -65,6 +67,25 @@ export default function DriverOnboardingHub() {
   const [application, setApplication] = useState<VerificationApplication | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  // A user stuck partway through verification (e.g. wrong account, or just
+  // wants to sign into a different one) needs a direct way out — this
+  // screen has no bottom tab bar, and a fresh signup lands here via
+  // role.tsx's router.replace() with no back-history to Settings either.
+  const confirmLogout = async () => {
+    try {
+      setLogoutLoading(true);
+      await logoutUser();
+    } catch {
+      // best-effort — still send them to login regardless
+    } finally {
+      setLogoutModalVisible(false);
+      setLogoutLoading(false);
+      router.replace('/login' as any);
+    }
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -116,7 +137,17 @@ export default function DriverOnboardingHub() {
       <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              // A fresh signup lands here via role.tsx's router.replace(),
+              // which leaves no back-history at all — router.back() would
+              // silently do nothing, leaving a dead-end back button and no
+              // way to reach Settings/log out to try a different account.
+              if (router.canGoBack()) router.back();
+              else router.replace('/settings' as any);
+            }}
+            style={styles.backBtn}
+          >
             <Ionicons name="chevron-back" size={24} color="#FFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Driver Verification</Text>
