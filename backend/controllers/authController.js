@@ -822,6 +822,15 @@ const getUserData = async (req, res, next) => {
     const profile = await repositories.userProfiles.findByUserId(user.id);
     const userRoles = await repositories.roles.getUserRoles(user.id);
 
+    // Pick the most specific role by priority, same as login/googleAuth —
+    // getUserRoles has no defined ordering, so without this a dual-role
+    // seller/driver account resolves to whichever role happened to be
+    // inserted (assigned) first, almost always 'buyer', and gets routed
+    // straight back to the buyer home on every cold start / cache refresh.
+    const ROLE_PRIORITY_ME = { admin: 4, driver: 3, seller: 2, buyer: 1 };
+    const roleNamesMe = (userRoles || []).map(r => r?.role?.name).filter(Boolean);
+    const primaryRole = roleNamesMe.sort((a, b) => (ROLE_PRIORITY_ME[b] || 0) - (ROLE_PRIORITY_ME[a] || 0))[0] || 'none';
+
     ApiResponse.withEntity(res, 'user', {
       id: user.id,
       email: user.email,
@@ -836,7 +845,7 @@ const getUserData = async (req, res, next) => {
       country: profile?.country,
       latitude: profile?.latitude,
       longitude: profile?.longitude,
-      role: userRoles?.[0]?.role?.name || 'none',
+      role: primaryRole,
       roles: userRoles
         .filter(r => r?.role)
         .map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),

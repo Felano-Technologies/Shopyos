@@ -195,7 +195,9 @@ export default function SettingsScreen() {
       } catch {}
 
       CustomInAppToast.show({ type: 'success', title: 'Almost there!', message: 'Complete your driver verification to start earning.' });
-      setTimeout(() => router.replace('/driver/onboarding' as any), 800);
+      // push (not replace) so Settings stays in the stack — same as "Become a
+      // Seller" — otherwise there's nothing behind onboarding to go back to.
+      setTimeout(() => router.push('/driver/onboarding' as any), 800);
     } catch (error: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: error?.message || 'Failed to become a driver.' });
     } finally {

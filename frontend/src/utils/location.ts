@@ -17,12 +17,15 @@ export const requestForegroundLocationWithDisclosure = async (): Promise<{ statu
   const existing = await Location.getForegroundPermissionsAsync();
   if (existing.status === Location.PermissionStatus.GRANTED) return existing;
 
-  const consented = await requestPermissionDisclosure({
+  // The custom disclosure is purely educational — Apple guideline 5.1.1(iv)
+  // requires the real system prompt to always follow it, so "not now" must
+  // still lead to the OS dialog rather than short-circuiting to a synthetic
+  // denial. The user's actual choice belongs at the system prompt, not here.
+  await requestPermissionDisclosure({
     icon: 'location',
     title: 'Location Access',
     description: 'Shopyos uses your location to show nearby stores, calculate accurate delivery fees, and provide delivery tracking. You can change this anytime in Settings.',
   });
-  if (!consented) return { status: Location.PermissionStatus.DENIED };
 
   return await Location.requestForegroundPermissionsAsync();
 };

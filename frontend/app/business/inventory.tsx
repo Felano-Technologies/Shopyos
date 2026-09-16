@@ -25,12 +25,13 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
   border: string; borderStrong: string; headerBg: string; overlay: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -520,7 +521,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   itemMeta: { flexDirection: 'row', gap: rs(8) },
   metaChip: {
     flexDirection: 'row', alignItems: 'center', gap: rs(4),
-    backgroundColor: C.bg, paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(8),
+    backgroundColor: C.bgAlt, paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(8),
   },
   metaChipTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   itemDots:    { padding: rs(8) },
@@ -623,7 +624,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: C.bg,
+    backgroundColor: C.bgAlt,
     borderWidth: 1,
     borderColor: C.borderStrong,
   },

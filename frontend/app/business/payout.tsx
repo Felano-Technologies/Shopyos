@@ -382,8 +382,8 @@ export default function PayoutScreen() {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundAlt },
+  mainContainer: { flex: 1, backgroundColor: colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   safeArea: { flex: 1 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },

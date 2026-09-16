@@ -137,19 +137,32 @@ export default function DriverOnboardingHub() {
       <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
-          <TouchableOpacity
-            onPress={() => {
-              // A fresh signup lands here via role.tsx's router.replace(),
-              // which leaves no back-history at all — router.back() would
-              // silently do nothing, leaving a dead-end back button and no
-              // way to reach Settings/log out to try a different account.
-              if (router.canGoBack()) router.back();
-              else router.replace('/settings' as any);
-            }}
-            style={styles.backBtn}
-          >
-            <Ionicons name="chevron-back" size={24} color="#FFF" />
-          </TouchableOpacity>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              onPress={() => {
+                // A fresh signup lands here via role.tsx's router.replace(),
+                // which leaves no back-history at all — router.back() would
+                // silently do nothing, leaving a dead-end back button.
+                if (router.canGoBack()) router.back();
+                else router.replace('/settings' as any);
+              }}
+              style={styles.backBtn}
+            >
+              <Ionicons name="chevron-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            {/* Direct way out for someone stuck mid-verification (wrong
+                account, wants to try another) — this screen has no bottom
+                tab bar, so Settings' own logout isn't otherwise reachable. */}
+            <TouchableOpacity
+              accessibilityLabel="Log out"
+              accessibilityRole="button"
+              onPress={() => setLogoutModalVisible(true)}
+              style={styles.logoutBtn}
+            >
+              <Feather name="log-out" size={16} color="#FFF" />
+              <Text style={styles.logoutBtnText}>Log out</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.headerTitle}>Driver Verification</Text>
           <Text style={styles.headerSubtitle}>Complete every section below at your own pace.</Text>
         </SafeAreaView>
@@ -238,6 +251,17 @@ export default function DriverOnboardingHub() {
           </TouchableOpacity>
         </ScrollView>
       )}
+      <ConfirmModal
+        visible={logoutModalVisible}
+        onClose={() => setLogoutModalVisible(false)}
+        title="Log Out?"
+        message="Your verification progress is saved — you can pick up where you left off after signing back in."
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setLogoutModalVisible(false), variant: 'cancel' },
+          { label: 'Log Out', onPress: confirmLogout, variant: 'destructive', loading: logoutLoading },
+        ]}
+      />
     </View>
   );
 }
@@ -245,7 +269,10 @@ export default function DriverOnboardingHub() {
 const getStyles = (c: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: c.background },
   header: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 20 },
-  backBtn: { marginBottom: 8 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  backBtn: {},
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.15)' },
+  logoutBtnText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   headerTitle: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold' },
   headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4, fontFamily: 'Montserrat-Medium' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },

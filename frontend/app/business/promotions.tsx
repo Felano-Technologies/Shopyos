@@ -510,7 +510,7 @@ export default function PromotionsScreen() {
   );
 }
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },

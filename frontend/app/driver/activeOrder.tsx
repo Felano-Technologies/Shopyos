@@ -623,7 +623,7 @@ export default function ActiveOrderScreen() {
   );
 }
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Map Section
   mapContainer: { height: height * 0.45, width: '100%', backgroundColor: colors.border },

@@ -25,7 +25,6 @@ const { width } = Dimensions.get('window');
 type LocationDisclosureProps = Readonly<{
   visible: boolean;
   onAccept: () => void;
-  onDecline: () => void;
   context?: 'driver' | 'general';
 }>;
 const C = {
@@ -41,7 +40,6 @@ const C = {
 export default function LocationDisclosure({
   visible,
   onAccept,
-  onDecline,
   context = 'driver',
 }: LocationDisclosureProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -105,7 +103,7 @@ export default function LocationDisclosure({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={onDecline}
+      onRequestClose={onAccept}
     >
       <View style={styles.overlay}>
         <Animated.View
@@ -178,9 +176,6 @@ export default function LocationDisclosure({
               <Ionicons name="checkmark-circle" size={20} color={C.lime} />
               <Text style={styles.acceptText}>I Understand, Continue</Text>
             </LinearGradient>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
-            <Text style={styles.declineText}>Maybe Later</Text>
           </TouchableOpacity>
         </GlassSurface>
         </Animated.View>
@@ -309,13 +304,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
     color: '#fff',
-  },
-  declineBtn: {
-    paddingVertical: 12,
-  },
-  declineText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    color: C.subtle,
   },
 });

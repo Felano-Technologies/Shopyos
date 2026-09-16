@@ -30,12 +30,13 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
   border: string; borderStrong: string; headerBg: string; overlay: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -695,7 +696,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
 
   infoGrid: {
-    backgroundColor: C.bg, borderRadius: rs(12),
+    backgroundColor: C.bgAlt, borderRadius: rs(12),
     padding: rs(12), gap: rs(8), marginBottom: rs(14),
   },
   infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -819,7 +820,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: C.bg,
+    backgroundColor: C.bgAlt,
     borderWidth: 1,
     borderColor: C.borderStrong,
   },

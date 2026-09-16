@@ -13,6 +13,7 @@ import { ThemeColors } from '@/constants/Colors';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { PLACEHOLDER_BANNERS_WIDE, pickRandomPlaceholder } from '@/constants/placeholderAds';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 42) / 2;
@@ -387,11 +388,13 @@ function AdCardBase({ ad }: Readonly<{ ad: any }>) {
   const colors = useThemeColors();
   const C = useMemo(() => buildC(colors), [colors]);
   const S = useMemo(() => getS(C), [C]);
+  // Picked once per card — not re-rolled on every re-render
+  const placeholderImg = useMemo(() => pickRandomPlaceholder(PLACEHOLDER_BANNERS_WIDE), []);
   if (ad.isPlaceholder) {
     return (
       <View style={[S.adCard, S.adPlaceholderCard]}>
         <Image
-          source={require('@/assets/images/Shopyos Banner - Bigger.png')}
+          source={placeholderImg}
           style={S.adPlaceholderImg}
           resizeMode="contain"
         />

@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { BusinessPendingVerificationBanner } from '@/components/PendingVerificationBanner';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -303,17 +304,7 @@ export default function ProductsScreen() {
                 />
               }
             >
-              {isBlocked && (
-                <View style={[S.verifyBanner, verificationStatus === 'rejected' && S.verifyBannerRed]}>
-                  <Ionicons name={verificationStatus === 'rejected' ? 'close-circle-outline' : 'time-outline'} size={rs(18)} color={verificationStatus === 'rejected' ? '#991B1B' : '#92400E'} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[S.verifyTitle, verificationStatus === 'rejected' && { color: '#991B1B' }]}>
-                      {verificationStatus === 'rejected' ? 'Verification Rejected' : 'Awaiting Verification'}
-                    </Text>
-                    <Text style={S.verifySub}>Product management is locked until your business is approved.</Text>
-                  </View>
-                </View>
-              )}
+              <BusinessPendingVerificationBanner />
 
               {/* ── Stat pills ────────────────────────────────────────────── */}
               <View style={S.statRow} ref={refStats} onLayout={() => measureTourElement(refStats, 'stats')}>
@@ -511,11 +502,6 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
   revLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) },
   revAmt: { fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrArc: { position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24), backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24) },
-
-  verifyBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: rs(10), backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#F59E0B', marginHorizontal: rs(16), marginBottom: rs(8), borderRadius: rs(12), padding: rs(14) },
-  verifyBannerRed: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
-  verifyTitle: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: rs(2) },
-  verifySub: { fontSize: rf(12), fontFamily: 'Montserrat-Regular', color: '#78350F' },
 
   statRow: { flexDirection: 'row', gap: rs(8), paddingHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(16) },
   statCard: { flex: 1, backgroundColor: C.card, borderRadius: rs(14), padding: rs(12), alignItems: 'center', elevation: 3, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8) },

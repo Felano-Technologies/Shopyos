@@ -41,12 +41,13 @@ const STAT_GRID_GAP = rs(12);
 const STAT_CARD_W = (SW - rs(32) - STAT_GRID_GAP) / 2;
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
   border: string; borderStrong: string; headerBg: string; overlay: string; textInverse: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -886,7 +887,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     alignItems: 'center',
     padding: rs(14),
     borderRadius: rs(18),
-    backgroundColor: C.bg,
+    backgroundColor: C.bgAlt,
     borderWidth: 1,
     borderColor: C.borderStrong,
   },
@@ -988,7 +989,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: C.body,
     marginBottom: rs(12),
-    backgroundColor: C.bg,
+    backgroundColor: C.bgAlt,
   },
   datePickerActions: {
     flexDirection: 'row',

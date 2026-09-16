@@ -235,7 +235,7 @@ export default function DriverPayoutSettings() {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
   header: { backgroundColor: colors.headerGradient[0], paddingBottom: 16 },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 },
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 },

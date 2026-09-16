@@ -32,7 +32,7 @@ import { ThemeColors } from '@/constants/Colors';
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.background,
   },
   safeArea: {
     flex: 1,

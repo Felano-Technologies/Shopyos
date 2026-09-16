@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { getUserData, secureStorage, storage } from '@/services/api';
 import { cacheUserProfile, clearUserProfileCache, getCachedUserProfile } from '@/services/storage';
+import { useAuthStore } from '@/store/authStore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -15,21 +16,48 @@ const { width, height } = Dimensions.get('window');
 // Set to `false` (or remove) before shipping to production.
 const DEV_FORCE_SHOW_UPDATE = false;
 
+// Same priority order the backend uses at login (see authController.js) —
+// a dual-role account (every seller/driver still carries the default
+// 'buyer' role) must resolve to its most specific role, not just whichever
+// the API happened to return first.
+const ROLE_PRIORITY: Record<string, number> = { admin: 4, driver: 3, seller: 2, parcel_partner: 2, buyer: 1 };
+
+function bestRole(user: any): string {
+  const roles: string[] = (user.roles || [])
+    .map((r: any) => (typeof r === 'string' ? r : r?.name))
+    .filter(Boolean)
+    .map((r: string) => r.toLowerCase());
+  const single = user.role?.toLowerCase();
+  if (single && !roles.includes(single)) roles.push(single);
+  if (roles.length === 0) return single || 'none';
+  return roles.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0];
+}
+
 function routeForUser(data: any): string {
   // /auth/me wraps the payload as { success, user: {...} }; older caches may hold either shape
   const user = data?.user || data;
-  const role = user.role?.toLowerCase();
+  const role = bestRole(user);
   if (Platform.OS === 'web') {
     if (role === 'admin') return '/admin/dashboard';
     return '/admin-login';
   }
   if (user.requiresRoleSelection || !role || role === 'none') return '/role';
-  if (role === 'customer' || role === 'buyer') return '/home';
-  if (role === 'seller') return '/business/dashboard';
-  if (role === 'driver') return '/driver';
-  if (role === 'parcel_partner') return '/parcel-partner/dashboard';
-  if (role === 'admin') return '/admin/dashboard';
-  return '/home';
+
+  let route = '/home';
+  if (role === 'seller') route = '/business/dashboard';
+  else if (role === 'driver') route = '/driver';
+  else if (role === 'parcel_partner') route = '/parcel-partner/dashboard';
+  else if (role === 'admin') route = '/admin/dashboard';
+
+  // Safety net: if a non-buyer role still somehow resolves to the buyer home
+  // (e.g. a stale pre-fix cache), don't strand them on a bare buyer screen —
+  // dress it up as the existing "Shop as Buyer" mode so the "Return to X
+  // Dashboard" banner shows and they can get back to their real dashboard.
+  if (route === '/home' && role !== 'buyer' && role !== 'customer') {
+    useAuthStore.getState().switchToBuyerMode(role);
+  }
+
+  return route;
 }
 
 // Routes that don't need an unlocked session

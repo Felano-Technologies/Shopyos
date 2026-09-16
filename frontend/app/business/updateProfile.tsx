@@ -371,7 +371,7 @@ const BusinessUpdateScreen = () => {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.background,
   },
   safeArea: {
     flex: 1,
@@ -380,7 +380,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: 50,

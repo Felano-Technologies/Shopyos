@@ -247,15 +247,15 @@ async function registerForPushNotificationsAsync() {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
         if (existingStatus !== 'granted') {
-            const consented = await requestPermissionDisclosure({
+            // Educational only — the real system prompt must always follow it
+            // (Apple guideline 5.1.1(iv)), regardless of what's tapped here.
+            await requestPermissionDisclosure({
                 icon: 'notifications',
                 title: 'Notifications',
                 description: 'Shopyos sends notifications for order updates, delivery status, chat messages, and deals. You can turn these off anytime in Settings.',
             });
-            if (consented) {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
         }
         if (finalStatus !== 'granted') {
             CustomInAppToast.show({ type: 'error', title: 'Permission needed', message: 'Failed to get push token for push notification!' });

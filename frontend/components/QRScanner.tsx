@@ -22,15 +22,13 @@ export default function QRScanner({ visible, onClose, onScanned }: Readonly<QRSc
         setHasPermission(true);
         return;
       }
-      const consented = await requestPermissionDisclosure({
+      // Educational only — the real system prompt must always follow it
+      // (Apple guideline 5.1.1(iv)), regardless of what's tapped here.
+      await requestPermissionDisclosure({
         icon: 'camera',
         title: 'Camera Access',
         description: 'Shopyos needs camera access to scan QR codes for quick check-in and order verification.',
       });
-      if (!consented) {
-        setHasPermission(false);
-        return;
-      }
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     };

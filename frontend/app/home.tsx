@@ -30,6 +30,8 @@ import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavo
 import { SnapsRow } from '@/components/SnapsRow';
 // Home section components
 import { HeroCarousel, HeroAd } from '@/components/home/HeroCarousel';
+import { PlaceholderAdCarousel } from '@/components/home/PlaceholderAdCarousel';
+import { PLACEHOLDER_BANNERS_WIDE, pickRandomPlaceholder } from '@/constants/placeholderAds';
 import { QuickActions, QuickAction } from '@/components/home/QuickActions';
 import { FlashSaleSection } from '@/components/home/FlashSaleSection';
 import { MidFeedBanner } from '@/components/home/MidFeedBanner';
@@ -47,7 +49,7 @@ import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 
 // Hero placeholder height derived from the banner image's exact pixel ratio
-// Shopyos Banner - Bigger.png is 2000 × 892 px
+// Shopyos Banner 2 - Bigger.png is 2000 × 892 px
 const HERO_PH_H = Math.round((width - 32) * (892 / 2000));
 
 // Sponsored card placeholder height — same image, card width is 70% of screen
@@ -154,6 +156,11 @@ const { data: notifData } = useUnreadNotificationCount(false);
   );
   const isManyAds = activeCampaigns.length > AD_THRESHOLD;
   const sponsoredCampaigns = activeCampaigns.slice(0, 8);
+  // Stable random pick per placeholder card — picked once, not re-rolled on every render
+  const sponsoredPlaceholderImages = useMemo(
+    () => [0, 1, 2].map(() => pickRandomPlaceholder(PLACEHOLDER_BANNERS_WIDE)),
+    []
+  );
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const exploreListRef = useRef<Animated.FlatList<any>>(null);
@@ -488,13 +495,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
           {activeCampaigns.length > 0 ? (
             <HeroCarousel ads={activeCampaigns as HeroAd[]} onAdPress={handleAdPress} />
           ) : (
-            <View style={S.adPlaceholder}>
-              <Image
-                source={require('@/assets/images/Shopyos Banner - Bigger.png')}
-                style={S.adPlaceholderImg}
-                resizeMode="cover"
-              />
-            </View>
+            <PlaceholderAdCarousel images={PLACEHOLDER_BANNERS_WIDE} style={S.adPlaceholder} />
           )}
 
           {/* Quick actions: Categories / Orders / Wishlist / Stores */}
@@ -564,10 +565,10 @@ const { data: notifData } = useUnreadNotificationCount(false);
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={S.sponsoredPlaceholderList}
               >
-                {[0, 1, 2].map(i => (
+                {sponsoredPlaceholderImages.map((img, i) => (
                   <View key={i} style={S.sponsoredPlaceholderCard}>
                     <Image
-                      source={require('@/assets/images/Shopyos Banner - Bigger.png')}
+                      source={img}
                       style={S.sponsoredPlaceholderCardImg}
                       resizeMode="cover"
                     />
@@ -800,10 +801,6 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#0C1559',
-  },
-  adPlaceholderImg: {
-    width: '100%',
-    height: '100%',
   },
 
   // Sponsored ads row placeholder

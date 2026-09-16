@@ -265,7 +265,7 @@ export default function CreateSnapScreen() {
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.backgroundAlt },
+  container: { flex: 1, backgroundColor: c.background },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 20,

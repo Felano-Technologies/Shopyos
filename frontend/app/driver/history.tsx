@@ -170,7 +170,7 @@ export default function DriverHistory() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundAlt
+    backgroundColor: colors.background
   },
 
   // Header

@@ -328,7 +328,7 @@ export default function FlashSaleSubmit() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

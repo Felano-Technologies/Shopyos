@@ -156,7 +156,7 @@ export default function VerificationStatus() {
     return (
         <View style={styles.mainContainer}>
             <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
-            <SafeAreaView style={{ flex: 1, backgroundColor: colors.backgroundAlt }} edges={['top', 'left', 'right']}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
                 <ScrollView contentContainerStyle={styles.lockoutScroll} showsVerticalScrollIndicator={false}>
 
                     <View style={[styles.iconCircle, isRejected && styles.iconCircleRejected]}>
@@ -241,7 +241,7 @@ export default function VerificationStatus() {
 }
 
 const getStyles = (c: ThemeColors) => StyleSheet.create({
-    mainContainer: { flex: 1, backgroundColor: c.backgroundAlt },
+    mainContainer: { flex: 1, backgroundColor: c.background },
     lockoutScroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 40 },
     iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
     iconCircleRejected: { backgroundColor: '#FEE2E2' },

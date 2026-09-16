@@ -63,15 +63,15 @@ export default function PushNotificationsScreen() {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {
-        const consented = await requestPermissionDisclosure({
+        // Educational only — the real system prompt must always follow it
+        // (Apple guideline 5.1.1(iv)), regardless of what's tapped here.
+        await requestPermissionDisclosure({
           icon: 'notifications',
           title: 'Notifications',
           description: 'Shopyos sends notifications for order updates, delivery status, chat messages, and deals. You can turn these off anytime.',
         });
-        if (consented) {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
       if (finalStatus !== 'granted') {
         CustomInAppToast.show({ type: 'error', title: 'Permission required', message: 'Enable notifications to receive alerts.' });
@@ -109,12 +109,14 @@ export default function PushNotificationsScreen() {
       if (newValue) {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
-          const consented = await requestPermissionDisclosure({
+          // Educational only — the real system prompt must always follow it
+          // (Apple guideline 5.1.1(iv)), regardless of what's tapped here.
+          await requestPermissionDisclosure({
             icon: 'notifications',
             title: 'Notifications',
             description: 'Shopyos sends notifications for order updates, delivery status, chat messages, and deals. You can turn these off anytime.',
           });
-          const status = consented ? (await Notifications.requestPermissionsAsync()).status : 'denied';
+          const { status } = await Notifications.requestPermissionsAsync();
           if (status !== 'granted') {
             CustomInAppToast.show({ type: 'error', title: 'Permission denied', message: 'Cannot enable notifications without permission.' });
             setPushEnabled(false);

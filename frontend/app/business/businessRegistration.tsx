@@ -521,7 +521,7 @@ export default function BusinessRegistrationScreen() {
   );
 }
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
+  mainContainer: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },

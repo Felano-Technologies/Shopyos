@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { logoutUser, getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
+import { requestAccountDeletion } from '@/services/auth';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { APP_VERSION } from '@/constants/appVersion';
 import { useActiveBusiness } from '@/hooks/useBusiness';
@@ -24,11 +25,12 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string; border: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -101,6 +103,19 @@ export default function BusinessSettingsScreen() {
     await logoutUser();
     router.replace('/login');
   };
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const confirmDeleteAccount = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      await requestAccountDeletion();
+      CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received. Your account will be permanently removed after 7 days, once any outstanding orders are settled.' });
+      await logoutUser();
+      router.replace('/getstarted' as any);
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Request Failed', message: e.message || 'Could not submit deletion request.' });
+    }
+  };
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -167,13 +182,6 @@ export default function BusinessSettingsScreen() {
                       <Text style={[S.statusTxt, { color: statusInfo.color }]}>{statusInfo.text}</Text>
                     </View>
                   </View>
-                  {/* Edit */}
-                  <TouchableOpacity
-                    style={S.editBtn}
-                    onPress={() => router.push('/business/updateProfile' as any)}
-                  >
-                    <Feather name="edit-2" size={rs(16)} color={C.navy} />
-                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -199,8 +207,8 @@ export default function BusinessSettingsScreen() {
             <SettingGroup>
               <SettingRow
                 icon="briefcase-outline" iconColor="#2563EB" iconBg="#EFF6FF"
-                label="Update Registration Details"
-                disabled={!isBusinessVerified}
+                label={businessData ? 'Update Registration Details' : 'Create Business'}
+                disabled={!!businessData && !isBusinessVerified}
                 onPress={() => router.push('/business/onboarding' as any)}
                 onRestrictedAction={handleRestrictedAction}
                 onNotificationToggle={handleNotificationToggle}
@@ -323,6 +331,17 @@ export default function BusinessSettingsScreen() {
                 onNotificationToggle={() => {}}
               />
             </SettingGroup>
+            {/* Danger Zone */}
+            <Text style={S.groupLabel}>Danger Zone</Text>
+            <SettingGroup>
+              <SettingRow
+                icon="trash-outline" iconColor="#EF4444" iconBg="#FEE2E2"
+                label="Delete Account"
+                onPress={() => setShowDeleteConfirm(true)}
+                onRestrictedAction={() => {}}
+                onNotificationToggle={() => {}}
+              />
+            </SettingGroup>
             {/* Log out */}
             <TouchableOpacity style={S.logoutBtn} onPress={confirmLogout} activeOpacity={0.82}>
               <Feather name="log-out" size={rs(18)} color="#EF4444" />
@@ -341,6 +360,23 @@ export default function BusinessSettingsScreen() {
           actions={[
             { label: 'Cancel', onPress: () => setShowLogoutConfirm(false), variant: 'cancel' },
             { label: 'Log Out', onPress: handleConfirmLogout, variant: 'destructive' },
+          ]}
+        />
+
+        <ConfirmModal
+          visible={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          title="Delete Account"
+          message={
+            'This permanently deletes your account and all associated data after a 7-day grace period. This cannot be undone once processed.\n\n' +
+            '• You will be signed out of all devices immediately and will not be able to log in again.\n' +
+            '• Any outstanding orders must be completed and wallet balances settled before deletion is finalized.\n' +
+            '• To cancel, contact support within the 7-day window.'
+          }
+          icon="⚠️"
+          actions={[
+            { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },
+            { label: 'Delete My Account', onPress: confirmDeleteAccount, variant: 'destructive' },
           ]}
         />
       </SafeAreaView>
@@ -413,11 +449,6 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     borderRadius: rs(8),
   },
   statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
-  editBtn: {
-    width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: C.bg, borderWidth: 0.5, borderColor: C.border,
-    justifyContent: 'center', alignItems: 'center',
-  },
   // ── Body ───────────────────────────────────────────────────────────────────
   body:       { paddingHorizontal: rs(16) },
   noticeCard: {

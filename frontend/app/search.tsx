@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, StyleSheet, FlatList,
   TouchableOpacity, Dimensions, Keyboard,
   ScrollView, ActivityIndicator, Animated,
-  Pressable, Image,
+  Pressable,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { PlaceholderAdCarousel } from '@/components/home/PlaceholderAdCarousel';
+import { PLACEHOLDER_BANNERS_STRIP } from '@/constants/placeholderAds';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { useInfiniteProducts } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -34,7 +36,7 @@ const CARD_W = (width - 52) / 2;
 const RECENT_KEY = 'SHOPYOS_RECENT_SEARCHES';
 const MAX_RECENT = 6;
 // Search ad placeholder height derived from the banner's exact pixel ratio
-// Shopyos Banner.png is 1920 × 400 px (4.8:1)
+// Shopyos Banner 2.png is 1920 × 400 px (4.8:1)
 const SEARCH_AD_H = Math.round((width - 32) / (1920 / 400));
 
 const isFashionCategory = (cat: string | null) => {
@@ -116,13 +118,10 @@ function AdPlaceholder({ style }: { style?: any }) {
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
   return (
-    <View style={[styles.searchAdPlaceholder, style]}>
-      <Image
-        source={require('@/assets/images/Shopyos Banner.png')}
-        style={styles.searchAdPlaceholderImg}
-        resizeMode="cover"
-      />
-    </View>
+    <PlaceholderAdCarousel
+      images={PLACEHOLDER_BANNERS_STRIP}
+      style={[styles.searchAdPlaceholder, style]}
+    />
   );
 }
 
@@ -1419,10 +1418,6 @@ catTileFallback: {   // keep for safety, though now unused
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-  },
-  searchAdPlaceholderImg: {
-    width: '100%',
-    height: '100%',
   },
   searchAdImg: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

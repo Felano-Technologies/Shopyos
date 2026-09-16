@@ -12,10 +12,12 @@ import {
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
 import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser } from '@/services/api';
+import { requestAccountDeletion } from '@/services/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 // removed useCloudinaryUpload import
@@ -161,6 +163,20 @@ export default function DriverSettings() {
         await savePreference(false);
         return;
       }
+      // An unverified driver can never actually have an active delivery, so
+      // there's no legitimate feature behind this permission request yet —
+      // requesting background location here anyway is exactly the kind of
+      // unjustified prompt Apple's guideline 2.5.4 flags. Gate it the same
+      // way the dashboard's "go online" toggle already does.
+      const isVerified = driver?.is_verified === true || driver?.is_verified === 1 || driver?.verification_status === 'verified';
+      if (!isVerified) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Verification Required',
+          message: 'You must be a verified driver before you can share your live location.',
+        });
+        return;
+      }
       // Already granted — no need to show the disclosure again
       const [fg, bg] = await Promise.all([
         Location.getForegroundPermissionsAsync(),
@@ -202,6 +218,19 @@ export default function DriverSettings() {
       router.replace('/login');
     } finally {
       setLogoutLoading(false);
+    }
+  };
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const confirmDeleteAccount = async () => {
+    setShowDeleteConfirm(false);
+    try {
+      await requestAccountDeletion();
+      CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received. Your account will be permanently removed after 7 days, once any outstanding orders are settled.' });
+      await logoutUser();
+      router.replace('/getstarted' as any);
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Request Failed', message: e.message || 'Could not submit deletion request.' });
     }
   };
   return (
@@ -271,6 +300,10 @@ export default function DriverSettings() {
           <SettingRow icon="alert-circle" label="Raise a Report" onPress={() => router.push('/support' as any)} />
           <SettingRow icon="list" label="My Reports" onPress={() => router.push('/support/my-tickets' as any)} />
         </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Danger Zone</Text>
+          <SettingRow icon="trash-2" label="Delete Account" onPress={() => setShowDeleteConfirm(true)} />
+        </View>
         <TouchableOpacity
           style={styles.shopBtn}
           onPress={() => {
@@ -295,17 +328,36 @@ export default function DriverSettings() {
         {/* Extra Space at bottom for safe scrolling */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Account"
+        message={
+          'This permanently deletes your account and all associated data after a 7-day grace period. This cannot be undone once processed.\n\n' +
+          '• You will be signed out of all devices immediately and will not be able to log in again.\n' +
+          '• Any outstanding deliveries and payout balances must be settled before deletion is finalized.\n' +
+          '• To cancel, contact support within the 7-day window.'
+        }
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },
+          { label: 'Delete My Account', onPress: confirmDeleteAccount, variant: 'destructive' },
+        ]}
+      />
+
+      {/* Purely educational — the real system prompt must always follow it
+          (Apple guideline 5.1.1(iv)), so there's no separate decline path. */}
       <LocationDisclosure
         visible={showLocationDisclosure}
         context="driver"
         onAccept={handleDisclosureAccept}
-        onDecline={() => setShowLocationDisclosure(false)}
       />
     </View>
   );
 }
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.headerGradient[0],
     borderBottomLeftRadius: 30,

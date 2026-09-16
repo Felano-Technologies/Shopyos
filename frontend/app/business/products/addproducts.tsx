@@ -22,12 +22,13 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
   border: string; borderStrong: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -699,7 +700,7 @@ header: {
   sectionLabel: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(10) },
   divider: { height: 1, backgroundColor: C.borderStrong, marginVertical: rs(14) },
 
-  cardRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: rs(16), padding: rs(12), gap: rs(12), borderWidth: 1, borderColor: C.borderStrong },
+  cardRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgAlt, borderRadius: rs(16), padding: rs(12), gap: rs(12), borderWidth: 1, borderColor: C.borderStrong },
   cardRowIcon: { justifyContent: 'center', alignItems: 'center' },
   cardRowText: { flex: 1 },
   cardRowTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body },
@@ -741,16 +742,16 @@ header: {
   mediaPrimaryTagTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold', color: '#FFF' },
   mediaAddTile: {
     width: rs(84), height: rs(84), borderRadius: rs(14), borderWidth: 1.5, borderColor: C.borderStrong, borderStyle: 'dashed',
-    justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg, gap: rs(4),
+    justifyContent: 'center', alignItems: 'center', backgroundColor: C.bgAlt, gap: rs(4),
   },
   mediaAddTileTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.navy },
 
   inputBlock: { width: '100%' },
   inputLabel: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: rs(6) },
-  inputField: { backgroundColor: C.bg, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(46), fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body, borderWidth: 1, borderColor: C.borderStrong },
+  inputField: { backgroundColor: C.bgAlt, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(46), fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body, borderWidth: 1, borderColor: C.borderStrong },
 
   radioRow: { flexDirection: 'row', gap: rs(12) },
-  radioOption: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: C.bg, borderRadius: rs(14), paddingHorizontal: rs(14), paddingVertical: rs(12), borderWidth: 1.5, borderColor: C.borderStrong },
+  radioOption: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(8), backgroundColor: C.bgAlt, borderRadius: rs(14), paddingHorizontal: rs(14), paddingVertical: rs(12), borderWidth: 1.5, borderColor: C.borderStrong },
   radioOptionSelected: { borderColor: C.navy, backgroundColor: C.border },
   radioCircle: { width: rs(18), height: rs(18), borderRadius: rs(9), borderWidth: 1.5, borderColor: C.borderStrong, justifyContent: 'center', alignItems: 'center' },
   radioCircleSelected: { borderColor: C.navy },
@@ -758,17 +759,17 @@ header: {
   radioLabel: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   radioLabelSelected: { color: C.navy },
 
-  descriptionBox: { backgroundColor: C.bg, borderRadius: rs(14), borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: rs(14), paddingVertical: rs(12), minHeight: rs(100) },
+  descriptionBox: { backgroundColor: C.bgAlt, borderRadius: rs(14), borderWidth: 1, borderColor: C.borderStrong, paddingHorizontal: rs(14), paddingVertical: rs(12), minHeight: rs(100) },
   descriptionInput: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body, minHeight: rs(80) },
 
   genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(8) },
-  genderChip: { paddingHorizontal: rs(14), paddingVertical: rs(10), borderRadius: rs(10), backgroundColor: C.bg, borderWidth: 1, borderColor: C.borderStrong },
+  genderChip: { paddingHorizontal: rs(14), paddingVertical: rs(10), borderRadius: rs(10), backgroundColor: C.bgAlt, borderWidth: 1, borderColor: C.borderStrong },
   genderChipOn: { backgroundColor: C.navy, borderColor: C.navy },
   genderChipTxt: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   genderChipTxtOn: { color: '#FFFFFF' },
 
   pricingRow: { flexDirection: 'row', gap: rs(8) },
-  lightInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: rs(12), paddingHorizontal: rs(12), height: rs(46), borderWidth: 1, borderColor: C.borderStrong },
+  lightInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bgAlt, borderRadius: rs(12), paddingHorizontal: rs(12), height: rs(46), borderWidth: 1, borderColor: C.borderStrong },
   lightInputTxt: { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body },
   currencyPfx: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted, marginRight: rs(6) },
 

@@ -192,12 +192,14 @@ export default function LivenessCaptureScreen() {
     (async () => {
       const existing = await Camera.getCameraPermissionsAsync();
       if (existing.status === 'granted') { setHasPermission(true); log('camera permission: already granted'); return; }
-      const consented = await requestPermissionDisclosure({
+      // The disclosure is educational only — the real system prompt must
+      // always follow it (Apple guideline 5.1.1(iv)), so it can't gate
+      // whether the OS request actually happens.
+      await requestPermissionDisclosure({
         icon: 'camera',
         title: 'Camera Access',
         description: 'Shopyos needs camera access to verify you\'re a real person as part of seller verification.',
       });
-      if (!consented) { setHasPermission(false); log('camera permission: disclosure declined'); return; }
       const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
       log(`camera permission: OS request result = ${status}`);

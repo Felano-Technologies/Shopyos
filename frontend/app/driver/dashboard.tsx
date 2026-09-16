@@ -360,15 +360,26 @@ export default function Dashboard() {
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           {!isVerified && (
-            <TouchableOpacity
-              style={styles.verificationBanner}
-              activeOpacity={0.9}
-              onPress={() => router.push('/driver/onboarding' as any)}
-            >
-              <Feather name="shield" size={16} color={colors.accentText} />
-              <Text style={styles.verificationText}>{verificationBannerText}</Text>
-              <Feather name="chevron-right" size={14} color={colors.accentText} />
-            </TouchableOpacity>
+            isPending ? (
+              // Already submitted and waiting on review — there's nothing to
+              // tap through to, so this must stay static (tapping used to
+              // send them into the onboarding wizard, which has no "next
+              // step" to resume and rendered a blank screen).
+              <View style={styles.verificationBanner}>
+                <Feather name="shield" size={16} color={colors.accentText} />
+                <Text style={styles.verificationText}>{verificationBannerText}</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.verificationBanner}
+                activeOpacity={0.9}
+                onPress={() => router.push('/driver/onboarding' as any)}
+              >
+                <Feather name="shield" size={16} color={colors.accentText} />
+                <Text style={styles.verificationText}>{verificationBannerText}</Text>
+                <Feather name="chevron-right" size={14} color={colors.accentText} />
+              </TouchableOpacity>
+            )
           )}
           <View style={styles.headerTop}>
             <View style={styles.profileRow}>
@@ -483,11 +494,13 @@ export default function Dashboard() {
           </View>
         )}
       </View>
-      {/* Prominent Location Disclosure — required by Google / Apple */}
+      {/* Prominent Location Disclosure — required by Google / Apple. Purely
+          educational: the real system prompt must always follow it (Apple
+          guideline 5.1.1(iv)) — the user's actual choice belongs there, not
+          in this custom modal, so there's no separate decline path. */}
       <LocationDisclosure
         visible={showDisclosure}
         onAccept={handleDisclosureAccept}
-        onDecline={() => setShowDisclosure(false)}
         context="driver"
       />
 
@@ -517,7 +530,7 @@ export default function Dashboard() {
   );
 }
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
   // Header
   header: {
     backgroundColor: colors.headerGradient[0],

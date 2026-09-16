@@ -27,12 +27,13 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 type LegacyPalette = {
-  bg: string; navy: string; navyMid: string; lime: string; limeText: string;
+  bg: string; bgAlt: string; navy: string; navyMid: string; lime: string; limeText: string;
   card: string; body: string; muted: string; subtle: string;
   border: string; borderStrong: string;
 };
 const buildC = (colors: ThemeColors): LegacyPalette => ({
-  bg: colors.backgroundAlt,
+  bg: colors.background,
+  bgAlt: colors.backgroundAlt,
   navy: colors.primary,
   navyMid: colors.primaryMid,
   lime: colors.accent,
@@ -609,7 +610,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   actionBtns:    { flexDirection: 'row', gap: rs(8) },
   iconBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: C.bg, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.bgAlt, justifyContent: 'center', alignItems: 'center',
     borderWidth: 0.5, borderColor: C.borderStrong,
   },
   addressRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(6) },
@@ -623,7 +624,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   mapBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.navy },
   // Items
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
-  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: C.bg },
+  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: C.bgAlt },
   itemName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(3) },
   itemMeta: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   itemTotal: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
@@ -635,7 +636,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
   totalVal:   { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.navy },
   methodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(8),
-    backgroundColor: C.bg, padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
+    backgroundColor: C.bgAlt, padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
   },
   methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.muted },
   infoNote: {

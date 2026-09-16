@@ -482,7 +482,7 @@ export default function DriverVerification() {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundAlt },
+  container: { flex: 1, backgroundColor: colors.background },
 
   // Header
   header: { backgroundColor: colors.headerGradient[0], borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 30, paddingHorizontal: 20 },
@@ -542,7 +542,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   submitText: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: colors.accentText },
 
   // Pending State
-  pendingContainer: { flex: 1, backgroundColor: colors.backgroundAlt, justifyContent: 'center', padding: 20 },
+  pendingContainer: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', padding: 20 },
   pendingCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 30, alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 5 },
   pendingIconBg: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   pendingTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: colors.text, marginBottom: 10, textAlign: 'center' },

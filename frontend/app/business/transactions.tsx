@@ -257,7 +257,7 @@ export default function TransactionsScreen() {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
+  mainContainer: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
 
   // Background

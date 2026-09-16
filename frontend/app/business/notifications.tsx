@@ -39,7 +39,7 @@ type LegacyPalette = {
 
 function buildC(colors: ThemeColors): LegacyPalette {
   return {
-    bg: colors.backgroundAlt,
+    bg: colors.background,
     navy: colors.primary,
     navyMid: colors.primaryMid,
     lime: colors.accent,

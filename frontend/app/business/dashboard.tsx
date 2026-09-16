@@ -14,6 +14,8 @@ import AppImage from '@/components/AppImage';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { router } from 'expo-router';
 import { storage, secureStorage, logoutUser } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+import { BusinessPendingVerificationBanner } from '@/components/PendingVerificationBanner';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -248,8 +250,7 @@ const BusinessDashboard = () => {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        {selectedBusiness ? (
-          <>
+        <>
             {/* --- SCROLLVIEW FIRST (beneath the header) --- */}
             <ScrollView
               style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
@@ -298,6 +299,8 @@ const BusinessDashboard = () => {
                   </View>
                 </View>
 
+                <BusinessPendingVerificationBanner />
+
                 {/* --- QUICK ACTIONS --- */}
                 <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureTourElement(refActions, 'actions')}>
                   <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -316,7 +319,13 @@ const BusinessDashboard = () => {
                         accessibilityRole="button"
                         key={item.label}
                         style={[styles.actionPill, { borderLeftColor: item.accent }]}
-                        onPress={() => router.push(item.route as any)}
+                        onPress={() => {
+                          if (!selectedBusiness) {
+                            CustomInAppToast.show({ type: 'info', title: 'Create a business first', message: 'Set up your business profile to unlock this.' });
+                            return;
+                          }
+                          router.push(item.route as any);
+                        }}
                         activeOpacity={0.8}
                       >
                         <LinearGradient colors={item.bg} style={styles.actionPillIcon}>
@@ -433,14 +442,6 @@ const BusinessDashboard = () => {
               {renderHeaderContent()}
             </View>
           </>
-        ) : (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.noBizText, { marginTop: 15 }]}>
-              {isLoadingBusinesses ? "Fetching your business..." : "Preparing Dashboard..."}
-            </Text>
-          </View>
-        )}
       </SafeAreaView>
 
       {/* --- NO BUSINESS MODAL --- */}
@@ -457,12 +458,12 @@ const BusinessDashboard = () => {
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               <TouchableOpacity
-                accessibilityLabel="Go to home page"
+                accessibilityLabel="Not now, browse dashboard"
                 accessibilityRole="button"
                 style={[styles.outlineButton, { flex: 1 }]}
-                onPress={() => { setShowNoBusinessModal(false); router.push('/'); }}
+                onPress={() => setShowNoBusinessModal(false)}
               >
-                <Text style={styles.outlineButtonText}>Go Home</Text>
+                <Text style={styles.outlineButtonText}>Not Now</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -560,10 +561,10 @@ const BusinessDashboard = () => {
 };
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: colors.backgroundAlt },
+  mainContainer: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollBody: { flex: 1, backgroundColor: colors.backgroundAlt, minHeight: height, paddingBottom: 120 },
+  scrollBody: { flex: 1, backgroundColor: colors.background, minHeight: height, paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 140, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
@@ -655,7 +656,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: colors.textSecondary,
   },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundAlt },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   emptyOrdersCard: { backgroundColor: colors.surface, padding: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderStrong },
   emptyOrdersText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: colors.textMuted },
 

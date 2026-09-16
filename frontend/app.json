@@ -17,8 +17,8 @@
       "bundleIdentifier": "com.eugeneanokye99.shopyos",
       "buildNumber": "1",
       "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track deliveries in real-time for better customer experience.",
-        "NSLocationWhenInUseUsageDescription": "We need your location to provide accurate delivery services.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "If you're delivering an order as a Shopyos driver, we use your location — including while the app is in the background — to share your live position with the customer so they can track their delivery on a map and see an accurate arrival time. We only track your location while a delivery is active.",
+        "NSLocationWhenInUseUsageDescription": "Shopyos uses your location to show stores and delivery times near you, and, if you're a driver, to calculate your distance to pickup and drop-off addresses.",
         "NSMicrophoneUsageDescription": "Allow Shopyos to access your microphone for voice calls.",
         "UIBackgroundModes": [
           "location",
@@ -83,9 +83,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Shopyos to track your location during deliveries for real-time updates.",
-          "locationAlwaysPermission": "Allow Shopyos to track your location in the background during active deliveries.",
-          "locationWhenInUsePermission": "Allow Shopyos to access your location to provide better service.",
+          "locationAlwaysAndWhenInUsePermission": "If you're delivering an order as a Shopyos driver, we use your location — including while the app is in the background — to share your live position with the customer so they can track their delivery and see an accurate arrival time. We only track your location while a delivery is active.",
+          "locationAlwaysPermission": "Shopyos shares your live location with the customer in the background only while you have an active delivery, so they can track their order's progress and get an accurate arrival estimate.",
+          "locationWhenInUsePermission": "Shopyos uses your location to show stores and delivery times near you, and, if you're a driver, to calculate your distance to pickup and drop-off addresses.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
@@ -166,9 +166,7 @@
       "expo-video",
       "expo-audio",
       "expo-asset",
-      "@react-native-community/datetimepicker",
-      "expo-image",
-      "expo-sharing"
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true

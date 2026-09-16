@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Image,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { ConfirmModal } from '@/components/ConfirmModal';
@@ -15,6 +15,8 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { PlaceholderAdCarousel } from '@/components/home/PlaceholderAdCarousel';
+import { PLACEHOLDER_BANNERS_STRIP } from '@/constants/placeholderAds';
 import { getActiveBanners, recordAdClick } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
@@ -253,13 +255,7 @@ export default function CartScreen() {
       {cartAds.length > 0 ? (
         <CompactAdCarousel ads={cartAds} onAdPress={handleAdPress} />
       ) : (
-        <View style={styles.adPlaceholder}>
-          <Image
-            source={require('@/assets/images/Shopyos Banner.png')}
-            style={styles.adPlaceholderImg}
-            resizeMode="cover"
-          />
-        </View>
+        <PlaceholderAdCarousel images={PLACEHOLDER_BANNERS_STRIP} style={styles.adPlaceholder} />
       )}
 
       <FlatList
@@ -424,9 +420,5 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   adPlaceholder: {
     height: 80,
     overflow: 'hidden',
-  },
-  adPlaceholderImg: {
-    width: '100%',
-    height: '100%',
   },
 });

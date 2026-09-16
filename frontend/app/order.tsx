@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
-  TextInput, ScrollView, Image
+  TextInput, ScrollView
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,8 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getActiveBanners, recordAdClick } from '@/services/api';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { PlaceholderAdCarousel } from '@/components/home/PlaceholderAdCarousel';
+import { PLACEHOLDER_BANNERS_STRIP } from '@/constants/placeholderAds';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -562,13 +564,7 @@ const OrdersScreen = () => {
               {orderAds.length > 0 ? (
                 <CompactAdCarousel ads={orderAds} onAdPress={handleAdPress} />
               ) : (
-                <View style={S.adPlaceholder}>
-                  <Image
-                    source={require('@/assets/images/Shopyos Banner.png')}
-                    style={S.adPlaceholderImg}
-                    resizeMode="cover"
-                  />
-                </View>
+                <PlaceholderAdCarousel images={PLACEHOLDER_BANNERS_STRIP} style={S.adPlaceholder} />
               )}
             </View>
           }
@@ -756,10 +752,6 @@ const getS = (C: LegacyPalette) => StyleSheet.create({
     marginBottom: rs(12),
     height: rs(80),
     overflow: 'hidden',
-  },
-  adPlaceholderImg: {
-    width: '100%',
-    height: '100%',
   },
 
   // List
