@@ -141,9 +141,7 @@ export default function DriverEarnings() {
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.accent} />
-                </TouchableOpacity>
+                <View style={styles.backBtn} />
                 <Text style={styles.headerTitle}>Earnings</Text>
                 <TouchableOpacity>
                     <Ionicons name="help-circle-outline" size={24} color="#FFF" />
@@ -297,9 +295,16 @@ export default function DriverEarnings() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  header: {
+    paddingBottom: 30,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 },
+  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
 
   balanceContainer: { alignItems: 'center' },

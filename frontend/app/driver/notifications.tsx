@@ -17,7 +17,6 @@ import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotificati
 import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { useThemeStore } from '@/store/themeStore';
 import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
 type Notification = {
@@ -32,7 +31,6 @@ type Notification = {
 export default function DriverNotificationsScreen() {
     const router = useRouter();
     const colors = useThemeColors();
-    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const styles = useMemo(() => getStyles(colors), [colors]);
     const { data, refetch, isRefetching } = useNotifications();
     const markReadMutation = useMarkNotificationRead();
@@ -144,15 +142,17 @@ export default function DriverNotificationsScreen() {
     );
     return (
         <View style={styles.container}>
-            <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
+            <StatusBar style="light" />
             {/* Header */}
-            <SafeAreaView edges={['top']} style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Notifications</Text>
-                <View style={styles.placeholder} />
-            </SafeAreaView>
+            <LinearGradient colors={colors.headerGradient} style={styles.header}>
+                <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Notifications</Text>
+                    <View style={styles.placeholder} />
+                </SafeAreaView>
+            </LinearGradient>
             {/* Notifications List */}
             <FlatList
                 data={notifications}
@@ -183,27 +183,32 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     },
     // Header
     header: {
+        paddingBottom: 30,
+        elevation: 8,
+        shadowColor: c.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+    },
+    headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: c.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: c.border
     },
     backBtn: {
         width: 40,
         height: 40,
-        borderRadius: 20,
-        backgroundColor: c.surfaceElevated,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center'
     },
     headerTitle: {
         fontSize: 18,
         fontFamily: 'Montserrat-Bold',
-        color: c.text
+        color: '#FFF'
     },
     placeholder: {
         width: 40

@@ -65,7 +65,7 @@ export default function LocationDisclosure({
           desc: 'Your live location is shared with the customer so they can track their order on the map.',
         },
         {
-          icon: 'cloud-off-outline' as const,
+          icon: 'cloud-offline-outline' as const,
           iconFamily: 'ion',
           title: 'Works in the background',
           desc: 'Location updates continue even when you switch to navigation or lock your screen.',

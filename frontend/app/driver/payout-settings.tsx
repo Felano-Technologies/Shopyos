@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -90,17 +91,17 @@ export default function DriverPayoutSettings() {
         <StatusBar style="light" />
         <Stack.Screen options={{ headerShown: false }} />
 
-        <View style={styles.header}>
+        <LinearGradient colors={colors.headerGradient} style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
               <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons name="arrow-back" size={24} color={colors.accent} />
+                <Ionicons name="arrow-back" size={24} color="#FFF" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Payout Settings</Text>
               <View style={{ width: 40 }} />
             </View>
           </SafeAreaView>
-        </View>
+        </LinearGradient>
 
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -236,9 +237,16 @@ export default function DriverPayoutSettings() {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { backgroundColor: colors.headerGradient[0], paddingBottom: 16 },
+  header: {
+    paddingBottom: 30,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8 },
-  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 },
+  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   scroll: { padding: 20, paddingBottom: 48 },
   currentBanner: {

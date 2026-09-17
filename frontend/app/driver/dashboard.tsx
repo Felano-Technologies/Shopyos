@@ -20,6 +20,7 @@ import { getDriverProfile, getUserData, CustomInAppToast, updateDriverAvailabili
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
 import { useAllUnreadCount } from '@/hooks/useChat';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
 import WelcomeCard from '@/components/WelcomeCard';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -114,6 +115,8 @@ export default function Dashboard() {
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { data: chatUnreadCount = 0 } = useAllUnreadCount();
+  const { data: notifData } = useUnreadNotificationCount(false);
+  const unreadNotifCount = notifData?.unreadCount ?? 0;
   const { profile: initialProfile, isChecking } = useDriverGuard();
   const [profile, setProfile] = useState<any>(initialProfile);
   const [isOnline, setIsOnline] = useState(false);
@@ -196,8 +199,10 @@ export default function Dashboard() {
     setLocationGranted(perms.foreground);
     if (perms.foreground) {
       await setLocationSharingPreference(perms.background);
-      // Now proceed with going online
-      await goOnline();
+      // Now proceed with going online — background ("Always") access is
+      // best-effort: without it, sharing still works but only while the
+      // app is open (see goOnline's success message).
+      await goOnline(perms.background);
     } else {
       CustomInAppToast.show({
         type: 'error',
@@ -206,15 +211,19 @@ export default function Dashboard() {
       });
     }
   }, []);
-  // The actual go-online logic (extracted so disclosure flow can call it)
-  const goOnline = async () => {
+  // The actual go-online logic (extracted so disclosure flow can call it).
+  // backgroundLocationGranted is best-effort — without "Always" access,
+  // going online still works, live tracking just pauses when backgrounded.
+  const goOnline = async (backgroundLocationGranted = false) => {
     try {
       await updateDriverAvailability(true);
       setIsOnline(true);
       CustomInAppToast.show({
         type: 'success',
         title: 'You are Online',
-        message: 'You will now see delivery requests',
+        message: backgroundLocationGranted
+          ? 'You will now see delivery requests'
+          : 'You will now see delivery requests. Enable "Always" location access in Settings to keep sharing your location while the app is in the background.',
       });
     } catch (error: any) {
       CustomInAppToast.show({
@@ -261,7 +270,8 @@ export default function Dashboard() {
       setShowDisclosure(true);
       return;
     }
-    await goOnline();
+    const { status: bg } = await Location.getBackgroundPermissionsAsync();
+    await goOnline(bg === 'granted');
   };
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -357,7 +367,7 @@ export default function Dashboard() {
     <View style={styles.container}>
       <StatusBar style="light" />
       {/* --- HEADER --- */}
-      <View style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           {!isVerified && (
             isPending ? (
@@ -394,18 +404,33 @@ export default function Dashboard() {
                 </Text>
               </View>
             </View>
-            {/* Online Toggle */}
-            <View style={styles.toggleContainer} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
-              <Text style={[styles.toggleLabel, { color: isOnline ? colors.accent : colors.textMuted }]}>
-                {isOnline ? 'ON' : 'OFF'}
-              </Text>
-              <Switch
-                trackColor={{ false: '#334155', true: 'rgba(163, 230, 53, 0.3)' }}
-                thumbColor={isOnline ? '#A3E635' : '#f4f3f4'}
-                onValueChange={toggleOnline}
-                value={isOnline}
-                disabled={isChecking}
-              />
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity
+                accessibilityLabel="Open notifications"
+                accessibilityRole="button"
+                style={styles.bellBtn}
+                onPress={() => router.push('/driver/notifications' as any)}
+              >
+                <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                {unreadNotifCount > 0 && (
+                  <View style={styles.notifBadge}>
+                    <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {/* Online Toggle */}
+              <View style={styles.toggleContainer} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
+                <Text style={[styles.toggleLabel, { color: isOnline ? colors.accent : colors.textMuted }]}>
+                  {isOnline ? 'ON' : 'OFF'}
+                </Text>
+                <Switch
+                  trackColor={{ false: '#334155', true: 'rgba(163, 230, 53, 0.3)' }}
+                  thumbColor={isOnline ? '#A3E635' : '#f4f3f4'}
+                  onValueChange={toggleOnline}
+                  value={isOnline}
+                  disabled={isChecking}
+                />
+              </View>
             </View>
           </View>
           {/* Daily Stats */}
@@ -426,7 +451,7 @@ export default function Dashboard() {
             </View>
           </View>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
       {/* --- CONTENT --- */}
       <View style={styles.contentContainer}>
         {isOnline ? (
@@ -533,14 +558,38 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   // Header
   header: {
-    backgroundColor: colors.headerGradient[0],
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    paddingBottom: 25,
+    paddingBottom: 30,
     paddingHorizontal: 20,
     zIndex: 10,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 5 },
+  headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bellBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: { color: '#FFF', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   verificationBanner: {
     backgroundColor: colors.accent,
     flexDirection: 'row',

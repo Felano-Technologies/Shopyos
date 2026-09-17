@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
@@ -301,11 +302,11 @@ export default function DriverVerification() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
                 <TouchableOpacity onPress={() => router.push('/driver/dashboard')} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.accent} />
+                    <Ionicons name="arrow-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Driver Registration</Text>
                 <View style={{ width: 40 }} />
@@ -314,7 +315,7 @@ export default function DriverVerification() {
                 Submit your details for verification.
             </Text>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -485,9 +486,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   // Header
-  header: { backgroundColor: colors.headerGradient[0], borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 30, paddingHorizontal: 20 },
+  header: {
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
   navBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  backBtn: { padding: 8, marginRight: 15 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   headerSub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#CBD5E1', lineHeight: 20 },
 

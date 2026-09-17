@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -11,7 +12,8 @@ import {
   requestLocationPermissions,
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
-import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser } from '@/services/api';
+import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser, getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
+import { useActiveDeliveries } from '@/hooks/useDelivery';
 import { requestAccountDeletion } from '@/services/auth';
 import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
@@ -71,6 +73,10 @@ export default function DriverSettings() {
   const styles = useMemo(() => getStyles(colors), [colors]);
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const [shareLiveLocation, setShareLiveLocation] = useState(false);
+  // Tracks whether "Always" (background) access is actually granted — location
+  // sharing can still be enabled without it, just degraded to foreground-only
+  // (see finishEnablingLocationSharing).
+  const [backgroundLocationGranted, setBackgroundLocationGranted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
   const [, setLoading] = useState(true);
@@ -78,6 +84,7 @@ export default function DriverSettings() {
   const [saving, setSaving] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [showLocationDisclosure, setShowLocationDisclosure] = useState(false);
+  const [notificationsOn, setNotificationsOn] = useState(true);
   // Load profile and preferences on mount
   useEffect(() => {
     loadData();
@@ -85,19 +92,44 @@ export default function DriverSettings() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [u, d, locPref] = await Promise.all([
+      const [u, d, locPref, notifPrefs] = await Promise.all([
         getUserData(),
         getDriverProfile(),
-        getLocationSharingPreference()
+        getLocationSharingPreference(),
+        getNotificationPreferences().catch(() => null),
       ]);
       setUser(u);
       setDriver(d?.profile || d);
       setShareLiveLocation(locPref);
+      if (notifPrefs?.success) setNotificationsOn(notifPrefs.preferences.push_enabled);
+      const bg = await Location.getBackgroundPermissionsAsync();
+      setBackgroundLocationGranted(bg.status === 'granted');
     } catch (error) {
       console.error('Failed to load settings data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNotificationToggle = async (value: boolean) => {
+    setNotificationsOn(value);
+    try {
+      await updateNotificationPreferences({ push_enabled: value });
+    } catch (error) {
+      console.error('Failed to update notification preference:', error);
+      setNotificationsOn(!value);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update notification preference.' });
+    }
+  };
+
+  const { data: activeData } = useActiveDeliveries();
+  const activeDeliveries = activeData?.deliveries || [];
+  const handleOpenNavigationApp = () => {
+    if (activeDeliveries.length === 0) {
+      CustomInAppToast.show({ type: 'info', title: 'No Active Delivery', message: 'Navigation opens automatically once you have an active delivery.' });
+      return;
+    }
+    router.push({ pathname: '/driver/activeOrder', params: { deliveryId: activeDeliveries[0].id } } as any);
   };
   const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
@@ -130,30 +162,28 @@ export default function DriverSettings() {
         });
         return;
       }
-      if (!permissions.background) {
-        CustomInAppToast.show({
-          type: 'error',
-          title: 'Background Permission Required',
-          message: 'Background location permission is needed to track your location while delivering. Please enable it in your device settings.'
-        });
-        return;
-      }
-      await savePreference(true);
+      // "Always" (background) access is best-effort, not required — without
+      // it, sharing still works but only while the app is open/foregrounded.
+      setBackgroundLocationGranted(permissions.background);
+      await savePreference(true, permissions.background);
     } catch (error) {
       console.error('Error toggling location sharing:', error);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update location sharing preference.' });
     }
   };
 
-  const savePreference = async (value: boolean) => {
+  const savePreference = async (value: boolean, backgroundGranted = backgroundLocationGranted) => {
     await setLocationSharingPreference(value);
     setShareLiveLocation(value);
     // Invalidate queries to trigger useBackgroundTasks to re-evaluate
     queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    const enabledMessage = backgroundGranted
+      ? 'Your location will be shared during active deliveries, even while the app is in the background.'
+      : "Your location will be shared while the app is open. To keep sharing when your screen locks or you switch apps, enable \"Always\" location access in Settings.";
     CustomInAppToast.show({
       type: 'success',
       title: value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
-      message: value ? 'Your location will be shared during active deliveries.' : 'Your location will no longer be shared.'
+      message: value ? enabledMessage : 'Your location will no longer be shared.'
     });
   };
 
@@ -238,12 +268,10 @@ export default function DriverSettings() {
       <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Fixed Header --- */}
-      <View style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.navBar}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={colors.accent} />
-            </TouchableOpacity>
+            <View style={{ width: 24 }} />
             <Text style={styles.headerTitle}>Driver Profile</Text>
             <View style={{ width: 24 }} />
           </View>
@@ -261,39 +289,46 @@ export default function DriverSettings() {
                 style={{ marginBottom: 8 }}
               />
             )}
-            <Text style={styles.name}>{user?.name || 'Williams Boampong'}</Text>
+            <Text style={styles.name}>{user?.name || 'Driver'}</Text>
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={14} color="#F59E0B" />
               <Text style={styles.ratingText}>
-                {driver?.rating || '5.0'} ({driver?.total_deliveries || 0} deliveries)
+                {Number(driver?.average_rating ?? 0).toFixed(1)} ({driver?.total_deliveries || 0} deliveries)
               </Text>
             </View>
           </View>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
       {/* --- Scrollable Content --- */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Vehicle Details</Text>
+        <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.section}>
-          <SettingRow icon="truck" label="Vehicle Type" value={driver?.vehicle_type || 'Motorbike'} />
-          <SettingRow icon="hash" label="Plate Number" value={driver?.plate_number || '---'} />
-          <SettingRow icon="file-text" label="License" value={driver?.license_number ? 'Verified' : 'Pending'} />
+          <SettingRow icon="shield" label="Update Verification Details" onPress={() => router.push('/driver/onboarding' as any)} />
         </View>
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.section}>
           <ToggleRow
             icon="map-pin"
             label="Share Live Location"
-            description="Share your location during active deliveries"
+            description={
+              shareLiveLocation && !backgroundLocationGranted
+                ? 'Foreground only — enable "Always" location access in Settings to keep sharing in the background'
+                : 'Share your location during active deliveries'
+            }
             value={shareLiveLocation}
             onToggle={handleLocationToggle}
           />
-          <SettingRow icon="map" label="Navigation App" value="Google Maps" />
-          <SettingRow icon="bell" label="Sound & Notification" value="On" />
+          <SettingRow icon="map" label="Navigate to Delivery" onPress={handleOpenNavigationApp} />
+          <ToggleRow
+            icon="bell"
+            label="Sound & Notification"
+            value={notificationsOn}
+            onToggle={handleNotificationToggle}
+          />
         </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
@@ -359,12 +394,14 @@ export default function DriverSettings() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
-    backgroundColor: colors.headerGradient[0],
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
     paddingBottom: 30,
     paddingHorizontal: 20,
-    zIndex: 10
+    zIndex: 10,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
   navBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 18, color: '#FFF', fontFamily: 'Montserrat-Bold' },

@@ -10,6 +10,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { getMyDeliveries } from '@/services/api';
@@ -126,17 +127,15 @@ export default function DriverHistory() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* --- Header --- */}
-      <View style={styles.header}>
+      <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
             <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={colors.accent} />
-                </TouchableOpacity>
+                <View style={styles.backBtn} />
                 <Text style={styles.headerTitle}>Trip History</Text>
                 <View style={{ width: 40 }} />
             </View>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
 
       {/* --- Content --- */}
       <View style={styles.contentContainer}>
@@ -175,16 +174,13 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: colors.headerGradient[0],
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    paddingBottom: 20,
+    paddingBottom: 30,
     zIndex: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 12,
   },
   safeHeader: { width: '100%' },
   navBar: {
