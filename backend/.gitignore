@@ -4,3 +4,4 @@ docs/
 test-connection.js
 coverage/
 junit.xml
+scripts/_tmp_*
