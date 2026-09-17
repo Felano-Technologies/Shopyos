@@ -279,7 +279,7 @@ function DiscoveryView({
   clearRecent: () => void;
   setQuery: (q: string) => void;
   setCategory: (c: string | null) => void;
-  inputRef: React.RefObject<TextInput>;
+  inputRef: React.RefObject<TextInput | null>;
 }) {
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);

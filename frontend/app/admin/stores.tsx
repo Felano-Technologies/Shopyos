@@ -606,7 +606,7 @@ function DetailItem({ label, value, icon, isLink, onPress }: any) {
         <Text style={styles.detailLabel}>{label}</Text>
         <Text style={[styles.detailValue, isLink && styles.linkText]}>{value || 'N/A'}</Text>
       </View>
-      {isLink ? <Ionicons name="external-link" size={12} color="#3B82F6" /> : null}
+      {isLink ? <Ionicons name="open-outline" size={12} color="#3B82F6" /> : null}
     </TouchableOpacity>
   );
 }

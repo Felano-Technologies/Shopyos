@@ -63,7 +63,7 @@ export default function MessagesScreen() {
   const displayList = [botChat, ...filteredConversations];
 
   const openChat = (item: any) => {
-    if (!item.isPinnedBot && item.unread > 0) markAsRead(item.id, 'seller');
+    if (!item.isPinnedBot && item.unread > 0) markAsRead(item.id);
 
     router.push({
       pathname: '/chat/conversation',

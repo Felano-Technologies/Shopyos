@@ -52,7 +52,7 @@ function applyMessageToConvList(
   pathnameRef: { current: any },
   conversationIdRef: { current: any },
   queryClient: any,
-  convKey: any[]
+  convKey: readonly any[]
 ) {
   if (!prev.some((c: any) => c.id === conversationId)) {
     queryClient.invalidateQueries({ queryKey: convKey });

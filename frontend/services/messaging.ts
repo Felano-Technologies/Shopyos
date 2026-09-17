@@ -103,7 +103,7 @@ export const uploadChatMedia = async (
   // Strip query params / fragment from URI before extracting filename
   const cleanUri = uri.split('?')[0].split('#')[0];
   const filename = cleanUri.split('/').pop() || `upload_${Date.now()}.bin`;
-  const ext = (filename.includes('.') ? filename.split('.').pop() : '').toLowerCase() || '';
+  const ext = (filename.includes('.') ? filename.split('.').pop() || '' : '').toLowerCase();
 
   // Prefer explicitly provided mimeType, otherwise infer from extension
   let type: string;
@@ -187,7 +187,7 @@ export const createCustomSticker = async (uri: string, mimeType?: string): Promi
 
   const cleanUri = uri.split('?')[0].split('#')[0];
   const filename = cleanUri.split('/').pop() || `sticker_${Date.now()}.png`;
-  const ext = (filename.includes('.') ? filename.split('.').pop() : '').toLowerCase() || '';
+  const ext = (filename.includes('.') ? filename.split('.').pop() || '' : '').toLowerCase();
 
   // Use provided mimeType or infer from extension; default to image/jpeg
   let type: string;

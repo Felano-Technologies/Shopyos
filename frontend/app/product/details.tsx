@@ -394,7 +394,7 @@ export default function ProductDetails() {
             return;
         }
 
-        if (product.bargaining_enabled) {
+        if (product.bargainingEnabled) {
             const bargain = await getAcceptedBargainForProduct(product.id);
             if (bargain) {
                 await addBargainToCart(bargain.id);
@@ -406,7 +406,7 @@ export default function ProductDetails() {
                     category: product.category,
                     storeId: product.storeId,
                     storeName: product.sellerName,
-                    storeLogo: product.storeImage,
+                    storeLogo: product.storeImage ?? undefined,
                     bargain_discount: Number(bargain.bargain_discount),
                     bargain_offer_id: bargain.id,
                 });
@@ -423,7 +423,7 @@ export default function ProductDetails() {
             category: product.category,
             storeId: product.storeId,
             storeName: product.sellerName,
-            storeLogo: product.storeImage,
+            storeLogo: product.storeImage ?? undefined,
             variantId: selectedVariant?.id || null,
             variantAttributes: selectedVariant?.attributes || undefined,
         });
@@ -707,7 +707,6 @@ export default function ProductDetails() {
             <ReviewCommentsSheet
                 visible={isCommentsVisible}
                 onClose={() => setIsCommentsVisible(false)}
-                reviewId={selectedReviewId}
                 comments={activeComments}
                 onSendComment={handleSendComment}
                 isSubmitting={commentSubmitting}

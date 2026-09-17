@@ -1,6 +1,6 @@
 /* eslint-disable import/namespace */
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableWithoutFeedback, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableWithoutFeedback, Dimensions, ActivityIndicator, TouchableOpacity, DimensionValue } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { viewSnap } from '@/services/api';
 import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 
 const { width } = Dimensions.get('window');
@@ -286,7 +286,7 @@ export default function SnapViewer() {
           {/* Progress Bars */}
           <View style={styles.progressContainer}>
             {currentStore.snaps.map((snap: any, i: number) => {
-              const barWidth = i === snapIndex ? `${progress}%` : i < snapIndex ? '100%' : '0%';
+              const barWidth: DimensionValue = i === snapIndex ? `${progress}%` : i < snapIndex ? '100%' : '0%';
               return (
                 <View key={snap.id ?? i} style={styles.progressBarBg}>
                   <View style={[styles.progressBarFill, { width: barWidth }]} />

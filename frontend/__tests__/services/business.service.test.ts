@@ -42,10 +42,8 @@ import {
   uploadStoreLogo,
   businessRegister,
   getMyBusinesses,
-  switchBusiness,
   updateBusiness,
   verifyBusinessDetails,
-  loginBusiness,
   getBusinessById,
   getAllStores,
   searchStores,
@@ -219,46 +217,6 @@ describe('Business Service Unit Tests', () => {
     });
   });
 
-  // ── switchBusiness ────────────────────────────────────────────────
-  describe('switchBusiness', () => {
-    test('test_switchBusiness_validId_storesTokenAndBusinessIdAndReturnsData', async () => {
-      // Arrange
-      const mockData = { success: true, token: 'new-biz-token' };
-      (api.post as jest.Mock).mockResolvedValueOnce({ data: mockData });
-
-      // Act
-      const result = await switchBusiness('biz-99');
-
-      // Assert
-      expect(api.post).toHaveBeenCalledWith('/business/switch', { businessId: 'biz-99' });
-      expect(secureStorage.setItem).toHaveBeenCalledWith('businessToken', 'new-biz-token');
-      expect(storage.setItem).toHaveBeenCalledWith('currentBusinessId', 'biz-99');
-      expect(result).toEqual(mockData);
-    });
-
-    test('test_switchBusiness_noTokenInResponse_onlyStoresBusinessId', async () => {
-      // Arrange
-      (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
-
-      // Act
-      await switchBusiness('biz-100');
-
-      // Assert
-      expect(secureStorage.setItem).not.toHaveBeenCalled();
-      expect(storage.setItem).toHaveBeenCalledWith('currentBusinessId', 'biz-100');
-    });
-
-    test('test_switchBusiness_apiResponseError_throwsServerErrorMessage', async () => {
-      // Arrange
-      (api.post as jest.Mock).mockRejectedValueOnce({
-        response: { data: { error: 'Business not found' }, status: 404 },
-      });
-
-      // Act & Assert
-      await expect(switchBusiness('ghost-biz')).rejects.toThrow('Business not found');
-    });
-  });
-
   // ── updateBusiness ────────────────────────────────────────────────
   describe('updateBusiness', () => {
     test('test_updateBusiness_plainTextData_callsPutEndpointWithData', async () => {
@@ -339,55 +297,6 @@ describe('Business Service Unit Tests', () => {
     });
   });
 
-  // ── loginBusiness ─────────────────────────────────────────────────
-  describe('loginBusiness', () => {
-    test('test_loginBusiness_validCredentials_storesAllTokensAndRoleAndReturnsData', async () => {
-      // Arrange
-      const mockData = {
-        success: true,
-        token: 'biz-login-token',
-        business: { _id: 'biz-42', name: 'My Biz' },
-      };
-      (api.post as jest.Mock).mockResolvedValueOnce({ data: mockData });
-
-      // Act
-      const result = await loginBusiness('biz@test.com', 'pass123', 5.6, -0.2);
-
-      // Assert
-      expect(api.post).toHaveBeenCalledWith('/business/login', {
-        email: 'biz@test.com',
-        password: 'pass123',
-        latitude: 5.6,
-        longitude: -0.2,
-      });
-      expect(secureStorage.setItem).toHaveBeenCalledWith('businessToken', 'biz-login-token');
-      expect(secureStorage.setItem).toHaveBeenCalledWith('userToken', 'biz-login-token');
-      expect(storage.setItem).toHaveBeenCalledWith('currentBusinessId', 'biz-42');
-      expect(storage.setItem).toHaveBeenCalledWith('userRole', 'seller');
-      expect(result).toEqual(mockData);
-    });
-
-    test('test_loginBusiness_responseWithoutToken_doesNotStoreToken', async () => {
-      // Arrange
-      (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
-
-      // Act
-      await loginBusiness('biz@test.com', 'pass123', 0, 0);
-
-      // Assert
-      expect(secureStorage.setItem).not.toHaveBeenCalled();
-    });
-
-    test('test_loginBusiness_invalidCredentials_throwsServerErrorMessage', async () => {
-      // Arrange
-      (api.post as jest.Mock).mockRejectedValueOnce({
-        response: { data: { error: 'Business login failed' }, status: 401 },
-      });
-
-      // Act & Assert
-      await expect(loginBusiness('bad@test.com', 'wrong', 0, 0)).rejects.toThrow('Business login failed');
-    });
-  });
 
   // ── getBusinessById ───────────────────────────────────────────────
   describe('getBusinessById', () => {

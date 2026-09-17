@@ -59,8 +59,8 @@ import {
   loginUser,
   logoutUser,
   getUserData,
-  requestPasswordReset,
-  confirmResetPassword,
+  requestPasswordResetOTP,
+  resetPasswordWithToken,
   updateProfile,
   updateUserRole,
   updateOnboardingState,
@@ -162,50 +162,50 @@ describe('Auth Service Unit Tests', () => {
     await expect(loginUser('bad@test.com', 'wrong', 0, 0)).rejects.toThrow('Invalid credentials');
   });
 
-  // ── requestPasswordReset ──────────────────────────────────────────
-  test('test_requestPasswordReset_validEmail_callsResetEndpointAndReturnsSuccess', async () => {
+  // ── requestPasswordResetOTP ──────────────────────────────────────────
+  test('test_requestPasswordResetOTP_validEmail_callsForgotPasswordEndpointAndReturnsSuccess', async () => {
     // Arrange
-    (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true, message: 'Recovery email sent' } });
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true, maskedTarget: 'u***@test.com', message: 'OTP sent' } });
 
     // Act
-    const result = await requestPasswordReset('user@test.com');
+    const result = await requestPasswordResetOTP('user@test.com', 'email');
 
     // Assert
-    expect(api.post).toHaveBeenCalledWith('/auth/reset-password', { email: 'user@test.com' });
+    expect(api.post).toHaveBeenCalledWith('/auth/forgot-password', { email: 'user@test.com', method: 'email' });
     expect(result.success).toBe(true);
   });
 
-  test('test_requestPasswordReset_nonExistentEmail_throwsRecoveryError', async () => {
+  test('test_requestPasswordResetOTP_nonExistentEmail_throwsRecoveryError', async () => {
     // Arrange
     const apiError = { message: 'User not found', response: { data: { error: 'User not found' }, status: 400 } };
     (api.post as jest.Mock).mockRejectedValueOnce(apiError);
 
     // Act & Assert
-    await expect(requestPasswordReset('ghost@test.com')).rejects.toThrow('User not found');
+    await expect(requestPasswordResetOTP('ghost@test.com', 'email')).rejects.toThrow('User not found');
   });
 
-  // ── confirmResetPassword ──────────────────────────────────────────
-  test('test_confirmResetPassword_validTokenAndPassword_callsConfirmEndpointSuccessfully', async () => {
+  // ── resetPasswordWithToken ──────────────────────────────────────────
+  test('test_resetPasswordWithToken_validTokenAndPassword_callsResetEndpointSuccessfully', async () => {
     // Arrange
     (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
 
     // Act
-    await confirmResetPassword('reset-token-123', 'NewPass123!');
+    await resetPasswordWithToken('reset-token-123', 'NewPass123!');
 
     // Assert
-    expect(api.post).toHaveBeenCalledWith('/auth/reset-password/confirm', {
-      token: 'reset-token-123',
+    expect(api.post).toHaveBeenCalledWith('/auth/forgot-password/reset', {
+      resetToken: 'reset-token-123',
       newPassword: 'NewPass123!',
     });
   });
 
-  test('test_confirmResetPassword_expiredToken_throwsExpirationError', async () => {
+  test('test_resetPasswordWithToken_expiredToken_throwsExpirationError', async () => {
     // Arrange
     const apiError = { message: 'Invalid token', response: { data: { error: 'Invalid or expired reset token' }, status: 400 } };
     (api.post as jest.Mock).mockRejectedValueOnce(apiError);
 
     // Act & Assert
-    await expect(confirmResetPassword('bad-token', 'NewPass')).rejects.toThrow('Invalid or expired reset token');
+    await expect(resetPasswordWithToken('bad-token', 'NewPass')).rejects.toThrow('Invalid or expired reset token');
   });
 
   // ── updateProfile ─────────────────────────────────────────────────

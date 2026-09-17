@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  DimensionValue,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -198,7 +199,7 @@ export default function OrderTrackingMap() {
   const isDelivered = DELIVERED_STATUSES.includes(orderStatus ?? '') || DELIVERED_STATUSES.includes(deliveryStatus ?? '');
 
   let statusTitle: string;
-  let progressFillWidth: string;
+  let progressFillWidth: DimensionValue;
   if (isDelivered) {
     statusTitle = 'Order Delivered';
     progressFillWidth = '100%';

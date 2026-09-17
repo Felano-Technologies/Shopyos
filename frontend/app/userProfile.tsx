@@ -195,7 +195,7 @@ export default function UserProfile() {
 
         {/* Profile Options */}
         <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
-          <TouchableOpacity accessibilityLabel="View my orders" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/orders')}>
+          <TouchableOpacity accessibilityLabel="View my orders" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/order')}>
             <Ionicons
               name="receipt-outline"
               size={20}
@@ -211,7 +211,7 @@ export default function UserProfile() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity accessibilityLabel="View wishlist" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/wishlist')}>
+          <TouchableOpacity accessibilityLabel="View wishlist" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/favorites')}>
             <Ionicons
               name="heart-outline"
               size={20}
@@ -227,7 +227,7 @@ export default function UserProfile() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity accessibilityLabel="Manage addresses" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/addresses')}>
+          <TouchableOpacity accessibilityLabel="Manage addresses" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/settings/Account')}>
             <Ionicons
               name="location-outline"
               size={20}

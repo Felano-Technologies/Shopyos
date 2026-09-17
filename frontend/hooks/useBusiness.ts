@@ -165,7 +165,7 @@ export const useUpdateBusiness = () => {
 
 export const useActiveBusiness = () => {
   const queryClient = useQueryClient();
-  const { data: businessesData, isLoading, refetch } = useMyBusinesses();
+  const { data: businessesData, isLoading, isRefetching, refetch } = useMyBusinesses();
   const businesses = businessesData?.businesses || [];
   
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
@@ -207,6 +207,7 @@ export const useActiveBusiness = () => {
     activeBusiness,
     businesses,
     isLoading,
+    isRefetching,
     refetch,
     selectBusiness,
   };

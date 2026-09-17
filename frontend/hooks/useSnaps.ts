@@ -12,7 +12,7 @@ export const useSnapFeed = () => {
   });
 };
 
-export const useMySnaps = (status?: string) => {
+export const useMySnaps = (status?: 'active' | 'expired' | 'all') => {
   return useQuery({
     queryKey: queryKeys.snaps.mySnaps(status),
     queryFn: () => getMySnaps(status),

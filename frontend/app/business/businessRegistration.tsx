@@ -75,11 +75,13 @@ const CITIES = [
 // --- REUSABLE FIELD COMPONENT ---
 function renderFieldIcon(icon: string, library: string, color: string) {
   const size = 20;
-  if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={size} color={color} />;
-  if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={16} color={color} />;
-  if (library === "FontAwesome") return <FontAwesome name={icon} size={18} color={color} />;
-  if (library === "Feather") return <Feather name={icon} size={size} color={color} />;
-  return <Ionicons name={icon} size={size} color={color} />;
+  // Icon name and library both come from data, not a static literal, so each
+  // library's own narrow `name` union can't be checked at compile time here.
+  if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon as any} size={size} color={color} />;
+  if (library === "FontAwesome5") return <FontAwesome5 name={icon as any} size={16} color={color} />;
+  if (library === "FontAwesome") return <FontAwesome name={icon as any} size={18} color={color} />;
+  if (library === "Feather") return <Feather name={icon as any} size={size} color={color} />;
+  return <Ionicons name={icon as any} size={size} color={color} />;
 }
 
 function getFieldDisplayValue(value: any, placeholder: string, isUpload: boolean, isMap: boolean, isDropdown: boolean): string {

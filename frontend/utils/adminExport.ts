@@ -52,7 +52,7 @@ export async function exportAdminData(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
+  const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Sharing = require('expo-sharing') as typeof import('expo-sharing');
 

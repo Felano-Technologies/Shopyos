@@ -9,13 +9,13 @@ const STORAGE_KEY = 'themePreference';
 
 type ThemeStore = {
   preference: ThemePreference;
-  systemScheme: ColorSchemeName;
+  systemScheme: ColorSchemeName | null | undefined;
   resolvedTheme: 'light' | 'dark';
   hydrated: boolean;
   setPreference: (pref: ThemePreference) => Promise<void>;
 };
 
-const resolve = (preference: ThemePreference, systemScheme: ColorSchemeName): 'light' | 'dark' =>
+const resolve = (preference: ThemePreference, systemScheme: ColorSchemeName | null | undefined): 'light' | 'dark' =>
   preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
 
 const isThemePreference = (value: unknown): value is ThemePreference =>

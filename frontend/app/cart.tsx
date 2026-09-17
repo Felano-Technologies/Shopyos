@@ -40,7 +40,7 @@ type CartItem = {
 type CartItemRowProps = {
   item: CartItem;
   index: number;
-  refQty: React.RefObject<View>;
+  refQty: React.RefObject<View | null>;
   measureElement: (ref: any, key: string) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
