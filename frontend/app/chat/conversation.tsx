@@ -89,6 +89,17 @@ function buildMetaPaddingStyle(hasMedia: boolean) {
   };
 }
 
+function replyPreviewLabelStatic(msg: { content: string; message_type?: string }): string {
+  switch (msg.message_type) {
+    case 'image': return '📷 Photo';
+    case 'video': return '🎥 Video';
+    case 'voice': return '🎤 Voice message';
+    case 'sticker': return '💌 Sticker';
+    case 'call': return '📞 Call';
+    default: return msg.content;
+  }
+}
+
 function renderReplyPreviewStatic(
   item: MessageItem,
   isMe: boolean,
@@ -104,8 +115,8 @@ function renderReplyPreviewStatic(
     <View style={[styles.bubbleReplyPreview, isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem]}>
       <View style={[styles.bubbleReplyAccent, isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem]} />
       <View style={styles.bubbleReplyBody}>
-        <Text style={[styles.bubbleReplyLabel, isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem]}>{senderName}</Text>
-        <Text style={[styles.bubbleReplyText, isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem]} numberOfLines={1}>{replyMsg.content}</Text>
+        <Text style={[styles.bubbleReplyLabel, isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem]} numberOfLines={1}>{senderName}</Text>
+        <Text style={[styles.bubbleReplyText, isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem]} numberOfLines={1}>{replyPreviewLabelStatic(replyMsg)}</Text>
       </View>
     </View>
   );
@@ -215,6 +226,8 @@ type MessageItem = {
     id: string;
     content: string;
     sender_id: string;
+    message_type?: string;
+    attachment_url?: string;
     sender?: {
       id: string;
       user_profiles?: { full_name?: string } | null;
@@ -1104,8 +1117,8 @@ export default function ConversationScreen() {
             >
               <View style={styles.replyAccent} />
               <View style={styles.replyBody}>
-                <Text style={styles.replyLabel}>{replyLabelText}</Text>
-                <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
+                <Text style={styles.replyLabel} numberOfLines={1}>{replyLabelText}</Text>
+                <Text style={styles.replyText} numberOfLines={1}>{replyTo && replyPreviewLabelStatic(replyTo)}</Text>
               </View>
               <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyClose}>
                 <Ionicons name="close" size={16} color={C.mutedText} />
@@ -1490,13 +1503,13 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     shadowColor: '#94a3b8', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8,
     borderWidth: 1, borderColor: C.borderLight,
   },
-  bubbleReplyPreview: { flexDirection: 'row', borderRadius: 10, overflow: 'hidden', marginBottom: 8, maxWidth: '100%' },
+  bubbleReplyPreview: { flexDirection: 'row', borderRadius: 10, overflow: 'hidden', marginBottom: 8, maxWidth: '100%', minWidth: 150 },
   bubbleReplyMe: { backgroundColor: 'rgba(255,255,255,0.14)' },
   bubbleReplyThem: { backgroundColor: C.borderLight, borderWidth: 1, borderColor: C.borderCard },
   bubbleReplyAccent: { width: 4 },
   bubbleReplyAccentMe: { backgroundColor: 'rgba(255,255,255,0.8)' },
   bubbleReplyAccentThem: { backgroundColor: C.navyDeep },
-  bubbleReplyBody: { flex: 1, paddingVertical: 6, paddingHorizontal: 10 },
+  bubbleReplyBody: { flex: 1, minWidth: 0, paddingVertical: 6, paddingHorizontal: 10 },
   bubbleReplyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', marginBottom: 2 },
   bubbleReplyLabelMe: { color: 'rgba(255,255,255,0.9)' },
   bubbleReplyLabelThem: { color: C.navyDeep },

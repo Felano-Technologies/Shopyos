@@ -20,6 +20,7 @@ const {
 } = require('../config/auth');
 const ApiResponse = require('../utils/apiResponse');
 const { renderGenericEmail } = require('../templates');
+const { verifyAppleIdToken } = require('../utils/appleAuth');
 
 // Grace period between a deletion request and permanent removal
 const DELETION_GRACE_DAYS = 7;
@@ -1207,6 +1208,127 @@ const googleAuth = async (req, res, next) => {
   }
 };
 
+const appleAuth = async (req, res, next) => {
+  const { idToken, referralCode, fullName } = req.body;
+  if (!idToken) return ApiResponse.error(res, 'idToken is required', 400);
+
+  try {
+    // Apple Sign-In only ever runs as a native flow (no web/Android client
+    // variant like Google's), so the audience is just the app's bundle ID —
+    // hardcoded fallback keeps this working even if the env var is never
+    // set, unlike the Google client IDs which had exactly that gap.
+    const validAudiences = [
+      process.env.APPLE_BUNDLE_ID,
+      'com.eugeneanokye99.shopyos',
+    ].filter(Boolean);
+
+    let tokenPayload;
+    try {
+      tokenPayload = await verifyAppleIdToken(idToken, validAudiences);
+    } catch (err) {
+      logger.warn('Apple token verification failed', { error: err.message });
+      return ApiResponse.error(res, 'Invalid Apple token', 401);
+    }
+
+    const { sub: appleId, email } = tokenPayload;
+    // Apple only sends the user's name on the FIRST authorization, as a
+    // separate field from the client (never inside the identity token) —
+    // absent on every subsequent sign-in.
+    const name = fullName?.givenName || fullName?.familyName
+      ? [fullName.givenName, fullName.familyName].filter(Boolean).join(' ')
+      : '';
+
+    let user = await repositories.users.findByAppleId(appleId);
+    let isNewUser = false;
+
+    if (!user) {
+      const existing = email ? await repositories.users.findByEmail(email) : null;
+      if (existing) {
+        await repositories.users.linkAppleAccount(existing.id, appleId);
+        user = { ...existing, apple_id: appleId };
+      } else {
+        if (!email) {
+          return ApiResponse.error(res, 'Could not read an email address from Apple — please try again.', 400);
+        }
+
+        let referrerId = null;
+        if (referralCode?.trim()) {
+          referrerId = await resolveReferrerId(referralCode);
+          if (!referrerId) {
+            return ApiResponse.error(res, 'Invalid referral code. Check it or leave the field empty.', 400);
+          }
+        }
+
+        isNewUser = true;
+        user = await repositories.users.createAppleOAuthUser({ email, appleId });
+        await repositories.userProfiles.updateByUserId(user.id, {
+          full_name: name,
+          referral_code: 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+          ...(referrerId && { referred_by_id: referrerId }),
+        });
+
+        if (referrerId) {
+          await recordReferralSignup(referrerId, user.id, name);
+        }
+      }
+    }
+
+    // Lazy backfill: Apple accounts created before referral support have no code
+    if (!isNewUser) {
+      const profile = await repositories.userProfiles.findByUserId(user.id);
+      if (profile && !profile.referral_code) {
+        await repositories.userProfiles.updateByUserId(user.id, {
+          referral_code: 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+        });
+      }
+      // The name is only ever available on the first authorization — if
+      // Apple sent one this time (rare, but possible on re-consent) and we
+      // don't have one on file yet, backfill it.
+      if (name && profile && !profile.full_name) {
+        await repositories.userProfiles.updateByUserId(user.id, { full_name: name });
+      }
+    }
+
+    if (!user.is_active) {
+      return ApiResponse.error(res, 'Account is deactivated', 403);
+    }
+
+    if (user.deletion_requested_at) {
+      const deleteOn = new Date(new Date(user.deletion_requested_at).getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+      return ApiResponse.error(
+        res,
+        `This account is scheduled for deletion on ${deleteOn.toDateString()}. Contact support if you want to cancel the request.`,
+        403
+      );
+    }
+
+    await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
+
+    const userRoles = await repositories.roles.getUserRoles(user.id);
+    const hasRole = userRoles.length > 0;
+    const roleNames = userRoles.map(r => r?.role?.name).filter(Boolean);
+    const role = roleNames.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0] || 'none';
+
+    const accessToken = generateAccessToken(user.id);
+    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    _sendLoginAlert(user, req);
+    logger.info('Apple OAuth login', { userId: user.id });
+
+    ApiResponse.success(res, {
+      token: accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+      role,
+      roles: roleNames,
+      requiresRoleSelection: !hasRole
+    }, 'Login successful');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── Security & privacy settings ─────────────────────────────────────────────
 
 // GET /api/v1/auth/security-settings
@@ -1379,6 +1501,7 @@ module.exports = {
   resetPassword, confirmResetPassword, forceResetPassword,
   addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState,
   googleAuth,
+  appleAuth,
   verifyTwoFactor, getSecuritySettings, updateSecuritySettings, requestDataExport, requestAccountDeletion,
   getThemePreference, updateThemePreference,
   verifySignupOtp, resendSignupOtp,

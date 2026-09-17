@@ -37,6 +37,8 @@ class MessageRepository extends BaseRepository {
           id,
           content,
           sender_id,
+          message_type,
+          attachment_url,
           sender:sender_id (
             id,
             user_profiles (full_name)
@@ -70,6 +72,8 @@ class MessageRepository extends BaseRepository {
           id,
           content,
           sender_id,
+          message_type,
+          attachment_url,
           sender:sender_id (
             id,
             user_profiles (full_name)

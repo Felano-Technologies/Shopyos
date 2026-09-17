@@ -111,7 +111,7 @@ export default function ActiveSessionsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.primary} />
+      <StatusBar style="light" />
       <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: colors.primary }}>
         <LinearGradient colors={colors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>

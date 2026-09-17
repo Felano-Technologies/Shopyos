@@ -221,7 +221,7 @@ export default function PaymentMethodsScreen() {
   );
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={themeColors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
       {/* --- Add Method Modal --- */}
       <Modal

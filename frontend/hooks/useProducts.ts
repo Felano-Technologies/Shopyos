@@ -9,14 +9,13 @@
 import { useQuery, useInfiniteQuery, keepPreviousData, UseQueryOptions } from '@tanstack/react-query';
 import { productsApi, Product } from '../lib/query/api';
 import { queryKeys, ProductFilters } from '../lib/query/keys';
-import { useAuthStore } from '../store/authStore';
 
+// Product search/listing is a public content read (guests browse freely) —
+// do not gate these on auth.
 export const useProducts = (filters?: ProductFilters, limit = 20, options?: Partial<UseQueryOptions<any>>) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.products.list(filters),
     queryFn: () => productsApi.search(undefined, filters, limit, 0),
-    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -25,7 +24,6 @@ export const useProducts = (filters?: ProductFilters, limit = 20, options?: Part
 };
 
 export const useInfiniteProducts = (filters?: ProductFilters, limit = 20, query?: string) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useInfiniteQuery({
     queryKey: queryKeys.products.infinite(filters, query),
     queryFn: ({ pageParam = 0 }) =>
@@ -37,7 +35,6 @@ export const useInfiniteProducts = (filters?: ProductFilters, limit = 20, query?
       return allPages.length * limit;
     },
     initialPageParam: 0,
-    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,

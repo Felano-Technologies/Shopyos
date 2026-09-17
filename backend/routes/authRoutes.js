@@ -112,6 +112,7 @@ router.post('/login', validateLogin, authController.login);
 router.post('/refresh', authController.refreshAccessToken); // NEW: Token refresh
 
 router.post('/google', authController.googleAuth);
+router.post('/apple', authController.appleAuth);
 
 router.post('/2fa/verify', authController.verifyTwoFactor);
 

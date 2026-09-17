@@ -23,6 +23,8 @@ import { getUserData, getNotificationPreferences, updateNotificationPreferences,
 import { cacheUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useAuthStore } from '@/store/authStore';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 
@@ -55,6 +57,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [username, setUsername] = useState('User');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
+        if (!isAuthenticated) { setIsLoading(false); return; }
         setIsLoading(true);
         try {
           const userData = await getUserData();
@@ -154,7 +158,7 @@ export default function SettingsScreen() {
         }
       };
       fetchUserData();
-    }, [])
+    }, [isAuthenticated])
   );
   const handleNotificationToggle = async (value: boolean) => {
     setNotificationsEnabled(value);
@@ -248,6 +252,14 @@ export default function SettingsScreen() {
       )}
     </TouchableOpacity>
   );
+  if (!isLoading && !isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.primary} />
+        <SignInPrompt redirect="/settings" message="Sign in to manage your account, notifications, and more." />
+      </View>
+    );
+  }
   return (
     <View style={styles.container}>
       <StatusBar barStyle={colors.statusBarStyle} backgroundColor={colors.primary} />

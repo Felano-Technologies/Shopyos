@@ -86,7 +86,14 @@ async function applyBiometricGate(route: string): Promise<string> {
 async function authCheckPromise(): Promise<string> {
   try {
     const token = await secureStorage.getItem('userToken');
-    if (!token) return Platform.OS === 'web' ? '/admin-login' : '/getstarted';
+    if (!token) {
+      if (Platform.OS === 'web') return '/admin-login';
+      // Guests can browse without an account (Apple 5.1.1(v)) — once they've
+      // seen the getstarted screen once (any path off it, including signing
+      // up), skip straight to the home feed on future cold starts.
+      const seenGetStarted = await storage.getItem('hasBrowsedAsGuest');
+      return seenGetStarted === 'true' ? '/home' : '/getstarted';
+    }
     const cached = await getCachedUserProfile();
     if (cached && routeForUser(cached) !== '/role') {
       // Fire-and-forget background refresh — a 401 here shouldn't yank the
@@ -231,7 +238,7 @@ const IndexScreen = () => {
           imageStyle={styles.backgroundImageStyle}
         >
           <View style={styles.overlay} />
-          <StatusBar style="light" translucent backgroundColor="transparent" />
+          <StatusBar style="light" />
           <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
             {/* Centered logo */}
             <View style={styles.logoAbsoluteContainer}>

@@ -79,6 +79,54 @@ export const signInWithGoogle = async (idToken: string, referralCode?: string) =
   }
 };
 
+export const signInWithApple = async (
+  idToken: string,
+  fullName?: { givenName?: string | null; familyName?: string | null } | null,
+  referralCode?: string
+) => {
+  try {
+    const response = await api.post('/auth/apple', {
+      idToken,
+      // Apple only ever includes this on the FIRST authorization — omit
+      // entirely on subsequent sign-ins rather than sending nulls.
+      ...(fullName && (fullName.givenName || fullName.familyName) && { fullName }),
+      ...(referralCode?.trim() && { referralCode: referralCode.trim() }),
+    });
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
+      try {
+        const meResponse = await api.get('/auth/me');
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
+          const { initCartForUser } = require('@/store/cartStore');
+          await initCartForUser(me.id);
+        }
+        await cacheUserProfile(me);
+      } catch (e) {
+        console.warn('Failed to sync profile after apple sign-in:', e);
+      }
+      try {
+        const pushToken = await storage.getItem('expoPushToken');
+        if (pushToken) await registerPushTokenInBackend(pushToken);
+      } catch (e) {
+        console.warn('Failed to register push token after apple sign-in:', e);
+      }
+    }
+    const needsRole =
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Apple sign-in failed: ${error.response.status}`);
+    throw new Error(error.message || 'Network error during Apple sign-in');
+  }
+};
+
 export const registerUser = async (
   name: string,
   email: string,

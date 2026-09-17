@@ -337,7 +337,7 @@ export default function AccountScreen() {
   };
   return (
     <View style={styles.mainContainer}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

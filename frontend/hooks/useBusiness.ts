@@ -47,7 +47,7 @@ export const useStoreOrders = (
 ) => {
   return useQuery({
     queryKey: queryKeys.business.orders(storeId, params?.status),
-    queryFn: () => ApiService.getStoreOrders(storeId, params?.status),
+    queryFn: () => ApiService.getStoreOrders(storeId, params),
     enabled: !!storeId,
     refetchOnMount: true,
     staleTime: 2 * 60 * 1000,

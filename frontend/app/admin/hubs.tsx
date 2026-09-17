@@ -227,7 +227,7 @@ export default function AdminHubsScreen() {
   if (loading) {
     return (
       <View style={S.container}>
-        <StatusBar style="light" backgroundColor="#0C1559" />
+        <StatusBar style="light" />
         <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
           {headerBlock}
         </SafeAreaView>
@@ -241,7 +241,7 @@ export default function AdminHubsScreen() {
 
   return (
     <View style={S.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+      <StatusBar style="light" />
       <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
         {headerBlock}
       </SafeAreaView>

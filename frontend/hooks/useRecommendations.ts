@@ -5,6 +5,7 @@ import {
   getPersonalizedRecommendations,
   getTrendingRecommendations,
 } from '../services/recommendations';
+import { useAuthStore } from '../store/authStore';
 
 export const useSimilarProducts = (productId: string) =>
   useQuery({
@@ -15,13 +16,17 @@ export const useSimilarProducts = (productId: string) =>
     gcTime: 30 * 60 * 1000,
   });
 
-export const usePersonalizedRecommendations = () =>
-  useQuery({
+export const usePersonalizedRecommendations = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return useQuery({
     queryKey: queryKeys.recommendations.personalized(),
-    queryFn: getPersonalizedRecommendations,
+    queryFn: () => getPersonalizedRecommendations(),
+    // Account-only endpoint — guests fall back to trending (see RecommendedSection).
+    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
+};
 
 export const useTrendingRecommendations = (category?: string) =>
   useQuery({

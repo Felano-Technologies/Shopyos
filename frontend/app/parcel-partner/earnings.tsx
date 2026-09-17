@@ -214,7 +214,7 @@ export default function ParcelPartnerEarningsScreen() {
   if (!selectedHub) {
     return (
       <View style={styles.container}>
-        <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+        <StatusBar style="light" />
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
@@ -238,7 +238,7 @@ export default function ParcelPartnerEarningsScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.header}>

@@ -286,7 +286,7 @@ export default function TransitTrackerScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <StatusBar style="light" />
       <LinearGradient colors={themeColors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.header}>

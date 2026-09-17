@@ -17,6 +17,8 @@ import * as Clipboard from 'expo-clipboard';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useAuthStore } from '@/store/authStore';
 import TappableAvatar from '@/components/TappableAvatar';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useThemeStore } from '@/store/themeStore';
@@ -37,6 +39,7 @@ export default function UserProfile() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const bgColor = colors.background;
   const cardBg = colors.surface;
@@ -60,10 +63,8 @@ export default function UserProfile() {
   };
 
   const fetchUserDetails = useCallback(async () => {
+    if (!isAuthenticated) { setLoading(false); return; }
     try {
-      const token = await storage.getItem('userId');
-      if (!token) throw new Error('No auth token found');
-
       const response = await getUserData();
       console.log('Fetched user details:', response);
 
@@ -80,7 +81,7 @@ export default function UserProfile() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -109,7 +110,7 @@ export default function UserProfile() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={highlightColor} />
         </View>
@@ -120,19 +121,23 @@ export default function UserProfile() {
   if (!user) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
-        <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: primaryText }]}>
-            Failed to load user information.
-          </Text>
-        </View>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        {!isAuthenticated ? (
+          <SignInPrompt redirect="/userProfile" message="Sign in to view your profile." />
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { color: primaryText }]}>
+              Failed to load user information.
+            </Text>
+          </View>
+        )}
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: primaryText }]}>Profile</Text>

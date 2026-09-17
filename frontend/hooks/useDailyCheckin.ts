@@ -8,9 +8,11 @@ const CHECKIN_KEY = 'lastDailyCheckin';
 /**
  * Fires the daily check-in once per calendar day when mounted (buyer home).
  * Awards loyalty points server-side; shows a toast only when points were earned.
+ * Pass `enabled: false` for guests — this is an account/loyalty feature.
  */
-export const useDailyCheckin = () => {
+export const useDailyCheckin = (enabled: boolean = true) => {
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     const run = async () => {
@@ -41,5 +43,5 @@ export const useDailyCheckin = () => {
 
     run();
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 };

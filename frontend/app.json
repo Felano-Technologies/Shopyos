@@ -28,6 +28,7 @@
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
+      "usesAppleSignIn": true,
       "bitcode": false
     },
     "android": {

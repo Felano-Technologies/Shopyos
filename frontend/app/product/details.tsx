@@ -45,6 +45,7 @@ import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { SimilarProductsRow } from '../../components/product/SimilarProductsRow';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 const { width, height } = Dimensions.get('window');
@@ -156,6 +157,7 @@ export default function ProductDetails() {
     const C = useMemo(() => buildC(themeColors), [themeColors]);
     const styles = useMemo(() => getStyles(C), [C]);
     const addToCart = useCart((s) => s.addToCart);
+    const { requireAuth } = useRequireAuth();
     const [isLiked, setIsLiked] = useState(false);
     const [successModalVisible, setSuccessModalVisible] = useState(false);
     // --- Review States ---
@@ -316,7 +318,7 @@ export default function ProductDetails() {
         } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
         finally { setCommentSubmitting(false); }
     };
-    const toggleFavorite = async () => {
+    const toggleFavorite = () => requireAuth(async () => {
         // Flip immediately so the heart responds to the tap right away, and
         // roll back if the request actually fails.
         const wasLiked = isLiked;
@@ -337,8 +339,8 @@ export default function ProductDetails() {
             setIsLiked(wasLiked);
             CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" });
         }
-    };
-    const handleChat = async () => {
+    }, { message: 'Sign in to save favourites.' });
+    const handleChat = () => requireAuth(async () => {
         try {
             if (!product.sellerId) {
                 CustomInAppToast.show({ type: 'error', title: 'Error', message: "Seller information not available" });
@@ -359,7 +361,7 @@ export default function ProductDetails() {
                 });
             }
         } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to start chat with seller" }); }
-    };
+    }, { message: 'Sign in to chat with the seller.' });
     const handleAttributeSelect = (optionName: string, value: string) => {
         const next = { ...selectedAttributes, [optionName]: value };
         setSelectedAttributes(next);
@@ -624,7 +626,7 @@ export default function ProductDetails() {
                         <View style={styles.reviewsSection}>
                             <View style={styles.sectionHeaderRow}>
                                 <Text style={styles.sectionTitle}>Community Reviews</Text>
-                                <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" onPress={() => router.push(`/review/product/${product.id}` as any)}>
+                                <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" onPress={() => requireAuth(() => router.push(`/review/product/${product.id}` as any), { redirect: `/review/product/${product.id}` })}>
                                     <Text style={styles.writeReviewText}>Write a Review</Text>
                                 </TouchableOpacity>
                             </View>

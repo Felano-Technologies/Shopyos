@@ -361,7 +361,7 @@ const getMyBusinesses = async (req, res, next) => {
 const getBusinessById = async (req, res, next) => {
   try {
     const businessId = req.params.id;
-    const userId = req.user.id;
+    const userId = req.user?.id || null;
 
     const store = await repositories.stores.findById(businessId);
 
@@ -407,7 +407,7 @@ const getBusinessById = async (req, res, next) => {
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
       updatedAt: store.updated_at,
-      isFollowing: await repositories.stores.isFollowing(userId, businessId),
+      isFollowing: userId ? await repositories.stores.isFollowing(userId, businessId) : false,
       followersCount: await repositories.stores.db
         .from('store_follows')
         .select('*', { count: 'exact', head: true })

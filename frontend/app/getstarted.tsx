@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
+import { storage } from '@/services/api';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ThemeColors } from '@/constants/Colors';
 const { width } = Dimensions.get('window');
@@ -23,6 +24,11 @@ const GetStartedScreen = () => {
     require('../assets/images/slide2.jpg'),
     require('../assets/images/slide3.jpg'),
   ];
+  useEffect(() => {
+    // Seen once — subsequent cold starts with no session skip straight to
+    // guest browsing on /home instead of showing this screen again.
+    storage.setItem('hasBrowsedAsGuest', 'true');
+  }, []);
   useEffect(() => {
     let currentIndex = 0;
     const timer = setInterval(() => {
@@ -39,7 +45,7 @@ const GetStartedScreen = () => {
   return (
     
     <View style={styles.container}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       {/* Welcome Text */}
       <Text style={styles.title}>Welcome to Shopyos</Text>
       {/* Carousel Section */}
@@ -78,6 +84,14 @@ const GetStartedScreen = () => {
           onPress={() => router.push('/login')}
         >
           <Text style={styles.loginText}>Already have an account? Login</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityLabel="Continue browsing without an account"
+          accessibilityRole="button"
+          style={styles.guestLink}
+          onPress={() => router.replace('/home' as any)}
+        >
+          <Text style={styles.guestText}>Continue browsing without an account</Text>
         </TouchableOpacity>
       </View>
       {/* Bottom Logo */}
@@ -162,6 +176,17 @@ const getStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.primaryMid,
     fontSize: 16,
     fontWeight: '600',
+  },
+  guestLink: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 2,
+  },
+  guestText: {
+    color: c.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   bottomLogoContainer: {
     flexDirection: 'row',

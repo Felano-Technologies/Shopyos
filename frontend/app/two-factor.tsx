@@ -101,7 +101,7 @@ export default function TwoFactorScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={C.headerBg} />
+      <StatusBar style="light" />
       <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: C.headerBg }}>
         <LinearGradient colors={themeColors.headerGradient} style={styles.header}>
           <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backBtn}>

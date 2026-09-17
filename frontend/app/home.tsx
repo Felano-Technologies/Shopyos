@@ -27,6 +27,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import WelcomeCard from '@/components/WelcomeCard';
 import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { SnapsRow } from '@/components/SnapsRow';
 // Home section components
 import { HeroCarousel, HeroAd } from '@/components/home/HeroCarousel';
@@ -99,8 +100,10 @@ export default function Home() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
 
-  // Daily check-in loyalty reward (once per calendar day)
-  useDailyCheckin();
+  const { isAuthenticated, requireAuth } = useRequireAuth();
+
+  // Daily check-in loyalty reward (once per calendar day) — account-only
+  useDailyCheckin(isAuthenticated);
 
   // ── Remote data ───────────────────────────────────────────────────────────────
   const { data: unreadCount = 0 } = useBuyerUnreadCount();
@@ -241,17 +244,19 @@ const { data: notifData } = useUnreadNotificationCount(false);
   const handleToggleFavorite = useCallback((item: any) => {
     const productId = String(item._id || item.id || '');
     if (!productId || favoriteBusyId === productId) return;
-    setFavoriteBusyId(productId);
-    const onSettled = () => setFavoriteBusyId(null);
-    if (favoriteIds.has(productId)) {
-      removeFavoriteMutation.mutate(productId, { onSettled });
-      return;
-    }
-    addFavoriteMutation.mutate(productId, {
-      onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
-      onSettled,
-    });
-  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation]);
+    requireAuth(() => {
+      setFavoriteBusyId(productId);
+      const onSettled = () => setFavoriteBusyId(null);
+      if (favoriteIds.has(productId)) {
+        removeFavoriteMutation.mutate(productId, { onSettled });
+        return;
+      }
+      addFavoriteMutation.mutate(productId, {
+        onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
+        onSettled,
+      });
+    }, { message: 'Sign in to save favourites.' });
+  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation, requireAuth]);
 
   const handleAdPress = useCallback((ad: HeroAd) => {
     recordAdClick(ad.id).catch(() => {});
@@ -656,7 +661,7 @@ const { data: notifData } = useUnreadNotificationCount(false);
           accessibilityRole="button"
           style={S.chatFab}
           activeOpacity={0.85}
-          onPress={() => router.push('/chat' as any)}
+          onPress={() => requireAuth(() => router.push('/chat' as any), { redirect: '/chat' })}
         >
           <LinearGradient colors={[C.navy, C.navyMid]} style={S.chatFabGrad}>
             <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />

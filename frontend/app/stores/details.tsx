@@ -47,6 +47,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 import { useStartCall } from '@/hooks/useStartCall';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { ThemeColors } from '@/constants/Colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 const { width } = Dimensions.get('window');
@@ -274,6 +275,7 @@ export default function StoreDetailsScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   // --- Map Picker State ---
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
+  const { requireAuth } = useRequireAuth();
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const startCall = useStartCall();
@@ -427,18 +429,18 @@ export default function StoreDetailsScreen() {
     } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
     finally { setCommentSubmitting(false); }
   };
-  const handleChat = () => startChat({
+  const handleChat = () => requireAuth(() => startChat({
     chatLoading,
     storeData,
     store: { name: store.name, logo: store.logo, id: store.id as string },
     setChatLoading,
     routerPush: router.push,
-  });
-  const handleFollow = () => toggleFollow({
+  }), { message: 'Sign in to chat with this store.' });
+  const handleFollow = () => requireAuth(() => toggleFollow({
     isFollowing,
     storeId: store.id as string,
     setIsFollowing,
-  });
+  }), { message: 'Sign in to follow this store.' });
   const handleShare = async () => {
     try {
       await Share.share({ message: `Check out ${store.name} on Shopyos!` });
@@ -569,7 +571,7 @@ export default function StoreDetailsScreen() {
                 </View>
                 <Text style={styles.totalReviews}>Based on {reviews.length} reviews</Text>
               </View>
-              <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" style={styles.writeBtn} onPress={() => setReviewModalVisible(true)}>
+              <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" style={styles.writeBtn} onPress={() => requireAuth(() => setReviewModalVisible(true), { message: 'Sign in to write a review.' })}>
                 <Text style={styles.writeBtnText}>Write Review</Text>
               </TouchableOpacity>
             </View>

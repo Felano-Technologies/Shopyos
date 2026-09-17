@@ -12,6 +12,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersApi } from '../lib/query/api';
 import { queryKeys } from '../lib/query/keys';
+import { useAuthStore } from '../store/authStore';
 import {
   createProduct,
   updateProduct,
@@ -23,12 +24,15 @@ import {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export const useOrders = (status?: string, page = 1, PAGE_SIZE = 10) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const offset = (page - 1) * PAGE_SIZE;
   return useQuery({
     // page must be part of the key — otherwise switching pages for the same
     // status reuses the page-1 cache entry instead of fetching the next one.
     queryKey: queryKeys.orders.list(status, page),
     queryFn: () => ordersApi.getAll(status, PAGE_SIZE, offset),
+    // Account-only — order.tsx shows a sign-in prompt for guests instead.
+    enabled: isAuthenticated,
     // Orders change frequently — always fetch fresh on screen mount
     refetchOnMount: true,
     // Keep stale data visible while fetching (no loading flash)

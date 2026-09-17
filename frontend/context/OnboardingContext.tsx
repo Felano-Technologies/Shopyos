@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { getUserData, updateOnboardingState, secureStorage } from '../services/api';
+import { getUserData, updateOnboardingState, secureStorage, storage } from '../services/api';
 import { cacheUserProfile, getCachedUserProfile } from '../services/storage';
 import { useAuthStore } from '../store/authStore';
+
+// Guests have no account to persist onboarding_state on server-side, so
+// completed tours are tracked locally instead — otherwise every tour would
+// either replay each session (never marked done) or 401 trying to save.
+const GUEST_ONBOARDING_KEY = 'guestOnboardingState';
 
 interface OnboardingState {
   [key: string]: boolean;
@@ -40,9 +45,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } else {
         setAuthenticated(false);
         exitBuyerMode();
-        setOnboardingState({});
         setUser(null);
-        setIsLoading(false);
+        await loadGuestOnboardingState();
       }
     };
     init();
@@ -52,6 +56,17 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // For now, we can expose a refresh method and call it after login
   const refresh = async () => {
     await loadOnboardingState();
+  };
+
+  const loadGuestOnboardingState = async () => {
+    try {
+      const raw = await storage.getItem(GUEST_ONBOARDING_KEY);
+      setOnboardingState(raw ? JSON.parse(raw) : {});
+    } catch {
+      setOnboardingState({});
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadOnboardingState = async () => {
@@ -92,15 +107,21 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const markCompleted = async (screen: string) => {
+    // Always update local state and stop the tour regardless of whether
+    // persistence succeeds — a failed save shouldn't replay the tour
+    // mid-session, and for a guest there's no server-side state to save to.
+    const next = { ...onboardingState, [screen]: true };
+    setOnboardingState(next);
+    stopTour();
     try {
-      // 1. Update DB first
-      await updateOnboardingState(screen, true);
-      // 2. Update local state
-      setOnboardingState(prev => ({ ...prev, [screen]: true }));
-      // 3. Stop UI tour
-      stopTour();
+      const token = await secureStorage.getItem('userToken');
+      if (token) {
+        await updateOnboardingState(screen, true);
+      } else {
+        await storage.setItem(GUEST_ONBOARDING_KEY, JSON.stringify(next));
+      }
     } catch (error) {
-      console.error('Failed to mark onboarding as completed:', error);
+      console.error('Failed to persist onboarding completion:', error);
     }
   };
 

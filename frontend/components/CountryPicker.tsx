@@ -13,8 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 // 1. Define the data structure
 interface Country {
-  cca2(cca2: any): unknown;
-  callingCode: any;
   name: string;
   code: string;
   dial_code: string;

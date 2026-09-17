@@ -90,7 +90,7 @@ const OtpVerificationScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}

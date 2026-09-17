@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const requireDisclaimer = require('../middleware/requireDisclaimer');
 const upload = require('../middleware/upload');
 const { cacheMiddleware, storeCacheKey, hashParams } = require('../middleware/cache');
@@ -128,7 +128,7 @@ router.get('/my-businesses', protect, getMyBusinesses);
  *       401:
  *         description: Unauthorized
  */
-router.get('/all', protect, cacheMiddleware((req) => storeCacheKey.all(req.query), 300), getAllBusinesses);
+router.get('/all', optionalAuth, cacheMiddleware((req) => storeCacheKey.all(req.query), 300), getAllBusinesses);
 
 /**
  * @swagger
@@ -153,7 +153,10 @@ router.get('/all', protect, cacheMiddleware((req) => storeCacheKey.all(req.query
  *       404:
  *         description: Business not found
  */
-router.get('/:id', protect, cacheMiddleware((req) => storeCacheKey.detail(req.params.id), 300), getBusinessById);
+// The cached response includes a per-viewer `isFollowing` flag, so only the
+// anonymous (no-user) response is safe to cache — an authenticated request
+// always bypasses the cache and gets its own accurate follow status.
+router.get('/:id', optionalAuth, cacheMiddleware((req) => req.user ? null : storeCacheKey.detail(req.params.id), 300), getBusinessById);
 
 /**
  * @swagger

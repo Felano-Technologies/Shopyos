@@ -716,6 +716,8 @@ class QueryBuilder {
           id: pm.id,
           content: pm.content,
           sender_id: pm.sender_id,
+          message_type: pm.message_type,
+          attachment_url: pm.attachment_url,
           sender: parentSenderMap[pm.sender_id] || null
         };
       });

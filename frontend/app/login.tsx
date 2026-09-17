@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, ScrollView } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
-import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/services/auth';
+import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle, signInWithApple } from '@/services/auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { resetToRoute } from '@/utils/navigation';
@@ -60,7 +61,7 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
   return { latitude: 0, longitude: 0 };
 }
 
-function navigateByRole(role: string | undefined, userObj?: any) {
+function navigateByRole(role: string | undefined, userObj?: any, redirectTo?: string) {
   const userRole = String(role || userObj?.role || userObj?.account_type || '').toLowerCase();
   const rolesArr = Array.isArray(userObj?.roles) ? userObj.roles : [];
 
@@ -74,7 +75,10 @@ function navigateByRole(role: string | undefined, userObj?: any) {
 
   console.log(`[LoginScreen] navigateByRole received role="${role}" (normalized="${userRole}")`);
   if (hasRole('customer') || hasRole('buyer')) {
-    resetToRoute('/home');
+    // A guest gate only ever sends buyer-facing screens as the redirect — a
+    // seller/driver/admin account still lands on its own dashboard below,
+    // ignoring the stale redirect.
+    resetToRoute(redirectTo || '/home');
   } else if (hasRole('seller')) {
     resetToRoute('/business/dashboard');
   } else if (hasRole('driver')) {
@@ -97,6 +101,7 @@ const DEV_ACCOUNTS = [
 ];
 
 const LoginScreen = () => {
+  const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const { refresh } = useOnboarding();
   const themeColors = useThemeColors();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
@@ -108,6 +113,14 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const googleAuthConfigured = isGoogleAuthConfigured();
   const [request, response, promptAsync] = useGoogleAuth();
+  // Native module only exists in a build that was rebuilt after adding it —
+  // guard with isAvailableAsync (per Expo's own docs) so an older dev-client
+  // build shows nothing instead of RN's "Unimplemented component" error box.
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAuthAvailable).catch(() => setAppleAuthAvailable(false));
+  }, []);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -124,7 +137,7 @@ const LoginScreen = () => {
           if (data.needsRole) {
             resetToRoute('/role');
           } else {
-            navigateByRole(data.role, data);
+            navigateByRole(data.role, data, redirect);
           }
         })
         .catch((err) => {
@@ -162,7 +175,7 @@ const LoginScreen = () => {
           resetToRoute('/role');
         } else {
           log(`Branch: navigateByRole(${response.role})`);
-          navigateByRole(response.role, response);
+          navigateByRole(response.role, response, redirect);
           log('navigateByRole() call returned — if no navigation happened, the role string did not match any known case');
         }
       } else {
@@ -216,9 +229,39 @@ const LoginScreen = () => {
     }
     promptAsync();
   };
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        CustomInAppToast.show({ type: 'error', title: 'Apple Sign-In Failed', message: 'No token received.' });
+        return;
+      }
+      const data = await signInWithApple(credential.identityToken, credential.fullName);
+      await refresh();
+      CustomInAppToast.show({ type: 'success', title: 'Welcome!', message: 'Signed in with Apple.' });
+      if (data.needsRole) {
+        resetToRoute('/role');
+      } else {
+        navigateByRole(data.role, data, redirect);
+      }
+    } catch (error: any) {
+      // ERR_REQUEST_CANCELED fires when the user dismisses the native sheet — not a real error
+      if (error.code !== 'ERR_REQUEST_CANCELED') {
+        CustomInAppToast.show({ type: 'error', title: 'Apple Sign-In Failed', message: error.message || 'Something went wrong.' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <View style={styles.container}>
-      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -314,6 +357,18 @@ const LoginScreen = () => {
               <Ionicons name="logo-google" size={18} color={C.muted} style={{ marginRight: 8 }} />
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
+            {/* Continue with Apple — iOS only, per Apple's own button design */}
+            {appleAuthAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={resolvedTheme === 'dark'
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={styles.googleButton.borderRadius as number}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+            )}
             {/* Register (outlined pill) */}
             <TouchableOpacity
               accessibilityLabel="Create a new account"
@@ -478,6 +533,11 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     color: C.body,
     fontSize: 16,
     fontWeight: '600',
+  },
+  appleButton: {
+    width: '100%',
+    height: 45,
+    marginBottom: 4,
   },
   registerButton: {
     width: '100%',

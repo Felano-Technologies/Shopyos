@@ -108,6 +108,43 @@ class UserRepository extends BaseRepository {
     return this.update(userId, { google_id: googleId, email_verified: true });
   }
 
+  async findByAppleId(appleId) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .select('*')
+      .eq('apple_id', appleId)
+      .is('deleted_at', null)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+
+    return data;
+  }
+
+  async createAppleOAuthUser({ email, appleId }) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .insert({
+        email: email.toLowerCase(),
+        password_hash: null,
+        apple_id: appleId,
+        email_verified: true,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async linkAppleAccount(userId, appleId) {
+    return this.update(userId, { apple_id: appleId, email_verified: true });
+  }
+
   /**
    * Update user password
    * @param {string} userId

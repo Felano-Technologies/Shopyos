@@ -119,7 +119,7 @@ const ProductReviewScreen = () => {
     if (loading) return <ReviewSkeleton />;
     return (
         <View style={styles.mainContainer}>
-            <StatusBar style="light" backgroundColor="#0C1559" />
+            <StatusBar style="light" />
             
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>

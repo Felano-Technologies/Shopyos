@@ -97,7 +97,7 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.primary} />
+      <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>

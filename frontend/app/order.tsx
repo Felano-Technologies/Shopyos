@@ -16,6 +16,8 @@ import { useOrders, useDeleteOrders } from '@/hooks/useOrders';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { CoachMarkSequence } from '@/components/ui/CoachMarkSequence';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { SignInPrompt } from '@/components/SignInPrompt';
+import { useAuthStore } from '@/store/authStore';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getActiveBanners, recordAdClick } from '@/services/api';
 import { HeroAd } from '@/components/home/HeroCarousel';
@@ -86,6 +88,7 @@ const OrdersScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const C = useMemo(() => ({
     bg: colors.background,
     navy: colors.primary,
@@ -437,6 +440,14 @@ const OrdersScreen = () => {
   };
 
   // ── Root ────────────────────────────────────────────────────────────────────
+  if (!isLoading && !isAuthenticated) {
+    return (
+      <View style={S.root}>
+        <StatusBar style="light" />
+        <SignInPrompt redirect="/order" message="Sign in to view your order history." />
+      </View>
+    );
+  }
   return (
     <View style={S.root}>
       <StatusBar style="light" />

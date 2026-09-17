@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
-import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/services/auth';
+import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle, signInWithApple } from '@/services/auth';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -67,6 +68,14 @@ const RegisterScreen = () => {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const googleAuthConfigured = isGoogleAuthConfigured();
   const [request, response, promptAsync] = useGoogleAuth();
+  // Native module only exists in a build that was rebuilt after adding it —
+  // guard with isAvailableAsync (per Expo's own docs) so an older dev-client
+  // build shows nothing instead of RN's "Unimplemented component" error box.
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAuthAvailable).catch(() => setAppleAuthAvailable(false));
+  }, []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
 
@@ -171,6 +180,34 @@ const RegisterScreen = () => {
       return;
     }
     promptAsync();
+  };
+
+  const handleAppleSignUp = async () => {
+    try {
+      setLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        CustomInAppToast.show({ type: 'error', title: 'Apple Sign-Up Failed', message: 'No token received.' });
+        return;
+      }
+      await signInWithApple(credential.identityToken, credential.fullName, referralCode);
+      CustomInAppToast.show({ type: 'success', title: 'Welcome to Shopyos!', message: 'Account created with Apple.' });
+      resetToRoute('/role');
+    } catch (error: any) {
+      if (error.code !== 'ERR_REQUEST_CANCELED') {
+        if (/referral code/i.test(error.message || '')) {
+          setErrors(prev => ({ ...prev, referralCode: error.message }));
+        }
+        CustomInAppToast.show({ type: 'error', title: 'Apple Sign-Up Failed', message: error.message || 'Something went wrong.' });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
   
   const content = (
@@ -359,6 +396,18 @@ const RegisterScreen = () => {
             <Ionicons name="logo-google" size={18} color={C.muted} style={{ marginRight: 8 }} />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
+          {/* Continue with Apple — iOS only, per Apple's own button design */}
+          {appleAuthAvailable && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+              buttonStyle={resolvedTheme === 'dark'
+                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={styles.googleButton.borderRadius as number}
+              style={styles.appleButton}
+              onPress={handleAppleSignUp}
+            />
+          )}
           {/* Already registered */}
           <TouchableOpacity
             accessibilityLabel="Sign in to existing account"
@@ -398,7 +447,7 @@ const RegisterScreen = () => {
       colors={[C.bg, C.bg]}
       style={{ flex: 1 }}
     >
-      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* ✅ KeyboardAvoidingView only on iOS; on Android just render content directly */}
         {Platform.OS === 'ios' ? (
@@ -520,6 +569,7 @@ const getStyles = (C: LegacyPalette) => StyleSheet.create({
     marginBottom: 4,
   },
   googleButtonText: { color: C.body, fontSize: 16, fontWeight: '600' },
+  appleButton: { width: '100%', height: 45, marginBottom: 4 },
   fieldError: { color: '#DC2626', fontSize: 12, marginTop: -8, marginBottom: 8, paddingHorizontal: 16 },
   buttonDisabled: { opacity: 0.5 },
 });

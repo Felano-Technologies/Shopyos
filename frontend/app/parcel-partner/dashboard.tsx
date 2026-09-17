@@ -145,7 +145,7 @@ export default function ParcelPartnerDashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>

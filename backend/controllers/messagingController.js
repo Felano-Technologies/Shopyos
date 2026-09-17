@@ -252,6 +252,8 @@ const sendMessage = async (req, res, next) => {
             id,
             content,
             sender_id,
+            message_type,
+            attachment_url,
             sender:sender_id (
               id,
               user_profiles (full_name)

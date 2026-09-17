@@ -24,6 +24,7 @@ import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from '@/store/cartStore';
 import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useFavorites';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useOnboarding } from '@/context/OnboardingContext';
@@ -383,6 +384,7 @@ export default function SearchScreen() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { requireAuth } = useRequireAuth();
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -471,17 +473,19 @@ export default function SearchScreen() {
   const handleToggleFavorite = useCallback((item: any) => {
     const productId = String(item._id || item.id || '');
     if (!productId || favoriteBusyId === productId) return;
-    setFavoriteBusyId(productId);
-    const onSettled = () => setFavoriteBusyId(null);
-    if (favoriteIds.has(productId)) {
-      removeFavoriteMutation.mutate(productId, { onSettled });
-      return;
-    }
-    addFavoriteMutation.mutate(productId, {
-      onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
-      onSettled,
-    });
-  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation]);
+    requireAuth(() => {
+      setFavoriteBusyId(productId);
+      const onSettled = () => setFavoriteBusyId(null);
+      if (favoriteIds.has(productId)) {
+        removeFavoriteMutation.mutate(productId, { onSettled });
+        return;
+      }
+      addFavoriteMutation.mutate(productId, {
+        onSuccess: () => CustomInAppToast.show({ type: 'success', title: 'Added to favourites', message: item.name || '' }),
+        onSettled,
+      });
+    }, { message: 'Sign in to save favourites.' });
+  }, [favoriteBusyId, favoriteIds, removeFavoriteMutation, addFavoriteMutation, requireAuth]);
 
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];

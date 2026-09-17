@@ -46,8 +46,8 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
   const meterLevels = useRef<number[]>(new Array(NUM_BARS).fill(4)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const meteringRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const meteringRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef(0);
 
   // Slide-in animation on mount

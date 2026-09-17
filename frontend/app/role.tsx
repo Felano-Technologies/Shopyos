@@ -168,7 +168,7 @@ const RoleSelectionScreen = () => {
   };
   return (
     <View style={styles.container}>
-      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
       <SafeAreaView style={{ flex: 1, width: '100%' }}>
         <ScrollView
           showsVerticalScrollIndicator={false}

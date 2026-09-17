@@ -84,7 +84,7 @@ const ForgotPasswordScreen = () => {
       keyboardShouldPersistTaps="handled"
       bounces={false}
     >
-      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
 
       <AppImage
         source={require('../assets/images/forgotpassword.png')}

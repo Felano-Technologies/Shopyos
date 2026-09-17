@@ -85,7 +85,7 @@ export default function ParcelPartnerSettings() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.headerGradient[0]} />
+      <StatusBar style="light" />
 
       {/* Header */}
       <LinearGradient colors={colors.headerGradient} style={styles.header}>

@@ -24,6 +24,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import LocationPickerModal from '@/components/LocationPickerModal';
 import { useLocationStore } from '@/store/locationStore';
 import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 type CartItem = {
   id: string;
@@ -155,6 +156,7 @@ export default function CartScreen() {
   const removeFromCart = useCart((s) => s.removeFromCart);
   const updateQuantity = useCart((s) => s.updateQuantity);
   const deliveryCoords = useLocationStore((s) => s.coords);
+  const { requireAuth } = useRequireAuth();
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [cartAds, setCartAds] = useState<HeroAd[]>([]);
@@ -166,13 +168,13 @@ export default function CartScreen() {
   // see components/LocationPickerModal.tsx and store/locationStore.ts.
   const [mapVisible, setMapVisible] = useState(false);
 
-  const handleCheckoutPress = () => {
+  const handleCheckoutPress = () => requireAuth(() => {
     if (deliveryCoords) {
       router.push('/checkout' as any);
     } else {
       setMapVisible(true);
     }
-  };
+  }, { redirect: '/cart', message: 'Sign in to check out.' });
 
   useEffect(() => {
     (async () => {
@@ -237,7 +239,7 @@ export default function CartScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" backgroundColor={colors.primary} />
+      <StatusBar style="light" />
       <LinearGradient colors={colors.headerGradient} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
           <View style={styles.headerRow}>
