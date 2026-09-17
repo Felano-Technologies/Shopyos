@@ -167,7 +167,9 @@
       "expo-video",
       "expo-audio",
       "expo-asset",
-      "expo-image"
+      "expo-image",
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
