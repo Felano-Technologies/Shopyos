@@ -446,10 +446,14 @@ async function submitLivenessAttempt(req, res) {
       appVersion,
     });
 
-    // A passing SERVER-COMPUTED attempt only reaches 'complete' — evidence
-    // for admin review. It is the admin who moves this to 'verified'.
+    // Liveness attempts are recorded as evidence for admin review — the
+    // step itself always completes once an attempt is submitted, rather
+    // than gating on the anti-spoof verdict. The anti-spoof model was
+    // producing false failures that left applicants stuck re-submitting;
+    // `passed`/`antiSpoofScore` stay on the attempt record for the admin
+    // to review and reject manually if a submission actually looks spoofed.
     await repositories.verification.upsertStep(application.id, 'liveness', {
-      status: analysis.passed ? 'complete' : 'in_progress',
+      status: 'complete',
     });
 
     return ApiResponse.created(res, { ...attempt, analysis: {

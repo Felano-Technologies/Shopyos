@@ -169,7 +169,7 @@ const StepEditor: React.FC<{ applicationId: string; step: any; onSaved: () => vo
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-semibold text-body capitalize">{step.step_key.replace(/_/g, ' ')}</span>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STEP_STATUS_COLOR[step.status] || 'bg-gray-50 text-gray-600'}`}>
-          {notStarted ? 'Not received' : step.status.replace(/_/g, ' ')}
+          {notStarted ? 'Not received' : step.step_key === 'liveness' ? 'Submitted' : step.status.replace(/_/g, ' ')}
         </span>
       </div>
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
@@ -397,20 +397,40 @@ export const ApplicationVerificationPanel: React.FC<{
       </div>
 
       <p className="text-xs text-subtle uppercase font-semibold mb-2">Documents</p>
-      {(detail.documents || []).length > 0 ? (
-        <div className="flex flex-col gap-2 mb-4">
-          {detail.documents.map((doc: any) => (
-            <button
-              key={doc.id}
-              onClick={() => viewDocument(doc.id)}
-              className="flex items-center justify-between px-3 py-2 rounded-lg border border-border text-sm text-body hover:border-navy/30 hover:bg-surface-muted transition-colors text-left"
-            >
-              <span className="capitalize">{doc.document_type.replace(/_/g, ' ')} ({doc.status})</span>
-              <FiEye className="w-4 h-4 text-subtle" />
-            </button>
-          ))}
-        </div>
-      ) : (
+      {(detail.documents || []).length > 0 ? (() => {
+        // `detail.documents` is sorted newest-first; re-uploads keep the old
+        // row for history (see VerificationRepository.replaceDocument), so
+        // de-dupe to the latest per document_type here — otherwise a stale
+        // re-uploaded version can sit above/beside the current one with an
+        // identical label and make the current upload look "missing".
+        const seen = new Set<string>();
+        const latestDocs = detail.documents.filter((doc: any) => {
+          if (seen.has(doc.document_type)) return false;
+          seen.add(doc.document_type);
+          return true;
+        });
+        const olderCount = detail.documents.length - latestDocs.length;
+        return (
+          <div className="flex flex-col gap-2 mb-4">
+            {latestDocs.map((doc: any) => (
+              <button
+                key={doc.id}
+                onClick={() => viewDocument(doc.id)}
+                className="flex items-center justify-between px-3 py-2 rounded-lg border border-border text-sm text-body hover:border-navy/30 hover:bg-surface-muted transition-colors text-left"
+              >
+                <span className="capitalize">
+                  {doc.document_type.replace(/_/g, ' ')} ({doc.status})
+                  {doc.uploaded_at && <span className="text-subtle normal-case"> — {new Date(doc.uploaded_at).toLocaleString()}</span>}
+                </span>
+                <FiEye className="w-4 h-4 text-subtle" />
+              </button>
+            ))}
+            {olderCount > 0 && (
+              <p className="text-xs text-subtle italic">{olderCount} older re-uploaded version{olderCount > 1 ? 's' : ''} hidden</p>
+            )}
+          </div>
+        );
+      })() : (
         <p className="text-sm text-secondary mb-4">No documents received.</p>
       )}
 

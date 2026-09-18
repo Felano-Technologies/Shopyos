@@ -232,7 +232,8 @@ class VerificationRepository extends BaseRepository {
       .select('*')
       .eq('parent_type', parentType)
       .eq('parent_id', parentId)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .order('uploaded_at', { ascending: false });
     if (error) throw error;
     return data || [];
   }

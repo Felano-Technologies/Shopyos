@@ -7,6 +7,7 @@ import { View, Text, TouchableOpacity, Modal, Platform, StyleSheet } from 'react
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useThemeStore } from '@/store/themeStore';
 import { FieldLabel, getSharedStyles } from './FormControls';
 
 function formatDate(d: Date): string {
@@ -32,6 +33,7 @@ export const DateField: React.FC<{
   maximumDate?: Date;
 }> = ({ label, value, onChange, fallbackYearsFromNow = -18, minimumDate, maximumDate }) => {
   const colors = useThemeColors();
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const styles = getSharedStyles(colors);
   const [open, setOpen] = useState(false);
 
@@ -72,6 +74,7 @@ export const DateField: React.FC<{
                 maximumDate={maximumDate}
                 onChange={handleChange}
                 textColor={colors.text}
+                themeVariant={resolvedTheme}
               />
               <TouchableOpacity style={dateModalStyles.doneBtn} onPress={() => setOpen(false)}>
                 <Text style={[dateModalStyles.doneText, { color: colors.primary }]}>Done</Text>
