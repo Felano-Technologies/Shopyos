@@ -1,0 +1,16 @@
+diff --git a/node_modules/react-native-agora/android/build.gradle b/node_modules/react-native-agora/android/build.gradle
+index 8e41e96..fcf7903 100644
+--- a/node_modules/react-native-agora/android/build.gradle
++++ b/node_modules/react-native-agora/android/build.gradle
+@@ -166,7 +166,10 @@ dependencies {
+   implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
+   /// dependencies start
+   api 'io.agora.rtc:full-sdk:4.6.4'
+-  implementation 'io.agora.rtc:full-screen-sharing:4.6.4'
++  // full-screen-sharing intentionally removed (patched via patches/) — the app
++  // has no screen-share feature, and this module was the sole source of the
++  // undeclared FOREGROUND_SERVICE_MEDIA_PROJECTION permission Google Play
++  // flagged on upload. See patches/react-native-agora+*.patch.
+   api 'io.agora.rtc:iris-rtc:4.6.4-build.6'
+   /// dependencies end
+ }
