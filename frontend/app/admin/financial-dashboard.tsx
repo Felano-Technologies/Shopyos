@@ -31,7 +31,7 @@ type FinancialSummary = {
   revenue: {
     grand_total: number;
     sources: {
-      buyer_protection_fees: { total: number };
+      marketplace_fees: { total: number };
       ad_revenue: { total: number };
       platform_commission: { total: number };
       delivery_fees_retained: { total: number };
@@ -54,7 +54,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const isValidDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(s).getTime());
 
 const SOURCE_ROWS = [
-  { key: 'buyer_protection_fees', label: 'Buyer Protection Fees' },
+  { key: 'marketplace_fees', label: 'Marketplace Fees' },
   { key: 'platform_commission', label: 'Platform Commission' },
   { key: 'hub_commission', label: 'Hub Commission' },
   { key: 'delivery_fees_retained', label: 'Delivery Fees Retained' },

@@ -891,11 +891,31 @@ async function approveApplication(req, res) {
       return ApiResponse.error(res, 'Not all required steps are verified yet', 400);
     }
 
+    // An admin approving here is a deliberate bypass of the seller/driver
+    // ever clicking "submit" — every required step is already verified, so
+    // there's nothing left for submission to gate on. Without creating the
+    // entity here too, approval flips verification_applications.status to
+    // 'approved' with entity_id still null: no stores/driver_profiles row
+    // ever exists, so the app is invisible in the Stores list and, since the
+    // in-progress list filters on entity_id IS NULL (not status), it also
+    // never leaves "Applications in progress".
+    let entityId = application.entity_id;
+    if (!entityId && application.role === 'seller') {
+      const store = await _createStoreFromApplication(application, steps, application.user_id);
+      entityId = store.id;
+    } else if (!entityId && application.role === 'driver') {
+      const profile = await _createDriverProfileFromApplication(application, steps, application.user_id);
+      entityId = profile.id;
+    }
+
     const updated = await repositories.verification.updateApplication(application.id, {
       status: 'approved',
+      entity_id: entityId,
+      submitted_at: application.submitted_at || new Date().toISOString(),
       reviewed_at: new Date().toISOString(),
       reviewed_by: req.user.id,
     });
+    application.entity_id = entityId;
 
     // Additive (upsert) — does not clear the user's other roles, so an
     // approved seller who is also a pending/approved driver keeps both

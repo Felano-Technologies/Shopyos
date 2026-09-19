@@ -70,8 +70,8 @@ const getPublicFeeConfigs = async (req, res, next) => {
       'delivery_intra_max_fee',
       'delivery_inter_min_fee',
       'last_mile_default_fee',
-      'buyer_protection_pct',
-      'buyer_protection_enabled',
+      'marketplace_fee_pct',
+      'marketplace_fee_enabled',
       'bargain_max_rounds',
       'bargain_checkout_window_hours',
       'flash_sale_min_discount_pct'

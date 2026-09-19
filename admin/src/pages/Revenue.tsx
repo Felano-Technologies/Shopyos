@@ -9,7 +9,7 @@ type RevenueBreakdown = {
   reserve_balance: number;
   sources: {
     platform_commission: { total: number };
-    buyer_protection_fees: { total: number; order_count: number };
+    marketplace_fees: { total: number; order_count: number };
     delivery_fees_retained: { total: number };
     ad_revenue: { total: number; banner_revenue: number; promoted_product_spend: number; active_campaigns: number };
   };
@@ -60,7 +60,7 @@ export const Revenue: React.FC = () => {
   const cards = breakdown ? [
     { label: 'Grand Total', value: breakdown.grand_total, icon: <FiDollarSign className="w-4 h-4" />, iconBg: 'bg-navy/10 text-navy', accent: 'bg-navy' },
     { label: 'Platform Commission', value: breakdown.sources.platform_commission.total, icon: <FiPieChart className="w-4 h-4" />, iconBg: 'bg-blue-50 text-blue-600', accent: 'bg-blue-500' },
-    { label: 'Buyer Protection Fees', value: breakdown.sources.buyer_protection_fees.total, icon: <FiShield className="w-4 h-4" />, iconBg: 'bg-purple-50 text-purple-600', accent: 'bg-purple-500' },
+    { label: 'Marketplace Fees', value: breakdown.sources.marketplace_fees.total, icon: <FiShield className="w-4 h-4" />, iconBg: 'bg-purple-50 text-purple-600', accent: 'bg-purple-500' },
     { label: 'Delivery Fees Retained', value: breakdown.sources.delivery_fees_retained.total, icon: <FiTruck className="w-4 h-4" />, iconBg: 'bg-green-50 text-green-600', accent: 'bg-green-500' },
     { label: 'Ad Revenue', value: breakdown.sources.ad_revenue.total, icon: <FiTrendingUp className="w-4 h-4" />, iconBg: 'bg-amber-50 text-amber-600', accent: 'bg-amber-500' },
     { label: 'Platform Reserve', value: breakdown.reserve_balance, icon: <FiLock className="w-4 h-4" />, iconBg: 'bg-rose-50 text-rose-600', accent: 'bg-rose-500' },

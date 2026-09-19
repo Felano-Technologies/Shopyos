@@ -8,7 +8,7 @@ import { getAdminFeeConfigs, updateAdminFeeConfig, getAdminFeeConfigAudit } from
 import { extractErrorMessage } from '../services/client';
 import { ListRowsSkeleton } from '../components/common/ListRowsSkeleton';
 
-type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale' | 'loyalty';
+type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'marketplace_fee' | 'bargaining' | 'flash_sale' | 'loyalty';
 type TabKey = Category;
 type ConfigType = 'percentage' | 'fixed' | 'multiplier' | 'integer';
 
@@ -38,7 +38,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'delivery', label: 'Delivery', icon: FiTruck },
   { key: 'advertising', label: 'Ads', icon: FiTrendingUp },
   { key: 'payout', label: 'Payouts', icon: FiCreditCard },
-  { key: 'buyer_protection', label: 'Protection', icon: FiShield },
+  { key: 'marketplace_fee', label: 'Marketplace Fee', icon: FiShield },
   { key: 'bargaining', label: 'Bargain', icon: FiUsers },
   { key: 'flash_sale', label: 'Flash Sale', icon: FiZap },
   { key: 'loyalty', label: 'Loyalty', icon: FiStar },

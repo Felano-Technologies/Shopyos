@@ -8,7 +8,7 @@ const unwrap = (data: any) => ({ ...data, ...(data?.data || {}) });
 export const getPublicFeeConfigs = async (): Promise<Record<string, number | boolean>> => {
   try {
     const response = await api.get('/fee-config/public');
-    // Backend returns a plain object with already-cast values: { buyer_protection_pct: 2.5, buyer_protection_enabled: true, ... }
+    // Backend returns a plain object with already-cast values: { marketplace_fee_pct: 2.5, marketplace_fee_enabled: true, ... }
     return (response.data.configs ?? {}) as Record<string, number | boolean>;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

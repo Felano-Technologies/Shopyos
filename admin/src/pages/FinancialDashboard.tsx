@@ -11,7 +11,7 @@ type FinancialSummary = {
   revenue: {
     grand_total: number;
     sources: {
-      buyer_protection_fees: { total: number };
+      marketplace_fees: { total: number };
       ad_revenue: { total: number };
       platform_commission: { total: number };
       delivery_fees_retained: { total: number };
@@ -64,7 +64,7 @@ export const FinancialDashboard: React.FC = () => {
   const netProfit = summary?.net_profit ?? 0;
 
   const revenueSourceRows = summary ? [
-    { label: 'Buyer Protection Fees', value: summary.revenue.sources.buyer_protection_fees.total },
+    { label: 'Marketplace Fees', value: summary.revenue.sources.marketplace_fees.total },
     { label: 'Platform Commission', value: summary.revenue.sources.platform_commission.total },
     { label: 'Hub Commission', value: summary.revenue.sources.hub_commission.total },
     { label: 'Delivery Fees Retained', value: summary.revenue.sources.delivery_fees_retained.total },

@@ -23,7 +23,7 @@ type TrendPoint = { date: string; revenue: number };
 type RevenueBreakdown = {
   sources: {
     platform_commission: { total: number };
-    buyer_protection_fees: { total: number };
+    marketplace_fees: { total: number };
     delivery_fees_retained: { total: number };
     ad_revenue: { total: number };
   };
@@ -48,7 +48,7 @@ const STATUS_PILL: Record<string, string> = {
 
 const PIE_COLORS = {
   commission: '#0C1559',
-  buyerProtection: '#84cc16',
+  marketplaceFee: '#84cc16',
   delivery: '#3b82f6',
   ads: '#f59e0b',
 };
@@ -180,7 +180,7 @@ export const DashboardOverview: React.FC = () => {
 
   const pieData = breakdown ? [
     { name: 'Commission', value: breakdown.sources.platform_commission.total, color: PIE_COLORS.commission },
-    { name: 'Buyer Protection', value: breakdown.sources.buyer_protection_fees.total, color: PIE_COLORS.buyerProtection },
+    { name: 'Marketplace Fee', value: breakdown.sources.marketplace_fees.total, color: PIE_COLORS.marketplaceFee },
     { name: 'Delivery Fees', value: breakdown.sources.delivery_fees_retained.total, color: PIE_COLORS.delivery },
     { name: 'Ad Revenue', value: breakdown.sources.ad_revenue.total, color: PIE_COLORS.ads },
   ].filter((d) => d.value > 0) : [];

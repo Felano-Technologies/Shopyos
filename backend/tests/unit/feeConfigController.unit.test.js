@@ -160,16 +160,16 @@ describe('feeConfigController Unit Tests', () => {
 
     test('test_updateFeeConfig_zeroValue_isValid', async () => {
       // Arrange — 0 is a valid value (e.g., disabling a fee)
-      req.params = { key: 'buyer_protection_fee' };
+      req.params = { key: 'marketplace_fee_pct' };
       req.body = { value: 0 };
-      const updatedConfig = { config_key: 'buyer_protection_fee', config_value: '0.0000' };
+      const updatedConfig = { config_key: 'marketplace_fee_pct', config_value: '0.0000' };
       mockUpdate.mockResolvedValueOnce(updatedConfig);
 
       // Act
       await updateFeeConfig(req, res, next);
 
       // Assert
-      expect(mockUpdate).toHaveBeenCalledWith('buyer_protection_fee', 0, 'admin-uuid', undefined);
+      expect(mockUpdate).toHaveBeenCalledWith('marketplace_fee_pct', 0, 'admin-uuid', undefined);
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -240,8 +240,8 @@ describe('feeConfigController Unit Tests', () => {
           delivery_intra_min_fee: 5,
           delivery_intra_max_fee: 30,
           delivery_inter_min_fee: 15,
-          buyer_protection_pct: 2.5,
-          buyer_protection_enabled: true,
+          marketplace_fee_pct: 2.5,
+          marketplace_fee_enabled: true,
           bargain_max_rounds: 3,
           bargain_checkout_window_hours: 1,
           flash_sale_min_discount_pct: 10,

@@ -588,7 +588,7 @@ const OrderDetailsScreen = () => {
               <Text style={S.priceVal}>{deliveryFee > 0 ? formatCurrency(deliveryFee) : 'Free'}</Text>
             </View>
             <View style={S.priceRow}>
-              <Text style={S.priceLbl}>Buyer Protection Fee</Text>
+              <Text style={S.priceLbl}>Marketplace Fee</Text>
               <Text style={S.priceVal}>{formatCurrency(taxAmount)}</Text>
             </View>
             {discount > 0 && (

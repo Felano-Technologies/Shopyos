@@ -85,16 +85,12 @@ class FeeConfigService {
   }
 
   /**
-   * Buyer protection fee as a percentage of the order subtotal, clamped
-   * between a minimum and maximum — a flat fee is unfair across a wide price
-   * range (a fixed ₵2 covers almost nothing on a costly, fragile item, but
-   * over-charges a cheap one), and a pure percentage would round to near
-   * nothing on very cheap items, so both a floor and a cap apply.
+   * Marketplace fee as a flat percentage of the order subtotal.
    * @param {number} subtotal - Order (or per-store) subtotal the fee is based on
    * @returns {Promise<number>} Fee amount, rounded to 2 decimal places
    */
-  async calcBuyerProtectionFee(subtotal) {
-    const pct = await this.get('buyer_protection_pct', 2.5);
+  async calcMarketplaceFee(subtotal) {
+    const pct = await this.get('marketplace_fee_pct', 2.5);
     const raw = (Number(subtotal) || 0) * pct / 100;
     return Number(raw.toFixed(2));
   }

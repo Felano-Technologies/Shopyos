@@ -170,8 +170,8 @@ export default function CheckoutScreen() {
   const [usePoints, setUsePoints] = useState(false);
   const [loyaltyExpanded, setLoyaltyExpanded] = useState(false);
 
-  // Buyer protection fee from platform config (0 until loaded so nothing incorrect shows during loading)
-  const [buyerProtectionFee, setBuyerProtectionFee] = useState<number>(0);
+  // Marketplace fee from platform config (0 until loaded so nothing incorrect shows during loading)
+  const [marketplaceFee, setMarketplaceFee] = useState<number>(0);
 
   // Delivery fee state — one quote per store
   const [storeQuotes, setStoreQuotes] = useState<Record<string, StoreQuote>>({});
@@ -340,7 +340,7 @@ export default function CheckoutScreen() {
   // falls back to 15 only if no quote has resolved yet.
   const lastMileFee = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.lastMileFee ?? 15) : 15;
 
-  const tax = buyerProtectionFee;
+  const tax = marketplaceFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const pointsDiscount = usePoints ? loyaltyValue : 0;
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
@@ -360,16 +360,16 @@ export default function CheckoutScreen() {
         ]);
 
         if (feeConfigs) {
-          const protEnabled = feeConfigs['buyer_protection_enabled'] !== false;
-          if (protEnabled) {
+          const marketplaceFeeEnabled = feeConfigs['marketplace_fee_enabled'] !== false;
+          if (marketplaceFeeEnabled) {
             // Flat percentage of subtotal, no floor/ceiling — must match the
             // same calc in backend/services/feeConfigService.js so the total
             // shown here matches what's actually charged at order creation.
-            const pct = Number(feeConfigs['buyer_protection_pct'] ?? 2.5);
+            const pct = Number(feeConfigs['marketplace_fee_pct'] ?? 2.5);
             const raw = subtotal * pct / 100;
-            setBuyerProtectionFee(Number(raw.toFixed(2)));
+            setMarketplaceFee(Number(raw.toFixed(2)));
           } else {
-            setBuyerProtectionFee(0);
+            setMarketplaceFee(0);
           }
         }
 
@@ -657,7 +657,7 @@ export default function CheckoutScreen() {
                 <Text style={S.summaryItemPrice}>{formatCurrency(subtotal)}</Text>
               </View>
               <View style={S.summaryRow}>
-                <Text style={S.summaryItemName}>Buyer Protection Fee</Text>
+                <Text style={S.summaryItemName}>Marketplace Fee</Text>
                 <Text style={S.summaryItemPrice}>{formatCurrency(tax)}</Text>
               </View>
               <View style={S.summaryRow}>

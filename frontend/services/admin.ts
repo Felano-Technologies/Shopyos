@@ -353,7 +353,7 @@ export interface PlatformFeeConfig {
   config_key: string;
   config_value: string;
   config_type: 'percentage' | 'fixed' | 'multiplier' | 'integer';
-  category: 'commission' | 'delivery' | 'advertising' | 'payout' | 'bargaining' | 'buyer_protection' | 'flash_sale';
+  category: 'commission' | 'delivery' | 'advertising' | 'payout' | 'bargaining' | 'marketplace_fee' | 'flash_sale';
   label: string;
   description?: string;
   min_value?: string;

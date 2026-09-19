@@ -59,7 +59,7 @@ const STAT_CARDS = [
 ];
 
 const SOURCE_CARDS = [
-  { key: 'buyer_protection_fees', label: 'Buyer Protection', icon: 'shield-checkmark', color: '#1E40AF', bg: '#DBEAFE' },
+  { key: 'marketplace_fees', label: 'Marketplace Fee', icon: 'shield-checkmark', color: '#1E40AF', bg: '#DBEAFE' },
   { key: 'ad_revenue', label: 'Ad Revenue', icon: 'megaphone', color: '#65A30D', bg: '#ECFCCB' },
   { key: 'platform_commission', label: 'Commission', icon: 'trending-up', color: '#2563EB', bg: '#DBEAFE' },
   { key: 'delivery_fees_retained', label: 'Delivery Retained', icon: 'car', color: '#EA580C', bg: '#FED7AA' },
@@ -212,7 +212,7 @@ export default function AdminRevenue() {
               datasets: breakdown.chart.datasets.map((ds: any) => ({
                 ...ds,
                 color: () =>
-                  ds.label === 'Buyer Protection' ? '#1E40AF' :
+                  ds.label === 'Marketplace Fee' ? '#1E40AF' :
                   ds.label === 'Ad Revenue' ? '#65A30D' :
                   ds.label === 'Commission' ? '#2563EB' : '#EA580C',
               })),

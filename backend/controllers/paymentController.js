@@ -46,26 +46,26 @@ const fulfillPayment = async (orderId, paystackData) => {
             `UPDATE orders
              SET status = 'paid', escrow_status = 'HELD', updated_at = NOW()
              WHERE id = $1
-             RETURNING buyer_protection_fee`,
+             RETURNING marketplace_fee`,
             [orderId]
         );
 
-        // Credit the buyer protection fee into the platform reserve now that
+        // Credit the marketplace fee into the platform reserve now that
         // the money has actually landed — this reserve funds post-delivery
         // refunds instead of clawing back from the seller's paid-out balance.
-        const protectionFee = Number.parseFloat(orderRows[0]?.buyer_protection_fee || 0);
-        if (protectionFee > 0) {
+        const marketplaceFee = Number.parseFloat(orderRows[0]?.marketplace_fee || 0);
+        if (marketplaceFee > 0) {
             const { rows: reserveRows } = await client.query(
                 `UPDATE platform_reserve SET balance = balance + $1, updated_at = NOW()
                  RETURNING id, balance`,
-                [protectionFee]
+                [marketplaceFee]
             );
             const reserve = reserveRows[0];
             if (reserve) {
                 await client.query(
                     `INSERT INTO reserve_logs (amount, transaction_type, order_id, balance_after, notes)
-                     VALUES ($1, 'protection_fee_collected', $2, $3, 'Buyer protection fee collected at payment')`,
-                    [protectionFee, orderId, reserve.balance]
+                     VALUES ($1, 'marketplace_fee_collected', $2, $3, 'Marketplace fee collected at payment')`,
+                    [marketplaceFee, orderId, reserve.balance]
                 );
             }
         }

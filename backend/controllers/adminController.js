@@ -871,7 +871,7 @@ async function computeRevenueForRange(db, startDate, endDate = new Date()) {
       SELECT
         COUNT(o.id) AS order_count,
         COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee,
-        COALESCE(SUM(o.buyer_protection_fee), 0) AS total_buyer_protection
+        COALESCE(SUM(o.marketplace_fee), 0) AS total_marketplace_fee
       FROM orders o
       WHERE o.status IN ('completed', 'delivered')
         AND o.created_at >= $1 AND o.created_at <= $2
@@ -925,7 +925,7 @@ async function computeRevenueForRange(db, startDate, endDate = new Date()) {
     db.query(`
       SELECT
         TO_CHAR(DATE_TRUNC('month', o.created_at), 'Mon') AS label,
-        COALESCE(SUM(o.platform_fee), 0) AS buyer_protection,
+        COALESCE(SUM(o.platform_fee), 0) AS marketplace_fee,
         COALESCE(SUM(o.platform_fee), 0) AS commission
       FROM orders o
       WHERE o.status IN ('completed', 'delivered')
@@ -954,32 +954,32 @@ async function computeRevenueForRange(db, startDate, endDate = new Date()) {
   const deliveryRetained = parseFloat(deliveryResult.rows[0]?.delivery_retained || 0);
   const hubCommission = Math.max(0, parseFloat(hubResult.rows[0]?.hub_commission || 0));
 
-  // Real, tracked figure now (orders.buyer_protection_fee), not an estimate.
-  const buyerProtectionTotal = parseFloat(ordersResult.rows[0]?.total_buyer_protection || 0);
-  const platformCommission = totalPlatformFee - buyerProtectionTotal;
+  // Real, tracked figure now (orders.marketplace_fee), not an estimate.
+  const marketplaceFeeTotal = parseFloat(ordersResult.rows[0]?.total_marketplace_fee || 0);
+  const platformCommission = totalPlatformFee - marketplaceFeeTotal;
   const adRevenue = bannerRevenue + promotedSpend;
 
   const chartLabels = [];
-  const chartBuyerProtection = [];
+  const chartMarketplaceFee = [];
   const chartAdRevenue = [];
   const chartCommission = [];
 
   (chartResult.rows || []).forEach(row => {
     chartLabels.push(row.label);
-    const bp = buyerProtectionTotal > 0 && orderCount > 0
-      ? (parseFloat(row.buyer_protection) * buyerProtectionTotal / totalPlatformFee)
+    const mf = marketplaceFeeTotal > 0 && orderCount > 0
+      ? (parseFloat(row.marketplace_fee) * marketplaceFeeTotal / totalPlatformFee)
       : 0;
-    chartBuyerProtection.push(Math.round(bp * 100) / 100);
+    chartMarketplaceFee.push(Math.round(mf * 100) / 100);
     chartAdRevenue.push(adRevenue > 0 ? adRevenue / Math.max(chartResult.rows.length, 1) : 0);
-    chartCommission.push(parseFloat(row.commission) - bp);
+    chartCommission.push(parseFloat(row.commission) - mf);
   });
 
-  const grandTotal = Math.round((buyerProtectionTotal + adRevenue + platformCommission + deliveryRetained + hubCommission) * 100) / 100;
+  const grandTotal = Math.round((marketplaceFeeTotal + adRevenue + platformCommission + deliveryRetained + hubCommission) * 100) / 100;
 
   return {
     reserve_balance: Math.round(reserveBalance * 100) / 100,
     sources: {
-      buyer_protection_fees: { total: buyerProtectionTotal, order_count: orderCount },
+      marketplace_fees: { total: marketplaceFeeTotal, order_count: orderCount },
       ad_revenue: {
         total: adRevenue,
         banner_revenue: Math.round(bannerRevenue * 100) / 100,
@@ -994,7 +994,7 @@ async function computeRevenueForRange(db, startDate, endDate = new Date()) {
     chart: {
       labels: chartLabels,
       datasets: [
-        { label: 'Buyer Protection', data: chartBuyerProtection },
+        { label: 'Marketplace Fee', data: chartMarketplaceFee },
         { label: 'Ad Revenue', data: chartAdRevenue.map(() => Math.round(adRevenue / Math.max(chartLabels.length, 1) * 100) / 100) },
         { label: 'Commission', data: chartCommission.map(v => Math.round(v * 100) / 100) },
       ],

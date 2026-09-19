@@ -28,14 +28,14 @@ import {
 } from '@/services/admin';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale' | 'loyalty';
+type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'marketplace_fee' | 'bargaining' | 'flash_sale' | 'loyalty';
 
 const CATEGORIES: { key: Category; label: string; icon: string }[] = [
   { key: 'commission', label: 'Commission', icon: 'percent' },
   { key: 'delivery', label: 'Delivery', icon: 'truck' },
   { key: 'advertising', label: 'Ads', icon: 'trending-up' },
   { key: 'payout', label: 'Payouts', icon: 'credit-card' },
-  { key: 'buyer_protection', label: 'Protection', icon: 'shield' },
+  { key: 'marketplace_fee', label: 'Marketplace Fee', icon: 'shield' },
   { key: 'bargaining', label: 'Bargain', icon: 'users' },
   { key: 'flash_sale', label: 'Flash', icon: 'zap' },
   { key: 'loyalty', label: 'Loyalty', icon: 'star' },

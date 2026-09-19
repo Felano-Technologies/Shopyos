@@ -489,7 +489,7 @@ export default function OrderDetailsScreen() {
               </View>
               {order.payment.tax > 0 && (
                 <View style={S.summaryRow}>
-                  <Text style={S.summaryLbl}>Buyer Protection Fee</Text>
+                  <Text style={S.summaryLbl}>Marketplace Fee</Text>
                   <Text style={S.summaryVal}>{formatCurrency(order.payment.tax)}</Text>
                 </View>
               )}

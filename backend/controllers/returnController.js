@@ -330,7 +330,7 @@ const adminActOnReturn = async (req, res, next) => {
           [returnReq.order_id]
       ).catch(e => logger.warn('[Return] cancel balance_log failed:', e.message));
 
-      // Draw from the buyer protection reserve first — the fee collected at
+      // Draw from the marketplace fee reserve first — the fee collected at
       // checkout exists to fund exactly this, so the seller's own payout is
       // left untouched whenever the reserve can cover it. Only the shortfall
       // (if the reserve can't fully cover it) is clawed back from the seller.
@@ -349,7 +349,7 @@ const adminActOnReturn = async (req, res, next) => {
           );
           await db.query(
             `INSERT INTO reserve_logs (amount, transaction_type, order_id, return_request_id, balance_after, notes)
-             VALUES ($1, 'refund_payout', $2, $3, $4, 'Refund drawn from buyer protection reserve')`,
+             VALUES ($1, 'refund_payout', $2, $3, $4, 'Refund drawn from marketplace fee reserve')`,
             [-fromReserve, returnReq.order_id, returnId, newReserveBalance]
           );
         }

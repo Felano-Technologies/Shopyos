@@ -115,7 +115,7 @@ Out of scope: buyer app, driver app, parcel-partner console, and admin console â
 | 8 | On an order's details, tap the customer's Call icon | Opens the phone dialer with the buyer's number |
 | 9 | On an order's details (once a driver is assigned), tap the driver's Chat/Call icons | Opens a conversation / dialer for the driver |
 | 10 | On an order's details, tap "Track on Map" | Opens the delivery tracking map |
-| 11 | Review an order's billing summary (subtotal, buyer protection fee, delivery fee, discount, total, payment method) | Matches the actual order |
+| 11 | Review an order's billing summary (subtotal, marketplace fee, delivery fee, discount, total, payment method) | Matches the actual order |
 
 ### 3.7 Inventory
 
