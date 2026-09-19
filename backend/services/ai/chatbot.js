@@ -2,15 +2,55 @@
 const { logger } = require('../../config/logger');
 const { getGenAI } = require('./core');
 const { SYSTEM_INSTRUCTIONS } = require('./knowledge');
+const { functionDeclarations, registry } = require('./tools');
+const { logToolExecution } = require('./toolLogger');
+
+const MAX_TOOL_ITERATIONS = 5;
+
+/**
+ * Run any function calls the model requested, feed the results back, and
+ * keep looping until the model stops requesting tools (or we hit the cap).
+ * @returns {Promise<import('@google/generative-ai').GenerateContentResult>}
+ */
+async function runToolLoop(chat, result, ctx) {
+  let iterations = 0;
+  while (iterations < MAX_TOOL_ITERATIONS) {
+    const calls = result.response.functionCalls();
+    if (!calls || calls.length === 0) break;
+    iterations++;
+
+    const responses = [];
+    for (const call of calls) {
+      let resultStatus = 'success';
+      let toolResult;
+      try {
+        const tool = registry[call.name];
+        if (!tool) throw new Error(`Unknown tool: ${call.name}`);
+        toolResult = await tool.execute(call.args || {}, ctx);
+        if (toolResult && toolResult.error) resultStatus = 'error';
+      } catch (err) {
+        logger.error(`[Shopyos Bot] Tool execution failed: ${call.name}`, err);
+        toolResult = { error: err.message || 'Tool execution failed' };
+        resultStatus = 'error';
+      }
+      logToolExecution({ userId: ctx.userId, conversationId: ctx.conversationId, toolName: call.name, args: call.args, resultStatus });
+      responses.push({ functionResponse: { name: call.name, response: toolResult } });
+    }
+
+    result = await chat.sendMessage(responses);
+  }
+  return result;
+}
 
 /**
  * Generate a response for the Shopyos Support Bot.
  * @param {string} userId - ID of the user chatting
  * @param {string} newMessage - The latest message from the user
  * @param {Array} history - Array of { sender_id, content } objects (oldest to newest)
+ * @param {string} [conversationId] - ID of the conversation, threaded into tool calls for audit logging
  * @returns {Promise<{ reply: string, isEscalation: boolean }>}
  */
-exports.generateBotReply = async (userId, newMessage, history = []) => {
+exports.generateBotReply = async (userId, newMessage, history = [], conversationId) => {
   const ai = getGenAI();
 
   if (!ai) {
@@ -34,7 +74,8 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
       logger.info(`[Shopyos Bot] Attempting reply generation using model: ${modelName}`);
       const model = ai.getGenerativeModel({
         model: modelName,
-        systemInstruction: SYSTEM_INSTRUCTIONS
+        systemInstruction: SYSTEM_INSTRUCTIONS,
+        tools: [{ functionDeclarations }]
       });
 
       // Format history for Gemini (roles must be 'user' or 'model')
@@ -53,9 +94,14 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
         }
       });
 
-      const result = await chat.sendMessage([{ text: newMessage }]);
+      let result = await chat.sendMessage([{ text: newMessage }]);
+      result = await runToolLoop(chat, result, { userId, conversationId });
+
       let rawReply = result.response.text().trim();
-      
+      if (!rawReply) {
+        rawReply = "I'm having trouble finishing that request right now. Let me pass you to a human agent. [ESCALATE]";
+      }
+
       const isEscalation = rawReply.includes('[ESCALATE]');
       // Strip the escalation tag before showing it to the user
       const finalReply = rawReply.replaceAll('[ESCALATE]', '').trim();

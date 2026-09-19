@@ -1,3 +1,13 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.import.exclusions": [
+        "**/node_modules/**"
+    ],
+    "gradle.nestedProjects": false,
+    "files.watcherExclude": {
+        "**/node_modules/**": true
+    },
+    "search.exclude": {
+        "**/node_modules": true
+    }
 }

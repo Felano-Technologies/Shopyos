@@ -40,6 +40,7 @@ const PromoCodeRepository = require('./PromoCodeRepository');
 const ExpenseRepository = require('./ExpenseRepository');
 const CallRepository = require('./CallRepository');
 const VerificationRepository = require('./VerificationRepository');
+const AiToolExecutionRepository = require('./AiToolExecutionRepository');
 
 
 // Initialize repositories with selected client
@@ -80,6 +81,7 @@ const repositories = {
   expenses: new ExpenseRepository(repositoryClient),
   calls: new CallRepository(repositoryClient),
   verification: new VerificationRepository(repositoryClient),
+  aiToolExecutions: new AiToolExecutionRepository(repositoryClient),
 };
 
 module.exports = repositories;

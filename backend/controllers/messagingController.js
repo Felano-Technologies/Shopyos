@@ -141,7 +141,7 @@ async function handleBotInterceptor(conversationId, userId, finalContent, isMode
   try {
     const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
     history.reverse();
-    const { reply, isEscalation } = await aiService.generateBotReply(userId, finalContent, history);
+    const { reply, isEscalation } = await aiService.generateBotReply(userId, finalContent, history, conversationId);
     const botMessage = await repositories.messages.sendMessage({
       conversationId, senderId: SUPPORT_BOT_ID, content: reply, messageType: 'text'
     });
